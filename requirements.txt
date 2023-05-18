@@ -16,8 +16,8 @@ beautifulsoup4=4.12.2=pyha770c72_0
 bleach=6.0.0=pyhd8ed1ab_0
 brotlipy=0.7.0=py311ha68e1ae_1005
 bzip2=1.0.8=h8ffe710_4
-ca-certificates=2023.5.7=h56e8100_0
-certifi=2023.5.7=pyhd8ed1ab_0
+ca-certificates=2023.01.10=haa95532_0
+certifi=2023.5.7=py311haa95532_0
 cffi=1.15.1=py311h7d9ee11_3
 charset-normalizer=3.1.0=pyhd8ed1ab_0
 colorama=0.4.6=pyhd8ed1ab_0
@@ -32,6 +32,7 @@ entrypoints=0.4=pyhd8ed1ab_0
 executing=1.2.0=pyhd8ed1ab_0
 flit-core=3.9.0=pyhd8ed1ab_0
 glpk=5.0=h8ffe710_0
+gurobi=10.0.1=py311_0
 idna=3.4=pyhd8ed1ab_0
 importlib-metadata=6.6.0=pyha770c72_0
 importlib_metadata=6.6.0=hd8ed1ab_0
