@@ -26,14 +26,29 @@ import math
 import statistics
 from pyomo.opt import SolverStatus, TerminationCondition
 import time
+#from dataclasses import dataclass
+import pdb
 
 #import programs
 import get_data as gd
 
+'''@dataclass
+class EquitableSettings:
+    city:str
+    year:float
+    level:int 
+    beta:int 
+    beta_zero:int=-2 
+    maxpctnew:int=1 
+    time_limit:int=28800
+    out_path:str="results\\"'''
+
+
 #defining the model
 def equal_access(residences, precincts, pop_dict, pop_demographics, neighborhood_dict, res_precinct_pairings, precinct_res_pairings, city, beta, betazero, alpha,capacity, precincts_open, demographic, new_locations, maxpctnew):
     """
-    Build a model to offer a more equitable distribution of polling places.
+    Build a model to offer a more equi
+    table distribution of polling places.
     
     Keyword arguments:
     residences -- ID code for the residents in the a given census block
@@ -450,7 +465,7 @@ def optimize(city, year, level, beta, beta_zero =-2, maxpctnew=1, time_limit=288
     ALPHA = gd.alpha_def(MAX_MIN_DIST, basedist)
 
     #set time limit for run time
-    time_limit = 28800 # 8 hours
+    #time_limit = 28800 # 8 hours
     #time_limit = 1800 # 30 minutes
 
     #placeholder for demographic value
@@ -480,7 +495,7 @@ def optimize(city, year, level, beta, beta_zero =-2, maxpctnew=1, time_limit=288
     print(f"The model has been read in at time {time.time()}.")
 
     #can change the solver
-    solver_name = 'gurobi'
+    solver_name = 'scip'
     #solver_name = 'glpk'
 
     solver = pyo.SolverFactory(solver_name)
@@ -491,7 +506,10 @@ def optimize(city, year, level, beta, beta_zero =-2, maxpctnew=1, time_limit=288
         solver.options['tmlim'] = time_limit
     elif solver_name == 'gurobi':          
         solver.options['TimeLimit'] = time_limit
-
+    elif solver_name == 'scip':          
+#        solver.options['limits/time'] = time_limit
+         solver.options ={ 'limits/time':time_limit,  'limits/gap': 0.0001 }
+        
     start_time = time.time()
     read_time = start_time-timestart
     print(f"\nTime for model to be read in is {read_time:.2f} seconds\n")
@@ -506,7 +524,8 @@ def optimize(city, year, level, beta, beta_zero =-2, maxpctnew=1, time_limit=288
         lower = results['Problem'][0]['Lower bound']
         upper = results['Problem'][0]['Upper bound']
         gap = abs(lower-upper)/abs(upper)
-    elif ((results.solver.status == SolverStatus.aborted) and
+    elif ((results.solver.status == SolverStatus.ok) and #when working with SCIP, reaching time limit results in status okay.
+                                                         #previeous read: SolverStatus.aborted
           (results.solver.termination_condition == TerminationCondition.maxTimeLimit)):
         exit_status = 'Timed Out'
         lower = float(results['Problem'][0]['Lower bound'])
@@ -520,7 +539,6 @@ def optimize(city, year, level, beta, beta_zero =-2, maxpctnew=1, time_limit=288
         gap = 'infinite'
     else:
         print('Solver Status: ',  results.solver.status)
-
 
     solve_report = {'exit_status':exit_status, 'lower_bound':lower, 'upper_bound':upper,
                     'gap':gap, 'solve_time':solve_time}
