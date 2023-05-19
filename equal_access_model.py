@@ -508,7 +508,7 @@ def optimize(city, year, level, beta, beta_zero =-2, maxpctnew=1, time_limit=288
         solver.options['TimeLimit'] = time_limit
     elif solver_name == 'scip':          
 #        solver.options['limits/time'] = time_limit
-         solver.options ={ 'limits/time':time_limit,  'limits/gap': 0.0001 }
+         solver.options ={ 'limits/time':time_limit,  'limits/gap': 0.0001, 'lp/threads':2 }
         
     start_time = time.time()
     read_time = start_time-timestart
