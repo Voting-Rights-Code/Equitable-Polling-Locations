@@ -54,7 +54,7 @@ def equal_access(residences, precincts, pop_dict, pop_demographics, neighborhood
     residences -- ID code for the residents in the a given census block
     precincts -- ID for all possible voting precincts locations
     pop_dict -- Dictionary of residences as keys and respective populations as values
-    pop_demographics -- Dictionary of the residences as keys and population of a demographic as values
+    pop_demographics -- Data frame encoding residence_ids and associated demographic data
     neighborhood_dict -- Dictionary of census blocks (keys) and the precincts (list of values) within ____ meters
     res_precinct_pairings -- the set of precincts in the neighborhood of a residence
     precinct_res_pairings -- the set of residences in the neighborhood of a precinct
@@ -79,6 +79,8 @@ def equal_access(residences, precincts, pop_dict, pop_demographics, neighborhood
     model = pyo.ConcreteModel()
     print(f"Starting to generate variables.")
     #binary variables that correspond to the assignment status of precincts
+    #TODO: Is x and z fixed? specifically, is there any way to rename to be something meaninful for someone not intimately familar
+    #with how pyomo does things?
     model.x = pyo.Var(precincts, domain=pyo.Binary)
     model.z = pyo.Var(list(neighborhood_dict.keys()), domain=pyo.Binary)
     print(f"Variables Generated")
@@ -86,7 +88,9 @@ def equal_access(residences, precincts, pop_dict, pop_demographics, neighborhood
     #objective function (sums over the residences and precincts and seeks to minimize the average distance traveled by
     #residences with an added penalty for residences that are beyond the mean
     print(f"Defining Objective function.")
-    if beta==0:
+    #TODO: what to change how the if else is written (replace with doc string below). Check syntax for model.obj, and that I haven't changed functionality
+
+    '''if beta==0:
         def obj_rule(model):
             return (1/total_pop)*sum(pop_dict[c]*neighborhood_dict[c,s]*model.z[c,s] for c,s in neighborhood_dict)
         model.obj = pyo.Objective(rule=obj_rule, sense=pyo.minimize)
@@ -94,36 +98,63 @@ def equal_access(residences, precincts, pop_dict, pop_demographics, neighborhood
     else:
         def obj_rule(model):
             return ((1/total_pop)*sum(pop_dict[c]*model.z[c,s]*(math.e**(-beta*alpha*neighborhood_dict[c,s])) for c,s in neighborhood_dict))
-        model.obj = pyo.Objective(rule=obj_rule, sense=pyo.minimize)
+        model.obj = pyo.Objective(rule=obj_rule, sense=pyo.minimize)'''
 
+    def obj_rule_0(model):
+        crucial_list = list(
+                            pop_dict[resident_id]*
+                            neighborhood_dict[resident_id,precinct_id]*
+                            model.z[resident_id,precinct_id] 
+                            for resident_id,precinct_id in neighborhood_dict
+                            ) #TODO: figure out what this is an rename
+        average_crucial_list = (1/total_pop)*sum(crucial_list)
+        return (average_crucial_list)
+    def obj_rule_not_0(model):
+        crucial_list = list(
+                            pop_dict[resident_id]*
+                            model.z[resident_id, precinct_id]*
+                            (math.e**(-beta*alpha*neighborhood_dict[resident_id,precinct_id])) 
+                            for resident_id,precinct_id in neighborhood_dict
+                            ) #TODO: figure out what this is an rename
+        average_crucial_list = (1/total_pop)*sum(crucial_list)
+        return (average_crucial_list)
+    if beta== 0:
+        model.obj = pyo.Objective(rule=obj_rule_0, sense=pyo.minimize)
+    else: #beta !=0
+        model.obj = pyo.Objective(rule=obj_rule_not_0, sense=pyo.minimize)
+
+
+    #TODO: General pyomo question: do these need to be fed in as functions? Would it make more sense to feed them in 
+    #as constraint expressions?
+    #It would make the code more readable, but I don't know about syntax.
     #sum of the number of the precincts to be opened must be equal to the previous number (p)
     print(f"Defining open precincts constraint.")
-    def open_rule(model):
-        return sum(model.x[s] for s in precincts) == precincts_open
+    def open_rule(model): 
+        return sum(model.x[precint_id] for precint_id in precincts) == precincts_open
     model.open_constraint = pyo.Constraint(rule=open_rule)
     
     #percent of new precincts not to exceed maxpctnew
     print(f"Defining max new precincts constraint.")
     def max_new(model):
-        return sum(model.x[s] for s in new_locations) <= maxpctnew*precincts_open
+        return sum(model.x[precint_id] for precint_id in new_locations) <= maxpctnew*precincts_open
     model.max_new_constraint = pyo.Constraint(rule=max_new)
 
     #assigns each census block to a single precinct in its neighborhood
     print(f"Defining residents assignment constraint.")
-    def res_assigned_rule(model, c):
-        return sum(model.z[c,s] for s in res_precinct_pairings[c]) == 1
+    def res_assigned_rule(model, residence_id):
+        return sum(model.z[residence_id,precint_id] for precint_id in res_precinct_pairings[residence_id]) == 1
     model.res_assigned_constraint = pyo.Constraint(res_precinct_pairings.keys(), rule=res_assigned_rule)
 
     #residences can only be covered by precincts that are opened
     print(f"Defining assigning residents to only open precincts constraint.")
-    def precinct_open_rule(model,c,s):
-        return (model.z[c,s]<= model.x[s])
+    def precinct_open_rule(model,residence_id,precint_id):
+        return (model.z[residence_id,precint_id]<= model.x[precint_id])
     model.precinct_open_constraint = pyo.Constraint(neighborhood_dict.keys(), rule=precinct_open_rule)
 
     #respects capacity limits and prevents overcrowding by restricting the number that can go to a precinct to some scaling factor of the avg population per center
     print(f"Defining capacity constraint.")
-    def capacity_rule(model,s):
-        return (sum(pop_dict[c]*model.z[c,s] for c  in precinct_res_pairings[s])<=(capacity*total_pop/precincts_open))
+    def capacity_rule(model,precinct_id):
+        return (sum(pop_dict[residence_id]*model.z[residence_id,precinct_id] for residence_id  in precinct_res_pairings[precinct_id])<=(capacity*total_pop/precincts_open))
     model.capcity_constraint = pyo.Constraint(precinct_res_pairings.keys(), rule=capacity_rule)
     print(f"Model complete.")
     return model
@@ -131,20 +162,27 @@ def equal_access(residences, precincts, pop_dict, pop_demographics, neighborhood
 #function to compile the results into a dataframe
 def get_results_df(model, pop_demographics, neighborhood_dict, pop_dict):
     
-    distance_df = [{'id_orig':c, 'id_dest':s, 'distance_m':d} for (c,s),d in neighborhood_dict.items() if model.z[c,s].value==1.0]
-    df1 = pd.DataFrame(distance_df).copy()
+    distance_dict = [{'id_orig':residence_id, 'id_dest':precinct_id, 'distance_m':distance_meters} for (residence_id,precinct_id),distance_meters in neighborhood_dict.items() if model.z[residence_id,precinct_id].value==1.0] 
+    #TODO: What is the value doing  here? Is this the 0/1 flag for whether or not the neighborhood has been assigned to a precinct?
+    #Why would I ever have a situation where the value != 1 after the model has been run?
+                                                                                                             
+    distance_df = pd.DataFrame(distance_dict)
     
     #population_df = [{'id_orig':c, 'pop':p} for c,p in pop_dict.items()]
     #df2 = pd.DataFrame(population_df)
-    df2 =   pop_demographics.copy()
-    
-    df = pd.merge(df1, df2, how='inner', on='id_orig')
+    #df2 =   pop_demographics.copy()
+    breakpoint()
+    df = pd.merge(distance_df, pop_demographics, how='inner', on='id_orig') #TODO: Why inner, and why are there duplicates?
     df = df.drop_duplicates()
     df = df.reset_index()
     return df
 
 #function to determine the number of people assigned to each polling location
 def get_precinct_pop_df(results_df):
+    #TODO: is the purpose of this function just to select the appropriate columns
+    #of results_df? (Assuming no duplicate columns, which is already guaranteed in its creation?)
+    #Rewriting assuming that to be the case
+    ''' old code. Remove later:
     precincts_used = []
     for i in results_df.index:
         if results_df['id_dest'][i] not in precincts_used:
@@ -159,26 +197,31 @@ def get_precinct_pop_df(results_df):
         precinct_pops.append(popsum)
     precinct_pop_dict = dict(zip(precincts_used, precinct_pops))
     precinctpopdf = [{'id_dest':s, 'H7X001':p} for s,p in precinct_pop_dict.items()]
-    df_precinct_pop = pd.DataFrame(precinctpopdf)
-    
+    df_precinct_pop = pd.DataFrame(precinctpopdf)'''
+    df_precinct_pop = results_df[['id_dest', 'H7X001']]
     return df_precinct_pop
 
 #determine the average distance for the resulting block-location pairings
 def get_average_distance(results_df):
-    total_distance = sum(results_df['distance_m'][i]*results_df['H7X001'][i] for i in results_df.index)
-    num_res = len(results_df['distance_m'])
-    average_distance = total_distance/(sum(results_df['H7X001']))
-    return average_distance
+    #TODO:Check that I haven't changed functionality here
+    results_df['pop_distance'] = results_df.distance_m * results_df.H7X001
+    total_distance = results_df['pop_distance'].sum() 
+    #num_res = len(results_df['distance_m'])
+    
+    #TODO: Why am I deviding by results_df['H7X001'].sum() and not total_population which is defined above?
+    pop_weighted_average_distance = total_distance/(results_df['H7X001'].sum())
+    return pop_weighted_average_distance
 
 #calculate the EDE for the resulting block-location pairings
 def get_y_EDE(beta, betazero, alpha, model, results_df):
     if abs(beta)>0:
         y_EDE = (-1/(beta*alpha))*math.log(model.obj())
-    if beta==0:
+    if beta==0: #TODO: Why does this look different than the objective function in obj_rule?
         y_EDE = (-1/(betazero*alpha))*math.log((1/sum(results_df['H7X001']))*sum(results_df['H7X001'][c]*(math.e**(-betazero*alpha*results_df['distance_m'][c])) for c in results_df.index))
     return y_EDE
 
 #loop through the different demographics and return the EDE for the respective demographics
+#TODO:(FOR SA) change the census names to correct demographics upon ingest
 def get_demographic_EDE(beta, betazero, alpha, model, results_df, demographic):
     if demographic == 'white':
         demographic='H7X002'
@@ -190,13 +233,15 @@ def get_demographic_EDE(beta, betazero, alpha, model, results_df, demographic):
         demographic = 'H7X005'
     if demographic == 'hispanic':
         demographic ='H7Z010'
-    if abs(beta)>0:
+    if abs(beta)>0: #TODO: Why is this different from what is called when beta != 0 in the get_y_EDE?
         demo_EDE = (-1/(beta*alpha))*math.log((1/sum(results_df[demographic]))*sum(results_df[demographic][c]*(math.e**(-beta*alpha*results_df['distance_m'][c])) for c in range(0,len(results_df[demographic]))))
-    if beta==0:
+    else: #beta==0
         demo_EDE = (-1/(betazero*alpha))*math.log((1/sum(results_df[demographic]))*sum(results_df[demographic][c]*(math.e**(-betazero*alpha*results_df['distance_m'][c])) for c in range(0,len(results_df[demographic]))))
       
     return demo_EDE
 
+#TODO: (SA) after the names of the demographics have been standardized for input, just spit out a separate derivative
+#df that contains this information.
 #calculate the variance when optimizing for average distance
 def get_avgvariance(average_distance, blackdemo, whitedemo, nativedemo, asiandemo, hispanicdemo):
     demolist = [blackdemo, whitedemo, nativedemo, asiandemo, hispanicdemo]
@@ -225,157 +270,40 @@ def export_data(CITY, YEAR, LEVEL, BETA, MAXPCTNEW, assignment_results_df, preci
     df = assignment_results_df
     schools = df[df.id_dest.str.contains('|'.join(['school']))].copy()
     numschools = schools['id_dest'].nunique()
-    if LEVEL =='original':
-        if BETA!=0:
-            summary = [f"Below are the summary statistics for {CITY} in the year {YEAR} only including prior locations as possible precinct location options.",
-                       f"Average distance: {average_distance:.2f}",
-                       f"BETA: {BETA:.1f}",
-                       f"MAXPCTNEW: {MAXPCTNEW:.2f}",
-                       f"y_EDE: {y_EDE:.2f}",
-                       f"Number of opened precincts is: {PRECINCTS_OPEN}",
-                       f"Black EDE:{blackdemo:.2f}",
-                       f"White EDE:{whitedemo:.2f}",
-                       f"Native EDE:{nativedemo:.2f}",
-                       f"Asian EDE:{asiandemo:.2f}",
-                       f"Hispanic EDE:{hispanicdemo:.2f}",
-                       f"The variance from the average distance is: {avgvariance:.2f}",
-                       f"The variance from the y_EDE distance is: {EDEvariance:.2f}",
-                       f"The standard deviation from the EDE for the demographics is: {EDEdeviation:.2f}",
-                       f"Number of variables created: {NUMVARS}.",
-                       f"Time to solve is: {solve_time:.2f} seconds ({solve_time/3600:.2f} hours)."]
-            with open(f'{out_path}{CITY}_{YEAR}_{LEVEL}_{BETA}_{MAXPCTNEW}_summary.txt','w') as f:
-                for stat in summary:
-                    f.write(stat)
-                    f.write('\n')
-        if BETA==0:
-            summary = [f"Below are the summary statistics for {CITY} in the year {YEAR} only including prior locations as possible precinct location options when minimizing for average distance.",
-                       f"Average distance: {average_distance:.2f}",
-                       f"BETA: {BETA:.1f}",
-                       f"MAXPCTNEW: {MAXPCTNEW:.2f}",
-                       f"y_EDE: {y_EDE:.2f}",
-                       f"Number of opened precincts is: {PRECINCTS_OPEN}",
-                       f"Black EDE:{blackdemo:.2f}",
-                       f"White EDE:{whitedemo:.2f}",
-                       f"Native EDE:{nativedemo:.2f}",
-                       f"Asian EDE:{asiandemo:.2f}",
-                       f"Hispanic EDE:{hispanicdemo:.2f}",
-                       f"The variance from the average distance is: {avgvariance:.2f}",
-                       f"The variance from the y_EDE distance is: {EDEvariance:.2f}",
-                       f"The standard deviation from the EDE for the demographics is: {EDEdeviation:.2f}",
-                       f"Number of variables created: {NUMVARS}.",
-                       f"Time to solve is: {solve_time:.2f} seconds ({solve_time/3600:.2f} hours)."]
-            with open(f'{out_path}{CITY}_{YEAR}_{LEVEL}_BETA0_{MAXPCTNEW}_summary.txt','w') as f:
-                for stat in summary:
-                    f.write(stat)
-                    f.write('\n')
-    if LEVEL =='expanded':
-        schools = df[df.id_dest.str.contains('|'.join(['school']))].copy()
-        numschools = schools['id_dest'].nunique()
-        print(f"The number of schools that will be opened is {numschools}")
-        pre = df[df.id_dest.str.contains('|'.join(['poll_']))]
-        numprecincts = pre['id_dest'].nunique()
-        print(f"The number of previously used precincts that will be opened is {numprecincts}")
-        if BETA!=0:
-            summary = [f"Below are the summary statistics for {CITY} in the year {YEAR} including prior locations and schools as possible precinct location options.",
-                       f"Average distance: {average_distance:.2f}",
-                       f"BETA: {BETA:.1f}",
-                       f"MAXPCTNEW: {MAXPCTNEW:.2f}",
-                       f"y_EDE: {y_EDE:.2f}",
-                       f"Black EDE:{blackdemo:.2f}",
-                       f"White EDE:{whitedemo:.2f}",
-                       f"Native EDE:{nativedemo:.2f}",
-                       f"Asian EDE:{asiandemo:.2f}",
-                       f"Hispanic EDE:{hispanicdemo:.2f}",
-                       f"The variance from the average distance is: {avgvariance:.2f}",
-                       f"The variance from the y_EDE distance is: {EDEvariance:.2f}",
-                       f"The standard deviation from the EDE for the demographics is: {EDEdeviation:.2f}",
-                       f"Number of opened precincts is: {numprecincts}",
-                       f"Number of opened schools is: {numschools}",
-                       f"Number of variables created: {NUMVARS}.",
-                       f"Time to solve is: {solve_time:.2f} seconds ({solve_time/3600:.2f} hours)."]
-            with open(f'{out_path}{CITY}_{YEAR}_{LEVEL}_{BETA}_{MAXPCTNEW}_summary.txt','w') as f:
-                for stat in summary:
-                    f.write(stat)
-                    f.write('\n')
-                
-        if BETA==0:
-            summary = [f"Below are the summary statistics for {CITY} in the year {YEAR} including prior locations and schools as possible precinct location options when minimizing for average distance.",
-                       f"Average distance: {average_distance:.2f}",
-                       f"BETA: {BETA:.1f}",
-                       f"MAXPCTNEW: {MAXPCTNEW:.2f}",
-                       f"y_EDE: {y_EDE:.2f}",
-                       f"Black EDE:{blackdemo:.2f}",
-                       f"White EDE:{whitedemo:.2f}",
-                       f"Native EDE:{nativedemo:.2f}",
-                       f"Asian EDE:{asiandemo:.2f}",
-                       f"Hispanic EDE:{hispanicdemo:.2f}",
-                       f"The variance from the average distance is: {avgvariance:.2f}",
-                       f"The variance from the y_EDE distance is: {EDEvariance:.2f}",
-                       f"The standard deviation from the EDE for the demographics is: {EDEdeviation:.2f}",
-                       f"Number of opened precincts is: {numprecincts}", 
-                       f"Number of opened schools is: {numschools}",
-                       f"Number of variables created: {NUMVARS}.",
-                       f"Time to solve is: {solve_time:.2f} seconds ({solve_time/3600:.2f} hours)."]
-            with open(f'{out_path}{CITY}_{YEAR}_{LEVEL}_BETA0_{MAXPCTNEW}_summary.txt','w') as f:
-                for stat in summary:
-                    f.write(stat)
-                    f.write('\n')
-    if LEVEL =='full':
-        schools = df[df.id_dest.str.contains('|'.join(['school']))].copy()
-        numschools = schools['id_dest'].nunique()
-        print(f"The number of schools that will be opened is {numschools}")
-        pre = df[df.id_dest.str.contains('|'.join(['poll_']))]
-        numprecincts = pre['id_dest'].nunique()
-        print(f"The number of previously used precincts that will be opened is {numprecincts}")
-        numcentroids = PRECINCTS_OPEN-numprecincts-numschools
-        print(f"The number of block group centroids that will be used is {numcentroids}")
-        if BETA!=0:
-            summary = [f"Below are the summary statistics for {CITY} in the year {YEAR} including prior locations, schools, and census block group centroids as possible precinct location options.",
-                       f"Average distance: {average_distance:.2f}",
-                       f"BETA: {BETA:.1f}",
-                       f"MAXPCTNEW: {MAXPCTNEW:.2f}",
-                       f"y_EDE: {y_EDE:.2f}",
-                       f"Black EDE:{blackdemo:.2f}",
-                       f"White EDE:{whitedemo:.2f}",
-                       f"Native EDE:{nativedemo:.2f}",
-                       f"Asian EDE:{asiandemo:.2f}",
-                       f"Hispanic EDE:{hispanicdemo:.2f}",
-                       f"The variance from the average distance is: {avgvariance:.2f}",
-                       f"The variance from the y_EDE distance is: {EDEvariance:.2f}",
-                       f"The standard deviation from the EDE for the demographics is: {EDEdeviation:.2f}",
-                       f"Number of opened precincts is: {numprecincts}", 
-                       f"Number of opened schools is: {numschools}",
-                       f"Number of centroids utilized is: {numcentroids}",
-                       f"Number of variables created: {NUMVARS}.",
-                       f"Time to solve is: {solve_time:.2f} seconds ({solve_time/3600:.2f} hours)."]
-            with open(f'{out_path}{CITY}_{YEAR}_{LEVEL}_{BETA}_{MAXPCTNEW}_summary.txt','w') as f:
-                for stat in summary:
-                    f.write(stat)
-                    f.write('\n')
-        if BETA==0:
-            summary = [f"Below are the summary statistics for {CITY} in the year {YEAR} including prior locations, schools, and census block group centroids as possible precinct location options when minimizing for average distance.",
-                       f"Average distance: {average_distance:.2f}",
-                       f"BETA: {BETA:.1f}",
-                       f"MAXPCTNEW: {MAXPCTNEW:.2f}",
-                       f"y_EDE: {y_EDE:.2f}",
-                       f"Black EDE:{blackdemo:.2f}",
-                       f"White EDE:{whitedemo:.2f}",
-                       f"Native EDE:{nativedemo:.2f}",
-                       f"Asian EDE:{asiandemo:.2f}",
-                       f"Hispanic EDE:{hispanicdemo:.2f}",
-                       f"The variance from the average distance is: {avgvariance:.2f}",
-                       f"The variance from the y_EDE distance is: {EDEvariance:.2f}",
-                       f"The standard deviation from the EDE for the demographics is: {EDEdeviation:.2f}",
-                       f"Number of opened precincts is: {numprecincts}",
-                       f"Number of opened schools is: {numschools}",
-                       f"Number of centroids utilized is: {numcentroids}",
-                       f"Number of variables created: {NUMVARS}.",
-                       f"Time to solve is: {solve_time:.2f} seconds ({solve_time/3600:.2f} hours)."]
-            with open(f'{out_path}{CITY}_{YEAR}_{LEVEL}_BETA0_{MAXPCTNEW}_summary.txt','w') as f:
-                for stat in summary:
-                    f.write(stat)
-                    f.write('\n')
-            
+    if BETA != 0:
+        beta_str = ''
+        beta_in_name = BETA
+    else:
+        beta_str = ' when minimizing for average distance'
+        beta_in_name = 'BETA0'
+    if LEVEL == 'original':
+        level_str = 'only including prior locations'
+    elif LEVEL == 'expanded':
+        level_str = 'including prior locations and schools'
+    else: #(LEVEL == 'full')
+        level_str = 'including prior locations, schools, and census block group centroids'
+    summary = [f"Below are the summary statistics for {CITY} in the year {YEAR} {level_str} as possible precinct location options{beta_str}.",
+                f"Average distance: {average_distance:.2f}",
+                f"BETA: {BETA:.1f}",
+                f"MAXPCTNEW: {MAXPCTNEW:.2f}",
+                f"y_EDE: {y_EDE:.2f}",
+                f"Number of opened precincts is: {PRECINCTS_OPEN}",
+                f"Black EDE:{blackdemo:.2f}",
+                f"White EDE:{whitedemo:.2f}",
+                f"Native EDE:{nativedemo:.2f}",
+                f"Asian EDE:{asiandemo:.2f}",
+                f"Hispanic EDE:{hispanicdemo:.2f}",
+                f"The variance from the average distance is: {avgvariance:.2f}",
+                f"The variance from the y_EDE distance is: {EDEvariance:.2f}",
+                f"The standard deviation from the EDE for the demographics is: {EDEdeviation:.2f}",
+                f"Number of variables created: {NUMVARS}.",
+                f"Time to solve is: {solve_time:.2f} seconds ({solve_time/3600:.2f} hours)."]
+    with open(f'{out_path}{CITY}_{YEAR}_{LEVEL}_{beta_in_name}_{MAXPCTNEW}_summary.txt','w') as f:
+        for stat in summary:
+            f.write(stat)
+            f.write('\n')
+    #TODO: (SA) import os, check if appropriate file exists, and create if not.
+    #TODO: (SA) May also want to add a time stamp for testing/ debuggin purposes
     print(f"Data exported. Check folder {out_path} for results.") 
     print(f"Average Distance = {average_distance:.2f};")
     print(f"y_EDE = {y_EDE:.2f};")
@@ -386,7 +314,7 @@ def export_data(CITY, YEAR, LEVEL, BETA, MAXPCTNEW, assignment_results_df, preci
 
 def optimize(city, year, level, beta, beta_zero =-2, maxpctnew=1, time_limit=28800, out_path="results\\"):
     '''
-    city -- in ['Atlanta', 'Baltimore', 'Cincinnati', 'Salem']
+    city -- in ['Atlanta', 'Baltimore', 'Cincinnati', 'Salem', 'Test']
     year -- in ['2016', '2012']
     level -- in ['original', 'expanded', 'full']
     beta -- in [-2,0] (further from 0 => more aversion to inequality) (default is -2)
@@ -416,13 +344,14 @@ def optimize(city, year, level, beta, beta_zero =-2, maxpctnew=1, time_limit=288
                     'Cincinnati': 'cincinnati.csv',
                     'Richmond': 'richmond.csv',
                     'Salem': 'salem.csv',
+                    'Test':'salem_sample.csv',
                     'Dallas': 'dallas.csv'}
     
 
 
     #SETS
     dist = city_to_file[CITY]
-
+    print(f'reading from file {dist}')
     basedist = gd.get_basedist(dist, CITY, YEAR)
     print(f'Base Distances: {basedist.shape}')
     #print(basedist.head())
@@ -440,7 +369,7 @@ def optimize(city, year, level, beta, beta_zero =-2, maxpctnew=1, time_limit=288
     PRECINCTS = gd.get_precinct_ids(dataframe)
     print(f"Set of {len(PRECINCTS)} original and new potential locations read in")
     NEW_LOCATIONS = gd.get_new_location_ids(dataframe)
-    print(f"Set of {len(NEW_LOCATIONS)} potential new locatins read in")
+    print(f"Set of {len(NEW_LOCATIONS)} potential new locations read in")
     MAX_MIN_DIST = 1.2*gd.get_max_min_dist(basedist)
     print(f"MaxMinDistance read in")
     DISTANCE_DF = gd.dist_df(dataframe)
@@ -524,7 +453,8 @@ def optimize(city, year, level, beta, beta_zero =-2, maxpctnew=1, time_limit=288
         lower = results['Problem'][0]['Lower bound']
         upper = results['Problem'][0]['Upper bound']
         gap = abs(lower-upper)/abs(upper)
-    elif ((results.solver.status == SolverStatus.ok) and #when working with SCIP, reaching time limit results in status okay.
+    elif ((results.solver.status == SolverStatus.ok) and #TODO:verify change
+                                                         #when working with SCIP, reaching time limit results in status okay.
                                                          #previeous read: SolverStatus.aborted
           (results.solver.termination_condition == TerminationCondition.maxTimeLimit)):
         exit_status = 'Timed Out'

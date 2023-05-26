@@ -130,7 +130,7 @@ def valid_dists(dataframe):
 
 # Return dictionary {(residential loc, precinct):distance}
 def neighborhood_distances(max_min_dist, dataframe):
-    """Return dictionary: {(resident id, precinct id):distance}
+    """Return dictionary: {(resident id, precinct_id):distance}
     """
     df = valid_dists(dataframe)
     df = df[df['distance_m']<=max_min_dist].copy()
