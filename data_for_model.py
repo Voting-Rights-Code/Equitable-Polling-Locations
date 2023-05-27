@@ -60,14 +60,14 @@ def get_base_dist(location, year):
     file_path = os.path.join(data_dir, file_name)
     df = pd.read_csv(file_path)
     #extract years
-    polling_locations = set(df[df.id_dest.str.contains('poll')])
+    polling_locations = set(df[df.id_dest.str.contains('poll')]['id_dest'])
     year_set = set(poll[5:9] for poll in polling_locations)
     if str(year) not in year_set:
         raise ValueError(f'Do not currently have any data for {location} for {year}')
     return(df)
 
 #select the correct destination types given the level
-#select only for block groups that have positive populations
+#NOTE: now selects only for block groups that have positive populations 
 def get_dist_df(basedist,level,year):
     df = basedist.copy()
     df = df[df['H7X001']>0]
@@ -80,7 +80,8 @@ def get_dist_df(basedist,level,year):
     #select the polling locations only for a year
     #keep all other locations 
     #NOTE: this depends strongly on the format of the entries in dest_type and id_dest
-    df = df[(df.dest_type != 'polling') | (df.id_dest.str.contains('polling_'.join([str(year)])))]  
+    df = df[(df.dest_type != 'polling') | (df.id_dest.str.contains('polling_'.join([str(year)])))]
+    df.drop_duplicates()  
     return df
 
 # Return list of residential locations with population > 0
@@ -103,6 +104,7 @@ def get_residential_ids(dist_df):
 #TODO: original code had a drop duplicate line. Why is this here? and should this just be implemented as
 #       unit test? as df.drop_duplicates() appears multiple times in code
 #       Is this arising because we are reading multiple years of census data into the same table?
+#NOTE: Okay, I'm seeing duplicates. I'd love to know why they are showing up before I just drop them
 
 
 #list of all possible precinct locations (unique)
@@ -121,66 +123,60 @@ def get_new_location_ids(dist_df):
 
 
 #determines the maximum of the minimum distances
+#TODO: Why is this takeing basedist as an input, (which doesn't drop the id_origis with 0 population instead of 
+# taking the dist_dfs, which does?)
 def get_max_min_dist(basedist):
-    df = basedist
-    df['id_tuple'] = list(zip(df.id_orig, df.id_dest)) 
-    distance_df = df.set_index('id_tuple')['distance_m'].to_dict() 
-    distance_df = [{'id_orig':a, 'id_dest':b, 'dist':c} for (a,b),c in distance_df.items()]
-    df_dist = pd.DataFrame(distance_df)
-    df2 = df_dist.groupby('id_orig').dist.min().reset_index()
-    max_min_dist = df2.dist.max()
-    max_min_dist = math.ceil(max_min_dist)
+    min_dist_series = basedist.groupby('id_orig').distance_m.min()
+    max_min_dist = min_dist_series.max()
+    max_min_dist = math.ceil(max_min_dist) #TODO:Why do we have a ceiling here?
     return max_min_dist
 
-#dataframe of just census blocks, loctions, and distances between the two
-def dist_df(dataframe):
-    df = dataframe
-    df = df.loc[:,['id_orig','id_dest','distance_m']]
-    return df
+#NOTE: dist_df is a just a subset of the dataframe given as output of get_dist_df and thus am dropping said function.
 
-#some of the residences in the distance file do not appear in the population file
-def valid_dists(dataframe): 
-    """Return dictionary: {(res, precinct):dist
-    """
-    df= dataframe
-    pop_df = df[df['H7X001']>0]
-    valid_ids = set(pop_df['id_orig'])
-    dff= pd.DataFrame(dist_df(dataframe))
-    dff_ids = set(dff['id_orig'])
-    drop_ids = []
-    for c in dff.index:
-        if dff['id_orig'][c] not in valid_ids:
-            drop_ids.append(c)
-    drop_df = pd.DataFrame(drop_ids)
-    dff.drop(drop_ids, inplace = True)
-    return dff
+#TODO: I think valid_dists is no longer needed by line 70 and 73 of this file
 
-# Return dictionary {(residential loc, precinct):distance}
-def neighborhood_distances(max_min_dist, dataframe):
-    """Return dictionary: {(resident id, precinct_id):distance}
-    """
-    df = valid_dists(dataframe)
-    df = df[df['distance_m']<=max_min_dist].copy()
-    df['id_tuple'] = list(zip(df.id_orig, df.id_dest))         # add a column with id tuples 
-    return df.set_index('id_tuple')['distance_m'].to_dict()      # generate desired dictionary
+# NOTE: Removing neighborhood_distances to keep from constant type changing
+##  in the interest of not Return dictionary {(residential loc, precinct):distance}
+## TODO: why is max_min_dist a parameter here? is there a desire to change the max_min
+#        distance in as a paremeter to take a subset of pairings in the future?
+#def neighborhood_distances(max_min_dist, dataframe):
+#    """Return dictionary: {(resident id, precinct_id):distance}
+#    """
+#    df = valid_dists(dataframe)
+#    df = df[df['distance_m']<=max_min_dist].copy() #TODO: Why is this line here? isn't this true by construction? 
+#    df['id_tuple'] = list(zip(df.id_orig, df.id_dest))         # add a column with id tuples 
+#    return df.set_index('id_tuple')['distance_m'].to_dict()      # generate desired dictionary
 
 
 #the list of precincts in the neighborhood of each residence
-def res_precinct_pairings(max_min_dist, dataframe):
-    """Return dictionary: {residence:[precincts]}
+# NOTE: keeping max_min_dist here in case there is a desire to subset pairings by this value. 
+def res_precinct_pairings(max_min_dist, dist_df):
+    """Return dataframe wwith colums id_orig, id_dest_list
     """
-    res_precinct_dict = defaultdict(list) #list of precincts
-    for c,s in neighborhood_distances(max_min_dist, dataframe).keys():
-        res_precinct_dict[c].append(s)
-    return res_precinct_dict
+    #check if the distance of a precinct to the residence is less than min_max_dist. If so, 
+    #put it in the list of valid precincts for the residence
+    within_radius = dist_df.copy()
+    within_radius = within_radius[within_radius.distance_m < max_min_dist]
+    within_radius_grouped = within_radius.groupby('id_orig')['id_dest'].apply(list)
+    within_radius_grouped.reset_index()
+    #within_radius_grouped = within_radius_grouped.rename(columns={'id_dest': 'id_dest_list'}) 
+        #TODO: (SA) why does the above line not work?
+        #       getting error Series.rename() got an unexpected keyword argument columns
+    return within_radius_grouped
 
 #the list of residences in the neighborhood of each precinct
-def precinct_res_pairings(max_min_dist, dataframe):
-    """Return dictionary: {residence:[precincts]}
+def precinct_res_pairings(max_min_dist, dist_df):
+    """Return dataframe wwith colums id_dest, id_orig_list
     """
-    precinct_res_dict = defaultdict(list) #list of precincts
-    for c,s in neighborhood_distances(max_min_dist, dataframe).keys():
-        precinct_res_dict[s].append(c)
+    #check if the distance of a precinct to the residence is less than min_max_dist. If so, 
+    #put it in the list of valid precincts for the residence
+    within_radius = dist_df.copy()
+    within_radius = within_radius[within_radius.distance_m < max_min_dist]
+    within_radius_grouped = within_radius.groupby('id_dest')['id_orig'].apply(list)
+    within_radius_grouped.reset_index()
+    #within_radius_grouped = within_radius_grouped.rename(columns={'id_orig': 'id_orig_list'}) 
+        #TODO: (SA) why does the above line not work?
+        #       getting error Series.rename() got an unexpected keyword argument columns
     return precinct_res_dict
 
 #calculating alpha 
