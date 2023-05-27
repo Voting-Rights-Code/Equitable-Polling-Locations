@@ -98,30 +98,27 @@ def get_residential_ids(dist_df):
 #TODO: (SA) Change *_dict functions to *_df and then corresponding code 
 # Return dataframe with colums {id_orig, H7X001 (total pop), 'H7X002','H7X003', 'H7X004', 'H7X005', 'H7Z010' 
 #                                                                       (2..10 other demographics)}
-#TODO: Note, at this point, get_pop_dict data subsumed by this function
-def get_id_pop_demographics(dist_df):
-    return dist_df[['id_orig', 'H7X001','H7X002','H7X003', 'H7X004', 'H7X005', 'H7Z010']]
+#TODO: Note, at this point, get_pop_dict and get_id_pop_demographics data can be represented as sub dataframes
+#       of dist_df, aka output of get_dist_df. Thus said functions are dropped 
 #TODO: original code had a drop duplicate line. Why is this here? and should this just be implemented as
 #       unit test? as df.drop_duplicates() appears multiple times in code
+#       Is this arising because we are reading multiple years of census data into the same table?
+
+
+#list of all possible precinct locations (unique)
+def get_precinct_ids(dist_df):
+    return list(set(dist_df['id_dest'])) 
+
+##### Adding this so that we can limit number of new locations #####
+#set of possible new locations (unique)
+def get_new_location_ids(dist_df):
+    return list(set(dist_df[(dist_df['dest_type']!='polling')]['id_dest']))
+
 
 ###########
 #Start here
 ###########
 
-#set of all possible precinct locations
-def get_precinct_ids(dataframe):
-    """Return a list of ids of precinct locations."""
-    df = dataframe  # read in as dataframe
-    valid_ids = set(df['id_dest'])
-    return list(valid_ids) 
-
-##### Adding this so that we can limit number of new locations #####
-#set of possible new locations
-def get_new_location_ids(dataframe):
-    """Return a list of ids of schools + bg_centeroids in distance df """
-    df = dataframe  # read in as dataframe
-    valid_ids = set(df[(df['dest_type']!='polling')]['id_dest'])
-    return list(valid_ids)
 
 #determines the maximum of the minimum distances
 def get_max_min_dist(basedist):
