@@ -117,9 +117,6 @@ def get_new_location_ids(dist_df):
     return list(set(dist_df[(dist_df['dest_type']!='polling')]['id_dest']))
 
 
-###########
-#Start here
-###########
 
 
 #determines the maximum of the minimum distances
@@ -178,6 +175,11 @@ def precinct_res_pairings(max_min_dist, dist_df):
         #TODO: (SA) why does the above line not work?
         #       getting error Series.rename() got an unexpected keyword argument columns
     return precinct_res_dict
+
+###########
+#Start here
+###########
+
 
 #calculating alpha 
 def alpha_def(max_min_dist, basedist):
