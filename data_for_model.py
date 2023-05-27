@@ -17,12 +17,15 @@ The functions in this file pull out the requisite data from this table for proce
 #        from the ACS
 #       TODO: (SA) Once the ingest is running, need to get the demographic column names into something sensible
 #TODO: (all) Need to figure out how the distance is calculated and get that implemented at the county level from Google
+#       TODO: (all) there is a lot of preprocessing of the data that is currently in the git repo. Need to know what that is
+#               and preferably, see the code that creates that so that we may implement.
 #TODO: (CR) Need to figure out where the data is going to be stored in the end.
 
 
 #import modules
 import pandas as pd
 import math
+import subprocess
 import os
 from collections import defaultdict
 
@@ -32,59 +35,63 @@ from collections import defaultdict
 #currently assumes that the relevant .csvs are all in the git repo
 ##########################
 #TODO: fix this when we know where the data is going to be eventually stored
-data_dir = subprocess.Popen(['git', 'rev-parse', '--show-toplevel'], stdout=subprocess.PIPE).communicate()[0].rstrip().decode('utf-8')
+git_dir = subprocess.Popen(['git', 'rev-parse', '--show-toplevel'], stdout=subprocess.PIPE).communicate()[0].rstrip().decode('utf-8')
+data_dir = os.path.join(git_dir, 'datasets')
 
 ##########################
-#Data_file name dictionary
+#Data_file_name dataframe
 ##########################
-#TODO: This needs to be updated
-file_dict = {'Atlanta': 'atlanta.csv',
-             'Cincinnati': 'cincinnati.csv',
-             'Richmond': 'richmond.csv',
-             'Salem': 'salem.csv',
-             'Test':'salem_sample.csv',
-             'Dallas': 'dallas.csv'}
+#TODO: This needs to be updated. Currenly only data is for Salem 2016, 2012
+file_name_dict = {'Salem':'salem.csv'}
+             
 
-
+##########################
+#pull out relevant data for models
+##########################
 #returns dataframe of distances for the original case. This is to keep alpha constant amongst all cases
-def get_basedist(dist, city,year):
-    df = pd.read_csv(dist)
-    df = df[df['city']==city]
-    df = df[df['dest_type']=='polling']        # keep only polling locations
-    #for i in range(0,len(df['id_dest']):
-     #   if year == 2012:
-      #      if df.id_dest.str.contains(
-    if year == '2012':
-        df = df[~df.id_dest.str.contains('|'.join(['poll_2016']))]
-    if year == '2016':
-        df = df[~df.id_dest.str.contains('|'.join(['poll_2012']))]
-    df = df.sort_index()
-    return df
+#TODO: originally, this function added a suffix of _year_num to locations tagged as poll. 
+#       but this is currently in the column id_dest. Therefore not contained in this function
+#TODO: How should I understand the id_dest poll_year_num. Does this involve multiplicity? I.e. if the same location is a polling
+#       location in mulltiple years, does it show up twice, once as poll_year1_num1 and again as poll_year2_num2?
+def get_base_dist(location, year):
+    if location not in file_name_dict.keys():
+        raise ValueError(f'Do not currently have any data for {location}')
+    file_name = file_name_dict[location]
+    file_path = os.path.join(data_dir, file_name)
+    df = pd.read_csv(file_path)
+    #extract years
+    polling_locations = set(df[df.id_dest.str.contains('poll')])
+    year_set = set(poll[5:9] for poll in polling_locations)
+    if str(year) not in year_set:
+        raise ValueError(f'Do not currently have any data for {location} for {year}')
+    return(df)
 
-#returns the distance dataframe for the given city and year
-def get_dist_df(dist,city,level, year):
-    df = pd.read_csv(dist)
-    df = df[df['city']==city]
+#select the correct destination types given the level
+def get_dist_df(basedist,level,year):
+    df = basedist.copy()
     if level=='original':
-        df = df[df['dest_type']=='polling']        # keep only polling locations
-        df = df.sort_index()
-    if level=='expanded':
-        df = df[df['dest_type']!='bg_centroid']        # keep schools and polling locations
-        df = df.sort_index()
-    if year == '2012':
-        df = df[~df.id_dest.str.contains('|'.join(['poll_2016']))]
-    if year == '2016':
-        df = df[~df.id_dest.str.contains('|'.join(['poll_2012']))]
-    df = df.sort_index()
+        df = df[df['dest_type']=='polling']         # keep only polling locations
+    elif level=='expanded':
+        df = df[df['dest_type']!='bg_centroid']     # keep schools and polling locations
+    else: #level == full
+        df = df                                     #keep everything
+    #select the polling locations only for a year
+    #keep all other locations 
+    #NOTE: this depends strongly on the format of the entries in dest_type and id_dest
+    df = df[(df.dest_type != 'polling') | (df.id_dest.str.contains('polling_'.join([str(year)])))]  
     return df
 
 # Return list of residential locations with population > 0
-def get_residential_ids(dataframe):
-    """Return a list of ids of residential locations with positive populations."""
-      # read in as dataframe
-    df = dataframe
-    df = df[df['H7X001']>0].copy()         # keep only populated locations
-    return list(df['id_orig'])          # return the ids as a list
+# TODO: Does pyomo want variables entered as lists?
+def get_residential_ids(dist_df):
+    """
+    Input: data frame returned from get_dist_df
+    Output: a list of ids of residential locations with positive populations."""
+    return list(dist_df[dist_df['H7X001']>0]['id_orig'])         
+
+###########
+#Start here
+###########
 
 # Return dictionary {location id, population}
 def get_id_pop_dict(dataframe):
