@@ -67,8 +67,10 @@ def get_base_dist(location, year):
     return(df)
 
 #select the correct destination types given the level
+#select only for block groups that have positive populations
 def get_dist_df(basedist,level,year):
     df = basedist.copy()
+    df = df[df['H7X001']>0]
     if level=='original':
         df = df[df['dest_type']=='polling']         # keep only polling locations
     elif level=='expanded':
@@ -82,33 +84,29 @@ def get_dist_df(basedist,level,year):
     return df
 
 # Return list of residential locations with population > 0
+# Needed for a model constraint
 # TODO: Does pyomo want variables entered as lists?
 def get_residential_ids(dist_df):
     """
     Input: data frame returned from get_dist_df
-    Output: a list of ids of residential locations with positive populations."""
-    return list(dist_df[dist_df['H7X001']>0]['id_orig'])         
+    Output: a list of unique ids of residential locations with positive populations."""
+    return list(set(dist_df['id_orig']))         
+
+
+#NOTE: In the interest of not constantly changing types, going to keep everything in terms of 
+# data frames. If this gets too hairy (aka I hate pandas) will go back to dictionary solutions
+#TODO: (SA) Change *_dict functions to *_df and then corresponding code 
+# Return dataframe with colums {id_orig, H7X001 (total pop), 'H7X002','H7X003', 'H7X004', 'H7X005', 'H7Z010' 
+#                                                                       (2..10 other demographics)}
+#TODO: Note, at this point, get_pop_dict data subsumed by this function
+def get_id_pop_demographics(dist_df):
+    return dist_df[['id_orig', 'H7X001','H7X002','H7X003', 'H7X004', 'H7X005', 'H7Z010']]
+#TODO: original code had a drop duplicate line. Why is this here? and should this just be implemented as
+#       unit test? as df.drop_duplicates() appears multiple times in code
 
 ###########
 #Start here
 ###########
-
-# Return dictionary {location id, population}
-def get_id_pop_dict(dataframe):
-    """Return dictionary: {residential location id: (nonzero) population}"""
-    df = dataframe  # read in as dataframe
-    df = df[df['H7X001']>0]                # keep only populated locations
-    return df.set_index('id_orig')['H7X001'].to_dict()  #id:population
-
-#returns dataframe of demographic populations and the respective census block
-def get_pop_demographics(dataframe):
-    """Return dictionary: {residential location id: (nonzero) population}"""
-    df=dataframe
-    df = df[df['H7X001']>0]                # keep only populated locations
-    df = df.loc[:,['id_orig','H7X001','H7X002','H7X003', 'H7X004', 'H7X005', 'H7Z010']] 
-    df = df.drop_duplicates()
-    return df  
-
 
 #set of all possible precinct locations
 def get_precinct_ids(dataframe):
