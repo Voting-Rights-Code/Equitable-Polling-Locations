@@ -160,7 +160,7 @@ def alpha_def(basedist):
 #the list of precincts in the neighborhood of each residence
 # NOTE: keeping max_min_dist here in case there is a desire to subset pairings by this value. 
 def res_precinct_pairings(max_min_dist, dist_df):
-    """Return dataframe wwith colums id_orig, id_dest_list
+    """Return dataframe with colums id_orig, id_dest_list
     """
     #check if the distance of a precinct to the residence is less than min_max_dist. If so, 
     #put it in the list of valid precincts for the residence
@@ -198,8 +198,6 @@ def precinct_res_pairings(max_min_dist, dist_df):
 from test_config_refactor import *
 
 
-#breakpoint()
-
 ####dataframes####
 basedist = get_base_dist(location, year)
 dist_df = get_dist_df(basedist, level, year)
@@ -229,7 +227,7 @@ residences_in_radius_of_precinct = precinct_res_pairings(global_max_min_dist, di
 
 #######res_prec analysis#########
 dist_df['Count'] = 1
-res_prec_count = dist_df.groupby(['id_orig', 'id_dest'])["Count"].count()
+res_prec_count = dist_df.groupby(['id_orig', 'id_dest'])["Count"].aggregate('count')
 res_prec_count = res_prec_count.to_frame()
 res_prec_count = res_prec_count.reset_index()
 res_prec_count = res_prec_count.rename(columns= {'distance_m':'Count'})
