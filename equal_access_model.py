@@ -107,6 +107,7 @@ def equal_access(residences, precincts, pop_dict, pop_demographics, neighborhood
                             model.z[resident_id,precinct_id] 
                             for resident_id,precinct_id in neighborhood_dict
                             ) #TODO: figure out what this is an rename
+                              #when model.z = 1 for all pairs, this gives the population weighted distance
         average_crucial_list = (1/total_pop)*sum(crucial_list)
         return (average_crucial_list)
     def obj_rule_not_0(model):
@@ -116,6 +117,7 @@ def equal_access(residences, precincts, pop_dict, pop_demographics, neighborhood
                             (math.e**(-beta*alpha*neighborhood_dict[resident_id,precinct_id])) 
                             for resident_id,precinct_id in neighborhood_dict
                             ) #TODO: figure out what this is an rename
+                              #when model.z = 1 for all pairs, this gives eq (2)
         average_crucial_list = (1/total_pop)*sum(crucial_list)
         return (average_crucial_list)
     if beta== 0:

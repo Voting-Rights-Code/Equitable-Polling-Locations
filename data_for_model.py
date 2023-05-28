@@ -27,7 +27,7 @@ import pandas as pd
 import math
 import subprocess
 import os
-from collections import defaultdict
+import itertools
 
 
 ##########################
@@ -46,13 +46,18 @@ file_name_dict = {'Salem':'salem.csv'}
              
 
 ##########################
-#pull out relevant data for models
+#read in data and get relevant dataframes for models
 ##########################
 #returns dataframe of distances for the original case. This is to keep alpha constant amongst all cases
 #TODO: originally, this function added a suffix of _year_num to locations tagged as poll. 
 #       but this is currently in the column id_dest. Therefore not contained in this function
 #TODO: How should I understand the id_dest poll_year_num. Does this involve multiplicity? I.e. if the same location is a polling
 #       location in mulltiple years, does it show up twice, once as poll_year1_num1 and again as poll_year2_num2?
+
+#This is a base data frame, used mostly for alpha calculation, but also other things.
+#The output of this function, referred to as basedist, is the full dataset on file
+#TODO: Susama and Chad need a walk through of what exactly these files contain. 
+#       Specifically, are these all distances to all actual and potential polling locations?
 def get_base_dist(location, year):
     if location not in file_name_dict.keys():
         raise ValueError(f'Do not currently have any data for {location}')
@@ -64,6 +69,8 @@ def get_base_dist(location, year):
     year_set = set(poll[5:9] for poll in polling_locations)
     if str(year) not in year_set:
         raise ValueError(f'Do not currently have any data for {location} for {year}')
+    df = df.drop_duplicates() #put in to avoid duplications down the line.
+                              #TODO: needs discussion of how the dups got there in the first place
     return(df)
 
 #select the correct destination types given the level
@@ -81,18 +88,44 @@ def get_dist_df(basedist,level,year):
     #keep all other locations 
     #NOTE: this depends strongly on the format of the entries in dest_type and id_dest
     df = df[(df.dest_type != 'polling') | (df.id_dest.str.contains('polling_'.join([str(year)])))]
-    df.drop_duplicates()  
     return df
 
-# Return list of residential locations with population > 0
-# Needed for a model constraint
-# TODO: Does pyomo want variables entered as lists?
-def get_residential_ids(dist_df):
-    """
-    Input: data frame returned from get_dist_df
-    Output: a list of unique ids of residential locations with positive populations."""
-    return list(set(dist_df['id_orig']))         
+##########################
+#Other useful constants
+##########################
 
+#determines the maximum of the minimum distances
+#TODO: Why is this takeing basedist as an input, (which doesn't drop the id_origis with 0 population instead of 
+# taking the dist_dfs, which does?)
+def get_max_min_dist(basedist):
+    min_dist_series = basedist.groupby('id_orig').distance_m.min()
+    max_min_dist = min_dist_series.max()
+    max_min_dist = math.ceil(max_min_dist) #TODO:Why do we have a ceiling here?
+    return max_min_dist
+
+#calculating alpha: \sum(distance_i)/ \sum((distance_i^2)) 
+#TODO: Why is the base distance the correct object for this calculation?
+def alpha_def(basedist):
+    #add a distance square column    
+    basedist['distance_squared'] = basedist['distance_m'] * basedist['distance_m']
+
+    distance_sum = basedist['distance_m'].sum()
+    distance_sq_sum = basedist['distance_squared'].sum()
+    alpha = distance_sum/distance_sq_sum #TODO: This is different than what was original. Check
+
+    #TODO: in the defintion of alpha below, why does the numerator and denominator both have a
+    #factor of df3['H7X001'].sum(), aka total population? This will just cancel in the division
+        ##calculates the numerator for the alpha value
+        #numerator = (df3['H7X001'].sum())*(df3['distance_m'].sum())
+        ##calculates the denominator for the alpha value. Incorporates the square list
+        #denominator = (df3['H7X001'].sum())*(sum(square_list))
+        ##alpha. The aversion to inequality for this sample
+        #alpha = numerator/denominator
+    return alpha
+
+##########################
+#Lists for model variables, constraints, etc.
+##########################
 
 #NOTE: In the interest of not constantly changing types, going to keep everything in terms of 
 # data frames. If this gets too hairy (aka I hate pandas) will go back to dictionary solutions
@@ -106,31 +139,9 @@ def get_residential_ids(dist_df):
 #       Is this arising because we are reading multiple years of census data into the same table?
 #NOTE: Okay, I'm seeing duplicates. I'd love to know why they are showing up before I just drop them
 
-
-#list of all possible precinct locations (unique)
-def get_precinct_ids(dist_df):
-    return list(set(dist_df['id_dest'])) 
-
-##### Adding this so that we can limit number of new locations #####
-#set of possible new locations (unique)
-def get_new_location_ids(dist_df):
-    return list(set(dist_df[(dist_df['dest_type']!='polling')]['id_dest']))
-
-
-
-
-#determines the maximum of the minimum distances
-#TODO: Why is this takeing basedist as an input, (which doesn't drop the id_origis with 0 population instead of 
-# taking the dist_dfs, which does?)
-def get_max_min_dist(basedist):
-    min_dist_series = basedist.groupby('id_orig').distance_m.min()
-    max_min_dist = min_dist_series.max()
-    max_min_dist = math.ceil(max_min_dist) #TODO:Why do we have a ceiling here?
-    return max_min_dist
-
 #NOTE: dist_df is a just a subset of the dataframe given as output of get_dist_df and thus am dropping said function.
 
-#TODO: I think valid_dists is no longer needed by line 70 and 73 of this file
+#TODO: I think valid_dists is no longer needed by line 77 and 80 of this file
 
 # NOTE: Removing neighborhood_distances to keep from constant type changing
 ##  in the interest of not Return dictionary {(residential loc, precinct):distance}
@@ -174,29 +185,43 @@ def precinct_res_pairings(max_min_dist, dist_df):
     #within_radius_grouped = within_radius_grouped.rename(columns={'id_orig': 'id_orig_list'}) 
         #TODO: (SA) why does the above line not work?
         #       getting error Series.rename() got an unexpected keyword argument columns
-    return precinct_res_dict
-
-###########
-#Start here
-###########
+    return within_radius_grouped
 
 
-#calculating alpha 
-def alpha_def(max_min_dist, basedist):
-    df = basedist
-    df3 = df.loc[:,['id_orig','id_dest','distance_m', 'H7X001']]
+##########################
+#put quantities of interest into global environment
+##########################
 
-    #establishes the squared value for each distance. This will be later used in the denominator
-    square_list = []
-    for d in df3.index:
-        square_list.append(df3['distance_m'][d]**2)
+#TODO: This is broken. but if I import this this before I import this file
+#the config values don't stick around as global variables
+from test_config_refactor import *
 
-    #calculates the numerator for the alpha value
-    numerator = (df3['H7X001'].sum())*(df3['distance_m'].sum())
 
-    #calculates the denominator for the alpha value. Incorporates the square list
-    denominator = (df3['H7X001'].sum())*(sum(square_list))
+#breakpoint()
 
-    #alpha. The aversion to inequality for this sample
-    alpha = numerator/denominator
-    return alpha
+####dataframes####
+basedist = get_base_dist(location, year)
+dist_df = get_dist_df(basedist, level, year)
+
+####constants####
+alpha = alpha_def(basedist)
+global_max_min_dist = get_max_min_dist(basedist)
+
+####Lists####
+
+#list of all possible residence locations with population > 0 (unique)
+residences = list(set(dist_df['id_orig']))
+#list of all possible precinct locations (unique)
+precincts = list(set(dist_df['id_dest']))
+#list of unique residence, precint pairs
+residence_precint_pairs = list(itertools.product(residences, precincts))
+#set of possible new locations (unique)
+#Adding this so that we can limit number of new locations 
+new_locations = list(set(dist_df[(dist_df['dest_type']!='polling')]['id_dest']))
+
+####dictionaries####
+presincts_in_radius_of_residence = res_precinct_pairings(global_max_min_dist, dist_df)
+residences_in_radius_of_precinct = precinct_res_pairings(global_max_min_dist, dist_df)
+
+#TODO: there are features that the model needs that will come from dist_df. 
+#This will be implemented in the model file
