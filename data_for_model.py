@@ -28,7 +28,8 @@ import math
 import subprocess
 import os
 import itertools
-
+from test_config_refactor import * #TODO: (SA) for testing only. remove later
+ 
 
 ##########################
 #Data source
@@ -214,7 +215,7 @@ residences = list(set(dist_df['id_orig']))
 #list of all possible precinct locations (unique)
 precincts = list(set(dist_df['id_dest']))
 #list of unique residence, precint pairs
-residence_precint_pairs = list(itertools.product(residences, precincts))
+residence_precinct_pairs = list(itertools.product(residences, precincts)) #TODO: This is needed because dist_df has dups in these pairs?
 #set of possible new locations (unique)
 #Adding this so that we can limit number of new locations 
 new_locations = list(set(dist_df[(dist_df['dest_type']!='polling')]['id_dest']))
@@ -225,3 +226,15 @@ residences_in_radius_of_precinct = precinct_res_pairings(global_max_min_dist, di
 
 #TODO: there are features that the model needs that will come from dist_df. 
 #This will be implemented in the model file
+
+#######res_prec analysis#########
+dist_df['Count'] = 1
+res_prec_count = dist_df.groupby(['id_orig', 'id_dest'])["Count"].count()
+res_prec_count = res_prec_count.to_frame()
+res_prec_count = res_prec_count.reset_index()
+res_prec_count = res_prec_count.rename(columns= {'distance_m':'Count'})
+res_prec_dups = res_prec_count[res_prec_count['Count']==2]
+dist_df_count = dist_df.merge(res_prec_count, on = ['id_orig', 'id_dest'], how = 'left')
+dups = dist_df_count[dist_df_count['Count']==2]
+
+#Okay, seems to differ only on the initial "unnamed" column. What is this?
