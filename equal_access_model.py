@@ -165,15 +165,13 @@ def equal_access(residences, precincts, pop_dict, pop_demographics, neighborhood
 def get_results_df(model, pop_demographics, neighborhood_dict, pop_dict):
     
     distance_dict = [{'id_orig':residence_id, 'id_dest':precinct_id, 'distance_m':distance_meters} for (residence_id,precinct_id),distance_meters in neighborhood_dict.items() if model.z[residence_id,precinct_id].value==1.0] 
-    #TODO: What is the value doing  here? Is this the 0/1 flag for whether or not the neighborhood has been assigned to a precinct?
-    #Why would I ever have a situation where the value != 1 after the model has been run?
+
                                                                                                              
     distance_df = pd.DataFrame(distance_dict)
     
     #population_df = [{'id_orig':c, 'pop':p} for c,p in pop_dict.items()]
     #df2 = pd.DataFrame(population_df)
     #df2 =   pop_demographics.copy()
-    breakpoint()
     df = pd.merge(distance_df, pop_demographics, how='inner', on='id_orig') #TODO: Why inner, and why are there duplicates?
     df = df.drop_duplicates()
     df = df.reset_index()
