@@ -74,6 +74,7 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
             weighting_column = 'KP_factor'
         #merge model var values to dist_df
         df = dist_df.copy()
+        #TODO: (SA) CANNOT PUT MODEL.FOO.VALUE INTO A DATAFRAME 
         model_value_list = [[resident_id, precinct_id, model.x[precinct_id].value, model.z[resident_id, precinct_id].value] 
                             for resident_id, precinct_id in residence_precinct_pairs]
         model_df = pd.DataFrame(model_value_list, columns = ['id_orig', 'id_dest', 'model.x', 'model.z'])
@@ -126,6 +127,8 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     start_time_7 = time.time()
     print(f'Capacity constraint defined in built in {start_time_7 - start_time_6} seconds')
     print(f'Model built in {start_time_7 - start_time_0}')
+
+    model.obj.pprint()
     return model
 
 
@@ -186,4 +189,5 @@ def solve_model(model, time_limit = time_limit):
 ####################
 ea_model = build_model()
 print(f'model built. Solve for {time_limit} seconds')
+
 ea_result = solve_model(ea_model)

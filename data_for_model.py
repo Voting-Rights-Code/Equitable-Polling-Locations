@@ -15,10 +15,8 @@ The functions in this file pull out the requisite data from this table for proce
 '''
 #TODO: (SA/CR) Need to write an automated script to read in the demographics part of this table for a given county 
 #        from the ACS
-#       TODO: (SA) Once the ingest is running, need to get the demographic column names into something sensible
 #TODO: (all) Need to figure out how the distance is calculated and get that implemented at the county level from Google
-#       TODO: (all) there is a lot of preprocessing of the data that is currently in the git repo. Need to know what that is
-#               and preferably, see the code that creates that so that we may implement.
+#     
 #TODO: (CR) Need to figure out where the data is going to be stored in the end.
 
 
@@ -43,6 +41,7 @@ data_dir = os.path.join(git_dir, 'datasets')
 #Data_file_name dataframe
 ##########################
 #TODO: (SA) This needs to be updated. Currenly only data is for Salem 2016, 2012
+#TODO: (all) Do we want to break out different years in to different csvs
 file_name_dict = {'Salem':'salem.csv'}
              
 ##########################
