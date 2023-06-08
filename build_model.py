@@ -32,7 +32,10 @@ if not max_min_multiplier_exists:
     #set to global_max_min_dist if not user provided
     max_min = global_max_min_dist
 else: 
-    max_min = max_min_mult * global_max_min_dist
+    max_min = max_min_mult * global_max_min_dist #TODO (CR): lines 31-35 is setting a scalar
+                                                 # multiplier to global_max_min_dist
+                                                 # this should default to 1, unless the user wants
+                                                 # a different value.
 max_pct_exists = 'maxpctnew' in  globals() or 'maxpctnew' in  locals()
 if not maxpctnew:
     #set to max percent new to all.
