@@ -9,5 +9,5 @@ capacity = 1.2
 
 ####Optional#####
 #precints_open = 5
-#neighborhood_dist = #(meters)
+#max_min_mult = #scalar >= 1
 #maxpctnew = #[0,1]

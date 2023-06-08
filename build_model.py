@@ -27,10 +27,12 @@ poll_number_exists = 'precincts_open' in  globals() or 'precincts_open' in  loca
 if not poll_number_exists:
     #Set it to the number of polling locations in the data
     precincts_open = len(set(dist_df[dist_df['dest_type']=='polling']['id_dest']))
-max_min_exists = 'neighborhood_dist' in  globals() or 'neighborhood_dist' in  locals()
-if not max_min_exists:
+max_min_multiplier_exists = 'max_min_mult' in  globals() or 'neighborhood_dist' in  locals()
+if not max_min_multiplier_exists:
     #set to global_max_min_dist if not user provided
     max_min = global_max_min_dist
+else: 
+    max_min = max_min_mult * global_max_min_dist
 max_pct_exists = 'maxpctnew' in  globals() or 'maxpctnew' in  locals()
 if not maxpctnew:
     #set to max percent new to all.
