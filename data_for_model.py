@@ -23,6 +23,7 @@ The functions in this file pull out the requisite data from this table for proce
 #import modules
 import pandas as pd
 import math
+from decimal import Decimal
 import subprocess
 import os
 import itertools
@@ -137,13 +138,35 @@ def alpha_def(basedist):
         #alpha = numerator/denominator
     return alpha
 
+
+def alpha_SA(dist_df):
+    #In this version, we restrict to the residences with population  > 0 and the polling locations
+    #of interest for the problem at hand, and leave everything else be.
+    #TODO:(DS) Check this new function.
+
+    #add a weighted distance columns    
+    dist_df['pop_dist'] = dist_df['population'] * dist_df['distance_m']
+    #add a population weighted distance square column    
+    dist_df['distance_squared'] = dist_df['pop_dist'] * dist_df['pop_dist'] 
+    #TODO:taking the min weighted distance here, not overall dist
+    temp = dist_df[['id_orig', 'pop_dist', 'distance_squared']]
+    distance_sum = temp.groupby('id_orig').agg('min')['pop_dist'].sum()
+    distance_sq_sum = temp.groupby('id_orig').agg('min')['distance_squared'].sum()
+    alpha = distance_sum/distance_sq_sum 
+    return alpha
+
 def add_weight_factors(basedist, dist_df, beta):
     alpha = alpha_def(basedist)
+    #alpha = alpha_SA(dist_df)
     ####helper columns for objective function#####
     #Weighted_dist(ance) = population of id_orig * distance from id_orig to id_dest
     #K(olm)P(ollak)_factor = population of id_orig * math.e**(-beta*alpha*distance from id_orig to id_dest)
     dist_df['Weighted_dist'] = dist_df['population'] * dist_df['distance_m']
-    dist_df['KP_factor'] = dist_df['population'] * (math.e**(-beta*alpha*dist_df['distance_m']))
+    #TODO:(DS) check if this is correct
+    #       currently won't run due to overflow error
+    #       NOTE: the "distance_m", currently in place because "Weighted_distance" giving overflow error
+    temp = dist_df[['id_orig', 'distance_m']]
+    dist_df['KP_factor'] = Decimal(Decimal(math.e)**Decimal(-sum(beta*alpha*temp.groupby('id_orig').agg('min')['distance_m'])))
     return dist_df
 ##########################
 #Lists for model variables, constraints, etc.

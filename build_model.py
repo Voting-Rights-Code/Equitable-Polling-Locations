@@ -14,7 +14,6 @@ import pandas as pd
 #TODO: Check if really both of these are needed
 basedist = get_base_dist(location, year)
 dist_df = get_dist_df(basedist, level, year)
-dist_df = add_weight_factors(basedist, dist_df, beta)
 
 ####constants####
 #alpha = alpha_def(basedist) #NOTE: No longer needed. part of dist_df def
@@ -47,7 +46,7 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     model = pyo.ConcreteModel()
 
     ####define necessary lists and dictionaries####
-    #NOTE: As currently written, assumes dist_df has not duplicates
+    #NOTE: As currently written, assumes dist_df has no duplicates
     
     #list of all possible precinct locations (unique)
     precincts = list(set(dist_df['id_dest']))
@@ -56,47 +55,89 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     #list of residence, precint pairs
     residence_precinct_pairs = list(zip(dist_df.id_orig, dist_df.id_dest)) 
     #population dictionary
-    pop_dict = dist_df.groupby('id_orig')['population'].agg('mean').to_frame().reset_index().set_index('id_orig')['population'].to_dict()
+    pop_dict = dist_df.groupby('id_orig')['population'].agg('mean').to_dict()
     #dictionary: {precinct:[list of residences in area]}
     residences_in_radius_of_precinct = precinct_res_pairings(max_min, dist_df)
+    #dictionary: {residence:[list of precincts in area]}
+    precincts_in_radius_of_residence = res_precinct_pairings(max_min, dist_df)
 
-    ####define model constants####
+    ####define constants####
     #total population
     total_pop = dist_df.groupby('id_orig')['population'].agg('mean').sum() #TODO: Check that this is unique as desired.
 
-    ####define model variables####
-    model.x = pyo.Var(precincts, domain=pyo.Binary)
-    model.z = pyo.Var(residence_precinct_pairs, domain=pyo.Binary)
+    ####define model simple indices####
+    #all possible precinct locations (unique)
+    model.precincts = pyo.Set(initialize = list(set(dist_df['id_dest'])))
+    #all possible residence locations with population > 0 (unique)
+    model.residences = pyo.Set(initialize = list(set(dist_df['id_orig'])))
+    #residence, precint pairs
+    model.pairs = model.residences * model.precincts 
+
+    ####define model parameters####
+    dist_df = add_weight_factors(basedist, dist_df, beta)
+    #Populations of residences
+    model.population = pyo.Param(model.residences, initialize =dist_df.groupby('id_orig')['population'].agg('mean'))
+    #Precinct residence distances
+    model.distance = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'distance_m']].set_index(['id_orig', 'id_dest']))
+    #population weighted distances
+    model.weighted_dist = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'Weighted_dist']].set_index(['id_orig', 'id_dest']))
+    #KP factor 
+    model.KP_factor = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'KP_factor']].set_index(['id_orig', 'id_dest']))
+    ####define model variables####    
+    model.matching = pyo.Var(model.pairs, domain=pyo.Binary )
     
+    ####define parameter dependent indices####
+    #residences in precint radius
+        #TODO: (SA & CR) don't like explicit for loops in python. More pythonic way?
+        #initialize = [res if model.distance[(res,prec)] < max_min for prec in model.precincts] ?
+    def res_in_prec_rad(model, precinct, max_min):
+        for res, prec in model.pairs:
+            if (prec == precinct) & (model.distance[(res,prec)] < max_min):
+                yield res
+    model.within_precinct_radius = pyo.Set(model.precincts, initialize = res_in_prec_rad)
+
+    #precinct in residence radius
+        #TODO: Same concern as above
+    def prec_in_res_rad(model, residence):
+        for res, prec in model.pairs:
+            if res == residence & model.distance[(res,prec)] < max_min:
+                yield prec
+    model.within_residence_radius = pyo.Set(model.residence, initialize = prec_in_res_rad)
+
     start_time_1 = time.time()
     print(f'constants defined in {start_time_1 - start_time_0} seconds')
-
     ####define objective function####
     def obj_rule(model):
         if beta == 0:
-            weighting_column = 'Weighted_dist'
+            weight_dict = model.weighted_dist
         else: #(beta != 0)
-            weighting_column = 'KP_factor'
-        #merge model var values to dist_df
-        df = dist_df.copy()
-        #TODO: (SA) CANNOT PUT MODEL.FOO.VALUE INTO A DATAFRAME 
-        model_value_list = [[resident_id, precinct_id, model.x[precinct_id].value, model.z[resident_id, precinct_id].value] 
-                            for resident_id, precinct_id in residence_precinct_pairs]
-        model_df = pd.DataFrame(model_value_list, columns = ['id_orig', 'id_dest', 'model.x', 'model.z'])
-        df = df.merge(model_df, how = 'left', on = ['id_orig', 'id_dest'])
-        df['Weighted_distances'] = df[weighting_column] * df['model.z']
-        #take average
-        average_weighted_distances = sum((1/total_pop)*df['Weighted_distances'])
+            weight_dict = model.KP_factor
+        #take average by appropriate weight
+        average_weighted_distances = sum(model.matching[pair]* weight_dict[pair] for pair in model.pairs)/total_pop
         return (average_weighted_distances)
+    
+    '''def obj_rule_SA(model):
+        #TODO: (SA, DS) This will slow things down, but is it correct?
+        if beta == 0:
+            return(sum(model.weighted_dist[pair] *model.matching[pair] for pair in model.pairs)/total_pop)
+        else: #(beta != 0)
+            #define weighted distances
+            numerator = sum(model.weighted_dist[pair] *model.matching[pair] for pair in model.pairs)
+            #define weighted distances squared
+            denominator = sum((model.weighted_dist[pair] *model.matching[pair])^2 for pair in model.pairs)
+            #this should give the quantity in the square brackes in (2) of Josh's paper
+            average_weighted_distances = (math.e**(-sum(beta*numerator/denominator*model.weighted_dist[pair] *model.matching[pair] for pair in model.pairs)))/total_pop
+            return(average_weighted_distances)'''
+
     model.obj = pyo.Objective(rule=obj_rule, sense=pyo.minimize)
     start_time_2 = time.time()
-    print(f'Objective function defined in {start_time_2 - start_time_1} seconds')
-    
+    print(f'Objective functions defined in {start_time_2 - start_time_1} seconds')
+
     ####define constraints####
     print(f'Define constraints')
     #Open precincts constraint.
     def open_rule(model): 
-        return sum(model.x[precint_id] for precint_id in precincts) == precincts_open
+        return sum(model.precints[precint_id] for precint_id in precincts) == precincts_open
     model.open_constraint = pyo.Constraint(rule=open_rule)
     start_time_3 = time.time()
     print(f'Number of precints contraint built in {start_time_3 - start_time_2} seconds')
@@ -104,15 +145,14 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     #percent of new precincts not to exceed maxpctnew
     new_locations = list(set(dist_df[(dist_df['dest_type']!='polling')]['id_dest']))
     def max_new(model):
-        return sum(model.x[precint_id] for precint_id in new_locations) <= maxpctnew*precincts_open
+        return sum(model.precints[precint_id] for precint_id in new_locations) <= maxpctnew*precincts_open
     model.max_new_constraint = pyo.Constraint(rule=max_new)
     start_time_4 = time.time()
     print(f'Max new locations contraint built in {start_time_4 - start_time_3} seconds')
 
-    #assigns each census block to a single precinct in its neighborhood
-    precincts_in_radius_of_residence = res_precinct_pairings(max_min, dist_df) 
+    #assigns each census block to a single precinct in its neighborhood 
     def res_assigned_rule(model, residence_id):
-        return (sum(model.z[residence_id,precinct_id] for precinct_id in precincts_in_radius_of_residence[residence_id]) == 1)
+        return (sum(model.pairs[residence_id,precinct_id] for precinct_id in precincts_in_radius_of_residence[residence_id]) == 1)
     model.res_assigned_constraint = pyo.Constraint(residences, rule=res_assigned_rule)
     start_time_5 = time.time()
     print(f'Single precinct contraint built in {start_time_5 - start_time_4} seconds')
@@ -120,14 +160,14 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     #residences can only be covered by precincts that are opened
     #print(f"Defining assigning residents to only open precincts constraint.")
     def precinct_open_rule(model,residence_id,precint_id):
-        return (model.z[residence_id,precint_id]<= model.x[precint_id])
+        return (model.pairs[residence_id,precint_id]<= model.precints[precint_id])
     model.precinct_open_constraint = pyo.Constraint(residence_precinct_pairs, rule=precinct_open_rule)
     start_time_6 = time.time()
     print(f'Open precinct constraint defined in built in {start_time_6 - start_time_5} seconds')
 
     #respects capacity limits and prevents overcrowding by restricting the number that can go to a precinct to some scaling factor of the avg population per center
     def capacity_rule(model,precinct_id):
-        return (sum(pop_dict[residence_id]*model.z[residence_id,precinct_id] for residence_id  in residences_in_radius_of_precinct[precinct_id])<=(capacity*total_pop/precincts_open))
+        return (sum(pop_dict[residence_id]*model.pairs[residence_id,precinct_id] for residence_id  in residences_in_radius_of_precinct[precinct_id])<=(capacity*total_pop/precincts_open))
     model.capacity_constraint = pyo.Constraint(precincts, rule=capacity_rule)
     start_time_7 = time.time()
     print(f'Capacity constraint defined in built in {start_time_7 - start_time_6} seconds')
