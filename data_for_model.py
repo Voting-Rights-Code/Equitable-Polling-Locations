@@ -100,6 +100,7 @@ def get_dist_df(basedist,level,year):
     #keep all other locations 
     #NOTE: this depends strongly on the format of the entries in dest_type and id_dest
     df = df[(df.dest_type != 'polling') | (df.id_dest.str.contains('polling_'.join([str(year)])))]
+    df['Weighted_dist'] = df['population'] * df['distance_m']
 
     return df
 
@@ -112,8 +113,8 @@ def get_dist_df(basedist,level,year):
 #determines the maximum of the minimum distances
 #TODO: Why is this takeing basedist as an input, (which doesn't drop the id_origis with 0 population instead of 
 # taking the dist_dfs, which does?)
-def get_max_min_dist(basedist):
-    min_dist_series = basedist.groupby('id_orig').distance_m.min()
+def get_max_min_dist(dist_df):
+    min_dist_series = dist_df.groupby('id_orig').distance_m.min()
     max_min_dist = min_dist_series.max()
     max_min_dist = math.ceil(max_min_dist) #TODO:Why do we have a ceiling here?
     return max_min_dist
@@ -122,9 +123,9 @@ def get_max_min_dist(basedist):
 #TODO: Why is the base distance the correct object for this calculation?
 def alpha_def(basedist):
     #add a distance square column    
-    basedist['distance_squared'] = basedist['distance_m'] * basedist['distance_m']
+    basedist['distance_squared'] = basedist['population'] * basedist['distance_m'] * basedist['distance_m']
 
-    distance_sum = basedist['distance_m'].sum()
+    distance_sum = sum(basedist['population'] * basedist['distance_m'])
     distance_sq_sum = basedist['distance_squared'].sum()
     alpha = distance_sum/distance_sq_sum #TODO: This is different than what was original. Check
 
@@ -144,18 +145,16 @@ def alpha_SA(dist_df):
     #of interest for the problem at hand, and leave everything else be.
     #TODO:(DS) Check this new function.
 
-    #add a weighted distance columns    
-    dist_df['pop_dist'] = dist_df['population'] * dist_df['distance_m']
     #add a population weighted distance square column    
-    dist_df['distance_squared'] = dist_df['pop_dist'] * dist_df['pop_dist'] 
+    dist_df['distance_squared'] = dist_df['population'] * dist_df['distance_m'] * dist_df['distance_m'] 
     #TODO:taking the min weighted distance here, not overall dist
-    temp = dist_df[['id_orig', 'pop_dist', 'distance_squared']]
-    distance_sum = temp.groupby('id_orig').agg('min')['pop_dist'].sum()
+    temp = dist_df[['id_orig', 'Weighted_dist', 'distance_squared']]
+    distance_sum = temp.groupby('id_orig').agg('min')['Weighted_dist'].sum()
     distance_sq_sum = temp.groupby('id_orig').agg('min')['distance_squared'].sum()
     alpha = distance_sum/distance_sq_sum 
     return alpha
 
-def add_weight_factors(basedist, dist_df, beta):
+'''def add_weight_factors(basedist, dist_df, beta):
     alpha = alpha_def(basedist)
     #alpha = alpha_SA(dist_df)
     ####helper columns for objective function#####
@@ -167,7 +166,7 @@ def add_weight_factors(basedist, dist_df, beta):
     #       NOTE: the "distance_m", currently in place because "Weighted_distance" giving overflow error
     temp = dist_df[['id_orig', 'distance_m']]
     dist_df['KP_factor'] = Decimal(Decimal(math.e)**Decimal(-sum(beta*alpha*temp.groupby('id_orig').agg('min')['distance_m'])))
-    return dist_df
+    return dist_df'''
 ##########################
 #Lists for model variables, constraints, etc.
 ##########################
