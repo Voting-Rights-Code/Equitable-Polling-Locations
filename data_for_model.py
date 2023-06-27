@@ -121,7 +121,7 @@ def get_max_min_dist(dist_df):
 
 #calculating alpha: \sum(distance_i)/ \sum((distance_i^2)) 
 #TODO: Why is the base distance the correct object for this calculation?
-def alpha_def(basedist):
+def alpha_all(basedist):
     #add a distance square column    
     basedist['distance_squared'] = basedist['population'] * basedist['distance_m'] * basedist['distance_m']
 
@@ -140,17 +140,29 @@ def alpha_def(basedist):
     return alpha
 
 
-def alpha_SA(dist_df):
+def alpha_min(dist_df):
     #In this version, we restrict to the residences with population  > 0 and the polling locations
     #of interest for the problem at hand, and leave everything else be.
-    #TODO:(DS) Check this new function.
 
     #add a population weighted distance square column    
     dist_df['distance_squared'] = dist_df['population'] * dist_df['distance_m'] * dist_df['distance_m'] 
     #TODO:taking the min weighted distance here, not overall dist
-    temp = dist_df[['id_orig', 'Weighted_dist', 'distance_squared']]
-    distance_sum = temp.groupby('id_orig').agg('min')['Weighted_dist'].sum()
-    distance_sq_sum = temp.groupby('id_orig').agg('min')['distance_squared'].sum()
+    temp = dist_df[['id_orig', 'Weighted_dist', 'distance_squared']].groupby('id_orig').agg('min')
+    distance_sum = temp['Weighted_dist'].sum()
+    distance_sq_sum = temp['distance_squared'].sum()
+    alpha = distance_sum/distance_sq_sum 
+    return alpha
+
+def alpha_mean(dist_df):
+    #In this version, we restrict to the residences with population  > 0 and the polling locations
+    #of interest for the problem at hand, and leave everything else be.
+
+    #add a population weighted distance square column    
+    dist_df['distance_squared'] = dist_df['population'] * dist_df['distance_m'] * dist_df['distance_m'] 
+    #TODO:taking the min weighted distance here, not overall dist
+    temp = dist_df[['id_orig', 'Weighted_dist', 'distance_squared']].groupby('id_orig').agg('mean')
+    distance_sum = temp['Weighted_dist'].sum()
+    distance_sq_sum = temp['distance_squared'].sum()
     alpha = distance_sum/distance_sq_sum 
     return alpha
 

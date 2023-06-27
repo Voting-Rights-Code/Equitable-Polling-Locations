@@ -66,6 +66,7 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     #total population
     total_pop = dist_df.groupby('id_orig')['population'].agg('mean').sum() #TODO: Check that this is unique as desired.
     alpha  = alpha_SA(dist_df)
+
     ####define model simple indices####
     #all possible precinct locations (unique)
     model.precincts = pyo.Set(initialize = list(set(dist_df['id_dest'])))
@@ -92,7 +93,7 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
 
     model.new_locations = pyo.Param(model.precincts, initialize = dist_df[['id_dest', 'new_location']].drop_duplicates().set_index(['id_dest']))
 
-    ####define model variables####    
+    ####define model variables####  TODO:(SA) identify if variable or param  
     model.matching = pyo.Var(model.pairs, domain=pyo.Binary )
     model.open = pyo.Var(model.precincts, domain=pyo.Binary )
 
@@ -114,18 +115,18 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
         average_weighted_distances = sum(model.matching[pair]* weight_dict[pair] for pair in model.pairs)/total_pop
         return (average_weighted_distances)
     
-    def obj_rule_SA(model):
-        #TODO: (SA, DS) This will slow things down, but is it correct?
-        if beta == 0:
-            return(sum(model.weighted_dist[pair] *model.matching[pair] for pair in model.pairs)/total_pop)
-        else: #(beta != 0)
-            #define weighted distances
-            numerator = sum(model.weighted_dist[pair] *model.matching[pair] for pair in model.pairs)
-            #define weighted distances squared
-            denominator = sum((model.weighted_dist[pair] *model.matching[pair])^2 for pair in model.pairs)
-            #this should give the quantity in the square brackes in (2) of Josh's paper
-            average_weighted_distances = (math.e**(-sum(beta*numerator/denominator*model.weighted_dist[pair] *model.matching[pair] for pair in model.pairs)))/total_pop
-            return(average_weighted_distances)
+    # def obj_rule_SA(model): #NOTE: will not work due to non-linearities.
+    #     #TODO: (SA, DS) This will slow things down, but is it correct?
+    #     if beta == 0:
+    #         return(sum(model.weighted_dist[pair] *model.matching[pair] for pair in model.pairs)/total_pop)
+    #     else: #(beta != 0)
+    #         #define weighted distances
+    #         numerator = sum(model.weighted_dist[pair] *model.matching[pair] for pair in model.pairs)
+    #         #define weighted distances squared
+    #         denominator = sum((model.weighted_dist[pair] * model.distance[pair]*model.matching[pair]) for pair in model.pairs)
+    #         #this should give the quantity in the square brackes in (2) of Josh's paper
+    #         average_weighted_distances = (math.e**(-sum(beta*numerator/denominator*model.weighted_dist[pair] *model.matching[pair] for pair in model.pairs)))/total_pop
+    #         return(average_weighted_distances)
 
     model.obj = pyo.Objective(rule=obj_rule, sense=pyo.minimize)
     start_time_2 = time.time()
@@ -158,7 +159,6 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     #print(f"Defining assigning residents to only open precincts constraint.")
     def precinct_open_rule(model, res,prec):
         return (model.matching[res,prec]<= model.open[prec])
-    #commenting out for now because it is deadlocking the computation
     model.precinct_open_constraint = pyo.Constraint(model.pairs, rule=precinct_open_rule)
     start_time_6 = time.time()
     print(f'Open precinct constraint defined in built in {start_time_6 - start_time_5} seconds')
