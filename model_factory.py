@@ -62,8 +62,8 @@ class PollingModelConfig:
     '''Year to be studied'''
     level: str
     '''{'original': consider only the original polling locations,
-        'full': consider all schools
-        'extended': consider all schools and census block group centroids}'''
+        'expanded': consider all schools
+        'full': consider all schools and census block group centroids}'''
     beta: float
     '''level of inequality aversion: [-10,0], where 0 indicates indifference, and thus uses the mean. -2 is a good number '''
     time_limit_seconds: int
@@ -78,7 +78,8 @@ class PollingModelConfig:
     max_min_mult: float = 1.0
     '''A multiplicative factor for the min_max distance caluclated
     from the data. Should be >= 1. Default = 1.'''
-
+    capacity: float = 1.0
+    '''A multiplicative factor for calculating the capacity constraint. Should be >= 1. Default = 1.'''
 @timer
 def build_objective_rule(
         config: PollingModelConfig,
@@ -173,6 +174,7 @@ def polling_model_factory(config: PollingModelConfig) -> PollingModel:
     #### Create dataframes ####
     basedist = get_base_dist(config.location, config.year)
     dist_df = get_dist_df(basedist, config.level, config.year)
+    df_for_alpha = get_dist_df(basedist, 'original', config.year)
     # NOTE: As currently written, assumes dist_df has no duplicates
 
     #define max_min parameter needed for certain calculations
@@ -188,7 +190,8 @@ def polling_model_factory(config: PollingModelConfig) -> PollingModel:
     ####define constants####
     #total population
     total_pop = dist_df.groupby('id_orig')['population'].agg('mean').sum() #TODO: Check that this is unique as desired.
-    alpha  = alpha_min(dist_df)
+    #alpha  = alpha_min(df_for_alpha)
+    alpha  = alpha_all(dist_df)
 
     ####set model to be concrete####
     model = pyo.ConcreteModel()
@@ -227,7 +230,7 @@ def polling_model_factory(config: PollingModelConfig) -> PollingModel:
     model.within_residence_radius = pyo.Set(model.residences, initialize = {res:[prec for prec in model.precincts if model.distance[(res,prec)] <= max_min] for res in model.residences})
     #precinct in residence radius
     model.within_precinct_radius = pyo.Set(model.precincts, initialize = {prec:[res for res in model.residences if model.distance[(res,prec)] <= max_min] for prec in model.precincts})
-    
+
     # Set the objective function
     obj_rule = build_objective_rule(config,                     
                                     total_pop)
@@ -251,12 +254,10 @@ def polling_model_factory(config: PollingModelConfig) -> PollingModel:
 
     capacity_rule = build_capacity_rule(
         config=config,
-        dist_df=dist_df,
-        max_min=max_min,
         total_pop=total_pop,
         precincts_open=precincts_open,
     )
     model.capacity_constraint = pyo.Constraint(model.precincts, rule=capacity_rule)
 
-    model.obj.pprint()
+    #model.obj.pprint()
     return model

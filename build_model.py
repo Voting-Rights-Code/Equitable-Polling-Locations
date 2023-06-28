@@ -22,9 +22,7 @@ global_max_min_dist = get_max_min_dist(dist_df)
 
 #check if poll number has been assigned in config
 #if not, give it the default number of polls in the file
-poll_number_exists = 'precincts_open' in  globals() or 'precincts_open' in  locals()
-if not poll_number_exists:
-    #Set it to the number of polling locations in the data
+if precincts_open == None:
     precincts_open = len(set(dist_df[dist_df['dest_type']=='polling']['id_dest']))
 max_min_multiplier_exists = 'max_min_mult' in  globals() or 'neighborhood_dist' in  locals()
 if not max_min_multiplier_exists:
@@ -46,6 +44,7 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     ####set model to be concrete####
     model = pyo.ConcreteModel()
 
+
     ####define necessary lists and dictionaries####
     #NOTE: As currently written, assumes dist_df has no duplicates
     
@@ -65,7 +64,7 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     ####define constants####
     #total population
     total_pop = dist_df.groupby('id_orig')['population'].agg('mean').sum() #TODO: Check that this is unique as desired.
-    alpha  = alpha_SA(dist_df)
+    alpha  = alpha_all(dist_df)
 
     ####define model simple indices####
     #all possible precinct locations (unique)
@@ -98,9 +97,9 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     model.open = pyo.Var(model.precincts, domain=pyo.Binary )
 
     ####define parameter dependent indices####
-    #residences in precint radius
-    model.within_residence_radius = pyo.Set(model.residences, initialize = {res:[prec for prec in model.precincts if model.distance[(res,prec)] <= max_min] for res in model.residences})
     #precinct in residence radius
+    model.within_residence_radius = pyo.Set(model.residences, initialize = {res:[prec for prec in model.precincts if model.distance[(res,prec)] <= max_min] for res in model.residences})
+    #residences in precint radius    
     model.within_precinct_radius = pyo.Set(model.precincts, initialize = {prec:[res for res in model.residences if model.distance[(res,prec)] <= max_min] for prec in model.precincts})
     start_time_1 = time.time()
     print(f'constants defined in {start_time_1 - start_time_0} seconds')
@@ -131,7 +130,6 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     model.obj = pyo.Objective(rule=obj_rule, sense=pyo.minimize)
     start_time_2 = time.time()
     print(f'Objective functions defined in {start_time_2 - start_time_1} seconds')
-    breakpoint()
     ####define constraints####
     print(f'Define constraints')
     #Open precincts constraint.
@@ -142,9 +140,9 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     print(f'Number of precints contraint built in {start_time_3 - start_time_2} seconds')
 
     #percent of new open precincts not to exceed maxpctnew
-    def max_new(model):
+    def max_new_rule(model):
         return sum(model.open[precinct]* model.new_locations[precinct] for precinct in model.precincts) <= maxpctnew*precincts_open
-    model.max_new_constraint = pyo.Constraint(rule=max_new)
+    model.max_new_constraint = pyo.Constraint(rule=max_new_rule)
     start_time_4 = time.time()
     print(f'Max new locations contraint built in {start_time_4 - start_time_3} seconds')
 
@@ -170,8 +168,7 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     start_time_7 = time.time()
     print(f'Capacity constraint defined in built in {start_time_7 - start_time_6} seconds')
     print(f'Model built in {start_time_7 - start_time_0}')
-    breakpoint()
-    model.obj.pprint()
+    #model.obj.pprint()
     return model
 
 
@@ -227,7 +224,7 @@ def solve_model(model, time_limit = time_limit):
 
     if exit_status == 'Optimal':
         print(ea_model.obj())
-    return(results)
+    return results
 
 ####################
 

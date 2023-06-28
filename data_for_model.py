@@ -119,103 +119,40 @@ def get_max_min_dist(dist_df):
     max_min_dist = math.ceil(max_min_dist) #TODO:Why do we have a ceiling here?
     return max_min_dist
 
-#calculating alpha: \sum(distance_i)/ \sum((distance_i^2)) 
-#TODO: Why is the base distance the correct object for this calculation?
-def alpha_all(basedist):
+def alpha_all(df):
     #add a distance square column    
-    basedist['distance_squared'] = basedist['population'] * basedist['distance_m'] * basedist['distance_m']
+    df['distance_squared'] = df['distance_m'] * df['distance_m']
 
-    distance_sum = sum(basedist['population'] * basedist['distance_m'])
-    distance_sq_sum = basedist['distance_squared'].sum()
-    alpha = distance_sum/distance_sq_sum #TODO: This is different than what was original. Check
-
-    #TODO: in the defintion of alpha below, why does the numerator and denominator both have a
-    #factor of df3['population'].sum(), aka total population? This will just cancel in the division
-        ##calculates the numerator for the alpha value
-        #numerator = (df3['population'].sum())*(df3['distance_m'].sum())
-        ##calculates the denominator for the alpha value. Incorporates the square list
-        #denominator = (df3['population'].sum())*(sum(square_list))
-        ##alpha. The aversion to inequality for this sample
-        #alpha = numerator/denominator
-    return alpha
-
-
-def alpha_min(dist_df):
-    #In this version, we restrict to the residences with population  > 0 and the polling locations
-    #of interest for the problem at hand, and leave everything else be.
-
-    #add a population weighted distance square column    
-    dist_df['distance_squared'] = dist_df['population'] * dist_df['distance_m'] * dist_df['distance_m'] 
-    #TODO:taking the min weighted distance here, not overall dist
-    temp = dist_df[['id_orig', 'Weighted_dist', 'distance_squared']].groupby('id_orig').agg('min')
-    distance_sum = temp['Weighted_dist'].sum()
-    distance_sq_sum = temp['distance_squared'].sum()
+    #population weighted distances
+    distance_sum = sum(df['population'] * df['distance_m'])
+    #population weighted distance squared
+    distance_sq_sum = sum(df['population']*df['distance_squared'])
     alpha = distance_sum/distance_sq_sum 
     return alpha
 
-def alpha_mean(dist_df):
-    #In this version, we restrict to the residences with population  > 0 and the polling locations
-    #of interest for the problem at hand, and leave everything else be.
 
-    #add a population weighted distance square column    
-    dist_df['distance_squared'] = dist_df['population'] * dist_df['distance_m'] * dist_df['distance_m'] 
-    #TODO:taking the min weighted distance here, not overall dist
-    temp = dist_df[['id_orig', 'Weighted_dist', 'distance_squared']].groupby('id_orig').agg('mean')
-    distance_sum = temp['Weighted_dist'].sum()
-    distance_sq_sum = temp['distance_squared'].sum()
+def alpha_min(df):
+    #Find the minimal distance to polling location
+    min_df= df[['id_orig', 'distance_m','population']].groupby('id_orig').agg('min')
+
+    #find the square of the min distances
+    min_df['distance_squared'] = min_df['distance_m'] * min_df['distance_m']  
+    #population weighted distances
+    distance_sum = sum(min_df['population']*min_df['distance_m'])
+    #population weighted distance squared
+    distance_sq_sum = sum(min_df['population']*min_df['distance_squared'])
     alpha = distance_sum/distance_sq_sum 
     return alpha
 
-'''def add_weight_factors(basedist, dist_df, beta):
-    alpha = alpha_def(basedist)
-    #alpha = alpha_SA(dist_df)
-    ####helper columns for objective function#####
-    #Weighted_dist(ance) = population of id_orig * distance from id_orig to id_dest
-    #K(olm)P(ollak)_factor = population of id_orig * math.e**(-beta*alpha*distance from id_orig to id_dest)
-    dist_df['Weighted_dist'] = dist_df['population'] * dist_df['distance_m']
-    #TODO:(DS) check if this is correct
-    #       currently won't run due to overflow error
-    #       NOTE: the "distance_m", currently in place because "Weighted_distance" giving overflow error
-    temp = dist_df[['id_orig', 'distance_m']]
-    dist_df['KP_factor'] = Decimal(Decimal(math.e)**Decimal(-sum(beta*alpha*temp.groupby('id_orig').agg('min')['distance_m'])))
-    return dist_df'''
-##########################
-#Lists for model variables, constraints, etc.
-##########################
-
-#NOTE: In the interest of not constantly changing types, going to keep everything in terms of 
-# data frames. If this gets too hairy (aka I hate pandas) will go back to dictionary solutions
-
-# NOTE: keeping max_min_dist here in case there is a desire to subset pairings by this value. 
-def res_precinct_pairings(max_min_dist, dist_df):
-    """Return dataframe with colums id_orig, id_dest_list
-    """
-    #check if the distance of a precinct to the residence is less than min_max_dist. If so, 
-    #put it in the list of valid precincts for the residence
-    within_radius = dist_df.copy()
-    within_radius = within_radius[within_radius.distance_m < max_min_dist]
-    within_radius_grouped = within_radius.groupby('id_orig')['id_dest'].apply(list)
-    within_radius_grouped.reset_index()
-    #within_radius_grouped = within_radius_grouped.rename(columns={'id_dest': 'id_dest_list'}) 
-        #TODO: (SA) why does the above line not work?
-        #       getting error Series.rename() got an unexpected keyword argument columns
-    return within_radius_grouped
-
-#the list of residences in the neighborhood of each precinct
-def precinct_res_pairings(max_min_dist, dist_df):
-    """Return dataframe wwith colums id_dest, id_orig_list
-    """
-    #check if the distance of a precinct to the residence is less than min_max_dist. If so, 
-    #put it in the list of valid precincts for the residence
-    within_radius = dist_df.copy()
-    within_radius = within_radius[within_radius.distance_m < max_min_dist]
-    within_radius_grouped = within_radius.groupby('id_dest')['id_orig'].apply(list)
-    within_radius_grouped.reset_index()
-    #within_radius_grouped = within_radius_grouped.rename(columns={'id_orig': 'id_orig_list'}) 
-        #TODO: (SA) why does the above line not work?
-        #       getting error Series.rename() got an unexpected keyword argument columns
-    return within_radius_grouped
-
-
-
-
+def alpha_mean(df):
+    #Find the mean distance to polling location
+    mean_df = df[['id_orig', 'distance_m', 'population']].groupby('id_orig').agg('mean')
+    
+    #find the square of the min distances
+    mean_df['distance_squared'] = mean_df['distance_m'] * mean_df['distance_m']  
+    #population weighted distances
+    distance_sum = sum(mean_df['population']*mean_df['distance_m'])
+    #population weighted distance squared
+    distance_sq_sum = sum(mean_df['population']*mean_df['distance_squared'])
+    alpha = distance_sum/distance_sq_sum 
+    return alpha
