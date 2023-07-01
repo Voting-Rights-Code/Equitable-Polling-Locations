@@ -44,23 +44,6 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     ####set model to be concrete####
     model = pyo.ConcreteModel()
 
-
-    ####define necessary lists and dictionaries####
-    #NOTE: As currently written, assumes dist_df has no duplicates
-    
-    '''#list of all possible precinct locations (unique)
-    precincts = list(set(dist_df['id_dest']))
-    ##list of all possible residence locations with population > 0 (unique)
-    residences = list(set(dist_df['id_orig']))
-    #list of residence, precint pairs
-    residence_precinct_pairs = list(zip(dist_df.id_orig, dist_df.id_dest)) 
-    #population dictionary
-    pop_dict = dist_df.groupby('id_orig')['population'].agg('mean').to_dict()
-    #dictionary: {precinct:[list of residences in area]}
-    residences_in_radius_of_precinct = precinct_res_pairings(max_min, dist_df)
-    #dictionary: {residence:[list of precincts in area]}
-    precincts_in_radius_of_residence = res_precinct_pairings(max_min, dist_df)'''
-
     ####define constants####
     #total population
     total_pop = dist_df.groupby('id_orig')['population'].agg('mean').sum() #TODO: Check that this is unique as desired.
@@ -104,32 +87,22 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     start_time_1 = time.time()
     print(f'constants defined in {start_time_1 - start_time_0} seconds')
     
-    ####define objective function####
-    def obj_rule(model):
-        if beta == 0:
-            weight_dict = model.weighted_dist
-        else: #(beta != 0)
-            weight_dict = model.KP_factor
-        #take average by appropriate weight
-        average_weighted_distances = sum(model.matching[pair]* weight_dict[pair] for pair in model.pairs)/total_pop
+    ####define objective functions####
+    def obj_rule_0(model):
+        #take average populated weighted distance
+        average_weighted_distances = sum(model.matching[pair]* model.weighted_dist[pair] for pair in model.pairs)/total_pop
         return (average_weighted_distances)
-    
-    # def obj_rule_SA(model): #NOTE: will not work due to non-linearities.
-    #     #TODO: (SA, DS) This will slow things down, but is it correct?
-    #     if beta == 0:
-    #         return(sum(model.weighted_dist[pair] *model.matching[pair] for pair in model.pairs)/total_pop)
-    #     else: #(beta != 0)
-    #         #define weighted distances
-    #         numerator = sum(model.weighted_dist[pair] *model.matching[pair] for pair in model.pairs)
-    #         #define weighted distances squared
-    #         denominator = sum((model.weighted_dist[pair] * model.distance[pair]*model.matching[pair]) for pair in model.pairs)
-    #         #this should give the quantity in the square brackes in (2) of Josh's paper
-    #         average_weighted_distances = (math.e**(-sum(beta*numerator/denominator*model.weighted_dist[pair] *model.matching[pair] for pair in model.pairs)))/total_pop
-    #         return(average_weighted_distances)
-
-    model.obj = pyo.Objective(rule=obj_rule, sense=pyo.minimize)
+    def obj_rule_not_0(model):
+        #take average by kp factor weight
+        average_weighted_distances = sum(model.matching[pair]* model.KP_factor[pair] for pair in model.pairs)/total_pop
+        return (average_weighted_distances)
+    if beta== 0:
+        model.obj = pyo.Objective(rule=obj_rule_0, sense=pyo.minimize)
+    if beta== 0:
+        model.obj = pyo.Objective(rule=obj_rule_not_0, sense=pyo.minimize)
     start_time_2 = time.time()
     print(f'Objective functions defined in {start_time_2 - start_time_1} seconds')
+    
     ####define constraints####
     print(f'Define constraints')
     #Open precincts constraint.
@@ -148,7 +121,7 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
 
     #assigns each census block to a single precinct in its neighborhood 
     def res_assigned_rule(model, residence):
-        return (sum(model.open[precinct] for precinct in model.within_residence_radius[residence]) == 1)
+        return (sum(model.matching[residence, precinct] for precinct in model.within_residence_radius[residence]) == 1)
     model.res_assigned_constraint = pyo.Constraint(model.residences, rule=res_assigned_rule)
     start_time_5 = time.time()
     print(f'Single precinct contraint built in {start_time_5 - start_time_4} seconds')

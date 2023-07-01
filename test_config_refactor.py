@@ -1,5 +1,5 @@
 #Constants for the optimization function
-location = 'Salem'
+location = 'Test'
 year = '2016'
 level = 'full'
 beta = -2
@@ -9,5 +9,5 @@ capacity = 1.2
 
 ####Optional#####
 precincts_open = None
-max_min_mult = 1 #scalar >= 1
+max_min_mult = 1.5 #scalar >= 1
 #maxpctnew = #[0,1]

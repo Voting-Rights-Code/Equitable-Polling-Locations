@@ -43,7 +43,8 @@ data_dir = os.path.join(git_dir, 'datasets')
 ##########################
 #TODO: (SA) This needs to be updated. Currenly only data is for Salem 2016, 2012
 #TODO: (all) Do we want to break out different years in to different csvs
-file_name_dict = {'Salem':'salem.csv'}
+file_name_dict = {'Salem':'salem.csv',
+                  'Test':'sample.csv'}
              
 ##########################
 #change_demographic file names
@@ -114,9 +115,9 @@ def get_dist_df(basedist,level,year):
 #TODO: Why is this takeing basedist as an input, (which doesn't drop the id_origis with 0 population instead of 
 # taking the dist_dfs, which does?)
 def get_max_min_dist(dist_df):
-    min_dist_series = dist_df.groupby('id_orig').distance_m.min()
-    max_min_dist = min_dist_series.max()
-    max_min_dist = math.ceil(max_min_dist) #TODO:Why do we have a ceiling here?
+    min_dist = dist_df[['id_orig', 'distance_m']].groupby('id_orig').agg('min')
+    max_min_dist = min_dist.distance_m.max()
+    max_min_dist = math.ceil(max_min_dist)
     return max_min_dist
 
 def alpha_all(df):
