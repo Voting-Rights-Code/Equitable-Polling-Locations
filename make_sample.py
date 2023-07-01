@@ -32,7 +32,7 @@ sample = df.loc[df['id_orig'].isin(residence_sample) & (df['id_dest'].isin(dest_
 
 #write sample to file
 sample_path = os.path.join(data_dir, 'sample.csv')
-sample.to_csv(file_path)
+sample.to_csv(file_path, encoding = 'utf-8', index = True)
 
 breakpoint()
 
