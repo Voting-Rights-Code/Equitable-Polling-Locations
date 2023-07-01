@@ -344,7 +344,7 @@ def optimize(city, year, level, beta, beta_zero =-2, maxpctnew=1, time_limit=288
                     'Cincinnati': 'cincinnati.csv',
                     'Richmond': 'richmond.csv',
                     'Salem': 'salem.csv',
-                    'Test':'salem_sample.csv',
+                    'Test':'sample.csv',
                     'Dallas': 'dallas.csv'}
     
 

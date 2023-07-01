@@ -31,6 +31,7 @@ residence_sample = residences[:10]
 sample = df.loc[df['id_orig'].isin(residence_sample) & (df['id_dest'].isin(dest_sample))]
 
 #write sample to file
+#NOTE: This doesn't quite work!
 sample_path = os.path.join(data_dir, 'sample.csv')
 sample.to_csv(file_path, encoding = 'utf-8', index = True)
 
