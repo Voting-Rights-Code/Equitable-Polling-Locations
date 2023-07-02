@@ -1,53 +1,42 @@
-from test_config_refactor import * #For testing only. Remove later 
 import time
-from data_for_model import *
+import math
+from test_config_refactor import * #For testing only. Remove later 
+
+from data_for_model import (
+    #add_weight_factors,
+    clean_data,
+    get_max_min_dist,
+    alpha_all,
+    alpha_min,
+    alpha_mean
+    #precinct_res_pairings,
+    #res_precinct_pairings,
+)
+
 import pyomo.environ as pyo
 from pyomo.opt import SolverStatus, TerminationCondition
 import pandas as pd
 
 
-#####################################
-#Get key data frames and constants
-#####################################
-
-####dataframes####
-#TODO: Check if really both of these are needed
-basedist = get_base_dist(location, year)
-dist_df = get_dist_df(basedist, level, year)
-
-####constants####
-#alpha = alpha_def(basedist) #NOTE: No longer needed. part of dist_df def
-global_max_min_dist = get_max_min_dist(dist_df)
-
-
-#check if poll number has been assigned in config
-#if not, give it the default number of polls in the file
-if precincts_open == None:
-    precincts_open = len(set(dist_df[dist_df['dest_type']=='polling']['id_dest']))
-max_min_multiplier_exists = 'max_min_mult' in  globals() or 'neighborhood_dist' in  locals()
-if not max_min_multiplier_exists:
-    #set to global_max_min_dist if not user provided
-    max_min = global_max_min_dist
-else: 
-    max_min = max_min_mult * global_max_min_dist #TODO (CR): lines 31-35 is setting a scalar
-                                                 # multiplier to global_max_min_dist
-                                                 # this should default to 1, unless the user wants
-                                                 # a different value.
-max_pct_exists = 'maxpctnew' in  globals() or 'maxpctnew' in  locals()
-if not maxpctnew:
-    #set to max percent new to all.
-    maxpctnew = 1
 
 
 start_time_0 = time.time()
-def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = maxpctnew, precincts_open = precincts_open):
+def build_model(beta = beta, max_min_mult = max_min_mult, maxpctnew = maxpctnew, precincts_open = precincts_open):
+    ######## get data and set parameters #######
+    dist_df = clean_data(location, level, year)
+    alpha_df = clean_data(location, 'original', year)
+    alpha  = alpha_all(alpha_df)
+    global_max_min_dist = get_max_min_dist(dist_df)
+    max_min = max_min_mult * global_max_min_dist
+    precincts_open = len(set(dist_df[dist_df['dest_type']=='polling']['id_dest']))
+
     ####set model to be concrete####
     model = pyo.ConcreteModel()
 
     ####define constants####
     #total population
     total_pop = dist_df.groupby('id_orig')['population'].agg('mean').sum() #TODO: Check that this is unique as desired.
-    alpha  = alpha_all(dist_df)
+    
 
     ####define model simple indices####
     #all possible precinct locations (unique)
@@ -67,7 +56,7 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
     model.weighted_dist = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'Weighted_dist']].set_index(['id_orig', 'id_dest']))
     
     #KP factor 
-    dist_df['KP_factor'] = math.e**(-beta*alpha*dist_df['Weighted_dist'])
+    dist_df['KP_factor'] = math.e**(-beta*alpha*dist_df['distance_m'])
     model.KP_factor = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'KP_factor']].set_index(['id_orig', 'id_dest']))
     #new location marker
     dist_df['new_location'] = 0
@@ -94,7 +83,8 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
         return (average_weighted_distances)
     def obj_rule_not_0(model):
         #take average by kp factor weight
-        average_weighted_distances = sum(model.matching[pair]* model.KP_factor[pair] for pair in model.pairs)/total_pop
+        #pair[0] = residence
+        average_weighted_distances = sum(model.population[pair[0]]* model.matching[pair]* model.KP_factor[pair] for pair in model.pairs)/total_pop
         return (average_weighted_distances)
     if beta== 0:
         model.obj = pyo.Objective(rule=obj_rule_0, sense=pyo.minimize)
@@ -102,7 +92,7 @@ def build_model(dist_df = dist_df, beta = beta, max_min = max_min, maxpctnew = m
         model.obj = pyo.Objective(rule=obj_rule_not_0, sense=pyo.minimize)
     start_time_2 = time.time()
     print(f'Objective functions defined in {start_time_2 - start_time_1} seconds')
-    
+    breakpoint()
     ####define constraints####
     print(f'Define constraints')
     #Open precincts constraint.

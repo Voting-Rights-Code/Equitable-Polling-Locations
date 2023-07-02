@@ -10,4 +10,4 @@ capacity = 1.2
 ####Optional#####
 precincts_open = None
 max_min_mult = 1.5 #scalar >= 1
-#maxpctnew = #[0,1]
+maxpctnew = 1 # in interval [0,1]

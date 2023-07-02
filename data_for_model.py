@@ -70,20 +70,41 @@ def change_demo_names(df):
 #The output of this function, referred to as basedist, is the full dataset on file
 #TODO: Susama and Chad need a walk through of what exactly these files contain. 
 #       Specifically, are these all distances to all actual and potential polling locations?
-def get_base_dist(location, year):
+def clean_data(location, level, year):
+    #read in data
     if location not in file_name_dict.keys():
         raise ValueError(f'Do not currently have any data for {location}')
     file_name = file_name_dict[location]
     file_path = os.path.join(data_dir, file_name)
     df = pd.read_csv(file_path, index_col=0)
+    #change column names
     df = change_demo_names(df)
-    #extract years
+    #check year validity
     polling_locations = set(df[df.id_dest.str.contains('poll')]['id_dest'])
     year_set = set(poll[5:9] for poll in polling_locations)
     if str(year) not in year_set:
         raise ValueError(f'Do not currently have any data for {location} for {year}')
+    #drop duplicates and empty block groups
     df = df.drop_duplicates() #put in to avoid duplications down the line.
-                              #TODO: needs discussion of how the dups got there in the first place
+    df = df[df['population']>0]
+    
+    #select data based on level
+    if level not in ['original', 'expanded','full']:
+        raise ValueError('level must be in {original, expanded,full}')
+    if level=='original':
+        df = df[df['dest_type']=='polling']         # keep only polling locations
+    elif level=='expanded':
+        df = df[df['dest_type']!='bg_centroid']     # keep schools and polling locations
+    else: #level == full
+        df = df   
+
+    #select data based on year
+    #select the polling locations only for a year
+    #keep all other locations 
+    df = df[(df.dest_type != 'polling') | (df.id_dest.str.contains('polling_'.join([str(year)])))]
+
+    #create other useful columns
+    df['Weighted_dist'] = df['population'] * df['distance_m']    
     return(df)
 
 #select the correct destination types given the level

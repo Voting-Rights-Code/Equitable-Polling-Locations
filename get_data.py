@@ -42,7 +42,6 @@ def get_basedist(dist, city,year):
 def get_dist_df(dist,city,level, year):
     file_path = os.path.join('datasets', dist)
     df = pd.read_csv(file_path)
-    df = pd.read_csv(dist)
     df = df[df['city']==city]
     if level=='original':
         df = df[df['dest_type']=='polling']        # keep only polling locations

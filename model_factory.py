@@ -11,8 +11,7 @@ import pyomo.environ as pyo
 
 from data_for_model import (
     #add_weight_factors,
-    get_base_dist,
-    get_dist_df,
+    clean_data,
     get_max_min_dist,
     alpha_all,
     alpha_min,
@@ -172,9 +171,8 @@ def polling_model_factory(config: PollingModelConfig) -> PollingModel:
     '''
 
     #### Create dataframes ####
-    basedist = get_base_dist(config.location, config.year)
-    dist_df = get_dist_df(basedist, config.level, config.year)
-    df_for_alpha = get_dist_df(basedist, 'original', config.year)
+    dist_df = clean_data(config.location, config.level, config.year)
+    alpha_df = get_dist_df(basedist, 'original', config.year)
     # NOTE: As currently written, assumes dist_df has no duplicates
 
     #define max_min parameter needed for certain calculations
@@ -191,7 +189,7 @@ def polling_model_factory(config: PollingModelConfig) -> PollingModel:
     #total population
     total_pop = dist_df.groupby('id_orig')['population'].agg('mean').sum() #TODO: Check that this is unique as desired.
     #alpha  = alpha_min(df_for_alpha)
-    alpha  = alpha_all(dist_df)
+    alpha  = alpha_all(alpha_df)
 
     ####set model to be concrete####
     model = pyo.ConcreteModel()
