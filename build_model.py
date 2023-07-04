@@ -88,7 +88,7 @@ def build_model(beta = beta, max_min_mult = max_min_mult, maxpctnew = maxpctnew,
         return (average_weighted_distances)
     if beta== 0:
         model.obj = pyo.Objective(rule=obj_rule_0, sense=pyo.minimize)
-    if beta== 0:
+    if beta!= 0:
         model.obj = pyo.Objective(rule=obj_rule_not_0, sense=pyo.minimize)
     start_time_2 = time.time()
     print(f'Objective functions defined in {start_time_2 - start_time_1} seconds')
