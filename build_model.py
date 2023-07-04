@@ -92,7 +92,7 @@ def build_model(beta = beta, max_min_mult = max_min_mult, maxpctnew = maxpctnew,
         model.obj = pyo.Objective(rule=obj_rule_not_0, sense=pyo.minimize)
     start_time_2 = time.time()
     print(f'Objective functions defined in {start_time_2 - start_time_1} seconds')
-    breakpoint()
+    
     ####define constraints####
     print(f'Define constraints')
     #Open precincts constraint.
