@@ -57,6 +57,6 @@ def solve_model(model, time_limit):
     print(solve_report)
 
     if exit_status == 'Optimal':
-        print(ea_model.obj())
+        print(model.obj())
     return results
 

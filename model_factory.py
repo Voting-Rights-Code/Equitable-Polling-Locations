@@ -118,13 +118,17 @@ def build_max_new_rule(
     config: PollingModelConfig,
     precincts_open:int,
 ):
-    '''percent of new open precincts cannot exceed maxpctnew'''
+    '''percent of new open precincts cannot exceed maxpctnew,
+    skip if no new locations in data'''
     maxpctnew = config.maxpctnew
 
     def max_new_rule(
             model: pyo.ConcreteModel,
         ) -> bool:
-        return sum(model.open[precinct]* model.new_locations[precinct] for precinct in model.precincts) <= maxpctnew*precincts_open
+        if not any(model.new_locations[precincts] for precincts in model.precincts):
+            return pyo.Constraint.Skip
+        else:
+            return sum(model.open[precinct]* model.new_locations[precinct] for precinct in model.precincts) <= maxpctnew*precincts_open
     return max_new_rule
 
 @timer
@@ -167,13 +171,13 @@ def build_capacity_rule(
     return capacity_rule
 
 @timer
-def polling_model_factory(config: PollingModelConfig) -> PollingModel:
+def polling_model_factory(dist_df, config: PollingModelConfig) -> PollingModel:
     '''
         Returns the polling locatoin pyomo model.
     '''
 
     #### Create dataframes ####
-    dist_df = clean_data(config.location, config.level, config.year)
+    #dist_df = clean_data(config.location, config.level, config.year)
     alpha_df = clean_data(config.location, 'original', config.year)
     # TODO: (CR) I don't like having to call this twice like this. Need a better method
 
