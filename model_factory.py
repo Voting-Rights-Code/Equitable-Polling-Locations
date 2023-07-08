@@ -171,16 +171,10 @@ def build_capacity_rule(
     return capacity_rule
 
 @timer
-def polling_model_factory(dist_df, config: PollingModelConfig) -> PollingModel:
+def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> PollingModel:
     '''
         Returns the polling locatoin pyomo model.
     '''
-
-    #### Create dataframes ####
-    #dist_df = clean_data(config.location, config.level, config.year)
-    alpha_df = clean_data(config.location, 'original', config.year)
-    # TODO: (CR) I don't like having to call this twice like this. Need a better method
-
     #define max_min parameter needed for certain calculations
     global_max_min_dist = get_max_min_dist(dist_df)
     max_min = config.max_min_mult* global_max_min_dist
@@ -194,7 +188,6 @@ def polling_model_factory(dist_df, config: PollingModelConfig) -> PollingModel:
     ####define constants####
     #total population
     total_pop = dist_df.groupby('id_orig')['population'].agg('unique').str[0].sum() 
-    alpha  = alpha_all(alpha_df)
     ####set model to be concrete####
     model = pyo.ConcreteModel()
 
