@@ -87,18 +87,20 @@ def build_objective_rule(
         total_pop: int,
     ):
     '''The function to be minimized:
-    Variables: model.matching, indexed by reisdence precinct pairs
-        beta = 0: weighted distance between pair
-        beta <0: KP factor for the pair '''
-    def obj_rule(model: PollingModel) -> float:
-        if config.beta == 0:
-            weight_dict = model.weighted_dist
-        else: #(beta != 0)
-            weight_dict = model.KP_factor
-        #take average by appropriate weight
-        average_weighted_distances = sum(model.matching[pair]* weight_dict[pair] for pair in model.pairs)/total_pop
-        return average_weighted_distances
-    return obj_rule
+    Variables: model.matching, indexed by reisidence precinct pairs'''
+    def obj_rule_0(model):
+        #take average populated weighted distance
+        average_weighted_distances = sum(model.matching[pair]* model.weighted_dist[pair] for pair in model.pairs)/total_pop
+        return (average_weighted_distances)
+    def obj_rule_not_0(model):
+        #take average by kp factor weight
+        #pair[0] = residence
+        average_weighted_distances = sum(model.population[pair[0]]* model.matching[pair]* model.KP_factor[pair] for pair in model.pairs)/total_pop
+        return (average_weighted_distances)
+    if config.beta == 0:
+        return obj_rule_0
+    if config.beta != 0: 
+        return obj_rule_not_0
 
 @timer
 def build_open_rule(
@@ -133,7 +135,7 @@ def build_res_assigned_rule(
             model: pyo.ConcreteModel,
             residence
         ) -> bool:
-        return (sum(model.open[precinct] for precinct in model.within_residence_radius[residence]) == 1)
+        return (sum(model.matching[residence, precinct] for precinct in model.within_residence_radius[residence]) == 1)
     return res_assigned_rule
 
 @timer
@@ -172,8 +174,8 @@ def polling_model_factory(config: PollingModelConfig) -> PollingModel:
 
     #### Create dataframes ####
     dist_df = clean_data(config.location, config.level, config.year)
-    alpha_df = get_dist_df(basedist, 'original', config.year)
-    # NOTE: As currently written, assumes dist_df has no duplicates
+    alpha_df = clean_data(config.location, 'original', config.year)
+    # TODO: (CR) I don't like having to call this twice like this. Need a better method
 
     #define max_min parameter needed for certain calculations
     global_max_min_dist = get_max_min_dist(dist_df)
@@ -187,10 +189,8 @@ def polling_model_factory(config: PollingModelConfig) -> PollingModel:
 
     ####define constants####
     #total population
-    total_pop = dist_df.groupby('id_orig')['population'].agg('mean').sum() #TODO: Check that this is unique as desired.
-    #alpha  = alpha_min(df_for_alpha)
+    total_pop = dist_df.groupby('id_orig')['population'].agg('unique').str[0].sum() 
     alpha  = alpha_all(alpha_df)
-
     ####set model to be concrete####
     model = pyo.ConcreteModel()
 
@@ -211,7 +211,7 @@ def polling_model_factory(config: PollingModelConfig) -> PollingModel:
     model.weighted_dist = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'Weighted_dist']].set_index(['id_orig', 'id_dest']))
     
     #KP factor 
-    dist_df['KP_factor'] = math.e**(-config.beta*alpha*dist_df['Weighted_dist'])
+    dist_df['KP_factor'] = math.e**(-config.beta*alpha*dist_df['distance_m'])
     model.KP_factor = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'KP_factor']].set_index(['id_orig', 'id_dest']))
     #new location marker
     dist_df['new_location'] = 0
@@ -230,8 +230,7 @@ def polling_model_factory(config: PollingModelConfig) -> PollingModel:
     model.within_precinct_radius = pyo.Set(model.precincts, initialize = {prec:[res for res in model.residences if model.distance[(res,prec)] <= max_min] for prec in model.precincts})
 
     # Set the objective function
-    obj_rule = build_objective_rule(config,                     
-                                    total_pop)
+    obj_rule = build_objective_rule(config,                 total_pop)
     model.obj = pyo.Objective(rule=obj_rule, sense=pyo.minimize)
 
     #### Define Constraints

@@ -103,6 +103,11 @@ def clean_data(location, level, year):
     #keep all other locations 
     df = df[(df.dest_type != 'polling') | (df.id_dest.str.contains('polling_'.join([str(year)])))]
 
+    #check that population is unique by id_orig
+    pop_df = df.groupby('id_orig')['population'].agg('unique').str.len()
+    if any(pop_df>1):
+        raise ValueError("Some id_orig has multiple associated populations")
+
     #create other useful columns
     df['Weighted_dist'] = df['population'] * df['distance_m']    
     return(df)

@@ -137,7 +137,7 @@ def build_model(beta = beta, max_min_mult = max_min_mult, maxpctnew = maxpctnew,
 
 def solve_model(model, time_limit = time_limit):
    
-
+    start_time_0 = time.time()
     #Pick a solver
     solver_name = 'scip'
     #solver_name = 'glpk'
@@ -194,4 +194,4 @@ def solve_model(model, time_limit = time_limit):
 ea_model = build_model()
 print(f'model built. Solve for {time_limit} seconds')
 
-ea_result = solve_model(ea_model)
+ea_result = solve_model(ea_model, time_limit)
