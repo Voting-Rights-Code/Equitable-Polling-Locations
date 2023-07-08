@@ -51,6 +51,6 @@ prec_res_weighted_dist = result_df[['population','white', 'black', 'native', 'as
 prec_res_weighted_dist.insert(0, "id_dest", result_df.id_dest)
 precinct_total_dist = prec_res_weighted_dist.groupby('id_dest').agg('sum')
 
-precinct_avg_dist =  pd.DataFrame({'id_dest': precincts}).reset_index()
+precinct_avg_dist =  pd.DataFrame({'id_dest': precincts}).set_index('id_dest')
 for col in precinct_total_dist.columns:
     precinct_avg_dist[col] = precinct_total_dist[col]/precinct_population[col]
