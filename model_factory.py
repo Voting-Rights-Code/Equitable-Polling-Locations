@@ -10,14 +10,7 @@ import pyomo.environ as pyo
 
 
 from data_for_model import (
-    #add_weight_factors,
-    clean_data,
     get_max_min_dist,
-    alpha_all,
-    alpha_min,
-    alpha_mean
-    #precinct_res_pairings,
-    #res_precinct_pairings,
 )
 
 from utils import timer

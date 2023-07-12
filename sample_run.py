@@ -1,6 +1,6 @@
 
 import test_config_refactor as config
-from data_for_model import (clean_data, alpha_all)
+from data_for_model import (clean_data, alpha_all,, alpha_mean, alpha_min)
 from model_factory import polling_model_factory
 from model_solver import solve_model
 from model_results import (incorporate_result,demographic_domain_summary, demographic_summary,write_results,)
