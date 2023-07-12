@@ -172,7 +172,7 @@ def get_results_df(model, pop_demographics, neighborhood_dict, pop_dict):
     #population_df = [{'id_orig':c, 'pop':p} for c,p in pop_dict.items()]
     #df2 = pd.DataFrame(population_df)
     #df2 =   pop_demographics.copy()
-    breakpoint()
+    
     df = pd.merge(distance_df, pop_demographics, how='inner', on='id_orig') #TODO: Why inner, and why are there duplicates?
     df = df.drop_duplicates()
     df = df.reset_index()
@@ -389,7 +389,7 @@ def optimize(city, year, level, beta, beta_zero =-2, maxpctnew=1, time_limit=288
     print(f"The number of precincts that will be open is {PRECINCTS_OPEN}")
 
     #scaling factor for capacity
-    CAPACITY = 1.5
+    CAPACITY = 5 #NOTE: changed from 1.5 for TEST RUN ONLY
 
     #read in alpha
     ALPHA = gd.alpha_def(MAX_MIN_DIST, basedist)
@@ -421,7 +421,7 @@ def optimize(city, year, level, beta, beta_zero =-2, maxpctnew=1, time_limit=288
                   demographic=DEMOGRAPHIC,
                   new_locations=NEW_LOCATIONS,
                   maxpctnew=MAXPCTNEW)
-    breakpoint()
+
     print(f"The model has been read in at time {time.time()}.")
 
     #can change the solver
@@ -444,7 +444,7 @@ def optimize(city, year, level, beta, beta_zero =-2, maxpctnew=1, time_limit=288
     read_time = start_time-timestart
     print(f"\nTime for model to be read in is {read_time:.2f} seconds\n")
     results = solver.solve(ea_model, tee=True)
-    breakpoint()
+
     solve_time = time.time() - start_time
 
     #print updates on status

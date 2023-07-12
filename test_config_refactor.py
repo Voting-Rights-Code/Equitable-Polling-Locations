@@ -4,7 +4,7 @@ year = '2016'
 level = 'original'
 beta = -2
 time_limit = 120 #2 minutes
-capacity = 1.2
+capacity = 5
 
 ####Optional#####
 precincts_open = None
