@@ -388,9 +388,6 @@ def optimize(city, year, level, beta, beta_zero =-2, maxpctnew=1, time_limit=288
     PRECINCTS_OPEN = len(gd.get_precinct_ids(basedist))
     print(f"The number of precincts that will be open is {PRECINCTS_OPEN}")
 
-    #scaling factor for capacity
-    CAPACITY = 5 #NOTE: changed from 1.5 for TEST RUN ONLY
-
     #read in alpha
     ALPHA = gd.alpha_def(MAX_MIN_DIST, basedist)
 
