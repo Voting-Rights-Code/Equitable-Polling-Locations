@@ -9,17 +9,17 @@ data_dir = os.path.join(git_dir, 'datasets')
 
 
 ### Pull in salem data #### 
-file_name = 'salem.csv'
+file_name = 'Gwinett_GA.csv'
 file_path = os.path.join(data_dir, file_name)
 df = pd.read_csv(file_path, index_col=0)
 #drop duplicates
 df = df.drop_duplicates()
 #keep only rows with positive population
-df = df[df['H7X001']>0]
+df = df[df['population']>0]
 
 #create sample set of schools, polling locations and residences
-polling_locations = list(set(df[df.id_dest.str.contains('poll_2016')]['id_dest']))
-schools = list(set(df[df.id_dest.str.contains('school')]['id_dest']))
+polling_locations = list(set(df[df.dest_type == 'polling']['id_dest']))
+schools = list(set(df[df.dest_type == 'potential']['id_dest']))
 residences = list(set(df['id_orig']))
 
 polling_sample = polling_locations[:3]
@@ -32,9 +32,9 @@ sample = df.loc[df['id_orig'].isin(residence_sample) & (df['id_dest'].isin(dest_
 
 #write sample to file
 #NOTE: This doesn't quite work!
-sample_path = os.path.join(data_dir, 'sample.csv')
-sample.to_csv(file_path, encoding = 'utf-8', index = True)
+sample_path = os.path.join(data_dir, 'sample_Gwinett.csv')
+sample.to_csv(sample_path, encoding = 'utf-8', index = True)
 
-breakpoint()
+
 
 print(df.shape)

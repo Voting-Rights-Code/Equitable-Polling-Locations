@@ -31,7 +31,7 @@ def demographic_domain_summary(result_df, domain):
     if domain not in ['id_dest', 'id_orig']:
         raise ValueError('domain much be in [id_dest, id_orig]')
     #Transform to get distance and population by demographic, destination pairs
-    demographic_all = pd.melt(result_df[[domain, 'distance_m', 'population','white', 'black', 'native', 'asian', 'hispanic', 'poverty_0_50', 'poverty_50_99']], id_vars = [domain, 'distance_m'], value_vars = ['population','white', 'black', 'native', 'asian', 'hispanic', 'poverty_0_50', 'poverty_50_99'], var_name = 'demographic', value_name = 'demo_pop')
+    demographic_all = pd.melt(result_df[[domain, 'distance_m', 'population','white', 'black', 'native', 'asian', 'hispanic']], id_vars = [domain, 'distance_m'], value_vars = ['population','white', 'black', 'native', 'asian', 'hispanic'], var_name = 'demographic', value_name = 'demo_pop')
 
     #create a weighted distance column for people of each demographic
     demographic_all['weighted_dist'] = demographic_all['demo_pop']*demographic_all['distance_m']

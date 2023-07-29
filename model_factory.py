@@ -216,6 +216,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     #Populations of residences
     model.population = pyo.Param(model.residences, initialize =dist_df.groupby('id_orig')['population'].agg('mean'))
     #Precinct residence distances
+
     model.distance = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'distance_m']].set_index(['id_orig', 'id_dest']))
     #population weighted distances
     model.weighted_dist = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'Weighted_dist']].set_index(['id_orig', 'id_dest']))
@@ -268,6 +269,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
         total_pop=total_pop,
         precincts_open=precincts_open,
     )
+ 
     model.capacity_constraint = pyo.Constraint(model.precincts, rule=capacity_rule)
 
     #model.obj.pprint()

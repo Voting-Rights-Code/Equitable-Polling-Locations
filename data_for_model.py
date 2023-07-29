@@ -45,7 +45,8 @@ data_dir = os.path.join(git_dir, 'datasets')
 #TODO: (all) Do we want to break out different years in to different csvs
 file_name_dict = {'Salem':'salem.csv',
                   'Test':'sample.csv',
-                  'Gwinett':'Gwinett_GA'}
+                  'Gwinett':'Gwinett_GA.csv',
+                  'Gwinett_Test':'sample_Gwinett.csv'}
              
 ##########################
 #change_demographic file names
