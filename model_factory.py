@@ -67,6 +67,9 @@ class PollingModelConfig:
     maxpctnew: float = 1.0
     '''The percent on new polling places (not already defined as a
     polling location) permitted in the data. Default = 1. I.e. can replace all existing locations'''
+    minpctold: float = 0
+    '''The minimun number of polling places (those already defined as a
+    polling location) permitted in the data. Default = 0. I.e. can replace all existing locations'''
     max_min_mult: float = 1.0
     '''A multiplicative factor for the min_max distance caluclated
     from the data. Should be >= 1. Default = 1.'''
@@ -123,6 +126,23 @@ def build_max_new_rule(
         else:
             return sum(model.open[precinct]* model.new_locations[precinct] for precinct in model.precincts) <= maxpctnew*precincts_open
     return max_new_rule
+
+def build_min_old_rule(
+    config: PollingModelConfig,
+    precincts_open:int,
+):
+    '''percent of new open precincts cannot exceed maxpctnew,
+    skip if no new locations in data'''
+    minpctold = config.minpctold
+
+    def min_old_rule(
+            model: pyo.ConcreteModel,
+        ) -> bool:
+        if all(model.new_locations[precincts] for precincts in model.precincts):
+            return pyo.Constraint.Skip
+        else:
+            return sum(model.open[precinct]* (1-model.new_locations[precinct]) for precinct in model.precincts) >= minpctold*precincts_open
+    return min_old_rule
 
 @timer
 def build_res_assigned_rule(
@@ -230,6 +250,10 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     #percent of new precincts not to exceed maxpctnew
     max_new_rule = build_max_new_rule(config, precincts_open)
     model.max_new_constraint = pyo.Constraint(rule=max_new_rule)
+
+    #percent of established precincts not to dip below minpctold
+    min_old_rule = build_min_old_rule(config, precincts_open)
+    model.min_old_constraint = pyo.Constraint(rule=min_old_rule)
 
     #assigns each census block to a single precinct in its neighborhood
     res_assigned_rule = build_res_assigned_rule()

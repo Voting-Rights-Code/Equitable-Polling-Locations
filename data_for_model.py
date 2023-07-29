@@ -44,7 +44,8 @@ data_dir = os.path.join(git_dir, 'datasets')
 #TODO: (SA) This needs to be updated. Currenly only data is for Salem 2016, 2012
 #TODO: (all) Do we want to break out different years in to different csvs
 file_name_dict = {'Salem':'salem.csv',
-                  'Test':'sample.csv'}
+                  'Test':'sample.csv',
+                  'Gwinett':'Gwinett_GA'}
              
 ##########################
 #change_demographic file names
@@ -78,7 +79,8 @@ def clean_data(location, level, year_list):
     file_path = os.path.join(data_dir, file_name)
     df = pd.read_csv(file_path, index_col=0)
     #change column names
-    df = change_demo_names(df)
+    if location in {'Salem', 'Test'}:
+        df = change_demo_names(df)
     #check year validity
     polling_locations = set(df[df.dest_type == 'polling']['id_dest'])
     for year in year_list:

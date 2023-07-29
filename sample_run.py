@@ -11,7 +11,7 @@ dist_df = clean_data(config.location, config.level, config.year)
 #get alpha
 alpha_df = clean_data(config.location, 'original', config.year)
     # TODO: (CR) I don't like having to call this twice like this. Need a better method
-alpha  = alpha_all(alpha_df)
+alpha  = alpha_min(alpha_df)
 
 #build model
 ea_model = polling_model_factory(dist_df, alpha, config)
