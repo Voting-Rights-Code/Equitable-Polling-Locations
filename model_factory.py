@@ -50,8 +50,8 @@ class PollingModel(pyo.ConcreteModel):
 class PollingModelConfig:
     location: str
     '''Name of the county or city of interest'''
-    year: str
-    '''Year to be studied'''
+    year: list
+    '''list of years to be studied'''
     level: str
     '''{'original': consider only the original polling locations,
         'expanded': consider all schools

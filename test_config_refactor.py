@@ -1,7 +1,7 @@
 #Constants for the optimization function
 location = 'Test'
-year = '2016'
-level = 'original'
+year = ['2016']
+level = 'expanded'
 beta = -2
 time_limit = 120 #2 minutes
 capacity = 5

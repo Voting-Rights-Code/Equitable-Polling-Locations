@@ -27,7 +27,7 @@ from decimal import Decimal
 import subprocess
 import os
 import itertools
-from test_config_refactor import * #TODO: (SA) for testing only. remove later
+#from test_config_refactor import * #TODO: (SA) for testing only. remove later
  
 
 ##########################
@@ -70,7 +70,7 @@ def change_demo_names(df):
 #The output of this function, referred to as basedist, is the full dataset on file
 #TODO: Susama and Chad need a walk through of what exactly these files contain. 
 #       Specifically, are these all distances to all actual and potential polling locations?
-def clean_data(location, level, year):
+def clean_data(location, level, year_list):
     #read in data
     if location not in file_name_dict.keys():
         raise ValueError(f'Do not currently have any data for {location}')
@@ -80,10 +80,10 @@ def clean_data(location, level, year):
     #change column names
     df = change_demo_names(df)
     #check year validity
-    polling_locations = set(df[df.id_dest.str.contains('poll')]['id_dest'])
-    year_set = set(poll[5:9] for poll in polling_locations)
-    if str(year) not in year_set:
-        raise ValueError(f'Do not currently have any data for {location} for {year}')
+    polling_locations = set(df[df.dest_type == 'polling']['id_dest'])
+    for year in year_list:
+        if not any(str(year) in poll for poll in polling_locations):
+            raise ValueError(f'Do not currently have any data for {location} for {year}')
     #drop duplicates and empty block groups
     df = df.drop_duplicates() #put in to avoid duplications down the line.
     df = df[df['population']>0]
@@ -99,10 +99,16 @@ def clean_data(location, level, year):
         df = df   
 
     #select data based on year
-    #select the polling locations only for a year
+    #select the polling locations only for the indicated years
     #keep all other locations 
-    df = df[(df.dest_type != 'polling') | (df.id_dest.str.contains('polling_'.join([str(year)])))]
-
+    not_polling = df[(df.dest_type != 'polling')]
+    polling_year_list =  [df[df.id_dest.str.contains('polling_'.join([str(year)]))] for year in year_list]
+    polling_year_list.append(not_polling)
+    df = pd.concat(polling_year_list)
+    #the concatenation will create duplicates if a polling location is used multiple years
+    #drop these
+    df = df.drop_duplicates() 
+    
     #check that population is unique by id_orig
     pop_df = df.groupby('id_orig')['population'].agg('unique').str.len()
     if any(pop_df>1):
