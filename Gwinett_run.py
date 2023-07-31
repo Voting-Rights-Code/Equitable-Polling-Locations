@@ -33,7 +33,7 @@ demographic_res = demographic_domain_summary(result_df, 'id_orig')
 demographic_ede = demographic_summary(demographic_res, result_df,config.beta, alpha)
 
 result_folder = f'{config.location}_result'
-run_prefix = f'{config.location}_{config.year}_{config.level}_beta={config.beta}_min_old={config.minpctold}_max_new={config.maxpctnew}'
+run_prefix = f'{config.location}_{config.year}_{config.level}_beta={config.beta}_min_old={config.minpctold}_max_new={config.maxpctnew}_num_locations={config.precincts_open}'
 
 write_results(result_folder, run_prefix, result_df, demographic_prec, demographic_res, demographic_ede)
 
