@@ -1,4 +1,4 @@
-import Gwinett_config as config
+import Gwinett_runs.Gwinett_config_full_50 as config
 from data_for_model import (clean_data, alpha_all, alpha_mean, alpha_min)
 from model_factory import polling_model_factory
 from model_solver import solve_model

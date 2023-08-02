@@ -129,19 +129,18 @@ def build_max_new_rule(
 
 def build_min_old_rule(
     config: PollingModelConfig,
-    precincts_open:int,
+    old_polls:int,
 ):
-    '''percent of new open precincts cannot exceed maxpctnew,
-    skip if no new locations in data'''
-    minpctold = config.minpctold
+    '''a minimum percent of old polling locations must be included,
+    skip if set to 0'''
 
     def min_old_rule(
             model: pyo.ConcreteModel,
         ) -> bool:
-        if all(model.new_locations[precincts] for precincts in model.precincts):
+        if config.minpctold == 0:
             return pyo.Constraint.Skip
         else:
-            return sum(model.open[precinct]* (1-model.new_locations[precinct]) for precinct in model.precincts) >= minpctold*precincts_open
+            return sum(model.open[precinct]* (1-model.new_locations[precinct]) for precinct in model.precincts) >= config.minpctold*old_polls
     return min_old_rule
 
 @timer
@@ -192,9 +191,12 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     global_max_min_dist = get_max_min_dist(dist_df)
     max_min = config.max_min_mult* global_max_min_dist
     
+    #Calculate number of old polling locations
+    old_polls = len(set(dist_df[dist_df['dest_type']=='polling']['id_dest']))
+
     #Calculate precincts open value from data if not provided by user
     if config.precincts_open == None:
-        precincts_open = len(set(dist_df[dist_df['dest_type']=='polling']['id_dest']))
+        precincts_open = old_polls
     else:
         precincts_open = config.precincts_open
 

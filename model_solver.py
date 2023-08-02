@@ -21,7 +21,7 @@ def solve_model(model, time_limit):
         solver.options['TimeLimit'] = time_limit
     elif solver_name == 'scip':          
 #        solver.options['limits/time'] = time_limit
-         solver.options ={ 'limits/time':time_limit,  'limits/gap': 0.0001, 'lp/threads':2 }
+         solver.options ={ 'limits/time':time_limit,  'limits/gap': 0.01, 'lp/threads':2 }
         
     results = solver.solve(model, tee=True)
     solve_time = time.time() - start_time_0
