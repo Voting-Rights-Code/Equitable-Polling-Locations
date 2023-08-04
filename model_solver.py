@@ -26,8 +26,10 @@ def solve_model(model, time_limit):
     results = solver.solve(model, tee=True)
     solve_time = time.time() - start_time_0
 
+    #Commenting this out for now. 
+    #TODO: Chad, we should decide later what we want to log.
     #print updates on status
-    if ((results.solver.status == SolverStatus.ok) and
+"""     if ((results.solver.status == SolverStatus.ok) and
         (results.solver.termination_condition == TerminationCondition.optimal)):
         # Do something when the solution in optimal and feasible
         exit_status = 'Optimal'
@@ -54,9 +56,9 @@ def solve_model(model, time_limit):
     solve_report = {'exit_status':exit_status, 'lower_bound':lower, 'upper_bound':upper,
                     'gap':gap, 'solve_time':solve_time}
 
-    print(solve_report)
+    #print(solve_report)
 
-    if exit_status == 'Optimal':
-        print(model.obj())
+    #if exit_status == 'Optimal':
+        print(model.obj()) """
     return results
 
