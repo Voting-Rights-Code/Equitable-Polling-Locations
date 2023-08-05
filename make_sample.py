@@ -9,7 +9,7 @@ data_dir = os.path.join(git_dir, 'datasets')
 
 
 ### Pull in salem data #### 
-file_name = 'Gwinett_GA.csv'
+file_name = 'Gwinnett_GA.csv'
 file_path = os.path.join(data_dir, file_name)
 df = pd.read_csv(file_path, index_col=0)
 #drop duplicates
@@ -32,7 +32,7 @@ sample = df.loc[df['id_orig'].isin(residence_sample) & (df['id_dest'].isin(dest_
 
 #write sample to file
 #NOTE: This doesn't quite work!
-sample_path = os.path.join(data_dir, 'sample_Gwinett.csv')
+sample_path = os.path.join(data_dir, 'sample_Gwinnett.csv')
 sample.to_csv(sample_path, encoding = 'utf-8', index = True)
 
 
