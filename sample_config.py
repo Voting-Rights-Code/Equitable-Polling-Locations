@@ -1,5 +1,5 @@
 #Constants for the optimization function
-location = 'Test'
+location = 'sample_Gwinnett'
 year = ['2016']
 level = 'expanded'
 beta = -2

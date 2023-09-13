@@ -1,0 +1,16 @@
+Below are the summary statistics for Test in the year 2016 including prior locations, schools, and census block group centroids as possible precinct location options.
+Average distance: 5463.94
+BETA: -2.0
+MAXPCTNEW: 0.50
+y_EDE: 5740.21
+Number of opened precincts is: 3
+Black EDE:2196.95
+White EDE:5299.92
+Native EDE:5805.86
+Asian EDE:4315.89
+Hispanic EDE:6435.28
+The variance from the average distance is: 2615704.85
+The variance from the y_EDE distance is: 3052924.43
+The standard deviation from the EDE for the demographics is: 1747.26
+Number of variables created: 28.
+Time to solve is: 0.10 seconds (0.00 hours).

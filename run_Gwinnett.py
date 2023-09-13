@@ -1,6 +1,5 @@
-
-import test_config_refactor as config
-from data_for_model import (clean_data, alpha_all, alpha_mean, alpha_min)
+import Gwinnett_runs.Gwinnett_config_expanded_11 as config
+from model_data import (clean_data, alpha_all, alpha_mean, alpha_min)
 from model_factory import polling_model_factory
 from model_solver import solve_model
 from model_results import (incorporate_result,demographic_domain_summary, demographic_summary,write_results,)
@@ -11,6 +10,7 @@ dist_df = clean_data(config.location, config.level, config.year)
 #get alpha
 alpha_df = clean_data(config.location, 'original', config.year)
     # TODO: (CR) I don't like having to call this twice like this. Need a better method
+
 alpha  = alpha_min(alpha_df)
 
 #build model
@@ -34,6 +34,7 @@ demographic_res = demographic_domain_summary(result_df, 'id_orig')
 demographic_ede = demographic_summary(demographic_res, result_df,config.beta, alpha)
 
 result_folder = f'{config.location}_result'
-run_prefix = f'{config.location}_{config.year}_{config.level}_beta={config.beta}'
+run_prefix = f'{config.location}_{config.year}_{config.level}_beta={config.beta}_min_old={config.minpctold}_max_new={config.maxpctnew}_num_locations={config.precincts_open}'
+
 write_results(result_folder, run_prefix, result_df, demographic_prec, demographic_res, demographic_ede)
 
