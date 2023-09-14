@@ -1,4 +1,4 @@
-import Gwinnett_runs.Gwinnett_config_expanded_11 as config
+import Gwinnett_runs.Gwinnett_config_expanded_12 as config
 from model_data import (clean_data, alpha_all, alpha_mean, alpha_min)
 from model_factory import polling_model_factory
 from model_solver import solve_model
