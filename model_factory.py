@@ -9,7 +9,7 @@ import pandas as pd
 import pyomo.environ as pyo
 
 
-from data_for_model import (
+from model_data import (
     get_max_min_dist,
 )
 
@@ -255,7 +255,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     model.max_new_constraint = pyo.Constraint(rule=max_new_rule)
 
     #percent of established precincts not to dip below minpctold
-    min_old_rule = build_min_old_rule(config, precincts_open)
+    min_old_rule = build_min_old_rule(config, old_polls)
     model.min_old_constraint = pyo.Constraint(rule=min_old_rule)
 
     #assigns each census block to a single precinct in its neighborhood
