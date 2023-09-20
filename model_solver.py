@@ -8,7 +8,7 @@ import pandas as pd
 
 def solve_model(model, time_limit):
     
-    start_time_0 = time.time()
+    #start_time_0 = time.time()
     #Pick a solver
     solver_name = 'scip'
     #solver_name = 'glpk'

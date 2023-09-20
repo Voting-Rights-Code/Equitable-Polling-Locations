@@ -50,7 +50,7 @@ def demographic_domain_summary(result_df, domain):
     return demographic_prec
 
 def demographic_summary(demographic_df, result_df, beta, alpha):
-    '''Input: demographic__df-- the distance an demographic population data for the matched residences and precincts
+    '''Input: demographic_df-- the distance an demographic population data for the matched residences and precincts
     beta -- the inequality aversion factor
     alpha -- the data derived normalization factor
     Output: Calculate the average distances traveled by each demographic group.'''
@@ -70,7 +70,7 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
     if beta !=0: 
         #TODO: (DS) alpha be recalculated at this step for each
         #demographic group to get the y_ede?
-        
+
         #add the distance_m column back in from dist_df
         #1) first make demographics a column, not an index
         demographic_by_res = demographic_df.reset_index(['demographic'])
@@ -90,7 +90,7 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
         demographic_ede['y_EDE'] = (-1/(beta * alpha))*np.log(demographic_ede['avg_KP_weight'])
 
         #merge the datasets
-        demographic_summary = pd.concat([demographic_summary, demographic_ede], axis = 1)
+        demographic_summary = pd.concat([demographic_summary[['weighted_dist', 'avg_dist']], demographic_ede], axis = 1)
     return demographic_summary
 
 def write_results(result_folder, run_prefix, result_df, demographic_prec, demographic_res, demographic_ede):
