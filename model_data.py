@@ -142,7 +142,7 @@ def build_source(location):
         raise ValueError('Populations different in P3 and P4. Are both pulled from the voting age universe?')
 
     #Change column names
-    demographics.drop(['P3_001N', 'Pop_diff'], axis =1, inplace = True)
+    demographics.drop(['P4_001N', 'Pop_diff'], axis =1, inplace = True)
     demographics = demographics.rename(columns = {'P4_002N': 'hispanic', 'P4_003N':'non-hispanic', 'P3_001N':'population', 'P3_003N':'white', 'P3_004N':'black', 'P3_005N':'native', 'P3_006N':'asian', 'P3_007N':'pacific_islander', 'P3_008N':'other', 'P3_009N':'multiple_races'})
 
     #drop geo_id_prefix
