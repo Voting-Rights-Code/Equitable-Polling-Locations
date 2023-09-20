@@ -4,7 +4,10 @@ Given a set of existing and candidate polling locations, output the most equitab
 # To run
 
 # Input files
-### **'County_ST_configs/County_config_DESCRIPTOR.py'**
+All files and directories here are assumed to be within the git folder for Equitable-Polling-Locations
+### **County_ST_configs/County_config_DESCRIPTOR.py**
+These are the config files for the various runs.
+Example path Gwinnett_GA_configs/Gwinnett_config_full_11.py
   * Mandatory arguments
     * location: County_ST. This variable is used throughout to name files
     * year: List of years one wants to consider actual polling locations for. E.g. ['2022', '2020'] 
@@ -22,8 +25,9 @@ Given a set of existing and candidate polling locations, output the most equitab
     * maxpctnew = In [0,1]. The percent of new locations allowed to be matched. Default = 1 
     * minpctold = In [0,1]. The percent of existing locations allowed to be matched. Default = 0
 
-### **'datasets/polling/Count_ST/County_ST_locations_only.csv'**: 
-  * A manually constructed .csv file that contains data for existing and potential polling locations to be optimized against
+### **'datasets/polling/County_ST/County_ST_locations_only.csv'**: 
+This is a manually constructed .csv file that contains data for existing and potential polling locations to be optimized against
+Example file name: datasets/polling/Gwinnett_GA/Gwinnett_GA_locations_only.csv
   * The columns of this data set should be named and formatted as
     * Location: name of the actual or potential polling location. E.g. Lilburn Activity Builging
     * Address: Street address for the polling location. E.g. 788 Hillcrest Rd NW, Lilburn, GA 20047
@@ -31,7 +35,7 @@ Given a set of existing and candidate polling locations, output the most equitab
         * Previous polling locations: PollingType_YYYY. This MUST contain a list of years that the location is active. E.g. EV_2022_2020 or General_2020 or Primary_2022_2020_2018 or DropBox_2022.
         * Potential polling location: Description - Potential. This MUST contain the word 'Potential'. E.g. Community Center - Potential, Library - Potential or simply Potential
     * Lat, Long: Latitude, Longitude of the polling location (can be read off of google maps by right clicking on the location marker for the address.)
-### **'datasets/census/redistricting/Count_ST/datasets/census/redistricting/Gwinnett_GA/DECENNIALPL2020.P3-Data.csv'**: 
+### **'datasets/census/redistricting/Count_ST/datasets/census/redistricting/County_ST/DECENNIALPL2020.P3-Data.csv'**: 
 * This is the census dataset for a racial breakdown of people of voting age by census block.
 * Documentation for this dataset can be found [on the census api site for P3](https://api.census.gov/data/2010/dec/sf1/groups/P3.html)
 * Instructions for downloading this data:
@@ -49,7 +53,7 @@ Given a set of existing and candidate polling locations, output the most equitab
     * Some Other Race alone
     * Two or More Races
 
-### **'datasets/census/redistricting/Count_ST/datasets/census/redistricting/Gwinnett_GA/DECENNIALPL2020.P4-Data.csv'**:
+### **'datasets/census/redistricting/Count_ST/datasets/census/redistricting/County_ST/DECENNIALPL2020.P4-Data.csv'**:
 * This is the census dataset for a racial breakdown of people of voting age by census block.
 * Documentation for this dataset can be found [on the census api site for P4](https://api.census.gov/data/2010/dec/sf1/groups/P4.html)
 * Instructions for downloading this data:
@@ -62,7 +66,7 @@ Given a set of existing and candidate polling locations, output the most equitab
     * Total population
     * Total hispanic
     * Total non-hispanic
-### **'datasets/census/redistricting/Count_ST/datasets/census/tiger/Gwinnett_GA/tl_cenesusYYYY_FIPS_tablockcenesusYY.shp**:
+### **'datasets/census/redistricting/Count_ST/datasets/census/tiger/County_ST/tl_cenesusYYYY_FIPS_tablockcenesusYY.shp**:
 [TIGER/line Shapefiles](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) is a database of shape files for the geographic categories used by the census.  
 * Documentation: https://www.census.gov/programs-surveys/geography/technical-documentation/complete-technical-documentation/tiger-geo-line/2020.html
 * Instuction for downloading this data:
@@ -78,10 +82,10 @@ Given a set of existing and candidate polling locations, output the most equitab
     * INTPTLAT20 - latitude of block centroid
     * INTPTLON20 - longitude of block centroid
 
-### **'datasets/census/redistricting/Count_ST/datasets/census/tiger/Gwinnett_GA/tl_cenesusYYYY_FIPS_bgcenesusYY.shp**:
+### **'datasets/census/redistricting/Count_ST/datasets/census/tiger/County_ST/tl_cenesusYYYY_FIPS_bgcenesusYY.shp**:
 The instructions for downloading this data is identical the instructions for the blocks with the following exception:
 * Download tl_cenesusYYYY_FIPS_bgcenesusYY.zip (e.g. tl_cenesus2020_13135_bg20.zip)
 
 # Intermediate dataset
-### **'datasets/polling/Count_ST/County_ST.csv'**: 
+### **'datasets/polling/County_ST/County_ST.csv'**: 
 # Output  

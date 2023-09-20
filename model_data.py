@@ -5,14 +5,6 @@
 #@attribution: Josh Murell 
 #######################################
 
-'''
-Right now, this assumes that there exists a set of tables, one for each location, year
-of the following columns:
-[ , id_orig, id_dest, distance_m, city,	dest_type, H7X001, H7X002, H7X003, 
-    H7X004, H7X005, H7Z010, JOIE001, poverty_0_50, poverty_50_99]
-
-The functions in this file pull out the requisite data from this table for processing by the equal access model
-'''
 #TODO: (SA/CR) Need to write an automated script to read in the demographics part of this table for a given county 
 #        from the ACS
 #TODO: (all) Need to figure out how the distance is calculated and get that implemented at the county level from Google
@@ -20,56 +12,228 @@ The functions in this file pull out the requisite data from this table for proce
 #TODO: (CR) Need to figure out where the data is going to be stored in the end.
 
 
-#import modules
 import pandas as pd
 import math
-from decimal import Decimal
-import subprocess
 import os
-import itertools
-#from test_config_refactor import * #TODO: (SA) for testing only. remove later
+import warnings
+from haversine import haversine
+import geopandas as gpd
+
+
+##########################
+#read in data and write relevant dataframe for model to file
+##########################
+#build distance data set from census data and potential pollig location data.
  
+def build_source(location):
+    ######
+    #Check that necessary files exist
+    ######
+    #1. Potential polling locations
+    file_name = location + '_locations_only.csv'
+    LOCATION_SOURCE_FILE = os.path.join('datasets', 'polling', location, file_name)
+    if os.path.exists(LOCATION_SOURCE_FILE): 
+        #warnings.warn(f'{file_name} found. Last modified {os.path.getmtime(LOCATION_SOURCE_FILE)}.')
+        locations = pd.read_csv(LOCATION_SOURCE_FILE)
+    else: 
+        raise ValueError(f'Potential polling location data ({LOCATION_SOURCE_FILE}) not found.')
+    
+    #2. Census demographic data
+    file_nameP3 = 'DECENNIALPL2020.P3-Data.csv'
+    file_nameP4 = 'DECENNIALPL2020.P4-Data.csv'
+    demographics_dir = os.path.join('datasets', 'census', 'redistricting', location)
+    P3_SOURCE_FILE  = os.path.join(demographics_dir, file_nameP3)
+    P4_SOURCE_FILE  = os.path.join(demographics_dir, file_nameP4)
+    if os.path.exists(P3_SOURCE_FILE): 
+        p3_df = pd.read_csv(P3_SOURCE_FILE,
+            header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
+            low_memory=False, # files are too big, set this to False to prevent errors
+            )
+    else: 
+        raise ValueError(f'Census data from table P3 not found. Follow download instruction from README.')
+    if os.path.exists(P4_SOURCE_FILE): 
+        p4_df = pd.read_csv(P4_SOURCE_FILE,
+            header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
+            low_memory=False, # files are too big, set this to False to prevent errors
+            )
+    else: 
+        raise ValueError(f'Census data from table P4 not found. Follow download instruction from README.')
+    #3. Census geographic data
+    file_name_block = 'tl_2020_13135_tabblock20.shp'
+    file_name_bg = 'tl_2020_13135_bg20.shp'
+    geography_dir = os.path.join('datasets', 'census', 'tiger', location)
+    BLOCK_SOURCE_FILE  = os.path.join(geography_dir, file_name_block)
+    BLOCK_GROUP_SOURCE_FILE  = os.path.join(geography_dir, file_name_bg)
+    if os.path.exists(BLOCK_SOURCE_FILE): 
+        blocks_gdf = gpd.read_file(BLOCK_SOURCE_FILE)
+    else: 
+        raise ValueError(f'Census data for block geography not found. Follow download instruction from README.')
+    if os.path.exists(BLOCK_GROUP_SOURCE_FILE): 
+        blockgroup_gdf = gpd.read_file(BLOCK_GROUP_SOURCE_FILE)
+    else: 
+        raise ValueError(f'Census data for block group geography not found. Follow download instruction from README.')
 
-##########################
-#Data source
-#currently assumes that the relevant .csvs are all in the git repo
-##########################
-#TODO: (CR/SA) fix this when we know where the data is going to be eventually stored
+    #######
+    #Clean data
+    #######
 
+    #define columns for each input data set
+    LOCATIONS_COLS = [
+    'Location',
+    'Address',
+    'Location type', 
+    'Lat, Long',
+    ]
 
-##########################
-#Data_file_name dataframe
-##########################
-#TODO: (SA) This needs to be updated. Currenly only data is for Salem 2016, 2012
-#TODO: (all) Do we want to break out different years in to different csvs
-#file_name_dict = {'Salem':'salem.csv',
-#                  'Test':'sample.csv',
-#                  'Gwinnett':'Gwinnett_GA.csv',
-#                  'Gwinnett_Test':'sample_Gwinnett.csv'}
-             
-##########################
-#change_demographic file names
-##########################
-#TODO: (SA) This belongs in ingest code
-#def change_demo_names(df):
-#    df = df.rename(columns = {'H7X001':'population', 'H7X002':'white', 'H7X003':'black', 
-#                      'H7X004':'native', 'H7X005':'asian', 'H7Z010':'hispanic'})
-    #NOTE: hispanic is an ethnicity, the others are race.Therefore, the sum of the demographic columns
-    #will not sum to population
-#    return(df)
+    # Prefix to add to Shape files to join with demographic data.
+    GEO_ID_PREFIX = '1000000US'
 
-##########################
-#read in data and get relevant dataframes for models
-##########################
-#returns dataframe of distances for the original case. This is to keep alpha constant amongst all cases
+    P3_COLUMNS = [
+    'GEO_ID',
+    'NAME',
+    'P3_001N', # Total population
+    'P3_002N', # White alone
+    'P3_003N', # Black or African American alone
+    'P3_004N', # American Indian or Alaska Native alone
+    'P3_005N', # Asian alone
+    'P3_006N', # Native Hawaiian and Other Pacific Islander alone
+    'P3_007N', # Some other race alone 
+    'P3_008N', # Two or More Races   
+    ]
 
-#This is a base data frame, used for alpha calculation.
-#The output of this function, referred to as basedist, is the full dataset on file
+    P4_COLUMNS = [
+    'GEO_ID',
+    'NAME',
+    'P4_001N', # Total population
+    'P4_002N', # Total hispanic
+    'P4_003N', # Total non-hispanic
+    ]
+
+    BLOCK_SHAPE_COLS = [
+    'GEOID20',
+    'INTPTLAT20', 
+    'INTPTLON20',
+    ]
+
+    BLOCK_GROUP_SHAPE_COLS = [
+    'GEOID20',
+    'INTPTLAT20', 
+    'INTPTLON20',
+    ]
+
+    #select columns for each data set
+    locations = locations[LOCATIONS_COLS]
+    p3_df.columns=[multicols[0] for multicols in p3_df.columns]
+    p3_df = p3_df[P3_COLUMNS]
+    p4_df.columns=[multicols[0] for multicols in p4_df.columns]
+    p4_df = p4_df[P4_COLUMNS]
+    blocks_gdf = blocks_gdf[BLOCK_SHAPE_COLS]
+    blockgroup_gdf = blockgroup_gdf[BLOCK_GROUP_SHAPE_COLS]
+
+    #####
+    #Make a demographics table
+    #####
+    #combine P3 and P4 data to make a joint demographics set
+    demographics = p4_df.merge(p3_df, left_on=['GEO_ID', 'NAME'], right_on=['GEO_ID', 'NAME'],how = 'outer')
+
+    #Consistency check for the data pull
+    demographics['Pop_diff'] = demographics.P4_001N-demographics.P3_001N
+    if demographics.loc[demographics.Pop_diff != 0].shape[0]!=0:
+        raise ValueError('Populations different in P3 and P4. Are both pulled from the voting age universe?')
+
+    #Change column names
+    demographics.drop(['P4_001N', 'Pop_diff'], axis =1, inplace = True)
+    demographics = demographics.rename(columns = {'P4_002N': 'hispanic', 'P4_003N':'non-hispanic', 'P3_001N':'population', 'P3_002N':'white', 'P3_003N':'black', 'P3_004N':'native', 'P3_005N':'asian', 'P3_006N':'pacific_islander', 'P3_007N':'other', 'P3_008N':'multiple_races'})
+
+    #drop geo_id_prefix
+    demographics['GEO_ID'] = demographics['GEO_ID'].str.replace(GEO_ID_PREFIX, '')
+
+    #join with block group shape files
+    demographics_block = demographics.merge(blocks_gdf, left_on='GEO_ID', right_on = 'GEOID20',how='left')
+
+    #make lat/ long floats
+    demographics_block.INTPTLAT20 = demographics_block.INTPTLAT20.astype(float)
+    demographics_block.INTPTLON20 = demographics_block.INTPTLON20.astype(float)
+
+    #####
+    #Make a polling locations table (including block group centroid)
+    #####
+
+    #the potential locations data needs further processing:
+    #1. add a destination type column
+    locations['dest_type'] = 'polling'
+    locations['dest_type'].mask(locations['Location type'].str.contains('Potential'), 'potential', inplace=True)
+
+    #2. change the lat, long into two columns
+    locations[['Latitude', 'Longitude']] = locations['Lat, Long'].str.split(pat = ', ', expand=True).astype(float)
+    locations.drop(['Lat, Long'], axis =1, inplace = True)
+
+    #The block group needs to be processed to match the potential location table
+    blockgroup_gdf = blockgroup_gdf.rename(columns = {'GEOID20': 'Location', 'INTPTLAT20':'Latitude', 'INTPTLON20':'Longitude'})
+    blockgroup_gdf['Address'] = None
+    blockgroup_gdf['Location type'] = 'bg_centroid'
+    blockgroup_gdf['dest_type'] = 'bg_centroid'
+
+    #Concatenate
+    all_locations = pd.concat([locations, blockgroup_gdf])
+
+    #Lat and Long current mix of string and geometry. Make them all floats
+    all_locations['Latitude'] = pd.to_numeric(all_locations['Latitude'])
+    all_locations['Longitude'] = pd.to_numeric(all_locations['Longitude'])
+
+    if len(all_locations.Location) != len(set(all_locations.Location)):
+        raise ValueError('Non-unique names in Location column. This will cause errors later.')
+    
+    #####
+    # Cross join polling locations and demographics tables and calculate distances
+    #####
+    full_df = demographics_block.merge(all_locations, how= 'cross')
+
+    full_df['distance_m'] = full_df.apply(lambda row: haversine((row.INTPTLAT20, row.INTPTLON20), (row.Latitude, row.Longitude)), axis=1)*1000
+
+    #####
+    #Rename, select columns and write to file
+    #####
+    full_df = full_df.rename(columns = {'GEO_ID': 'id_orig', 'Address': 'address', 'Latitude':'dest_lat', 'Longitude':'dest_lon', 'INTPTLAT20':'orig_lat', 'INTPTLON20':'orig_lon', 'Location type': 'location_type', 'Location': 'id_dest'})
+    full_df['county'] = location
+
+    FULL_DF_COLS = [
+    'id_orig',
+    'id_dest',
+    'distance_m',
+    'county',
+    'address',
+    'dest_lat',
+    'dest_lon',
+    'orig_lat',
+    'orig_lon',
+    'location_type',
+    'dest_type',
+    'population',
+    'hispanic', 
+    'non-hispanic',
+    'white', 
+    'black', 
+    'native', 
+    'asian',
+    'pacific_islander', 
+    'other', 
+    'multiple_races',
+    ]
+
+    full_df = full_df[FULL_DF_COLS]
+    output_file_name = location + '.csv'
+    output_path = os.path.join('datasets', 'polling', location, output_file_name)
+    full_df.to_csv(output_path, index = True) 
+    return
+
+#########
+#Read the intermediate data frame from file, and pull the relevant rows
+#########
 
 def clean_data(location, level, year_list):
     #read in data
-    git_dir = subprocess.Popen(['git', 'rev-parse', '--show-toplevel'], stdout=subprocess.PIPE).communicate()[0].rstrip().decode('utf-8')
-    data_dir = os.path.join(git_dir, 'datasets', 'polling', location)
+    data_dir = os.path.join('datasets', 'polling', location)
     file_name = location + '.csv'
     file_path = os.path.join(data_dir, file_name)
     if not os.path.isfile(file_path):
@@ -121,41 +285,18 @@ def clean_data(location, level, year_list):
     df['Weighted_dist'] = df['population'] * df['distance_m']    
     return(df)
 
-#select the correct destination types given the level
-#NOTE: now selects only for block groups that have positive populations 
-#TODO: Check if 'get_dist_df' is now redundant and should be removed.
-def get_dist_df(basedist,level,year):
-    df = basedist.copy()
-    df = df[df['population']>0]
-    if level=='original':
-        df = df[df['dest_type']=='polling']         # keep only polling locations
-    elif level=='expanded':
-        df = df[df['dest_type']!='bg_centroid']     # keep schools and polling locations
-    else: #level == full
-        df = df                                     #keep everything
-    #select the polling locations only for a year
-    #keep all other locations 
-    #NOTE: this depends strongly on the format of the entries in dest_type and id_dest
-    df = df[(df.dest_type != 'polling') | (df.id_dest.str.contains('polling_'.join([str(year)])))]
-    df['Weighted_dist'] = df['population'] * df['distance_m']
-
-    return df
-
-
-
 ##########################
-#Other useful constants
+#Other functions for data processing
 ##########################
 
 #determines the maximum of the minimum distances
-#TODO: Why is this takeing basedist as an input, (which doesn't drop the id_origis with 0 population instead of 
-# taking the dist_dfs, which does?)
 def get_max_min_dist(dist_df):
     min_dist = dist_df[['id_orig', 'distance_m']].groupby('id_orig').agg('min')
     max_min_dist = min_dist.distance_m.max()
     max_min_dist = math.ceil(max_min_dist)
     return max_min_dist
 
+#various alpha function. Really only use alpha_min
 def alpha_all(df):
     #add a distance square column    
     df['distance_squared'] = df['distance_m'] * df['distance_m']
