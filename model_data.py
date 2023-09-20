@@ -92,13 +92,13 @@ def build_source(location):
     'GEO_ID',
     'NAME',
     'P3_001N', # Total population
-    'P3_002N', # White alone
-    'P3_003N', # Black or African American alone
-    'P3_004N', # American Indian or Alaska Native alone
-    'P3_005N', # Asian alone
-    'P3_006N', # Native Hawaiian and Other Pacific Islander alone
-    'P3_007N', # Some other race alone 
-    'P3_008N', # Two or More Races   
+    'P3_003N', # White alone
+    'P3_004N', # Black or African American alone
+    'P3_005N', # American Indian or Alaska Native alone
+    'P3_006N', # Asian alone
+    'P3_007N', # Native Hawaiian and Other Pacific Islander alone
+    'P3_008N', # Some other race alone 
+    'P3_009N', # Two or More Races   
     ]
 
     P4_COLUMNS = [
@@ -142,8 +142,8 @@ def build_source(location):
         raise ValueError('Populations different in P3 and P4. Are both pulled from the voting age universe?')
 
     #Change column names
-    demographics.drop(['P4_001N', 'Pop_diff'], axis =1, inplace = True)
-    demographics = demographics.rename(columns = {'P4_002N': 'hispanic', 'P4_003N':'non-hispanic', 'P3_001N':'population', 'P3_002N':'white', 'P3_003N':'black', 'P3_004N':'native', 'P3_005N':'asian', 'P3_006N':'pacific_islander', 'P3_007N':'other', 'P3_008N':'multiple_races'})
+    demographics.drop(['P3_001N', 'Pop_diff'], axis =1, inplace = True)
+    demographics = demographics.rename(columns = {'P4_002N': 'hispanic', 'P4_003N':'non-hispanic', 'P3_001N':'population', 'P3_003N':'white', 'P3_004N':'black', 'P3_005N':'native', 'P3_006N':'asian', 'P3_007N':'pacific_islander', 'P3_008N':'other', 'P3_009N':'multiple_races'})
 
     #drop geo_id_prefix
     demographics['GEO_ID'] = demographics['GEO_ID'].str.replace(GEO_ID_PREFIX, '')

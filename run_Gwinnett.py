@@ -1,8 +1,17 @@
-import Gwinnett_GA_configs.Gwinnett_config_expanded_17 as config
-from model_data import (clean_data, alpha_all, alpha_mean, alpha_min)
+import Gwinnett_GA_configs.Gwinnett_config_expanded_22 as config
+import os
+import warnings
+from model_data import (build_source, clean_data, alpha_min)
 from model_factory import polling_model_factory
 from model_solver import solve_model
 from model_results import (incorporate_result,demographic_domain_summary, demographic_summary,write_results,)
+
+#check if source data avaible
+source_file_name = config.location + '.csv'
+source_path = os.path.join('datasets','polling', config.location, source_file_name)
+if not os.path.exists(source_path):
+    warnings.warn(f'File {source_path} not found. Creating it.')
+    build_source(config.location)
 
 #get main data frame
 dist_df = clean_data(config.location, config.level, config.year)
