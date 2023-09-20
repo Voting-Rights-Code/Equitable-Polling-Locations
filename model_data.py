@@ -35,8 +35,7 @@ import itertools
 #currently assumes that the relevant .csvs are all in the git repo
 ##########################
 #TODO: (CR/SA) fix this when we know where the data is going to be eventually stored
-git_dir = subprocess.Popen(['git', 'rev-parse', '--show-toplevel'], stdout=subprocess.PIPE).communicate()[0].rstrip().decode('utf-8')
-data_dir = os.path.join(git_dir, 'datasets')
+
 
 ##########################
 #Data_file_name dataframe
@@ -69,6 +68,8 @@ data_dir = os.path.join(git_dir, 'datasets')
 
 def clean_data(location, level, year_list):
     #read in data
+    git_dir = subprocess.Popen(['git', 'rev-parse', '--show-toplevel'], stdout=subprocess.PIPE).communicate()[0].rstrip().decode('utf-8')
+    data_dir = os.path.join(git_dir, 'datasets', 'polling', location)
     file_name = location + '.csv'
     file_path = os.path.join(data_dir, file_name)
     if not os.path.isfile(file_path):
