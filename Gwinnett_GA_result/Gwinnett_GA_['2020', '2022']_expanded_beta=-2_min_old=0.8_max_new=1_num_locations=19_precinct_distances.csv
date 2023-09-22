@@ -1,115 +1,115 @@
 id_dest,demographic,weighted_dist,demo_pop,avg_dist
-Bogan Park Community Recreation Center,asian,442906.61149192986,148,2992.612239810337
-Bogan Park Community Recreation Center,black,37971050.411243275,13556,2801.0512253794095
+Bogan Park Community Recreation Center,asian,11501807.590636056,3768,3052.4967066443887
+Bogan Park Community Recreation Center,black,14046127.539048294,4479,3135.996324860079
 Bogan Park Community Recreation Center,hispanic,14140205.214468943,4460,3170.449599656714
-Bogan Park Community Recreation Center,native,14046127.539048294,4479,3135.996324860079
+Bogan Park Community Recreation Center,native,442906.61149192986,148,2992.612239810337
 Bogan Park Community Recreation Center,population,78284981.92899765,26449,2959.846569964749
-Bogan Park Community Recreation Center,white,70843369.27478473,24070,2943.222653709378
-Dacula Park Activity Building,asian,578493.5037060814,163,3549.0399000373095
-Dacula Park Activity Building,black,51647293.96677519,14097,3663.7081625009
+Bogan Park Community Recreation Center,white,37971050.411243275,13556,2801.0512253794095
+Dacula Park Activity Building,asian,6854608.739873477,1798,3812.351913166561
+Dacula Park Activity Building,black,33229643.611727405,8937,3718.2100941845592
 Dacula Park Activity Building,hispanic,17195301.72631338,4756,3615.4965782828804
-Dacula Park Activity Building,native,33229643.611727405,8937,3718.2100941845592
+Dacula Park Activity Building,native,578493.5037060814,163,3549.0399000373095
 Dacula Park Activity Building,population,110330788.31334713,29962,3682.3572629780097
-Dacula Park Activity Building,white,99864030.17316976,27125,3681.6232321905904
-Esan Community of Georgia,asian,504587.5225092892,185,2727.5001216718338
-Esan Community of Georgia,black,23074005.65286669,8489,2718.106449860607
+Dacula Park Activity Building,white,51647293.96677519,14097,3663.7081625009
+Esan Community of Georgia,asian,4579891.638498467,1812,2527.5340168313837
+Esan Community of Georgia,black,32323722.191703647,13092,2468.967475687721
 Esan Community of Georgia,hispanic,9286696.161966333,3533,2628.5582117085573
-Esan Community of Georgia,native,32323722.191703647,13092,2468.967475687721
+Esan Community of Georgia,native,504587.5225092892,185,2727.5001216718338
 Esan Community of Georgia,population,70665099.37982072,27437,2575.5403061493867
-Esan Community of Georgia,white,65162332.28544729,25336,2571.9265979415572
-Gas South-Hudgens Center for Arts,asian,824698.6965002702,225,3665.3275400012008
-Gas South-Hudgens Center for Arts,black,51201378.94862266,15120,3386.334586549118
+Esan Community of Georgia,white,23074005.65286669,8489,2718.106449860607
+Gas South-Hudgens Center for Arts,asian,41751588.71061215,14332,2913.172530743242
+Gas South-Hudgens Center for Arts,black,36135384.14785874,10865,3325.852199526805
 Gas South-Hudgens Center for Arts,hispanic,28202516.014252912,7794,3618.490635649591
-Gas South-Hudgens Center for Arts,native,36135384.14785874,10865,3325.852199526805
+Gas South-Hudgens Center for Arts,native,824698.6965002702,225,3665.3275400012008
 Gas South-Hudgens Center for Arts,population,158405453.22407773,48550,3262.7281817523735
-Gas South-Hudgens Center for Arts,white,143677249.98676673,44364,3238.5999906853917
-George Pierce Park Community Recreation Center,asian,244050.963346083,97,2515.9893128462168
-George Pierce Park Community Recreation Center,black,50531183.17958244,16515,3059.7143917397784
+Gas South-Hudgens Center for Arts,white,51201378.94862266,15120,3386.334586549118
+George Pierce Park Community Recreation Center,asian,25566453.561665207,8872,2881.701258077683
+George Pierce Park Community Recreation Center,black,14107482.074192163,4585,3076.877224469392
 George Pierce Park Community Recreation Center,hispanic,8110606.296024199,2638,3074.5285428446546
-George Pierce Park Community Recreation Center,native,14107482.074192163,4585,3076.877224469392
+George Pierce Park Community Recreation Center,native,244050.963346083,97,2515.9893128462168
 George Pierce Park Community Recreation Center,population,100538203.6220424,33354,3014.2772567620796
-George Pierce Park Community Recreation Center,white,93701848.97185183,31116,3011.371929934819
-Gwinnett College - Lilburn Campus,asian,2094110.7210033427,744,2814.664947585138
-Gwinnett College - Lilburn Campus,black,32804398.437612478,11592,2829.917049483478
+George Pierce Park Community Recreation Center,white,50531183.17958244,16515,3059.7143917397784
+Gwinnett College - Lilburn Campus,asian,21656667.920011792,8346,2594.8559693280363
+Gwinnett College - Lilburn Campus,black,39365666.86920742,13872,2837.7787535472476
 Gwinnett College - Lilburn Campus,hispanic,63717238.32211671,22752,2800.511529628899
-Gwinnett College - Lilburn Campus,native,39365666.86920742,13872,2837.7787535472476
+Gwinnett College - Lilburn Campus,native,2094110.7210033427,744,2814.664947585138
 Gwinnett College - Lilburn Campus,population,154709485.79502538,55504,2787.3574119887826
-Gwinnett College - Lilburn Campus,white,134000157.2951159,48203,2779.9132272911625
-Gwinnett County Fairgrounds,asian,458542.1079116357,186,2465.280150062558
-Gwinnett County Fairgrounds,black,34074896.10226893,12823,2657.326374660292
+Gwinnett College - Lilburn Campus,white,32804398.437612478,11592,2829.917049483478
+Gwinnett County Fairgrounds,asian,10013401.004379379,4187,2391.5454990158537
+Gwinnett County Fairgrounds,black,27575324.45490675,10315,2673.3227779841736
 Gwinnett County Fairgrounds,hispanic,11171079.09868087,4762,2345.8796931291204
-Gwinnett County Fairgrounds,native,27575324.45490675,10315,2673.3227779841736
+Gwinnett County Fairgrounds,native,458542.1079116357,186,2465.280150062558
 Gwinnett County Fairgrounds,population,84243593.53874622,32524,2590.1978089640334
-Gwinnett County Fairgrounds,white,77609218.37303264,29903,2595.365627964841
-Gwinnett County Public Library - Five Forks Branch,asian,1277685.3015182642,422,3027.690287957972
-Gwinnett County Public Library - Five Forks Branch,black,45680175.98070812,16463,2774.717608012399
+Gwinnett County Fairgrounds,white,34074896.10226893,12823,2657.326374660292
+Gwinnett County Public Library - Five Forks Branch,asian,24187914.268138237,8087,2990.9625656162034
+Gwinnett County Public Library - Five Forks Branch,black,31718580.546779975,10854,2922.294135505802
 Gwinnett County Public Library - Five Forks Branch,hispanic,32241875.1643766,10366,3110.348752110419
-Gwinnett County Public Library - Five Forks Branch,native,31718580.546779975,10854,2922.294135505802
+Gwinnett County Public Library - Five Forks Branch,native,1277685.3015182642,422,3027.690287957972
 Gwinnett County Public Library - Five Forks Branch,population,133985276.1294867,45906,2918.687668920984
-Gwinnett County Public Library - Five Forks Branch,white,119775442.25510126,41162,2909.854775159158
-Gwinnett County Public Library - Lawrenceville2,asian,910962.9711387164,266,3424.672823829761
-Gwinnett County Public Library - Lawrenceville2,black,76632675.1712727,23776,3223.1104967729093
+Gwinnett County Public Library - Five Forks Branch,white,45680175.98070812,16463,2774.717608012399
+Gwinnett County Public Library - Lawrenceville2,asian,24613033.535280924,7657,3214.4486790232368
+Gwinnett County Public Library - Lawrenceville2,black,31399610.967980556,9555,3286.1968569315077
 Gwinnett County Public Library - Lawrenceville2,hispanic,28706092.163135406,8628,3327.0853225701676
-Gwinnett County Public Library - Lawrenceville2,native,31399610.967980556,9555,3286.1968569315077
+Gwinnett County Public Library - Lawrenceville2,native,910962.9711387164,266,3424.672823829761
 Gwinnett County Public Library - Lawrenceville2,population,161981311.84417242,49928,3244.298026040947
-Gwinnett County Public Library - Lawrenceville2,white,145845186.1319916,44964,3243.599015478863
-Gwinnett County Public Library - Norcross Branch,asian,2054332.1991078374,592,3470.155741736212
-Gwinnett County Public Library - Norcross Branch,black,80488791.55564201,22301,3609.201002450204
+Gwinnett County Public Library - Lawrenceville2,white,76632675.1712727,23776,3223.1104967729093
+Gwinnett County Public Library - Norcross Branch,asian,21941821.77137885,7191,3051.2893577219925
+Gwinnett County Public Library - Norcross Branch,black,41500011.970941395,12136,3419.579101099324
 Gwinnett County Public Library - Norcross Branch,hispanic,54483713.34577405,15904,3425.786804940521
-Gwinnett County Public Library - Norcross Branch,native,41500011.970941395,12136,3419.579101099324
+Gwinnett County Public Library - Norcross Branch,native,2054332.1991078374,592,3470.155741736212
 Gwinnett County Public Library - Norcross Branch,population,199184082.06757748,57761,3448.4181726005
-Gwinnett County Public Library - Norcross Branch,white,178135648.1319333,51647,3449.099621119006
-Gwinnett County Public Library - Snellville Branch,asian,599447.3379726668,196,3058.404785574831
-Gwinnett County Public Library - Snellville Branch,black,44121716.10537092,14282,3089.3233514473404
+Gwinnett County Public Library - Norcross Branch,white,80488791.55564201,22301,3609.201002450204
+Gwinnett County Public Library - Snellville Branch,asian,7884667.1273085065,2646,2979.8439634574856
+Gwinnett County Public Library - Snellville Branch,black,50539212.69588811,14412,3506.7452606083893
 Gwinnett County Public Library - Snellville Branch,hispanic,15397915.452042492,4364,3528.3949248493336
-Gwinnett County Public Library - Snellville Branch,native,50539212.69588811,14412,3506.7452606083893
+Gwinnett County Public Library - Snellville Branch,native,599447.3379726668,196,3058.404785574831
 Gwinnett County Public Library - Snellville Branch,population,120211753.14852645,36444,3298.5334526541114
-Gwinnett County Public Library - Snellville Branch,white,110558117.39364758,33635,3286.996206143826
-Gwinnett County fire station - Potential 18,asian,318073.66319997894,84,3786.591228571178
-Gwinnett County fire station - Potential 18,black,65015829.55740101,18346,3543.869484214598
+Gwinnett County Public Library - Snellville Branch,white,44121716.10537092,14282,3089.3233514473404
+Gwinnett County fire station - Potential 18,asian,8313544.753974904,2409,3451.0355973328783
+Gwinnett County fire station - Potential 18,black,17965252.643715635,5032,3570.201240801994
 Gwinnett County fire station - Potential 18,hispanic,10258609.80852794,2808,3653.3510714130844
-Gwinnett County fire station - Potential 18,native,17965252.643715635,5032,3570.201240801994
+Gwinnett County fire station - Potential 18,native,318073.66319997894,84,3786.591228571178
 Gwinnett County fire station - Potential 18,population,103103552.31183103,29066,3547.221919487753
-Gwinnett County fire station - Potential 18,white,95578262.0633106,26947,3546.898061502601
-Gwinnett County fire station - Potential 30,asian,559666.7258955773,119,4703.081730214935
-Gwinnett County fire station - Potential 30,black,59318560.182145245,13814,4294.090066754397
+Gwinnett County fire station - Potential 18,white,65015829.55740101,18346,3543.869484214598
+Gwinnett County fire station - Potential 30,asian,5226370.298178808,1245,4197.887789701854
+Gwinnett County fire station - Potential 30,black,55203942.63308102,13101,4213.719764375316
 Gwinnett County fire station - Potential 30,hispanic,16367528.264190333,3669,4461.032505911783
-Gwinnett County fire station - Potential 30,native,55203942.63308102,13101,4213.719764375316
+Gwinnett County fire station - Potential 30,native,559666.7258955773,119,4703.081730214935
 Gwinnett County fire station - Potential 30,population,139052112.93527764,32494,4279.316579530918
-Gwinnett County fire station - Potential 30,white,127538414.20132233,29880,4268.353888933144
-Lenora Park Gym,asian,251784.35118225054,82,3070.540868076226
-Lenora Park Gym,black,19191231.808888324,5223,3674.3694828428725
+Gwinnett County fire station - Potential 30,white,59318560.182145245,13814,4294.090066754397
+Lenora Park Gym,asian,1838509.8735682382,569,3231.1245581164117
+Lenora Park Gym,black,48722788.96415445,14807,3290.524006493851
 Lenora Park Gym,hispanic,7616479.302914524,2098,3630.352384611308
-Lenora Park Gym,native,48722788.96415445,14807,3290.524006493851
+Lenora Park Gym,native,251784.35118225054,82,3070.540868076226
 Lenora Park Gym,population,79303795.70420426,23282,3406.227802774859
-Lenora Park Gym,white,73923210.04022993,21735,3401.1138734865394
-Lucky Shoals Park Community Recreation Center,asian,2166541.1508376584,854,2536.9334318942138
-Lucky Shoals Park Community Recreation Center,black,19020401.783698235,7762,2450.4511445114963
+Lenora Park Gym,white,19191231.808888324,5223,3674.3694828428725
+Lucky Shoals Park Community Recreation Center,asian,18805408.39060039,7432,2530.329438993594
+Lucky Shoals Park Community Recreation Center,black,23817674.701099057,9709,2453.1542590482086
 Lucky Shoals Park Community Recreation Center,hispanic,53093869.66523576,20793,2553.449221624381
-Lucky Shoals Park Community Recreation Center,native,23817674.701099057,9709,2453.1542590482086
+Lucky Shoals Park Community Recreation Center,native,2166541.1508376584,854,2536.9334318942138
 Lucky Shoals Park Community Recreation Center,population,111638013.19079028,44595,2503.3751135954767
-Lucky Shoals Park Community Recreation Center,white,97340815.67354754,38927,2500.5989589114893
-Mountain Park Activity Building,asian,293894.2917415963,116,2533.5714805310026
-Mountain Park Activity Building,black,30537530.843252063,11932,2559.2969194814
+Lucky Shoals Park Community Recreation Center,white,19020401.783698235,7762,2450.4511445114963
+Mountain Park Activity Building,asian,10310081.437179243,3944,2614.1180114551835
+Mountain Park Activity Building,black,10237227.776243389,3858,2653.5064220433874
 Mountain Park Activity Building,hispanic,5773474.902156786,2187,2639.906219550428
-Mountain Park Activity Building,native,10237227.776243389,3858,2653.5064220433874
+Mountain Park Activity Building,native,293894.2917415963,116,2533.5714805310026
 Mountain Park Activity Building,population,58106728.260114126,22400,2594.050368755095
-Mountain Park Activity Building,white,54000493.7148053,20843,2590.821557108156
-Rhodes Jordan Park Community Recreation Center,asian,1515675.2792729693,480,3157.656831818686
-Rhodes Jordan Park Community Recreation Center,black,43631577.14363491,13378,3261.442453553215
+Mountain Park Activity Building,white,30537530.843252063,11932,2559.2969194814
+Rhodes Jordan Park Community Recreation Center,asian,11600575.898113064,3137,3697.9840287258735
+Rhodes Jordan Park Community Recreation Center,black,53072749.71288416,16494,3217.7003584869744
 Rhodes Jordan Park Community Recreation Center,hispanic,33027131.95134199,10531,3136.181934416674
-Rhodes Jordan Park Community Recreation Center,native,53072749.71288416,16494,3217.7003584869744
+Rhodes Jordan Park Community Recreation Center,native,1515675.2792729693,480,3157.656831818686
 Rhodes Jordan Park Community Recreation Center,population,141191475.863819,43464,3248.4694428450903
-Rhodes Jordan Park Community Recreation Center,white,125712627.7903117,38645,3253.0114578939497
-Shorty Howell Park Activity Building,asian,801831.7136704803,326,2459.60648365178
-Shorty Howell Park Activity Building,black,42050202.08569426,14412,2917.7214880442866
+Rhodes Jordan Park Community Recreation Center,white,43631577.14363491,13378,3261.442453553215
+Shorty Howell Park Activity Building,asian,23680636.18687575,9258,2557.856576677009
+Shorty Howell Park Activity Building,black,25571227.607992306,9587,2667.2814861783986
 Shorty Howell Park Activity Building,hispanic,25689677.341046475,10261,2503.623169383732
-Shorty Howell Park Activity Building,native,25571227.607992306,9587,2667.2814861783986
+Shorty Howell Park Activity Building,native,801831.7136704803,326,2459.60648365178
 Shorty Howell Park Activity Building,population,117897406.29812549,43747,2694.982657053638
-Shorty Howell Park Activity Building,white,106582198.72923946,39476,2699.9239722676934
-Sugar Hill Community Center,asian,418323.3021222214,179,2337.001687833639
-Sugar Hill Community Center,black,43351836.06189489,15906,2725.502078580089
+Shorty Howell Park Activity Building,white,42050202.08569426,14412,2917.7214880442866
+Sugar Hill Community Center,asian,8693150.137374548,2961,2935.8831939799215
+Sugar Hill Community Center,black,7534673.5771083925,3135,2403.4046497953404
 Sugar Hill Community Center,hispanic,10203493.080892801,4355,2342.937561628657
-Sugar Hill Community Center,native,7534673.5771083925,3135,2403.4046497953404
+Sugar Hill Community Center,native,418323.3021222214,179,2337.001687833639
 Sugar Hill Community Center,population,70715226.19103159,26617,2656.7692148262986
-Sugar Hill Community Center,white,64329348.44281268,24058,2673.927526927121
+Sugar Hill Community Center,white,43351836.06189489,15906,2725.502078580089

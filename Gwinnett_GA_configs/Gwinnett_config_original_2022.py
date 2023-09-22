@@ -7,7 +7,7 @@ time_limit = 360000 #100 hours minutes
 capacity = 5
 
 ####Optional#####
-#precincts_open = 30
+precincts_open = None
 max_min_mult = 5 #scalar >= 1
 maxpctnew = 0 # in interval [0,1]
 minpctold =1 # in interval [0,1]

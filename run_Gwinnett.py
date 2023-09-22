@@ -1,4 +1,4 @@
-import Gwinnett_GA_configs.Gwinnett_config_expanded_22 as config
+import Gwinnett_GA_configs.Gwinnett_config_original_2020 as config
 import os
 import warnings
 from model_data import (build_source, clean_data, alpha_min)

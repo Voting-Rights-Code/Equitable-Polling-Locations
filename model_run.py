@@ -1,5 +1,6 @@
 import sys
 import os
+from multiprocessing import Pool
 import warnings
 import importlib
 from model_data import (build_source, clean_data, alpha_min)
@@ -7,13 +8,7 @@ from model_factory import polling_model_factory
 from model_solver import solve_model
 from model_results import (incorporate_result,demographic_domain_summary, demographic_summary,write_results,)
 
-#get config folder from command line
-config_folder = sys.argv[1]+'.'
-
-#get list of files in the folder
-config_list = [file.replace('.py', '') for file in os.listdir(config_folder)]
-config_list = [config_folder +file for file in config_list]
-for config_file in config_list:
+def run_on_config(config_file):
     config = importlib.import_module(config_file)
 
     #check if source data avaible
@@ -58,4 +53,19 @@ for config_file in config_list:
     run_prefix = f'{config.location}_{config.year}_{config.level}_beta={config.beta}_min_old={config.minpctold}_max_new={config.maxpctnew}_num_locations={config.precincts_open}'
 
     write_results(result_folder, run_prefix, result_df, demographic_prec, demographic_res, demographic_ede)
+    return
 
+#get config folder from command line
+config_folder = sys.argv[1]+'.'
+
+#get list of files in the folder
+config_list = [file.replace('.py', '') for file in os.listdir(config_folder)]
+config_list = [config_folder +file for file in config_list]
+
+#for config_file in config_list:
+#with Pool(4) as pool:
+#    processed = pool.map(run_on_config, config_list)       
+
+if __name__ == '__main__':
+    pool = Pool(4)
+    processed = pool.map(run_on_config, config_list)       

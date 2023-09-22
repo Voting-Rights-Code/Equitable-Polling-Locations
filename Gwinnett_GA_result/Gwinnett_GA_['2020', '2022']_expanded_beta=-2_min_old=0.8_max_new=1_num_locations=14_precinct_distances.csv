@@ -1,85 +1,85 @@
 id_dest,demographic,weighted_dist,demo_pop,avg_dist
-Bethesda Senior Center,asian,3033457.375534073,909,3337.1368267701573
-Bethesda Senior Center,black,72239095.24274728,21107,3422.518370339095
+Bethesda Senior Center,asian,42629451.469793804,13175,3235.631990117177
+Bethesda Senior Center,black,70280647.60227399,19950,3522.839478810726
 Bethesda Senior Center,hispanic,94365883.08154204,27444,3438.488670803893
-Bethesda Senior Center,native,70280647.60227399,19950,3522.839478810726
+Bethesda Senior Center,native,3033457.375534073,909,3337.1368267701573
 Bethesda Senior Center,population,276628630.77733696,80757,3425.444615046831
-Bethesda Senior Center,white,241912989.4219218,70682,3422.554390395317
-Bogan Park Community Recreation Center,asian,1183331.0762767587,273,4334.546066947834
-Bogan Park Community Recreation Center,black,89658185.56805487,21709,4130.000717124459
+Bethesda Senior Center,white,72239095.24274728,21107,3422.518370339095
+Bogan Park Community Recreation Center,asian,19716185.825672947,5052,3902.6496091989206
+Bogan Park Community Recreation Center,black,28711770.982829534,6820,4209.93709425653
 Bogan Park Community Recreation Center,hispanic,32445690.70934353,7490,4331.8679184704315
-Bogan Park Community Recreation Center,native,28711770.982829534,6820,4209.93709425653
+Bogan Park Community Recreation Center,native,1183331.0762767587,273,4334.546066947834
 Bogan Park Community Recreation Center,population,171136473.914239,41237,4150.070905115284
-Bogan Park Community Recreation Center,white,153909463.3582511,37276,4128.915746277795
-Dacula Park Activity Building,asian,658841.627756361,176,3743.4183395247787
-Dacula Park Activity Building,black,74103071.09979261,17588,4213.274454161508
+Bogan Park Community Recreation Center,white,89658185.56805487,21709,4130.000717124459
+Dacula Park Activity Building,asian,11827459.639493095,2573,4596.758507381693
+Dacula Park Activity Building,black,40719947.4029246,10120,4023.710217680296
 Dacula Park Activity Building,hispanic,22405570.99648328,5554,4034.1323364211885
-Dacula Park Activity Building,native,40719947.4029246,10120,4023.710217680296
+Dacula Park Activity Building,native,658841.627756361,176,3743.4183395247787
 Dacula Park Activity Building,population,150603954.7371379,36232,4156.655849446288
-Dacula Park Activity Building,white,137018952.5119922,32912,4163.191313563205
-Gas South-Hudgens Center for Arts,asian,1167668.9057655705,297,3931.545137257813
-Gas South-Hudgens Center for Arts,black,79888675.28328367,21284,3753.4615337006044
+Dacula Park Activity Building,white,74103071.09979261,17588,4213.274454161508
+Gas South-Hudgens Center for Arts,asian,57511052.17612071,17747,3240.6069857508714
+Gas South-Hudgens Center for Arts,black,46960781.271437205,13193,3559.52257041137
 Gas South-Hudgens Center for Arts,hispanic,38656620.71127775,10002,3864.8890933091134
-Gas South-Hudgens Center for Arts,native,46960781.271437205,13193,3559.52257041137
+Gas South-Hudgens Center for Arts,native,1167668.9057655705,297,3931.545137257813
 Gas South-Hudgens Center for Arts,population,224652268.13160604,62775,3578.6900538686746
-Gas South-Hudgens Center for Arts,white,204556583.00290588,57458,3560.1062167653918
-George Pierce Park Community Recreation Center,asian,1122197.0130876736,254,4418.098476723124
-George Pierce Park Community Recreation Center,black,159933491.09373322,34684,4611.16050898781
+Gas South-Hudgens Center for Arts,white,79888675.28328367,21284,3753.4615337006044
+George Pierce Park Community Recreation Center,asian,54939146.70387659,14189,3871.9533937470287
+George Pierce Park Community Recreation Center,black,45530592.25301923,10078,4517.820227527211
 George Pierce Park Community Recreation Center,hispanic,39446248.4261129,8138,4847.167415349336
-George Pierce Park Community Recreation Center,native,45530592.25301923,10078,4517.820227527211
+George Pierce Park Community Recreation Center,native,1122197.0130876736,254,4418.098476723124
 George Pierce Park Community Recreation Center,population,304564127.5664384,68226,4464.047834644247
-George Pierce Park Community Recreation Center,white,278251798.34685487,62640,4442.0785176700965
-Gwinnett County Fairgrounds,asian,857755.5071288586,275,3119.1109350140314
-Gwinnett County Fairgrounds,black,45306656.94948436,15510,2921.1255286579217
+George Pierce Park Community Recreation Center,white,159933491.09373322,34684,4611.16050898781
+Gwinnett County Fairgrounds,asian,13694825.073929664,5059,2707.022153376095
+Gwinnett County Fairgrounds,black,35385691.252930656,12124,2918.6482392717467
 Gwinnett County Fairgrounds,hispanic,17316379.774106305,6190,2797.476538627836
-Gwinnett County Fairgrounds,native,35385691.252930656,12124,2918.6482392717467
+Gwinnett County Fairgrounds,native,857755.5071288586,275,3119.1109350140314
 Gwinnett County Fairgrounds,population,113110779.5128815,39325,2876.3071713383724
-Gwinnett County Fairgrounds,white,103631618.05531776,36035,2875.8600820124257
-Gwinnett County Public Library - Snellville Branch,asian,956944.1356892745,272,3518.176969445862
-Gwinnett County Public Library - Snellville Branch,black,67466342.07990153,19480,3463.364583157163
+Gwinnett County Fairgrounds,white,45306656.94948436,15510,2921.1255286579217
+Gwinnett County Public Library - Snellville Branch,asian,15226159.383875264,4368,3485.842349788293
+Gwinnett County Public Library - Snellville Branch,black,77164956.33105452,19955,3866.948450566501
 Gwinnett County Public Library - Snellville Branch,hispanic,23313317.04489591,6069,3841.377005255546
-Gwinnett County Public Library - Snellville Branch,native,77164956.33105452,19955,3866.948450566501
+Gwinnett County Public Library - Snellville Branch,native,956944.1356892745,272,3518.176969445862
 Gwinnett County Public Library - Snellville Branch,population,187038308.76166221,50964,3670.0084130300256
-Gwinnett County Public Library - Snellville Branch,white,172194296.92470777,47045,3660.203994573446
-Gwinnett County fire station - Potential 18,asian,324861.95188945276,85,3821.9053163465032
-Gwinnett County fire station - Potential 18,black,65356566.574192256,18398,3552.373441362771
+Gwinnett County Public Library - Snellville Branch,white,67466342.07990153,19480,3463.364583157163
+Gwinnett County fire station - Potential 18,asian,8333909.620043326,2412,3455.1864096365366
+Gwinnett County fire station - Potential 18,black,18100297.594266206,5052,3582.79841533377
 Gwinnett County fire station - Potential 18,hispanic,10419726.67897805,2832,3679.282019413153
-Gwinnett County fire station - Potential 18,native,18100297.594266206,5052,3582.79841533377
+Gwinnett County fire station - Potential 18,native,324861.95188945276,85,3821.9053163465032
 Gwinnett County fire station - Potential 18,population,103812599.443871,29173,3558.516417367806
-Gwinnett County fire station - Potential 18,white,96135143.08330664,27031,3556.4774918910375
-Gwinnett County fire station - Potential 30,asian,559666.7258955773,119,4703.081730214935
-Gwinnett County fire station - Potential 30,black,59318560.182145245,13814,4294.090066754397
+Gwinnett County fire station - Potential 18,white,65356566.574192256,18398,3552.373441362771
+Gwinnett County fire station - Potential 30,asian,5226370.298178808,1245,4197.887789701854
+Gwinnett County fire station - Potential 30,black,55203942.63308102,13101,4213.719764375316
 Gwinnett County fire station - Potential 30,hispanic,16367528.264190333,3669,4461.032505911783
-Gwinnett County fire station - Potential 30,native,55203942.63308102,13101,4213.719764375316
+Gwinnett County fire station - Potential 30,native,559666.7258955773,119,4703.081730214935
 Gwinnett County fire station - Potential 30,population,139052112.93527764,32494,4279.316579530918
-Gwinnett County fire station - Potential 30,white,127538414.20132233,29880,4268.353888933144
-Lenora Park Gym,asian,492436.3173289068,128,3847.1587291320843
-Lenora Park Gym,black,29131056.979708686,7131,4085.1292917835767
+Gwinnett County fire station - Potential 30,white,59318560.182145245,13814,4294.090066754397
+Lenora Park Gym,asian,3998833.5542572266,987,4051.5030944855384
+Lenora Park Gym,black,73696727.81232616,19345,3809.6008173856894
 Lenora Park Gym,hispanic,12442970.925100515,3045,4086.3615517571475
-Lenora Park Gym,native,73696727.81232616,19345,3809.6008173856894
+Lenora Park Gym,native,492436.3173289068,128,3847.1587291320843
 Lenora Park Gym,population,121944077.2989571,31217,3906.3355639221286
-Lenora Park Gym,white,113470515.18453264,29092,3900.4026943672707
-Lucky Shoals Park Community Recreation Center,asian,3945684.942361966,1185,3329.6919344826715
-Lucky Shoals Park Community Recreation Center,black,33679508.89755204,10555,3190.8582565184315
+Lenora Park Gym,white,29131056.979708686,7131,4085.1292917835767
+Lucky Shoals Park Community Recreation Center,asian,28652214.930960752,9315,3075.922161133736
+Lucky Shoals Park Community Recreation Center,black,41252061.48428087,13094,3150.4552836628127
 Lucky Shoals Park Community Recreation Center,hispanic,97810576.41707957,29203,3349.333164985774
-Lucky Shoals Park Community Recreation Center,native,41252061.48428087,13094,3150.4552836628127
+Lucky Shoals Park Community Recreation Center,native,3945684.942361966,1185,3329.6919344826715
 Lucky Shoals Park Community Recreation Center,population,195979454.23383772,60621,3232.864093859186
-Lucky Shoals Park Community Recreation Center,white,170149582.7155369,52772,3224.2397998093097
-Mountain Park Activity Building,asian,774183.158176636,208,3722.03441431075
-Mountain Park Activity Building,black,52213436.1773797,16330,3197.3935197415612
+Lucky Shoals Park Community Recreation Center,white,33679508.89755204,10555,3190.8582565184315
+Mountain Park Activity Building,asian,16793116.01796717,5281,3179.912141254908
+Mountain Park Activity Building,black,33226424.901988193,8166,4068.8739777110204
 Mountain Park Activity Building,hispanic,13723811.900375785,3707,3702.1343135623915
-Mountain Park Activity Building,native,33226424.901988193,8166,4068.8739777110204
+Mountain Park Activity Building,native,774183.158176636,208,3722.03441431075
 Mountain Park Activity Building,population,118136159.657234,34177,3456.598287071247
-Mountain Park Activity Building,white,109796491.07744035,31781,3454.7840243365645
-Pinckneyville Park Community Recreation Center,asian,2885555.3733049366,689,4188.0339235195015
-Pinckneyville Park Community Recreation Center,black,130665066.36853261,31169,4192.14817185449
+Mountain Park Activity Building,white,52213436.1773797,16330,3197.3935197415612
+Pinckneyville Park Community Recreation Center,asian,46659868.458044924,12928,3609.2101220641184
+Pinckneyville Park Community Recreation Center,black,81472644.21772143,18357,4438.233056475537
 Pinckneyville Park Community Recreation Center,hispanic,83636318.15478562,20114,4158.114654210282
-Pinckneyville Park Community Recreation Center,native,81472644.21772143,18357,4438.233056475537
+Pinckneyville Park Community Recreation Center,native,2885555.3733049366,689,4188.0339235195015
 Pinckneyville Park Community Recreation Center,population,344718814.89240766,83146,4145.945865013442
-Pinckneyville Park Community Recreation Center,white,309181987.9876471,74698,4139.093255343478
-Rhodes Jordan Park Community Recreation Center,asian,2169214.778475838,594,3651.876731440804
-Rhodes Jordan Park Community Recreation Center,black,88029098.65054625,21028,4186.280133657326
+Pinckneyville Park Community Recreation Center,white,130665066.36853261,31169,4192.14817185449
+Rhodes Jordan Park Community Recreation Center,asian,24649954.803676512,5320,4633.450151067013
+Rhodes Jordan Park Community Recreation Center,black,70194529.05624986,19470,3605.2660018618312
 Rhodes Jordan Park Community Recreation Center,hispanic,48552982.93629319,13202,3677.6990559228293
-Rhodes Jordan Park Community Recreation Center,native,70194529.05624986,19470,3605.2660018618312
+Rhodes Jordan Park Community Recreation Center,native,2169214.778475838,594,3651.876731440804
 Rhodes Jordan Park Community Recreation Center,population,232470042.59843856,59140,3930.842789963452
-Rhodes Jordan Park Community Recreation Center,white,207707991.13551575,52734,3938.7869521658845
+Rhodes Jordan Park Community Recreation Center,white,88029098.65054625,21028,4186.280133657326
