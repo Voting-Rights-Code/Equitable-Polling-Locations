@@ -12,7 +12,7 @@ def solve_model(model, time_limit):
     solver = pyo.SolverFactory(solver_name)
     solver.options ={ 'limits/time':time_limit,  'limits/gap': 0.01, 'lp/threads':2 }
         
-    results = solver.solve(model, tee=True)
+    results = solver.solve(model, tee=False)
     #solve_time = time.time() - start_time_0
 
     return results

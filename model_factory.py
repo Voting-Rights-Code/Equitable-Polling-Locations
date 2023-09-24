@@ -75,7 +75,7 @@ class PollingModelConfig:
     from the data. Should be >= 1. Default = 1.'''
     capacity: float = 1.0
     '''A multiplicative factor for calculating the capacity constraint. Should be >= 1. Default = 1.'''
-@timer
+
 def build_objective_rule(
         config: PollingModelConfig,
         #residence_precinct_pairs: list,
@@ -98,7 +98,7 @@ def build_objective_rule(
     if config.beta != 0: 
         return obj_rule_not_0
 
-@timer
+#@timer
 def build_open_rule(
     precincts_open:int,
     ):
@@ -109,7 +109,7 @@ def build_open_rule(
         return sum(model.open[precinct] for precinct in model.precincts) == precincts_open
     return open_rule
 
-@timer
+#@timer
 def build_max_new_rule(
     config: PollingModelConfig,
     precincts_open:int,
@@ -143,7 +143,7 @@ def build_min_old_rule(
             return sum(model.open[precinct]* (1-model.new_locations[precinct]) for precinct in model.precincts) >= config.minpctold*old_polls
     return min_old_rule
 
-@timer
+#@timer
 def build_res_assigned_rule(
 ):
     '''assigns each census block to a single precinct in its neighborhood'''
@@ -154,7 +154,7 @@ def build_res_assigned_rule(
         return (sum(model.matching[residence, precinct] for precinct in model.within_residence_radius[residence]) == 1)
     return res_assigned_rule
 
-@timer
+#@timer
 def build_precinct_open_rule():
     '''residences can only be assigned to precincts that are opened'''
     def precinct_open_rule(
@@ -164,7 +164,7 @@ def build_precinct_open_rule():
         return(model.matching[res,prec]<= model.open[prec])
     return precinct_open_rule
 
-@timer
+#@timer
 def build_capacity_rule(
         config: PollingModelConfig,
         total_pop: int,

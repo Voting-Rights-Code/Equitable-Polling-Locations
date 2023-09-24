@@ -9,6 +9,7 @@ from model_solver import solve_model
 from model_results import (incorporate_result,demographic_domain_summary, demographic_summary,write_results,)
 
 def run_on_config(config_file):
+    print(f'{config_file}')
     config = importlib.import_module(config_file)
 
     #check if source data avaible
@@ -28,11 +29,12 @@ def run_on_config(config_file):
 
     #build model
     ea_model = polling_model_factory(dist_df, alpha, config)
-    print(f'model built. Solve for {config.time_limit} seconds')
+    print(f'model built for {config_file}.')
 
     #solve model
     #TODO: (CR) this should probably be moved to a log file somewhere
     solve_model(ea_model, config.time_limit)
+    print(f'model solved for {config_file}.')
 
     #incorporate result into main dataframe
     result_df = incorporate_result(dist_df, ea_model)
@@ -49,8 +51,9 @@ def run_on_config(config_file):
     #calculate the average distances (and y_ede if beta !=0) traveled by each demographic
     demographic_ede = demographic_summary(demographic_res, result_df,config.beta, alpha_new)
 
-    result_folder = f'{config.location}_result'
-    run_prefix = f'{config.location}_{config.year}_{config.level}_beta={config.beta}_min_old={config.minpctold}_max_new={config.maxpctnew}_num_locations={config.precincts_open}'
+    result_folder = f'{config.location}_results'
+    #run_prefix = f'{config.location}_{config.year}_{config.level}_beta={config.beta}_min_old={config.minpctold}_max_new={config.maxpctnew}_num_locations={config.precincts_open}'
+    run_prefix = f'{config_file}'
 
     write_results(result_folder, run_prefix, result_df, demographic_prec, demographic_res, demographic_ede)
     return
@@ -61,11 +64,14 @@ config_folder = sys.argv[1]+'.'
 #get list of files in the folder
 config_list = [file.replace('.py', '') for file in os.listdir(config_folder)]
 config_list = [config_folder +file for file in config_list]
+if '__pycache__' in config_folder:
+    config_list.remove('__pycache__')
 
-#for config_file in config_list:
-#with Pool(4) as pool:
+#For single processing
+for config_file in config_list:
+    run_on_config(config_file)       
+
+#For multiprocessing
+#if __name__ == '__main__':
+#    pool = Pool(2)
 #    processed = pool.map(run_on_config, config_list)       
-
-if __name__ == '__main__':
-    pool = Pool(4)
-    processed = pool.map(run_on_config, config_list)       
