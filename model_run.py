@@ -69,7 +69,7 @@ def run_on_config(config: RunConfig, log: bool=False):
 
     #solve model
     #TODO: (CR) this should probably be moved to a log file somewhere
-    solve_model(ea_model, config.time_limit, tee=log)
+    solve_model(ea_model, config.time_limit, log=log)
     print(f'model solved for {run_prefix}.')
 
     #incorporate result into main dataframe
