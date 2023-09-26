@@ -5,7 +5,6 @@ Gwinnett_GA_configs/Gwinnett_config_full_11.py
 
 from dataclasses import dataclass
 import os
-from pathlib import Path
 import warnings
 import yaml
 from model_data import (build_source, clean_data, alpha_min)
@@ -42,7 +41,7 @@ def load_config(config_yaml_path: str) -> RunConfig:
         config = yaml.safe_load(yaml_file)
         return RunConfig(**config)
 
-def run_on_config(config: RunConfig):
+def run_on_config(config: RunConfig, log: bool=False):
     ''' 
     The entry point to exectue a pyomo/scip run.
     '''
@@ -70,7 +69,7 @@ def run_on_config(config: RunConfig):
 
     #solve model
     #TODO: (CR) this should probably be moved to a log file somewhere
-    solve_model(ea_model, config.time_limit)
+    solve_model(ea_model, config.time_limit, tee=log)
     print(f'model solved for {run_prefix}.')
 
     #incorporate result into main dataframe
