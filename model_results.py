@@ -2,7 +2,9 @@ import numpy as np
 import pandas as pd
 import os
 import math
+from utils import timer
 
+@timer
 def incorporate_result(dist_df, model):
     '''Input: dist_df--the main data frame containing the data for model
               model -- the solved model
@@ -23,6 +25,7 @@ def incorporate_result(dist_df, model):
     result_df = result_df.loc[result_df['matching'] ==1]
     return(result_df)
 
+@timer
 def demographic_domain_summary(result_df, domain):
     '''Input: result_df-- the distance an demographic population data for the matched residences and precincts
         domain-- ['id_dest', 'id_orig'] either the precinct of residence 
@@ -49,6 +52,7 @@ def demographic_domain_summary(result_df, domain):
     demographic_prec['avg_dist'] =  demographic_prec['weighted_dist']/ demographic_prec['demo_pop']
     return demographic_prec
 
+@timer
 def demographic_summary(demographic_df, result_df, beta, alpha):
     '''Input: demographic_df-- the distance an demographic population data for the matched residences and precincts
     beta -- the inequality aversion factor
@@ -93,6 +97,7 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
         demographic_summary = pd.concat([demographic_summary[['weighted_dist', 'avg_dist']], demographic_ede], axis = 1)
     return demographic_summary
 
+@timer
 def write_results(result_folder, run_prefix, result_df, demographic_prec, demographic_res, demographic_ede):
     '''Write result, demographic_prec, demographic_res and demographic_ede to file'''
 
