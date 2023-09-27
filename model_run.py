@@ -5,8 +5,10 @@ Gwinnett_GA_configs/Gwinnett_config_full_11.py
 
 from dataclasses import dataclass
 import os
+from typing import List
 import warnings
 import yaml
+
 from model_data import (build_source, clean_data, alpha_min)
 from model_factory import polling_model_factory
 from model_solver import solve_model
@@ -21,7 +23,7 @@ from model_results import (
 class RunConfig:
     ''' Simple python dataclass to hold all the values required for a run '''
     location: str
-    year: [str]
+    year: List[str]
     level: str
     beta: int
     time_limit: int
@@ -91,7 +93,7 @@ def run_on_config(config: RunConfig, log: bool=False):
     demographic_res = demographic_domain_summary(result_df, 'id_orig')
 
     #calculate the average distances (and y_ede if beta !=0) traveled by each demographic
-    demographic_ede = demographic_summary(demographic_res, result_df,config.beta, alpha_new)
+    demographic_ede = demographic_summary(demographic_res, result_df, config.beta, alpha_new)
 
     result_folder = config.result_folder
    
