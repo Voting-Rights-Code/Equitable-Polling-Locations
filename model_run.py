@@ -41,6 +41,10 @@ def load_config(config_yaml_path: str) -> RunConfig:
         config = yaml.safe_load(yaml_file)
         return RunConfig(**config)
 
+def get_result_folder(config: RunConfig) -> str:
+    ''' Returns the path that the results will be written to for a given config '''
+    return f'{config.location}_results'
+
 def run_on_config(config: RunConfig, log: bool=False):
     ''' 
     The entry point to exectue a pyomo/scip run.
@@ -87,7 +91,7 @@ def run_on_config(config: RunConfig, log: bool=False):
     #calculate the average distances (and y_ede if beta !=0) traveled by each demographic
     demographic_ede = demographic_summary(demographic_res, result_df,config.beta, alpha_new)
 
-    result_folder = f'{config.location}_results'
+    result_folder = get_result_folder(config)
     # run_prefix = f'{config_file}'
    
     write_results(
