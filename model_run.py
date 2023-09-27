@@ -3,11 +3,10 @@ This file sets up a pyomo/scip run based on a config file, e.g.
 Gwinnett_GA_configs/Gwinnett_config_full_11.py
 '''
 
-from dataclasses import dataclass
 import os
-from typing import List
 import warnings
-import yaml
+
+from polling_model_config import PollingModelConfig
 
 from model_data import (build_source, clean_data, alpha_min)
 from model_factory import polling_model_factory
@@ -19,37 +18,7 @@ from model_results import (
     write_results,
 )
 
-@dataclass
-class RunConfig:
-    ''' Simple python dataclass to hold all the values required for a run '''
-    location: str
-    year: List[str]
-    level: str
-    beta: int
-    time_limit: int
-    capacity: int
-    precincts_open: int
-    max_min_mult: int
-    maxpctnew: float
-    minpctold: float
-   
-    result_folder: str = None
-
-    def __post_init__(self):
-        if not self.result_folder:
-            self.result_folder = f'{self.location}_results'
-
-
-def load_config(config_yaml_path: str) -> RunConfig:
-    ''' Return an instance of RunConfig from a yaml file '''
-
-    print(f'config_yaml_path: {config_yaml_path}')
-    with open(config_yaml_path) as yaml_file:
-        # use safe_load instead load
-        config = yaml.safe_load(yaml_file)
-        return RunConfig(**config)
-
-def run_on_config(config: RunConfig, log: bool=False):
+def run_on_config(config: PollingModelConfig, log: bool=False):
     ''' 
     The entry point to exectue a pyomo/scip run.
     '''

@@ -2,12 +2,11 @@
 Factory function to build the pyomo population model
 '''
 
-from dataclasses import dataclass
 import math
 
-import pandas as pd
 import pyomo.environ as pyo
 
+from polling_model_config import PollingModelConfig
 
 from model_data import (
     get_max_min_dist,
@@ -46,35 +45,6 @@ class PollingModel(pyo.ConcreteModel):
     '''Boolean variable indicating whether the precinct and residence pair is matched'''
 
 
-@dataclass
-class PollingModelConfig:
-    location: str
-    '''Name of the county or city of interest'''
-    year: list
-    '''list of years to be studied'''
-    level: str
-    '''{'original': consider only the original polling locations,
-        'expanded': consider all schools
-        'full': consider all schools and census block group centroids}'''
-    beta: float
-    '''level of inequality aversion: [-10,0], where 0 indicates indifference, and thus uses the mean. -2 is a good number '''
-    time_limit_seconds: int
-    '''How long the solver should try to find a solution'''
-    precincts_open: int = None
-    '''The total number of precincts to be used this year. If no
-    user input is given, this is calculated to be the number of
-    polling places identified in the data.'''
-    maxpctnew: float = 1.0
-    '''The percent on new polling places (not already defined as a
-    polling location) permitted in the data. Default = 1. I.e. can replace all existing locations'''
-    minpctold: float = 0
-    '''The minimun number of polling places (those already defined as a
-    polling location) permitted in the data. Default = 0. I.e. can replace all existing locations'''
-    max_min_mult: float = 1.0
-    '''A multiplicative factor for the min_max distance caluclated
-    from the data. Should be >= 1. Default = 1.'''
-    capacity: float = 1.0
-    '''A multiplicative factor for calculating the capacity constraint. Should be >= 1. Default = 1.'''
 
 def build_objective_rule(
         config: PollingModelConfig,
