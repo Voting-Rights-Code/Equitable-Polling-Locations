@@ -20,7 +20,7 @@ class PollingModelConfig:
     beta: float
     '''level of inequality aversion: [-10,0], where 0 indicates indifference, and thus uses the
     mean. -2 isa good number '''
-    time_limit_seconds: int
+    time_limit: int
     '''How long the solver should try to find a solution'''
     precincts_open: int = None
     '''The total number of precincts to be used this year. If no
