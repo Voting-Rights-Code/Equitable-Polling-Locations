@@ -49,7 +49,6 @@ class PollingModelConfig:
     def load_config(config_yaml_path: str) -> "PollingModelConfig":
         ''' Return an instance of RunConfig from a yaml file '''
 
-        print(f'config_yaml_path: {config_yaml_path}')
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
             config = yaml.safe_load(yaml_file)
