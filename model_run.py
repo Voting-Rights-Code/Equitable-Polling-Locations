@@ -1,20 +1,33 @@
-import sys
+''' 
+This file sets up a pyomo/scip run based on a config file, e.g.
+Gwinnett_GA_configs/Gwinnett_config_full_11.py
+'''
+
 import os
-from multiprocessing import Pool
 import warnings
-import importlib
+
+from polling_model_config import PollingModelConfig
+
 from model_data import (build_source, clean_data, alpha_min)
 from model_factory import polling_model_factory
 from model_solver import solve_model
-from model_results import (incorporate_result,demographic_domain_summary, demographic_summary,write_results,)
+from model_results import (
+    incorporate_result,
+    demographic_domain_summary,
+    demographic_summary,
+    write_results,
+)
 
-def run_on_config(config_file):
-    print(f'{config_file}')
-    config = importlib.import_module(config_file)
+def run_on_config(config: PollingModelConfig, log: bool=False):
+    ''' 
+    The entry point to exectue a pyomo/scip run.
+    '''
+
+    run_prefix = f'{config.location}_config_{config.level}_{config.precincts_open}'
 
     #check if source data avaible
     source_file_name = config.location + '.csv'
-    source_path = os.path.join('datasets','polling', config.location, source_file_name)
+    source_path = os.path.join('datasets', 'polling', config.location, source_file_name)
     if not os.path.exists(source_path):
         warnings.warn(f'File {source_path} not found. Creating it.')
         build_source(config.location)
@@ -29,12 +42,12 @@ def run_on_config(config_file):
 
     #build model
     ea_model = polling_model_factory(dist_df, alpha, config)
-    print(f'model built for {config_file}.')
+    print(f'model built for {run_prefix}.')
 
     #solve model
     #TODO: (CR) this should probably be moved to a log file somewhere
-    solve_model(ea_model, config.time_limit)
-    print(f'model solved for {config_file}.')
+    solve_model(ea_model, config.time_limit, log=log)
+    print(f'model solved for {run_prefix}.')
 
     #incorporate result into main dataframe
     result_df = incorporate_result(dist_df, ea_model)
@@ -49,29 +62,17 @@ def run_on_config(config_file):
     demographic_res = demographic_domain_summary(result_df, 'id_orig')
 
     #calculate the average distances (and y_ede if beta !=0) traveled by each demographic
-    demographic_ede = demographic_summary(demographic_res, result_df,config.beta, alpha_new)
+    demographic_ede = demographic_summary(demographic_res, result_df, config.beta, alpha_new)
 
-    result_folder = f'{config.location}_results'
-    #run_prefix = f'{config.location}_{config.year}_{config.level}_beta={config.beta}_min_old={config.minpctold}_max_new={config.maxpctnew}_num_locations={config.precincts_open}'
-    run_prefix = f'{config_file}'
+    result_folder = config.result_folder
+   
+    write_results(
+        result_folder,
+        run_prefix,
+        result_df,
+        demographic_prec,
+        demographic_res,
+        demographic_ede,
+    )
 
-    write_results(result_folder, run_prefix, result_df, demographic_prec, demographic_res, demographic_ede)
-    return
-
-#get config folder from command line
-config_folder = sys.argv[1]+'.'
-
-#get list of files in the folder
-config_list = [file.replace('.py', '') for file in os.listdir(config_folder)]
-config_list = [config_folder +file for file in config_list]
-if '__pycache__' in config_folder:
-    config_list.remove('__pycache__')
-
-#For single processing
-for config_file in config_list:
-    run_on_config(config_file)       
-
-#For multiprocessing
-#if __name__ == '__main__':
-#    pool = Pool(2)
-#    processed = pool.map(run_on_config, config_list)       
+    return result_folder
