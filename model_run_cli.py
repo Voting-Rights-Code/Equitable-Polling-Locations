@@ -13,7 +13,11 @@ MULTI_PROCESS = True
 MULTI_PROCESS_CONCURRENT = 2
 
 # Get the list of config files from the folder specified on the command line
-config_list = [ os.path.join(CONFIG_FOLDER, file) for file in os.listdir(CONFIG_FOLDER) ]
+#first remove __pycache__
+all_files = os.listdir(CONFIG_FOLDER)
+if '__pycache__' in all_files:
+    all_files.remove('__pycache__')
+config_list = [ os.path.join(CONFIG_FOLDER, file) for file in all_files]
 
 if MULTI_PROCESS:
     with Pool(MULTI_PROCESS_CONCURRENT) as pool:
