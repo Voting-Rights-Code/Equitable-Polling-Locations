@@ -2,29 +2,29 @@
 #Created on 27 May 2023
 #
 #@author: Voting Rights Code
-#@attribution: Josh Murell 
+#@attribution: Josh Murell
 #######################################
 
-#TODO: (SA/CR) Need to write an automated script to read in the demographics part of this table for a given county 
+#TODO: (SA/CR) Need to write an automated script to read in the demographics part of this table for a given county
 #        from the ACS
 #TODO: (all) Need to figure out how the distance is calculated and get that implemented at the county level from Google
-#     
+#
 #TODO: (CR) Need to figure out where the data is going to be stored in the end.
 
 
 import pandas as pd
 import math
 import os
-import warnings
 from haversine import haversine
 import geopandas as gpd
+from polling_model_config import PollingModelConfig
 
 
 ##########################
 #read in data and write relevant dataframe for model to file
 ##########################
 #build distance data set from census data and potential pollig location data.
- 
+
 def build_source(location):
     ######
     #Check that necessary files exist
@@ -32,31 +32,31 @@ def build_source(location):
     #1. Potential polling locations
     file_name = location + '_locations_only.csv'
     LOCATION_SOURCE_FILE = os.path.join('datasets', 'polling', location, file_name)
-    if os.path.exists(LOCATION_SOURCE_FILE): 
+    if os.path.exists(LOCATION_SOURCE_FILE):
         #warnings.warn(f'{file_name} found. Last modified {os.path.getmtime(LOCATION_SOURCE_FILE)}.')
         locations = pd.read_csv(LOCATION_SOURCE_FILE)
-    else: 
+    else:
         raise ValueError(f'Potential polling location data ({LOCATION_SOURCE_FILE}) not found.')
-    
+
     #2. Census demographic data
     file_nameP3 = 'DECENNIALPL2020.P3-Data.csv'
     file_nameP4 = 'DECENNIALPL2020.P4-Data.csv'
     demographics_dir = os.path.join('datasets', 'census', 'redistricting', location)
     P3_SOURCE_FILE  = os.path.join(demographics_dir, file_nameP3)
     P4_SOURCE_FILE  = os.path.join(demographics_dir, file_nameP4)
-    if os.path.exists(P3_SOURCE_FILE): 
+    if os.path.exists(P3_SOURCE_FILE):
         p3_df = pd.read_csv(P3_SOURCE_FILE,
             header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
             low_memory=False, # files are too big, set this to False to prevent errors
             )
-    else: 
+    else:
         raise ValueError(f'Census data from table P3 not found. Follow download instruction from README.')
-    if os.path.exists(P4_SOURCE_FILE): 
+    if os.path.exists(P4_SOURCE_FILE):
         p4_df = pd.read_csv(P4_SOURCE_FILE,
             header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
             low_memory=False, # files are too big, set this to False to prevent errors
             )
-    else: 
+    else:
         raise ValueError(f'Census data from table P4 not found. Follow download instruction from README.')
     #3. Census geographic data
     file_name_block = 'tl_2020_13135_tabblock20.shp'
@@ -64,13 +64,13 @@ def build_source(location):
     geography_dir = os.path.join('datasets', 'census', 'tiger', location)
     BLOCK_SOURCE_FILE  = os.path.join(geography_dir, file_name_block)
     BLOCK_GROUP_SOURCE_FILE  = os.path.join(geography_dir, file_name_bg)
-    if os.path.exists(BLOCK_SOURCE_FILE): 
+    if os.path.exists(BLOCK_SOURCE_FILE):
         blocks_gdf = gpd.read_file(BLOCK_SOURCE_FILE)
-    else: 
+    else:
         raise ValueError(f'Census data for block geography not found. Follow download instruction from README.')
-    if os.path.exists(BLOCK_GROUP_SOURCE_FILE): 
+    if os.path.exists(BLOCK_GROUP_SOURCE_FILE):
         blockgroup_gdf = gpd.read_file(BLOCK_GROUP_SOURCE_FILE)
-    else: 
+    else:
         raise ValueError(f'Census data for block group geography not found. Follow download instruction from README.')
 
     #######
@@ -81,7 +81,7 @@ def build_source(location):
     LOCATIONS_COLS = [
     'Location',
     'Address',
-    'Location type', 
+    'Location type',
     'Lat, Long',
     ]
 
@@ -97,8 +97,8 @@ def build_source(location):
     'P3_005N', # American Indian or Alaska Native alone
     'P3_006N', # Asian alone
     'P3_007N', # Native Hawaiian and Other Pacific Islander alone
-    'P3_008N', # Some other race alone 
-    'P3_009N', # Two or More Races   
+    'P3_008N', # Some other race alone
+    'P3_009N', # Two or More Races
     ]
 
     P4_COLUMNS = [
@@ -111,13 +111,13 @@ def build_source(location):
 
     BLOCK_SHAPE_COLS = [
     'GEOID20',
-    'INTPTLAT20', 
+    'INTPTLAT20',
     'INTPTLON20',
     ]
 
     BLOCK_GROUP_SHAPE_COLS = [
     'GEOID20',
-    'INTPTLAT20', 
+    'INTPTLAT20',
     'INTPTLON20',
     ]
 
@@ -183,7 +183,7 @@ def build_source(location):
 
     if len(all_locations.Location) != len(set(all_locations.Location)):
         raise ValueError('Non-unique names in Location column. This will cause errors later.')
-    
+
     #####
     # Cross join polling locations and demographics tables and calculate distances
     #####
@@ -210,34 +210,38 @@ def build_source(location):
     'location_type',
     'dest_type',
     'population',
-    'hispanic', 
+    'hispanic',
     'non-hispanic',
-    'white', 
-    'black', 
-    'native', 
+    'white',
+    'black',
+    'native',
     'asian',
-    'pacific_islander', 
-    'other', 
+    'pacific_islander',
+    'other',
     'multiple_races',
     ]
 
     full_df = full_df[FULL_DF_COLS]
     output_file_name = location + '.csv'
     output_path = os.path.join('datasets', 'polling', location, output_file_name)
-    full_df.to_csv(output_path, index = True) 
+    full_df.to_csv(output_path, index = True)
     return
 
 #########
 #Read the intermediate data frame from file, and pull the relevant rows
 #########
 
-def clean_data(location, level, year_list):
+def clean_data(config: PollingModelConfig):
+    location = config.location
+    level = config.level
+    year_list = config.year
+
     #read in data
     data_dir = os.path.join('datasets', 'polling', location)
     file_name = location + '.csv'
     file_path = os.path.join(data_dir, file_name)
     if not os.path.isfile(file_path):
-        raise ValueError(f'Do not currently have any data for {location}')
+        raise ValueError(f'Do not currently have any data for {location} from {config.config_file_path}')
     df = pd.read_csv(file_path, index_col=0)
     #change column names
     #if location in {'Salem', 'Test'}:
@@ -246,43 +250,43 @@ def clean_data(location, level, year_list):
     polling_location_types = set(df[df.dest_type == 'polling']['location_type'])
     for year in year_list:
         if not any(str(year) in poll for poll in polling_location_types):
-            raise ValueError(f'Do not currently have any data for {location} for {year}')
+            raise ValueError(f'Do not currently have any data for {location} {level} for {year} from {config.config_file_path}')
     #drop duplicates and empty block groups
     df = df.drop_duplicates() #put in to avoid duplications down the line.
     df = df[df['population']>0]
-    
+
     #select data based on level
     if level not in ['original', 'expanded','full']:
         raise ValueError('level must be in {original, expanded,full}')
     #Note, only values of dest_type is 'polling', 'potential' and 'bg_centroid'
     unique_dest_types = df['dest_type'].unique()
     if len(set(unique_dest_types) - set(['potential', 'polling', 'bg_centroid'])) != 0:
-        raise ValueError(f'unrecognized destination types {set(unique_dest_types)}' )
+        raise ValueError(f'unrecognized destination types {set(unique_dest_types)} from {config.config_file_path}' )
     if level=='original':
         df = df[df['dest_type']=='polling']         # keep only polling locations
     elif level=='expanded':
         df = df[df['dest_type']!='bg_centroid']     # keep schools and polling locations
     else: #level == full
-        df = df   
-    
+        df = df
+
     #select data based on year
     #select the polling locations only for the indicated years
-    #keep all other locations 
+    #keep all other locations
     not_polling = df[(df.dest_type != 'polling')]
     polling_year_list =  [df[df.location_type.str.contains('polling_'.join([str(year)]))] for year in year_list]
     polling_year_list.append(not_polling)
     df = pd.concat(polling_year_list)
     #the concatenation will create duplicates if a polling location is used multiple years
     #drop these
-    df = df.drop_duplicates() 
+    df = df.drop_duplicates()
 
     #check that population is unique by id_orig
     pop_df = df.groupby('id_orig')['population'].agg('unique').str.len()
     if any(pop_df>1):
-        raise ValueError("Some id_orig has multiple associated populations")
+        raise ValueError(f"Some id_orig has multiple associated populations from {config.config_file_path}")
 
     #create other useful columns
-    df['Weighted_dist'] = df['population'] * df['distance_m']    
+    df['Weighted_dist'] = df['population'] * df['distance_m']
     return(df)
 
 ##########################
@@ -298,14 +302,14 @@ def get_max_min_dist(dist_df):
 
 #various alpha function. Really only use alpha_min
 def alpha_all(df):
-    #add a distance square column    
+    #add a distance square column
     df['distance_squared'] = df['distance_m'] * df['distance_m']
 
     #population weighted distances
     distance_sum = sum(df['population'] * df['distance_m'])
     #population weighted distance squared
     distance_sq_sum = sum(df['population']*df['distance_squared'])
-    alpha = distance_sum/distance_sq_sum 
+    alpha = distance_sum/distance_sq_sum
     return alpha
 
 
@@ -314,23 +318,23 @@ def alpha_min(df):
     min_df= df[['id_orig', 'distance_m','population']].groupby('id_orig').agg('min')
 
     #find the square of the min distances
-    min_df['distance_squared'] = min_df['distance_m'] * min_df['distance_m']  
+    min_df['distance_squared'] = min_df['distance_m'] * min_df['distance_m']
     #population weighted distances
     distance_sum = sum(min_df['population']*min_df['distance_m'])
     #population weighted distance squared
     distance_sq_sum = sum(min_df['population']*min_df['distance_squared'])
-    alpha = distance_sum/distance_sq_sum 
+    alpha = distance_sum/distance_sq_sum
     return alpha
 
 def alpha_mean(df):
     #Find the mean distance to polling location
     mean_df = df[['id_orig', 'distance_m', 'population']].groupby('id_orig').agg('mean')
-    
+
     #find the square of the min distances
-    mean_df['distance_squared'] = mean_df['distance_m'] * mean_df['distance_m']  
+    mean_df['distance_squared'] = mean_df['distance_m'] * mean_df['distance_m']
     #population weighted distances
     distance_sum = sum(mean_df['population']*mean_df['distance_m'])
     #population weighted distance squared
     distance_sq_sum = sum(mean_df['population']*mean_df['distance_squared'])
-    alpha = distance_sum/distance_sq_sum 
+    alpha = distance_sum/distance_sq_sum
     return alpha

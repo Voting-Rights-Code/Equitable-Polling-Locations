@@ -1,4 +1,4 @@
-''' 
+'''
 This file sets up a pyomo/scip run based on a config file, e.g.
 Gwinnett_GA_configs/Gwinnett_config_full_11.py
 '''
@@ -19,7 +19,7 @@ from model_results import (
 )
 
 def run_on_config(config: PollingModelConfig, log: bool=False):
-    ''' 
+    '''
     The entry point to exectue a pyomo/scip run.
     '''
 
@@ -33,21 +33,22 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
         build_source(config.location)
 
     #get main data frame
-    dist_df = clean_data(config.location, config.level, config.year)
+    dist_df = clean_data(config)
 
     #get alpha
-    alpha_df = clean_data(config.location, 'original', config.year)
+    alpha_df = clean_data(config)
     # TODO: (CR) I don't like having to call this twice like this. Need a better method
     alpha  = alpha_min(alpha_df)
 
     #build model
     ea_model = polling_model_factory(dist_df, alpha, config)
-    print(f'model built for {run_prefix}.')
+    if log:
+        print(f'model built for {run_prefix}.')
 
     #solve model
-    #TODO: (CR) this should probably be moved to a log file somewhere
-    solve_model(ea_model, config.time_limit, log=log)
-    print(f'model solved for {run_prefix}.')
+    solve_model(ea_model, config.time_limit, log=log, log_file_path=config.log_file_path)
+    if log:
+        print(f'model solved for {run_prefix}.')
 
     #incorporate result into main dataframe
     result_df = incorporate_result(dist_df, ea_model)
@@ -65,7 +66,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     demographic_ede = demographic_summary(demographic_res, result_df, config.beta, alpha_new)
 
     result_folder = config.result_folder
-   
+
     write_results(
         result_folder,
         run_prefix,

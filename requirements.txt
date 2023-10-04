@@ -151,3 +151,4 @@ xz=5.2.6=h8d14728_0
 yaml=0.2.5=h8ffe710_2
 zeromq=4.3.4=h0e60522_1
 zipp=3.15.0=pyhd8ed1ab_0
+tqdm=4.66.1

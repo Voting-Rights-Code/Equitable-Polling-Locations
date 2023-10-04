@@ -1,19 +1,19 @@
-#from test_config_refactor import * #For testing only. Remove later 
-import time
-#from data_for_model import *
+''' Functions to solve models '''
+
 import pyomo.environ as pyo
-from pyomo.opt import SolverStatus, TerminationCondition
-import pandas as pd
 
+SOLVER_NAME = 'scip'
+LIMITS_GAP = 0.01
+LP_THREADS = 2
 
-def solve_model(model, time_limit, log: bool=False):
-    #define solver    
-    solver_name = 'scip'
+def solve_model(model, time_limit, log: bool=False, log_file_path=None):
+    ''' This funciton will execute scip '''
+    #define solver
+    solver_name = SOLVER_NAME
     solver = pyo.SolverFactory(solver_name)
-    solver.options ={ 'limits/time':time_limit,  'limits/gap': 0.01, 'lp/threads':2 }
-        
-    results = solver.solve(model, tee=log)
-    #solve_time = time.time() - start_time_0
+    solver.options ={ 'limits/time': time_limit,  'limits/gap': LIMITS_GAP, 'lp/threads': LP_THREADS }
+
+    results = solver.solve(model, tee=log, logfile=log_file_path)
 
     return results
 

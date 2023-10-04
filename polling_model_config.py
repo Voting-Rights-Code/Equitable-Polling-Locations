@@ -3,9 +3,7 @@ from typing import List
 from dataclasses import dataclass
 import yaml
 
-
 @dataclass
-# pylint: disable-next=too-many-instance-attributes
 class PollingModelConfig:
     ''' A simple config class to run models '''
 
@@ -41,16 +39,24 @@ class PollingModelConfig:
     result_folder: str = None
     ''' The location to write out results '''
 
+    config_file_path: str = None
+    ''' The path to the file that defines this config.  '''
+
+    log_file_path: str = None
+    ''' If specified, the location of the file to write logs to '''
+
     def __post_init__(self):
         if not self.result_folder:
             self.result_folder = f'{self.location}_results'
 
     @staticmethod
-    def load_config(config_yaml_path: str) -> "PollingModelConfig":
+    def load_config(config_yaml_path: str) -> 'PollingModelConfig':
         ''' Return an instance of RunConfig from a yaml file '''
 
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
             config = yaml.safe_load(yaml_file)
-            return PollingModelConfig(**config)
+            result = PollingModelConfig(**config)
+            result.config_file_path = config_yaml_path
+            return result
 
