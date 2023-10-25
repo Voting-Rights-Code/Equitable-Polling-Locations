@@ -1,5 +1,5 @@
 # Equitable-Polling-Locations
-Given a set of existing and candidate polling locations, output the most equitable (by Kolm-Pollack distance) set of polling locations. The outputs of this model can be used to measure inequity among different racial groups in terms of access to polls (measured solely in terms of distance) and investigate how changes in choices and number of polling locations would change these inequities. 
+Given a set of existing and candidate polling locations, output the most equitable (by Kolm-Pollak distance) set of polling locations. The outputs of this model can be used to measure inequity among different racial groups in terms of access to polls (measured solely in terms of distance) and investigate how changes in choices and number of polling locations would change these inequities. 
 
 The algorithm for this model is as follows:
 1. Create a list of potential polling locations
@@ -19,7 +19,7 @@ The algorithm for this model is as follows:
     1. Set beta = 0 for average distance
         1. In this case, minimize the average distance traveled
     1. Set beta in [-2, 0) for the inequity penalized score (y_EDE). The lower the beta, the greater penalty to inequality
-        1. In this case, minimize (\sum block population * KP_factor)/ county popuulation
+        1. In this case, minimize (\sum block population * KP_factor)/ county population
 1. Minimize the above according to the following constraints:
     1. Can only have a user specified number of polling locations open
     1. A user defined bound on the number of new locations
@@ -35,7 +35,7 @@ The algorithm for this model is as follows:
 # To run
 From command line:
 * In the directory of the Equitable-Polling-Locations git repo:
-    * python ./model_run_cli.py -cNUM -lLOG_FOLDER ./path/to/config/file.yam;l
+    * python ./model_run_cli.py -cNUM -lLOG_FOLDER ./path/to/config/file.yaml
         * NUM = number of cores to use for simulatneous runs (reccommend <=4 for most laptops)
         * LOG_FOLDER = Folder to put log files. Must exist, or will not run
         * path to config file accepts wild cards to set of sequential runs
