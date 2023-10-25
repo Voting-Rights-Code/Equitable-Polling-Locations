@@ -32,7 +32,6 @@ The algorithm for this model is as follows:
 1. The model returns a list of matchings between census blocks and polling locations, along with the distance between the two, and a demographic breakdown of the population. 
 1. The model then uses this matching and demographic data to compute a new data derived scaling factor (alpha), which it then uses to compute the inequity penalized score (y_EDE) for the matched system.
 
-
 # To run
 From command line:
 * In the directory of the Equitable-Polling-Locations git repo:
@@ -42,7 +41,7 @@ From command line:
         * path to config file accepts wild cards to set of sequential runs
 
 From Google Colab:
-* As CHAD where this is
+* For example, follog the the instructions in [this file](./colab_Gwinnett_expanded_multi_11_12_13_14_15.ipynb) (To be accessed in the directory of the Equitable-Polling-Locations git repo)
 # Input files
 There are six files needed to run this program. Instructions for downloading these files and their formats are given here.
 
