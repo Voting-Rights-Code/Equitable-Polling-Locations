@@ -9,7 +9,7 @@ from typing import List
 
 from tqdm import tqdm
 
-from polling_model_config import PollingModelConfig
+from model_config import PollingModelConfig
 import model_run
 import utils
 

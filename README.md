@@ -41,7 +41,7 @@ From command line:
         * path to config file accepts wild cards to set of sequential runs
 
 From Google Colab:
-* For example, follog the the instructions in [this file](./colab_Gwinnett_expanded_multi_11_12_13_14_15.ipynb) (To be accessed in the directory of the Equitable-Polling-Locations git repo)
+* For example, follog the the instructions in [this file](./Colab_runs/colab_Gwinnett_expanded_multi_11_12_13_14_15.ipynb) (To be accessed in the directory of the Equitable-Polling-Locations git repo)
 # Input files
 There are six files needed to run this program. Instructions for downloading these files and their formats are given here.
 
