@@ -17,7 +17,7 @@ import math
 import os
 from haversine import haversine
 import geopandas as gpd
-from polling_model_config import PollingModelConfig
+from model_config import PollingModelConfig
 
 
 ##########################

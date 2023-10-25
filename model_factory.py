@@ -6,7 +6,7 @@ import math
 
 import pyomo.environ as pyo
 
-from polling_model_config import PollingModelConfig
+from model_config import PollingModelConfig
 
 from model_data import (
     get_max_min_dist,
