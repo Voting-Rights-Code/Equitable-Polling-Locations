@@ -72,9 +72,7 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
     demographic_summary['avg_dist'] = demographic_summary['weighted_dist']/demographic_summary['demo_pop']
 
     if beta !=0: 
-        #TODO: (DS) alpha be recalculated at this step for each
-        #demographic group to get the y_ede?
-
+        
         #add the distance_m column back in from dist_df
         #1) first make demographics a column, not an index
         demographic_by_res = demographic_df.reset_index(['demographic'])
