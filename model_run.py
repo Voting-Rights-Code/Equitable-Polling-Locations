@@ -6,7 +6,7 @@ Gwinnett_GA_configs/Gwinnett_config_full_11.py
 import os
 import warnings
 
-from polling_model_config import PollingModelConfig
+from model_config import PollingModelConfig
 
 from model_data import (build_source, clean_data, alpha_min)
 from model_factory import polling_model_factory
