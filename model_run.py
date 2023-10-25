@@ -37,7 +37,6 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
 
     #get alpha
     alpha_df = clean_data(config)
-    # TODO: (CR) I don't like having to call this twice like this. Need a better method
     alpha  = alpha_min(alpha_df)
 
     #build model

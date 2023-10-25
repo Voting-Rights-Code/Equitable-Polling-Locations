@@ -5,13 +5,6 @@
 #@attribution: Josh Murell
 #######################################
 
-#TODO: (SA/CR) Need to write an automated script to read in the demographics part of this table for a given county
-#        from the ACS
-#TODO: (all) Need to figure out how the distance is calculated and get that implemented at the county level from Google
-#
-#TODO: (CR) Need to figure out where the data is going to be stored in the end.
-
-
 import pandas as pd
 import math
 import os
