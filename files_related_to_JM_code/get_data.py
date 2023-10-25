@@ -19,11 +19,13 @@ Functions:
 #import modules
 import pandas as pd
 import math
+import os
 from collections import defaultdict
 
 #returns dataframe of distances for the original case. This is to keep alpha constant amongst all cases
 def get_basedist(dist, city,year):
-    df = pd.read_csv(dist)
+    file_path = os.path.join('datasets', dist)
+    df = pd.read_csv(file_path)
     df = df[df['city']==city]
     df = df[df['dest_type']=='polling']        # keep only polling locations
     #for i in range(0,len(df['id_dest']):
@@ -38,7 +40,8 @@ def get_basedist(dist, city,year):
 
 #returns the distance dataframe for the given city and year
 def get_dist_df(dist,city,level, year):
-    df = pd.read_csv(dist)
+    file_path = os.path.join('datasets', dist)
+    df = pd.read_csv(file_path)
     df = df[df['city']==city]
     if level=='original':
         df = df[df['dest_type']=='polling']        # keep only polling locations
@@ -130,7 +133,7 @@ def valid_dists(dataframe):
 
 # Return dictionary {(residential loc, precinct):distance}
 def neighborhood_distances(max_min_dist, dataframe):
-    """Return dictionary: {(resident id, precinct id):distance}
+    """Return dictionary: {(resident id, precinct_id):distance}
     """
     df = valid_dists(dataframe)
     df = df[df['distance_m']<=max_min_dist].copy()
