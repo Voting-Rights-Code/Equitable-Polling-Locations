@@ -1,13 +1,3 @@
-id_dest,dest_lat,dest_lon,demographic,weighted_dist,demo_pop,avg_dist
-Bethesda Senior Center,33.913330363563,-84.0900098908051,population,318360644.394791,87663,3631.64213402223
-Bogan Park Community Recreation Center,34.10593,-83.9682,population,300085874.026517,57314,5235.82151004147
-Dacula Park Activity Building,33.9961,-83.89283,population,242380608.304534,49328,4913.65164418858
-Gas South-Hudgens Center for Arts,33.99165,-84.09391,population,224652268.131606,62775,3578.69005386868
-George Pierce Park Community Recreation Center,34.05925,-84.05714,population,304564127.566438,68226,4464.04783464425
-Gwinnett County Fairgrounds,33.91845,-83.988,population,208531129.709632,55530,3755.28776714627
-Gwinnett County fire station - Potential 30,33.901274571982,-83.8950876115655,population,151120925.151801,34184,4420.80871611868
-Lenora Park Gym,33.78823,-84.00129,population,256373604.30776,52645,4869.85666839701
-Lucky Shoals Park Community Recreation Center,33.88058,-84.19716,population,195979454.233838,60621,3232.86409385919
-Mountain Park Activity Building,33.84508,-84.13328,population,148851874.284942,38912,3825.34627582603
-Pinckneyville Park Community Recreation Center,33.97062,-84.18529,population,344718814.892408,83146,4145.94586501344
-Rhodes Jordan Park Community Recreation Center,33.95615,-83.98751,population,232470042.598439,59140,3930.84278996345
+version https://git-lfs.github.com/spec/v1
+oid sha256:9f59d2d0cce60e289ef70d0c7f314d4de7eca4c23e4db539786a96dfc8070e32
+size 1368

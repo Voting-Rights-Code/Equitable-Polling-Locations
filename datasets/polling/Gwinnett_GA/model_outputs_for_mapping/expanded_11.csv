@@ -1,12 +1,3 @@
-id_dest,dest_lat,dest_lon,demographic,weighted_dist,demo_pop,avg_dist
-Bogan Park Community Recreation Center,34.10593,-83.9682,population,300085874.026517,57314,5235.82151004147
-Dacula Park Activity Building,33.9961,-83.89283,population,242380608.304534,49328,4913.65164418858
-Gas South-Hudgens Center for Arts,33.99165,-84.09391,population,418582164.236363,94409,4433.71039028443
-George Pierce Park Community Recreation Center,34.05925,-84.05714,population,304564127.566438,68226,4464.04783464425
-Gwinnett County Fairgrounds,33.91845,-83.988,population,350236037.527995,76693,4566.72757002588
-Gwinnett County fire station - Potential 30,33.901274571982,-83.8950876115655,population,151120925.151801,34184,4420.80871611868
-Lenora Park Gym,33.78823,-84.00129,population,259846826.629194,53063,4896.94941162757
-Lucky Shoals Park Community Recreation Center,33.88058,-84.19716,population,231349194.002269,65861,3512.68875362156
-Mountain Park Activity Building,33.84508,-84.13328,population,280225990.529489,58340,4803.32517191446
-Pinckneyville Park Community Recreation Center,33.97062,-84.18529,population,398192695.899507,91503,4351.69006370837
-Rhodes Jordan Park Community Recreation Center,33.95615,-83.98751,population,241272731.882236,60563,3983.83058768944
+version https://git-lfs.github.com/spec/v1
+oid sha256:1ab408b60b8208bcb0e021686049b18810a9b23563c71fa3c6911a22586361e3
+size 1261
