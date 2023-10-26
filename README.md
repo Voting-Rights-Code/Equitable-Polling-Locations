@@ -34,6 +34,9 @@ The algorithm for this model is as follows:
 
 # To install
 1. Clone main branch of Equitable-Polling-Locations
+    1. This repo uses lfs. To use this effectively, you may have to run the following lines from a terminal (in the git repo)
+        1. $ git lfs install   
+        1. $ git lfs migrate import --include="*.csv"
 1. Install conda if you do not have it already
     1. This program uses SCIP as an optimizer, which is easily installed using Conda, but not using pip.
     1. If you do not have conda installed already, use the relevant instructions [here] (https://conda.io/projects/conda/en/latest/user-guide/install/index.html)
