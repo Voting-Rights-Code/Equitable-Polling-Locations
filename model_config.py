@@ -11,10 +11,10 @@ class PollingModelConfig:
     '''Name of the county or city of interest'''
     year: List[str]
     '''list of years to be studied'''
-    level: str
-    '''{'original': consider only the original polling locations,
-        'expanded': consider all schools
-        'full': consider all schools and census block group centroids}'''
+    level: dict
+    '''{'location type': inappropriateness score of said location,
+        }
+        0 is appropriate. The higher the weight, the less it is to be used'''
     beta: float
     '''level of inequality aversion: [-10,0], where 0 indicates indifference, and thus uses the
     mean. -2 isa good number '''

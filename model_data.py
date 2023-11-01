@@ -18,7 +18,7 @@ from model_config import PollingModelConfig
 ##########################
 #build distance data set from census data and potential pollig location data.
 
-def build_source(location):
+def build_source(location, inappropriateness):
     ######
     #Check that necessary files exist
     ######
@@ -26,7 +26,6 @@ def build_source(location):
     file_name = location + '_locations_only.csv'
     LOCATION_SOURCE_FILE = os.path.join('datasets', 'polling', location, file_name)
     if os.path.exists(LOCATION_SOURCE_FILE):
-        #warnings.warn(f'{file_name} found. Last modified {os.path.getmtime(LOCATION_SOURCE_FILE)}.')
         locations = pd.read_csv(LOCATION_SOURCE_FILE)
     else:
         raise ValueError(f'Potential polling location data ({LOCATION_SOURCE_FILE}) not found.')
@@ -51,6 +50,7 @@ def build_source(location):
             )
     else:
         raise ValueError(f'Census data from table P4 not found. Follow download instruction from README.')
+    
     #3. Census geographic data
     file_name_block = 'tl_2020_13135_tabblock20.shp'
     file_name_bg = 'tl_2020_13135_bg20.shp'
@@ -176,7 +176,25 @@ def build_source(location):
 
     if len(all_locations.Location) != len(set(all_locations.Location)):
         raise ValueError('Non-unique names in Location column. This will cause errors later.')
+    
+    ######
+    #incorporate the inappropriateness data
+    ######
+    inappropriateness_df = pd.DataFrame.from_dict(inappropriateness, orient = 'index', columns = ['inappropriateness'])
+    inappropriateness_df = inappropriateness_df.reset_index().rename(columns = {'index':'Location type'})
+    all_locations = all_locations.merge(inappropriateness_df, how = 'outer', on = 'Location type')
 
+    #check that the unique keys are the same in both data sets
+    config_location_types = set(inappropriateness_df['Location type'])
+    initial_location_types = set(all_locations['Location type'])
+    config_initial = config_location_types.setdiff(initial_location_types)
+    initial_config = initial_location_types.setdiff(config_location_types)
+    if len(config_initial) > 0:
+        raise ValueError(f'The following location types do not have an inappropriateness score: {config_initial}')
+    if len(initial_config) > 0:
+        raise ValueError(f'The following location types do not have an inappropriateness score {initial_config}')
+
+    breakpoint()
     #####
     # Cross join polling locations and demographics tables and calculate distances
     #####
@@ -226,7 +244,6 @@ def build_source(location):
 
 def clean_data(config: PollingModelConfig):
     location = config.location
-    level = config.level
     year_list = config.year
 
     #read in data
@@ -243,25 +260,14 @@ def clean_data(config: PollingModelConfig):
     polling_location_types = set(df[df.dest_type == 'polling']['location_type'])
     for year in year_list:
         if not any(str(year) in poll for poll in polling_location_types):
-            raise ValueError(f'Do not currently have any data for {location} {level} for {year} from {config.config_file_path}')
+            raise ValueError(f'Do not currently have any data for {location} and {year} from {config.config_file_path}')
+        
     #drop duplicates and empty block groups
     df = df.drop_duplicates() #put in to avoid duplications down the line.
     df = df[df['population']>0]
 
-    #select data based on level
-    if level not in ['original', 'expanded','full']:
-        raise ValueError('level must be in {original, expanded,full}')
-    #Note, only values of dest_type is 'polling', 'potential' and 'bg_centroid'
-    unique_dest_types = df['dest_type'].unique()
-    if len(set(unique_dest_types) - set(['potential', 'polling', 'bg_centroid'])) != 0:
-        raise ValueError(f'unrecognized destination types {set(unique_dest_types)} from {config.config_file_path}' )
-    if level=='original':
-        df = df[df['dest_type']=='polling']         # keep only polling locations
-    elif level=='expanded':
-        df = df[df['dest_type']!='bg_centroid']     # keep schools and polling locations
-    else: #level == full
-        df = df
-
+    #NOTE: in this version, we only do what used to be called 'full' runs
+        
     #select data based on year
     #select the polling locations only for the indicated years
     #keep all other locations

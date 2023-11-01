@@ -1,0 +1,25 @@
+#Constants for the optimization function
+location: Gwinnett_GA
+descriptor: 'bad_firestation_worse_centroids'
+year: 
+  - '2020'
+  - '2022'
+inappropriateness: 
+  'College Campus-Potential': 0
+  'Community Center - Potential': 0
+  'EV_2020': 0
+  'EV_2022': 0
+  'EV_2022_2020': 0
+  'Library - Potential': 0
+  'Other - Potential': 0
+  'Fire Station - Potential': .2
+  'bg_centroid': 1
+beta: -2
+time_limit: 360000 #100 hours minutes
+capacity: 5
+
+####Optional#####
+precincts_open: 28
+max_min_mult: 5 #scalar >= 1
+maxpctnew: 1 # in interval [0,1]
+minpctold: .8 # in interval [0,1]

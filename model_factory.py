@@ -38,6 +38,8 @@ class PollingModel(pyo.ConcreteModel):
     '''KP factor for each reisdence, precinct pair'''
     new_locations = pyo.Param
     '''Boolean indicating whether a precint is a new location'''
+    inappropriateness = pyo.Param
+    '''extra cost assigned to each precinct by user choice'''
 
     open: pyo.Var
     '''Boolean variable indicating whether the precinct is open'''
@@ -56,12 +58,13 @@ def build_objective_rule(
     Variables: model.matching, indexed by reisidence precinct pairs'''
     def obj_rule_0(model):
         #take average populated weighted distance
-        average_weighted_distances = sum(model.matching[pair]* model.weighted_dist[pair] for pair in model.pairs)/total_pop
+        #TODO: How does the inappropriateness score factor in here?
+        average_weighted_distances = sum((1+ model.inappropriateness[pair[1]]) * model.matching[pair]* model.weighted_dist[pair] for pair in model.pairs)/total_pop
         return (average_weighted_distances)
     def obj_rule_not_0(model):
         #take average by kp factor weight
         #pair[0] = residence
-        average_weighted_distances = sum(model.population[pair[0]]* model.matching[pair]* model.KP_factor[pair] for pair in model.pairs)/total_pop
+        average_weighted_distances = sum((1+ model.inappropriateness[pair[1]]) * model.population[pair[0]]* model.matching[pair]* model.KP_factor[pair] for pair in model.pairs)/total_pop
         return (average_weighted_distances)
     if config.beta == 0:
         return obj_rule_0
@@ -199,8 +202,10 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     #new location marker
     dist_df['new_location'] = 0
     dist_df['new_location'].mask(dist_df['dest_type']!='polling', 1, inplace = True)
-
     model.new_locations = pyo.Param(model.precincts, initialize = dist_df[['id_dest', 'new_location']].drop_duplicates().set_index(['id_dest']))
+    #inappropriateness
+    model.inappropriateness = pyo.Param(model.precincts, initialize = dist_df[['id_dest', 'inappropriateness']].set_index(['id_dest']))
+
 
     ####define model variables####  
     model.matching = pyo.Var(model.pairs, domain=pyo.Binary )
