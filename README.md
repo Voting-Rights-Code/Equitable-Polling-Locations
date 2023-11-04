@@ -4,7 +4,7 @@ Given a set of existing and candidate polling locations, output the most equitab
 The algorithm for this model is as follows:
 1. Create a list of potential polling locations
     1. Start with a list of historical polling locations 
-    1. Add to this a list of  buildings where one would like to have future polling locations
+    1. Add to this a list of  buildings where one would consider adding future polling locations
     1. Combine this data with a list of "best case scenario" polling locations, modeled by census block group centroids
 1. Compute the distance from the centroid of each census block to the potential polling location (building or best case scenario)
     1. We average over census block group rather than individual houses for computational feasibilty.
