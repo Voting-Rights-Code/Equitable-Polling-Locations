@@ -86,7 +86,7 @@ setwd("../../Equitable-Polling-Locations/Gwinnett_GA_results")
 
 res_dist_list = list.files()[grepl('residence_distances', list.files())]
 res_dist_list = res_dist_list[!grepl('full', res_dist_list)]
-to_map = res_dist_list[1]
+#to_map = res_dist_list[1]
 
 #If precincts want to be mapped as well
 #result_list = list.files()[grepl('result', list.files())]
@@ -102,7 +102,7 @@ make_bg_maps <-function(to_map){
 	#result_df <- fread(result, drop = 'V1')
 	#result_df <- result_df[ , id_orig := as.character(id_orig)]
 	#precincts <- result_df[ , .(dest_lat = unique(dest_lat), 
-					dest_lon = unique(dest_lon)), by = id_dest]
+					#dest_lon = unique(dest_lon)), by = id_dest]
 	
 	
 	#combine with existing data
@@ -125,8 +125,8 @@ make_bg_maps <-function(to_map){
 	dist_demo_sf <- st_as_sf(dist_demo_shape)
 	dist_demo_merc <- st_transform(dist_demo_sf, 3857)
 
-	precincts_sf<- st_as_sf(precincts, coords = c('dest_lon', 'dest_lat'), crs = 4326)
-	precincts_merc <- st_transform(precincts_sf, 3857)
+	#precincts_sf<- st_as_sf(precincts, coords = c('dest_lon', 'dest_lat'), crs = 4326)
+	#precincts_merc <- st_transform(precincts_sf, 3857)
 
 	
 	#make cartogram
@@ -134,8 +134,8 @@ make_bg_maps <-function(to_map){
 	
 	#make maps
 	warped = ggplot() +
-  		geom_sf(data = cartogram, aes(fill = avg_dist)) +
-		
+  		geom_sf(data = cartogram, aes(fill = avg_dist)) 
+
 	#can add precinct data onto the unwarped map, but no paralell for cartogram
 	straight = ggplot() +
   		geom_sf(data = dist_demo_merc, aes(fill = avg_dist)) #+
@@ -145,11 +145,11 @@ make_bg_maps <-function(to_map){
 
 	#write to file
 	descriptor = gsub(".*config_(.*)_res.*", "\\1", to_map)
-	ggsave(paste0('../result analysis/cartogram_',descriptor, '.pdf'), warped)
-	ggsave(paste0('../result analysis/map_',descriptor, '.pdf'), straight)
+	ggsave(paste0('../result analysis/cartogram_',descriptor, '.png'), warped)
+	ggsave(paste0('../result analysis/map_',descriptor, '.png'), straight)
 	}
 
-#change directores 
+
 sapply(res_dist_list, make_bg_maps)
 
 
