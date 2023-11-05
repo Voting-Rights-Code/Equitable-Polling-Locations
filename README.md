@@ -31,7 +31,22 @@ The algorithm for this model is as follows:
     1. Respect precinct capacities specified by a user-defined overcrowding parameter
         1. For simplicity, the same capacity is enforced at all locations. This can easily be modified for location-specific capacities if we have the data.
 1. The model returns a list of matchings between census blocks and selected polling locations, the distances between the two, and a demographic breakdown of the population. 
-1. The model then uses this matching and demographic data to compute a new data derived scaling factor ($alpha$), which it then uses to compute the inequity penalized score (y_EDE) for the matched system.
+1. The model then uses this matching and demographic data to compute a new data derived scaling factor (*alpha*), which it then uses to compute the inequity penalized score (y_EDE) for the matched system.
+
+# To install
+1. Clone main branch of Equitable-Polling-Locations
+    1. This repo uses lfs. To use this effectively, you may have to run the following lines from a terminal (in the git repo)
+        1. `$ git lfs install`   
+        1. `$ git lfs migrate import --include="*.csv"`
+1. Install conda if you do not have it already
+    1. This program uses SCIP as an optimizer, which is easily installed using Conda, but not using pip.
+    1. If you do not have conda installed already, use the relevant instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)
+1. Create and activate conda environment. (Note, on a Windows machine, this requires using Anaconda Prompt.)
+    1. `$ conda create --name equitable-polls `
+    1. `$ conda activate equitable-polls`
+1. Install requirements.txt
+    1. Change directory to git repo
+    1. `$ conda install --file requirements.txt`
 
 # To run
 From command line:
