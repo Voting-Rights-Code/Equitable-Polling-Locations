@@ -127,6 +127,23 @@ ggplot(res_pop, aes(x = num_polls, y = avg_dist, group = descriptor)) +
 	labs(x = 'Number of polls', y = 'Average distance (m)')
 ggsave('avg_dist_distribution_boxplots.png')
 
+res_pop_orig_and_22 <- res_pop[descriptor %in% c('original_2020', 'original_2022', 'expanded_22')]
+ggplot(res_pop_orig_and_22, aes(x = avg_dist, fill = descriptor)) + 
+	#geom_density()	
+	geom_histogram(position = "dodge", alpha = 0.8)+
+	labs(x = 'Average distance traveled to poll (m)', y = 'Number of census blocks') +
+	scale_fill_manual(values=c("red", "blue", "green"), name = "Optimization run ", 
+		labels = c("22 Locations", "2020 locations", "2022 locations")) +
+	
+ggsave('avg_dist_distribution_hist.png')
+
+
+
+res_aa <- residence_df[demographic == 'black'
+		][descriptor %in% c('original_2020', 'original_2022', 'expanded_11', 'expanded_22')]
+ggplot(res_aa, aes(x = avg_dist, color = descriptor)) + 
+	#geom_density()	
+	geom_histogram(position = "identity", alpha = 0.4)
 
 #######
 #make datasets for maps

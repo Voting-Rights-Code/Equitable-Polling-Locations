@@ -6,7 +6,6 @@ library(sf)
 library(cartogram)
 library(broom)
 
-
 #########
 #change directory for map data
 #this is data from Tiger, 2020
@@ -26,20 +25,20 @@ process_maps <- function(file_name){
 }
 
 #Block group shape files
-maps_bg_dt <- process_maps("tl_2020_13135_bg20.shp")
+map_bg_dt <- process_maps("tl_2020_13135_bg20.shp")
 #make sf type
-maps_bg_sf <- st_as_sf(map_bg_dt)
+map_bg_sf <- st_as_sf(map_bg_dt)
 
-ggplot() +
-  geom_sf(data = maps_bg_sf)
+#ggplot() +
+#  geom_sf(data = maps_bg_sf)
 
 #Block shape files
-maps_block_dt <- process_maps("tl_2020_13135_tabblock20.shp")
+#maps_block_dt <- process_maps("tl_2020_13135_tabblock20.shp")
 #make sf type
-maps_block_sf <- st_as_sf(maps_block_dt)
+#maps_block_sf <- st_as_sf(maps_block_dt)
 
-ggplot() +
-  geom_sf(data = maps_block_sf)
+#ggplot() +
+#  geom_sf(data = maps_block_sf)
 
 #########
 #get populations
@@ -79,6 +78,15 @@ bg_demo <- process_demographics("block group demographics")
 block_demo <- process_demographics('.')
 
 #########
+#make block level cartogram
+#########
+
+bg_demo_shape <- merge(map_bg_dt, bg_demo, by.x = c('GEOID20'), by.y = c('Geography'))
+bg_demo_sf <- st_as_sf(bg_demo_shape)
+bg_demo_merc <- st_transform(bg_demo_sf, 3857)
+cartogram <- cartogram_cont(bg_demo_merc, "Population", itermax = 50, maxSizeError = 1.02)
+
+#########
 #Get model output
 #########
 setwd("~")
@@ -93,64 +101,52 @@ res_dist_list = res_dist_list[!grepl('full', res_dist_list)]
 #result_list = result_list[!grepl('full', res_dist_list)]
 #result = result_list[1]
 
-make_bg_maps <-function(to_map){
+make_bg_maps <-function(file_to_map, map_type){
 	#read in results to map
-	res_dist_df <- fread(to_map, drop = 'V1')
-	res_dist_df <- res_dist_df[ , id_orig := as.character(id_orig)]
+	res_dist_df <- fread(file_to_map)
+	res_dist_df <- res_dist_df[ , id_orig := as.character(id_orig)
+		][ , BG_Geography := gsub('.{3}$', '', id_orig)]
 	
-	#Removed for now, add in an argument (result) for precinct data
-	#result_df <- fread(result, drop = 'V1')
-	#result_df <- result_df[ , id_orig := as.character(id_orig)]
-	#precincts <- result_df[ , .(dest_lat = unique(dest_lat), 
-					#dest_lon = unique(dest_lon)), by = id_dest]
+	#extract demographics from map
+	#must do this way because map is an sf object, not a data.table
+	if (map_type == 'cartogram'){
+		map_demo = cartogram
+	}else if (map_type == 'map'){
+		map_demo = bg_demo_merc
+	}else {map_demo = other}
+
+	block_geog <- data.table(GEOID20 = map_demo$GEOID20)
 	
+	geom_cols <- c('GEOID20', 'geometry')
+	map_sf <- map_demo[, geom_cols]
 	
-	#combine with existing data
-	distance_demo <- merge(block_demo, 
-		res_dist_df[demographic == 'population', .(id_orig, weighted_dist)], 
-		by.x = c("Geography"), by.y = c("id_orig"))
-
-	distance_demo <- distance_demo[ , BG_Geography := gsub('.{3}$', '', Geography)]
-
-	summary_cols = names(distance_demo)[!names(distance_demo) %in% c('Geography', 
-					'Geographic Area Name')] 
-	bg_distance_demo <- distance_demo[ , ..summary_cols
-		][ , lapply(.SD, sum), by = BG_Geography
-		][ , avg_dist := weighted_dist/Population]
-
-	dist_demo_shape <- merge(bg_distance_demo, maps_bg_dt, by.x = c("BG_Geography"), 
-			by.y = c("GEOID20"))
+	#merge demographics and distances
+	demo_dist <- merge(block_geog, 
+		res_dist_df[demographic == 'population', .(BG_Geography, demo_pop, weighted_dist)], 
+		by.x = c("GEOID20"), by.y = c("BG_Geography"), all.y = T)
 	
-	#change types for mapping
-	dist_demo_sf <- st_as_sf(dist_demo_shape)
-	dist_demo_merc <- st_transform(dist_demo_sf, 3857)
-
-	#precincts_sf<- st_as_sf(precincts, coords = c('dest_lon', 'dest_lat'), crs = 4326)
-	#precincts_merc <- st_transform(precincts_sf, 3857)
-
-	
-	#make cartogram
-	cartogram <- cartogram_cont(dist_demo_merc, "Population")
+	#aggregrage block to groups
+	#summary_cols = names(demo_dist)[!names(demo_dist) %in% c('AREA20', 
+	#				'Geographic Area Name')] 
+	bg_demo_dist <- demo_dist[ , .(demo_pop = sum(demo_pop),
+						weighted_dist = sum(weighted_dist)), by = GEOID20
+					][ , avg_dist := weighted_dist/demo_pop]
+		
+	#combine with demo_dist with map
+	demo_dist_shape<- merge(map_sf, bg_demo_dist, all = T)	
 	
 	#make maps
-	warped = ggplot() +
-  		geom_sf(data = cartogram, aes(fill = avg_dist)) 
-
-	#can add precinct data onto the unwarped map, but no paralell for cartogram
-	straight = ggplot() +
-  		geom_sf(data = dist_demo_merc, aes(fill = avg_dist)) #+
-		#geom_sf(data = precincts_sf, aes(colour = id_dest), show.legend = FALSE)+
-		#scale_color_manual(values = rep('red', nrow(precincts_sf)))
-
-
+	plotted <- ggplot() +
+		geom_sf(data = demo_dist_shape, aes(fill = avg_dist)) + 
+		scale_fill_gradient(high='white', low='darkgreen', limits = c(100, 15000))  
+		
 	#write to file
-	descriptor = gsub(".*config_(.*)_res.*", "\\1", to_map)
-	ggsave(paste0('../result analysis/cartogram_',descriptor, '.png'), warped)
-	ggsave(paste0('../result analysis/map_',descriptor, '.png'), straight)
+	descriptor = gsub(".*config_(.*)_res.*", "\\1", file_to_map)
+	ggsave(paste0('../result analysis/', map_type, '_',descriptor, '.png'), plotted)
 	}
+sapply(res_dist_list, function(x)make_bg_maps(x, 'cartogram'))
+sapply(res_dist_list, function(x)make_bg_maps(x, 'map'))
 
-
-sapply(res_dist_list, make_bg_maps)
 
 
 #########
