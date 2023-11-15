@@ -1,11 +1,11 @@
 # Equitable-Polling-Locations
 The main software in this project is an optimization tool that chooses an optimal set of polling location from a set of potential locations. Optionally, it also gives a "best case scenario" by searching among the centroids of census block groups, which don't correspond to buildings or street corners, but give a idea where what an idea distribution might look like. 
 
-Unlike other optimization tools out there, which minimize the mean distance traveled or the maximal distance traveled, this tool (which minimized the Kolm-Pollack, or KP, distance) aims to do a bit of both. 
+Unlike other optimization tools out there, which minimize the mean distance traveled or the maximal distance traveled, this tool (which minimized the Kolm-Pollack, or KP, distance) aims to do a bit of both. For more on the Kolm-Pollack distance and why it is suitable for optimizing with equity in mind, see the following papers: [Sherrif, Macguire](https://onlinelibrary.wiley.com/doi/10.1111/risa.13562), [Logan et. al.](https://www.sciencedirect.com/science/article/abs/pii/S0198971520303239) [Kolm, 1976a](https://www.sciencedirect.com/science/article/abs/pii/0022053176900375), [Kolm, 1976b](https://www.sciencedirect.com/science/article/abs/pii/0022053176900685).
 
 Part of the service provided by Voting Rights Code is bespoke analysis of the optimization result, and bespoke tuning of the optimization algorithm to meet your organization's need. the ```result analysis``` folder contains R code and associated plots for _a_ set of desired analysis for _a_ possible application of this tool. 
 ### Example 
-In the following table, the first three rows have the same mean while the last three rows have the same maximal distance traveled. The KP minimizing optimization allows the user to set an *aversion to inequality (\beta)* parameter that defines a tradeoff between mean and standard deviation of the distances traveled. For a large enough \beta, the optimization will choose the last distribution. For a smaller \beta, it will choose the second row.
+In the following table, the first three rows have the same mean while the last three rows have the same maximal distance traveled. The KP minimizing optimization allows the user to set an *aversion to inequality (beta)* parameter that defines a tradeoff between mean and standard deviation of the distances traveled. For a large enough beta, the optimization will choose the last distribution. For a smaller beta, it will choose the second row.
 
 | Distances traveled  | Mean minimizing | Max minimizing | KP minimizing|
 | ----- | ------ | ----- | ------ |
@@ -58,13 +58,12 @@ A FEW THINGS TO NOTE:
 
 # To install
 1. Clone main branch of Equitable-Polling-Locations
-    1. This repo uses lfs. To use this effectively, you may have to run the following lines from a terminal (in the git repo)
-        1. $ git lfs install   
-            1. (For Window) $ git lfs migrate import --include="*.csv"
-            1. (For Mac) 
+    1. This repo uses lfs. This can be downloaded from [https://git-lfs.com/].
+        1. Download the appropriate version of from this website and follow the instructions included there, replacing ```git lfs track "*.psd"``` with ```git lfs track "*.csv"```
+        1. If those instructions don't work, (as may be the case on Linux or MacOS), run ```sudo ./install.sh``` after downloading the file, then follow the instructions above. See [here](https://stackoverflow.com/questions/58796472/git-lfs-is-not-a-git-command-on-macos).
 1. Install conda if you do not have it already
     1. This program uses SCIP as an optimizer, which is easily installed using Conda, but not using pip. (SCIP installation will be completed below by installing 'requirements.txt')
-    1. If you do not have conda installed already, use the relevant instructions [here] (https://conda.io/projects/conda/en/latest/user-guide/install/index.html)
+    1. If you do not have conda installed already, use the relevant instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)
 1. Create and activate conda environment. (Note, on a Windows machine, this requires using Anaconda Prompt.)
     1. `$ conda create --name equitable-polls `
     1. `$ conda activate equitable-polls`
@@ -98,7 +97,7 @@ There are six files needed to run this program. The current Repo contains these 
 * There is one config file needed as an argument to run this file
     
 
-If you are interested in only running results for this county, no further action is needed. If you are interested in running a county for which you do not have the following data, the software will notify you that the necessary data is missing. In that case, follows these instructions for downloading or creating these files and their formats are given here.
+If you are interested in only running results for  Gwinnett County, no further action is needed. If you are interested in running a county for which you do not have the above data, the software will notify you that the necessary data is missing. In that case, follow these instructions for downloading or creating these files and their formats are given here.
 
 All file paths are given relative to the git folder for Equitable-Polling-Locations
 
