@@ -1,9 +1,9 @@
 # Equitable-Polling-Locations
 The main software in this project is an optimization tool that chooses an optimal set of polling location from a set of potential locations. Optionally, it also gives a "best case scenario" by searching among the centroids of census block groups, which don't correspond to buildings or street corners, but give a idea where what an idea distribution might look like. 
 
-Unlike other optimization tools out t.here, which minimize the mean distance traveled or the maximal distance traveled, this tool (which minimized the Kolm-Pollack, or KP, distance) aims to do a bit of both. 
+Unlike other optimization tools out there, which minimize the mean distance traveled or the maximal distance traveled, this tool (which minimized the Kolm-Pollack, or KP, distance) aims to do a bit of both. 
 
-
+Part of the service provided by Voting Rights Code is bespoke analysis of the optimization result, and bespoke tuning of the optimization algorithm to meet your organization's need. the ```result analysis``` folder contains R code and associated plots for _a_ set of desired analysis for _a_ possible application of this tool. 
 ### Example 
 In the following table, the first three rows have the same mean while the last three rows have the same maximal distance traveled. The KP minimizing optimization allows the user to set an *aversion to inequality (\beta)* parameter that defines a tradeoff between mean and standard deviation of the distances traveled. For a large enough \beta, the optimization will choose the last distribution. For a smaller \beta, it will choose the second row.
 
