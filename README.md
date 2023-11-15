@@ -1,4 +1,24 @@
 # Equitable-Polling-Locations
+The main software in this project is an optimization tool that chooses an optimal set of polling location from a set of potential locations. Optionally, it also gives a "best case scenario" by searching among the centroids of census block groups, which don't correspond to buildings or street corners, but give a idea where what an idea distribution might look like. 
+
+Unlike other optimization tools out t.here, which minimize the mean distance traveled or the maximal distance traveled, this tool (which minimized the Kolm-Pollack, or KP, distance) aims to do a bit of both. 
+
+
+### Example 
+In the following table, the first three rows have the same mean while the last three rows have the same maximal distance traveled. The KP minimizing optimization allows the user to set an *aversion to inequality (\beta)* parameter that defines a tradeoff between mean and standard deviation of the distances traveled. For a large enough \beta, the optimization will choose the last distribution. For a smaller \beta, it will choose the second row.
+
+| Distances traveled  | Mean minimizing | Max minimizing | KP minimizing|
+| ----- | ------ | ----- | ------ |
+|.25, .25, .25, .25, 4 | Yes | | |
+| ----- | ------ | ----- | ------ |
+| .5, .5, .5, .5, 3| Yes | Yes | Depending on \beta |
+| ----- | ------ | ----- | ------ |
+| .25, .25, .5, 1, 3 | Yes | Yes |  |
+| ----- | ------ | ----- | ------ |
+| .5, .5, .5, .75, 3 |  | Yes | Depending on \beta |
+| ----- | ------ | ----- | ------ |
+
+### How it works
 Given a set of existing and candidate polling locations, output the most equitable (by Kolm-Pollak distance) set of polling locations. The outputs of this model can be used to measure inequity among different racial groups in terms of access to polls (measured solely in terms of distance) and investigate how changes in choices and number of polling locations would change these inequities. 
 
 The algorithm for this model is as follows:
@@ -7,7 +27,7 @@ The algorithm for this model is as follows:
     1. Add to this a list of  buildings where one would like to have future polling locations
     1. Combine this data with a list of "best case scenario" polling locations, modeled by census block group centroids
 1. Compute the distance from the centroid of each census block to the potential polling location (building or best case scenario)
-    1. We average over census block group rather than individual houses for computational feasibilty.
+    1. We average over census blocks rather than individual houses for computational feasibilty.
 1. Compute the Kolm-Pollack weight from each block group to each polling location
     1. KP_factor  = e^(- beta* alpha * distance)
         1. beta is a user defined parameter
@@ -32,13 +52,18 @@ The algorithm for this model is as follows:
 1. The model returns a list of matchings between census blocks and polling locations, along with the distance between the two, and a demographic breakdown of the population. 
 1. The model then uses this matching and demographic data to compute a new data derived scaling factor (alpha), which it then uses to compute the inequity penalized score (y_EDE) for the matched system.
 
+A FEW THINGS TO NOTE: 
+1. Currently, this model is run on census data, which counts voting age population. We make no assumptions about elligibility to vote, either in terms of citizenship, local disqualification laws or voter registration status.
+2. When this model reports racial demographics, it uses Census categories for race and ethnicity. Namely, Ethnicity (Hispanic / Non-Hispanic) is orthogonal to race in the census data. Therefore, one may be Hispanic and Asian at the same time.
+
 # To install
 1. Clone main branch of Equitable-Polling-Locations
     1. This repo uses lfs. To use this effectively, you may have to run the following lines from a terminal (in the git repo)
         1. $ git lfs install   
-        1. $ git lfs migrate import --include="*.csv"
+            1. (For Window) $ git lfs migrate import --include="*.csv"
+            1. (For Mac) 
 1. Install conda if you do not have it already
-    1. This program uses SCIP as an optimizer, which is easily installed using Conda, but not using pip.
+    1. This program uses SCIP as an optimizer, which is easily installed using Conda, but not using pip. (SCIP installation will be completed below by installing 'requirements.txt')
     1. If you do not have conda installed already, use the relevant instructions [here] (https://conda.io/projects/conda/en/latest/user-guide/install/index.html)
 1. Create and activate conda environment. (Note, on a Windows machine, this requires using Anaconda Prompt.)
     1. `$ conda create --name equitable-polls `
@@ -54,24 +79,26 @@ From command line:
         * NUM = number of cores to use for simulatneous runs (reccommend <=4 for most laptops)
         * LOG_FILE = Where to put log file. Must exist, or will not run
         * path to config file accepts wild cards to set of sequential runs
+        * **Examples** 
+            * To run all expanded configs, parallel processing 4 at a time: ```python ./model_run_cli.py -c4  -l logs  ./Gwinnett_GA_configs/Gwinnett_config_expanded_*.yaml```
+            *  To run only the full_11 fun, processing only one at a tie: ```python ./model_run_cli.py -c1  -l logs  ./Gwinnett_GA_configs/Gwinnett_config_full_11.yaml```
 
 From Google Colab:
 * For example, follog the the instructions in [this file](./Colab_runs/colab_Gwinnett_expanded_multi_11_12_13_14_15.ipynb) (To be accessed in the directory of the Equitable-Polling-Locations git repo)
 # Input files
-There are six files needed to run this program. Instructions for downloading these files and their formats are given here.
+There are six files needed to run this program. The current Repo contains these files for Gwinnett County, GA.  
 
 * There are 4 files from the census needed for each county:
-    * block level P3 data for a county (racial breakdown of voting age population)
-    * block level P4 data for a county (ethnicity breakdown of voting age population)
-    * block shape files
-    * block group shape files
-* There is one manually generated file for each county
+    1.  block level P3 data for a county (racial breakdown of voting age population)
+    1. block level P4 data for a county (ethnicity breakdown of voting age population)
+    1. block shape files
+    1. block group shape files
+* There is one *manually generated* file for each county
     * previous and potential polling locations for a country
 * There is one config file needed as an argument to run this file
+    
 
-NOTE: 
-1. Currently, this model is run on census data, which counts voting age population. We make no assumptions about elligibility to vote, either in terms of citizenship, local disqualification laws or voter registration status.
-2. Ethnicity (Hispanic / Non-Hispanic) is orthogonal to race in the census data. Therefore, one may be Hispanic and Asian at the same time.
+If you are interested in only running results for this county, no further action is needed. If you are interested in running a county for which you do not have the following data, the software will notify you that the necessary data is missing. In that case, follows these instructions for downloading or creating these files and their formats are given here.
 
 All file paths are given relative to the git folder for Equitable-Polling-Locations
 
@@ -84,7 +111,7 @@ All file paths are given relative to the git folder for Equitable-Polling-Locati
     * Filter for Geography -> Blocks -> State -> County Name, State -> All Blocks within County Name, State
     * If asked to select table vintage, select 2020;  DEC Redistricting Data (PL-94-171)
     * Unzip and place the contents of the dowloaded folder in 'datasets/census/redistricting/Count_ST/datasets/census/redistricting/Gwinnett_GA/'
-* Colums we want from P3:
+* Columns of P3 selected by the software:
     * White alone
     * Black or African American alone
     * American Indian And Alaska Native alone
@@ -102,7 +129,7 @@ All file paths are given relative to the git folder for Equitable-Polling-Locati
     * Filter for Geography -> Blocks -> State -> County Name, State -> All Blocks within County Name, State
     * If asked to select table vintage, select 2020;  DEC Redistricting Data (PL-94-171)
     * Unzip and place the contents of the dowloaded folder in 'datasets/census/redistricting/County_ST/datasets/census/redistricting/County_ST/'
-* Columns used from P4:
+* Columns of P4 selected by the software:
     * Total population
     * Total hispanic
     * Total non-hispanic
@@ -116,7 +143,7 @@ All file paths are given relative to the git folder for Equitable-Polling-Locati
     * Click on desired FIPS Code for the County
     * Download tl_cenesusYYYY_FIPS_tablockcenesusYY.zip (e.g. tl_cenesus2020_13135_tablock20.zip)
     * Unzip and place the contents of the dowloaded folder in 'datasets/census/redistricting/County_ST/datasets/census/tiger/County_GA/'
-* Columns we want from blocks:
+* Columns of block geography selected by the software:
     * GEOID20 - identifier. Format:1000000USFIPSCODEBLOCKNUM, e.g. 1000000US131510703153004
     * geometry - the polygon of the block
     * INTPTLAT20 - latitude of block centroid
