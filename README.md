@@ -1,11 +1,11 @@
 # Equitable-Polling-Locations
-The software component of this project is a tool that chooses an optimal set of polling locations from a set of potential locations. Optionally, it also gives a "best case scenario" by searching among the centroids of census block groups, which don't correspond to buildings or street corners, but are suggestive of what an ideal distribution might look like. 
+The software component of this project is a tool that chooses an optimal set of polling locations from a set of potential locations. Optionally, it also gives a "best case scenario" by searching among the centroids of census block groups, which don't correspond to buildings or street corners, but are suggestive of what an ideal distribution might look like.
 
 Unlike other optimization tools out there, which minimize the mean distance traveled or the maximal distance traveled, this tool (which minimized the Kolm-Pollack, or KP, distance) does a bit of both. For more on the Kolm-Pollack distance and why it is suitable for optimizing with equity in mind, see the following papers: [Sherrif, Macguire](https://onlinelibrary.wiley.com/doi/10.1111/risa.13562); [Logan et. al.](https://www.sciencedirect.com/science/article/abs/pii/S0198971520303239); [Kolm, 1976a](https://www.sciencedirect.com/science/article/abs/pii/0022053176900375); [Kolm, 1976b](https://www.sciencedirect.com/science/article/abs/pii/0022053176900685).
 
 The ```result analysis``` folder is an illustrative example of the type of analysis that can be done with the data ouputted from this code. It analysis code is in R.
 
-### Example 
+### Example
 In the following table, the first three rows have the same mean, while the last three rows have the same maximal distance traveled. The KP minimizing optimization allows the user to set an *aversion to inequality (beta)* parameter that defines a tradeoff between mean and standard deviation of the distances traveled. For a large enough beta, the optimization will choose the last distribution. For a smaller beta, it will choose the second row.
 
 | Distances traveled  | Mean minimizing | Max minimizing | KP minimizing|
@@ -20,11 +20,11 @@ In the following table, the first three rows have the same mean, while the last 
 | ----- | ------ | ----- | ------ |
 
 ### How it works
-Given a set of existing and candidate polling locations, output the most equitable (by Kolm-Pollak distance) set of polling locations. The outputs of this model can be used to measure inequity among different racial groups in terms of access to polls (measured solely in terms of distance) and investigate how changes in choices and number of polling locations would change these inequities. 
+Given a set of existing and candidate polling locations, output the most equitable (by Kolm-Pollak distance) set of polling locations. The outputs of this model can be used to measure inequity among different racial groups in terms of access to polls (measured solely in terms of distance) and investigate how changes in choices and number of polling locations would change these inequities.
 
 The algorithm for this model is as follows:
 1. Create a list of potential polling locations
-    1. Start with a list of historical polling locations 
+    1. Start with a list of historical polling locations
     1. Add to this a list of  buildings where one could feasibly site future polling locations
     1. Combine this data with a list of "best case scenario" polling locations, modeled by census block group centroids
 1. Compute the distance from the centroid of each census block to the potential polling location (building or best case scenario)
@@ -36,7 +36,7 @@ The algorithm for this model is as follows:
     1. The KP_factor plays the role of a weighted distance in a standard objective function.
         1. The exponential in the KP_factor penalizes inequality in distances traveled
         1. For instance a group of 5 people all having to travel 1 mile to a polling location would have a lower KP_factor than a situation where 4 people travel 1/2 a mile while the fifth travels 3, even though the average distance traveled in both cases is the same.
-1. Choose whether to minimize the average distance or the inequity penalized score (y_EDE) in the model 
+1. Choose whether to minimize the average distance or the inequity penalized score (y_EDE) in the model
     1. Set beta = 0 for average distance
         1. In this case, minimize the average distance traveled
     1. Set beta in [-2, 0) for the inequity penalized score (y_EDE). The lower the beta, the greater penalty to inequality
@@ -46,47 +46,52 @@ The algorithm for this model is as follows:
     1. A user defined bound on the number of new locations
         1. Some maximal percent allowed to be new
         1. Some minimal percent that must have been a polling location in the past
-        1. This can be easily modified to accommodate other needs 
+        1. This can be easily modified to accommodate other needs
     1. Each census block can only be matched to one polling location
     1. Each census block must be matched to a single open precinct
     1. A user defined overcrowding constraint
-1. The model returns a list of matchings between census blocks and polling locations, along with the distance between the two, and a demographic breakdown of the population. 
+1. The model returns a list of matchings between census blocks and polling locations, along with the distance between the two, and a demographic breakdown of the population.
 1. The model then uses this matching and demographic data to compute a new data derived scaling factor (alpha), which it then uses to compute the inequity penalized score (y_EDE) for the matched system.
 
-A FEW THINGS TO NOTE: 
+A FEW THINGS TO NOTE:
 1. Currently, this model is run on census data, which counts voting age population. We make no assumptions about eligibility to vote, either in terms of citizenship, local disqualification laws or voter registration status.
 2. When this model reports racial demographics, it uses Census categories for race and ethnicity. Namely, Ethnicity (Hispanic / Non-Hispanic) is orthogonal to race in the census data. Therefore, one may be Hispanic and Asian at the same time.
 
 # To install
 1. Clone main branch of Equitable-Polling-Locations
     1. This repo uses lfs. This can be downloaded from [https://git-lfs.com/].
-        1. Download the appropriate version of from this website and follow the instructions included there, replacing ```git lfs track "*.psd"``` with ```git lfs track "*.csv"```
+        1. Download the appropriate version of from this website and follow the instructions included there.
         1. If those instructions don't work, (as may be the case on Linux or MacOS), run ```sudo ./install.sh``` after downloading the file, then follow the instructions above. See [here](https://stackoverflow.com/questions/58796472/git-lfs-is-not-a-git-command-on-macos).
 1. Install conda if you do not have it already
-    1. This program uses SCIP as an optimizer, which is easily installed using Conda, but not using pip. (SCIP installation will be completed below by installing 'requirements.txt')
+    1. This program uses SCIP as an optimizer, which is easily installed using Conda, but not using pip. (SCIP installation will be completed below by installing 'environment.yml')
     1. If you do not have conda installed already, use the relevant instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)
 1. Create and activate conda environment. (Note, on a Windows machine, this requires using Anaconda Prompt.)
-    1. `$ conda create --name equitable-polls `
+    1. `$ conda env create -f environment.yml`
     1. `$ conda activate equitable-polls`
-1. Install requirements.txt
-    1. Change directory to git repo
-    1. `$ conda install --file requirements.txt`
+
 
 # To run
 From command line:
+
+First activiate the environment if not done so already:
+
+```conda activate equitable-polls```
+
 * In the directory of the Equitable-Polling-Locations git repo:
-    * python ./model_run_cli.py -cNUM -lLOG_FILE ./path/to/config/file.yaml
+    * python ./model_run_cli.py -c NUM -l LOG_FILE ./path/to/config/file.yaml
         * NUM = number of cores to use for simultaneous runs (recommend <=4 for most laptops)
         * LOG_FILE = Where to put log file. Must exist, or will not run
         * path to config file accepts wild cards to set of sequential runs
-        * **Examples** 
-            * To run all expanded configs, parallel processing 4 at a time: ```python ./model_run_cli.py -c4  -l logs  ./Gwinnett_GA_configs/Gwinnett_config_expanded_*.yaml```
-            *  To run only the full_11 fun, processing only one at a tie: ```python ./model_run_cli.py -c1  -l logs  ./Gwinnett_GA_configs/Gwinnett_config_full_11.yaml```
+        * **Examples**
+            * To run all expanded configs, parallel processing 4 at a time:
+            ```python ./model_run_cli.py -c4  -l logs  ./Gwinnett_GA_configs/Gwinnett_config_expanded_*.yaml```
+            *  To run only the Gwinnett_config_full_11.yaml:
+            ```python ./model_run_cli.py -l logs ./Gwinnett_GA_configs/Gwinnett_config_full_11.yaml```
 
 From Google Colab:
 * For example, follow the the instructions in [this file](./Colab_runs/colab_Gwinnett_expanded_multi_11_12_13_14_15.ipynb) (To be accessed in the directory of the Equitable-Polling-Locations git repo)
 # Input files
-There are six files needed to run this program. The current Repo contains these files for Gwinnett County, GA.  
+There are six files needed to run this program. The current Repo contains these files for Gwinnett County, GA.
 
 * There are 4 files from the census needed for each county:
     1.  block level P3 data for a county (racial breakdown of voting age population)
@@ -96,13 +101,13 @@ There are six files needed to run this program. The current Repo contains these 
 * There is one *manually generated* file for each county
     * previous and potential polling locations for a country
 * There is one config file needed as an argument to run this file
-    
+
 
 If you are interested in only running results for  Gwinnett County, no further action is needed. If you are interested in running a county for which you do not have the above data, the software will notify you that the necessary data is missing. In that case, instructions for downloading or creating these files and their formats are given here.
 
 All file paths are given relative to the git folder for Equitable-Polling-Locations
 
-### **datasets/census/redistricting/County_ST/datasets/census/redistricting/County_ST/DECENNIALPL2020.P3-Data.csv**: 
+### **datasets/census/redistricting/County_ST/datasets/census/redistricting/County_ST/DECENNIALPL2020.P3-Data.csv**:
 * This is the census dataset for a racial breakdown of people of voting age by census block.
 * Documentation for this dataset can be found [on the census api site for P3](https://api.census.gov/data/2010/dec/sf1/groups/P3.html)
 * Instructions for downloading this data:
@@ -134,7 +139,7 @@ All file paths are given relative to the git folder for Equitable-Polling-Locati
     * Total hispanic
     * Total non-hispanic
 ### **datasets/census/redistricting/County_ST/datasets/census/tiger/County_ST/tl_YYYY_FIPS_tabblockYY.shp**:
-[TIGER/line Shapefiles](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) is a database of shape files for the geographic categories used by the census.  
+[TIGER/line Shapefiles](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) is a database of shape files for the geographic categories used by the census.
 * Documentation: https://www.census.gov/programs-surveys/geography/technical-documentation/complete-technical-documentation/tiger-geo-line/2020.html
 * Instructions for downloading this data:
     * Visit https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.2020.html#list-tab-790442341
@@ -153,7 +158,7 @@ All file paths are given relative to the git folder for Equitable-Polling-Locati
 The instructions for downloading this data is identical the instructions for the blocks with the following exception:
 * Download tl_YYYY_FIPS_bgYY.zip (e.g. tl_2020_13135_bg20.zip)
 
-### **datasets/polling/County_ST/County_ST_locations_only.csv**: 
+### **datasets/polling/County_ST/County_ST_locations_only.csv**:
 This is a manually constructed .csv file that contains data for existing and potential polling locations to be optimized against
 Example file name: datasets/polling/Gwinnett_GA/Gwinnett_GA_locations_only.csv
 The columns of this data set should be named and formatted as
@@ -165,7 +170,7 @@ The columns of this data set should be named and formatted as
 | ----- | ------ | ----- |
 |Location Type | If polling location, must have a year when it was used | 'EV_2022_2020' or 'General_2020' or 'Primary_2022_2020_2018' or 'DropBox_2022'|
 | ----- | ------ | ----- |
-| | If potential location, has a 'location type' category and the word 'Potential' (case sensitive) | 'Community Center - Potential' | 
+| | If potential location, has a 'location type' category and the word 'Potential' (case sensitive) | 'Community Center - Potential' |
 | ----- | ------ | ----- |
 | Lat, Long | Comma separated concatenation of latitude and longitude (can be read off of google maps by right clicking on the location marker for the address.) | '33.964717796407434, -83.85827288222517' |
 | ----- | ------ | ----- |
@@ -175,24 +180,24 @@ These are the config files for the various runs.
 Example path Gwinnett_GA_configs/Gwinnett_config_full_11.yaml
   * Mandatory arguments
     * location: County_ST. This variable is used throughout to name files
-    * year: List of years one wants to consider actual polling locations for. E.g. ['2022', '2020'] 
+    * year: List of years one wants to consider actual polling locations for. E.g. ['2022', '2020']
     * level: one of 'original', 'expanded', 'full'
       * original: Use if you just want to reassign people more optimally to existing polling locations
       * expanded: Includes a set of identified potential polling locations. Use if you want to select a more optimal set of polling locations
       * full: Includes the census block group centroids. Use if you want a more ideal list of locations, for instance, to understand where to look for potential polling locations that have yet to be identified.
-    * beta: In [-2, 0]. Aversion to inequality. If 0, this computes the mean distance. The further away from 0, the greater the aversion to inequality. 
-    * time_limit: maximal number of minutes that the optimizer will run 
+    * beta: In [-2, 0]. Aversion to inequality. If 0, this computes the mean distance. The further away from 0, the greater the aversion to inequality.
+    * time_limit: maximal number of minutes that the optimizer will run
     * capacity: >= 1. A multiplicative factor that indicates how much more than *population/precincts_open* a precinct is allowed to be allotted
 
   * Optional arguments
     * precincts_open: number of precincts to be assigned. Default: number of existing polling locations
     * max_min_mult: >= 1. A scalar to limit the search radius to match polling locations. If this is too small, the optimizer may not find a solution. Default: 1
-    * maxpctnew = In [0,1]. The percent of new locations allowed to be matched. Default = 1 
+    * maxpctnew = In [0,1]. The percent of new locations allowed to be matched. Default = 1
     * minpctold = In [0,1]. The percent of existing locations allowed to be matched. Default = 0
 
 # Intermediate dataset
 
-### **datasets/polling/County_ST/County_ST.csv**: 
+### **datasets/polling/County_ST/County_ST.csv**:
 This is the main data set that the optimizer uses. It includes polling locations from previous years, potential polling locations, and block group centroids, as well as distances from block centroids to the above.
 Example file name: datasets/polling/Gwinett_GA/Gwinnett_GA.csv
 
@@ -207,7 +212,7 @@ The columns of this data set are as follows:
 | ----- | ------ | ----- | ----- |
 | distance_m | distance in meters from the centroid of the block (id_orig) to id_dest | haversine distance from (orig_lat, orig_lon) to (dest_lat, dest_lon) | FLOAT |
 | ----- | ------ | ----- | ----- |
-| county | name of county and two letter state abbreviation | location from the config file | 'Gwinnett_GA' | 
+| county | name of county and two letter state abbreviation | location from the config file | 'Gwinnett_GA' |
 | ----- | ------ | ----- | ----- |
 | Address | If a physical polling location, street address | 'Address' from County_ST_location_only.csv  | '788 Hillcrest Rd NW, Lilburn, GA 20047'|
 | ----- | ------ | ----- | ----- |
@@ -229,7 +234,7 @@ The columns of this data set are as follows:
 | ----- | ------ | ----- | ----- |
 | hispanic | total hispanic population of census block | 'P4_002N' of P4 data| INT |
 | ----- | ------ | ----- | ----- |
-| non-hispanic | total non-hispanic population of census block | 'P4_003N' of P4 data| INT | 
+| non-hispanic | total non-hispanic population of census block | 'P4_003N' of P4 data| INT |
 | ----- | ------ | ----- | ----- |
 | white | single race white population of census block | 'P3_003N' of P3 data | INT |
 | ----- | ------ | ----- | ----- |
@@ -243,7 +248,7 @@ The columns of this data set are as follows:
 | ----- | ------ | ----- | ----- |
 | other | single race other population of census block | 'P3_008N' of P3 data | INT |
 | ----- | ------ | ----- | ----- |
-| multiple_races | total multi-racial population of census block | 'P3_009N' of P3 data | INT | 
+| multiple_races | total multi-racial population of census block | 'P3_009N' of P3 data | INT |
 | ----- | ------ | ----- | ----- |
 # Output datasets
 
@@ -264,18 +269,18 @@ For each set of parameters specified in a config file (CONFIG_FOLDER/County_conf
 
 The four files can be described as follow:
 * *_edes.csv (demographic level ede scores)
-    * For each demographic group (asian, black, hispanic, native, population, white), this table records the 
+    * For each demographic group (asian, black, hispanic, native, population, white), this table records the
         * demo_pop, the total population of that demographic in the county
         * average distance traveled by the members of that demographic: average_distance = weighted_distance / demo_pop
-        * the y_EDE for the demographic: y_EDE = -1/(beta * alpha)*log(avg_KP_weight) 
+        * the y_EDE for the demographic: y_EDE = -1/(beta * alpha)*log(avg_KP_weight)
             * where avg_KP_weight= (\sum demo_res_obj_summand)/demo_pop
 * *_precinct_distances.csv (distances traveled to each precinct by demographic)
-    * For each demographic group (asian, black, hispanic, native, population, white), and identified polling location (id_dest), this table records the 
+    * For each demographic group (asian, black, hispanic, native, population, white), and identified polling location (id_dest), this table records the
         * demo_pop, the total population of that demographic matched to that location
         * average distance traveled by the members of that demographic: average_distance = weighted_distance / demo_pop
 * *_demographic_distances.csv (distances traveled by members of a census block to each polling location by demographic)
     * This is an interim table needed to create the *_ede.csv table
-    * For each demographic group (asian, black, hispanic, native, population, white), and census block (id_orig), this table records the 
+    * For each demographic group (asian, black, hispanic, native, population, white), and census block (id_orig), this table records the
         * demo_pop, the total population of that demographic matched to that location
         * average distance traveled by the members of that demographic: average_distance = weighted_distance / demo_pop
 * *_result.csv (a combined table of census block, matched polling location, distance, and demographic information)
