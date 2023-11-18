@@ -108,7 +108,7 @@ Examples:
 
         python ./model_run_cli.py -c4 -l logs ./Gwinnett_GA_configs/Gwinnett_config_expanded_*.yaml
 
-    To run all full configs run one at a time, exta logging printed to the console,
+    To run all full configs run one at a time, extra logging printed to the console,
     and write log files out to the logs directory:
 
         python ./model_run_cli.py -vv -l logs ./Gwinnett_GA_configs/Gwinnett_config_full_*.yaml

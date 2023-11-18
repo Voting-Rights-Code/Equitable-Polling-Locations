@@ -23,8 +23,9 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     The entry point to exectue a pyomo/scip run.
     '''
 
-    run_prefix = f'{config.location}_config_{config.level}_{config.precincts_open}'
-
+    config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
+    run_prefix = f'{config.location}_configs.{config_file_basename}'
+    
     #check if source data avaible
     source_file_name = config.location + '.csv'
     source_path = os.path.join('datasets', 'polling', config.location, source_file_name)
