@@ -1,4 +1,8 @@
 # List of features to implement
+* Make repo public
+    1. Fix readme / installation instructions
+    1. Create testing infrastructure 
+    1. Brainstorm about how to announce 
 * Location preference
     1.  Implement a new objective function: (Old objective function) plus \sum weight * locations 
     1. Weight is the product of an inappropriateness score and some data derived scaling factor
@@ -7,6 +11,11 @@
     1. Goal: to replace census derived voting age population with actual registered voters in the census block
     1. Unclear if census has just citizenship data and whether or not that would be useful
     1. Does the voter file have self reported race? If not nationally, does it have it in GA? DO NOT USE MODELED RACE FOR THIS TASK.
+* Preliminary analysis on distance from poll and turn out
+    1. Needs TargetSmart / Catalyst data
+    1. There is a lot of "talk" that people closer to polls turn out to vote more, and this is an argument for more polling locations
+    1. Can we build out some preliminary findings from the data to support this?
+    1. Xakota from Fair Fight is interested.
 * Driving distance integration
     1. Currently, the model uses haversine distance
     1. Tom (Daphne's coauthor) has (opensource?) code to pull driving distances from open street map. This needs to be investigated and integrated into our system.
