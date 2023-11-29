@@ -2,6 +2,7 @@
 
 import argparse
 import datetime
+from glob import glob
 from multiprocessing import Pool
 import os
 import sys
@@ -66,8 +67,12 @@ def main(args: argparse.Namespace):
         else:
             print(f'Writing logs to dir: {logdir}')
 
+    # Handle wildcards in Windows properly
+    glob_paths = [ glob(item) for item in args.configs ]
+    config_paths: List[str] = [ item for sublist in glob_paths for item in sublist ]
+
     # Check that all files are valid, exist if they do not exist
-    valid, configs = load_configs(args.configs, logdir)
+    valid, configs = load_configs(config_paths, logdir)
     if not valid:
         sys.exit(1)
 
@@ -93,10 +98,32 @@ def main(args: argparse.Namespace):
             print('--------------------------------------------------------------------------------')
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('configs', nargs='+')
-    parser.add_argument('-c', '--concurrent', default=DEFAULT_MULTI_PROCESS_CONCURRENT, type=int)
-    parser.add_argument('-v', '--verbose', action='count', default=0)
-    parser.add_argument('-l', '--logdir', type=str)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description='A commandline tool that chooses an optimal set of polling locations from a set of potential locations.',
+        epilog='''
+Examples:
+    To run all expanded configs, parallel processing 4 at a time, and write log files out to the logs
+    directory:
+
+        python ./model_run_cli.py -c4 -l logs ./Gwinnett_GA_configs/Gwinnett_config_expanded_*.yaml
+
+    To run all full configs run one at a time, extra logging printed to the console,
+    and write log files out to the logs directory:
+
+        python ./model_run_cli.py -vv -l logs ./Gwinnett_GA_configs/Gwinnett_config_full_*.yaml
+
+    To run only the full_11 and write log files out to the logs directory:
+
+        python ./model_run_cli.py -l logs ./Gwinnett_GA_configs/Gwinnett_config_full_11.yaml
+        '''
+    )
+    parser.add_argument('configs', nargs='+', help='One or more yaml configuration files to run.')
+    parser.add_argument('-c', '--concurrent', default=DEFAULT_MULTI_PROCESS_CONCURRENT, type=int,
+                        help='How many concurrent optimization processes to run at the same time.  ' +
+                        'Be mindful of ram availability - full runs can use in excess of 40 GB' +
+                        ' for each concurrent process.')
+    parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
+    parser.add_argument('-l', '--logdir', type=str, help='The directory to output log files to')
 
     main(parser.parse_args())
