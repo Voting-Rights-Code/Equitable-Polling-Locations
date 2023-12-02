@@ -1,4 +1,5 @@
 # Equitable-Polling-Locations
+![Equitable Polling Location Tool](README_Image.jpg)
 The software component of this project is a tool that chooses an optimal set of polling locations from a set of potential locations. Optionally, it also gives a "best case scenario" by searching among the centroids of census block groups, which don't correspond to buildings or street corners, but are suggestive of what an ideal distribution might look like.
 
 Unlike other optimization tools out there, which minimize the mean distance traveled or the maximal distance traveled, this tool (which minimizes the Kolm-Pollack, or KP, distance) does a bit of both. For more on the Kolm-Pollack distance and why it is suitable for optimizing with equity in mind, see the following papers: [Sherrif, Macguire](https://onlinelibrary.wiley.com/doi/10.1111/risa.13562); [Logan et. al.](https://www.sciencedirect.com/science/article/abs/pii/S0198971520303239); [Kolm, 1976a](https://www.sciencedirect.com/science/article/abs/pii/0022053176900375); [Kolm, 1976b](https://www.sciencedirect.com/science/article/abs/pii/0022053176900685).
