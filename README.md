@@ -11,13 +11,9 @@ In the following table, the first three rows have the same mean, while the last 
 | Distances traveled  | Mean minimizing | Max minimizing | KP minimizing|
 | ----- | ------ | ----- | ------ |
 |.25, .25, .25, .25, 4 | Yes | | |
-| ----- | ------ | ----- | ------ |
 | .5, .5, .5, .5, 3| Yes | Yes | Depending on \beta |
-| ----- | ------ | ----- | ------ |
 | .25, .25, .5, 1, 3 | Yes | Yes |  |
-| ----- | ------ | ----- | ------ |
 | .5, .5, .5, .75, 3 |  | Yes | Depending on \beta |
-| ----- | ------ | ----- | ------ |
 
 ### How it works
 Given a set of existing and candidate polling locations, output the most equitable (by Kolm-Pollak distance) set of polling locations. The outputs of this model can be used to measure inequity among different racial groups in terms of access to polls (measured solely in terms of distance) and investigate how changes in choices and number of polling locations would change these inequities.
@@ -83,7 +79,7 @@ First activate the environment if not done so already:
         * LOG_FILE = Where to put log file. Must exist, or will not run
         * path to config file accepts wild cards to set of sequential runs
         * **Examples**
-            * See ```python .model_run_cli.py -h```
+            * See ```python ./model_run_cli.py -h```
             * To run all expanded configs, parallel processing 4 at a time, and write log files out to the logs
     directory:  
     ```python ./model_run_cli.py -c4 -l logs ./Gwinnett_GA_configs/Gwinnett_config_expanded_*.yaml```
@@ -170,15 +166,10 @@ The columns of this data set should be named and formatted as
 |Column Name | Definition | Example |
 | ----- | ------ | ----- |
 |Location | Name of the actual or potential polling location | 'Bethesda Senior Center' |
-| ----- | ------ | ----- |
 | Address | Street Address of the actual or potential polling location| (format flexible) '788 Hillcrest Rd NW, Lilburn, GA 20047' |
-| ----- | ------ | ----- |
 |Location Type | If polling location, must have a year when it was used | 'EV_2022_2020' or 'General_2020' or 'Primary_2022_2020_2018' or 'DropBox_2022'|
-| ----- | ------ | ----- |
 | | If potential location, has a 'location type' category and the word 'Potential' (case sensitive) | 'Community Center - Potential' |
-| ----- | ------ | ----- |
 | Lat, Long | Comma separated concatenation of latitude and longitude (can be read off of google maps by right clicking on the location marker for the address.) | '33.964717796407434, -83.85827288222517' |
-| ----- | ------ | ----- |
 
 ### **CONFIG_FOLDER/County_config_DESCRIPTOR.yaml**
 These are the config files for the various runs.
@@ -210,51 +201,29 @@ The columns of this data set are as follows:
 |Column Name | Definition | Derivation | Example / Type |
 | ----- | ------ | ----- | ----- |
 |id_orig | Census block code | GEOID20 from block shape file | 131350501051000 |
-| ----- | ------ | ----- | ----- |
 |id_dest | Name of the actual or potential polling location | 'Location' from County_ST_location_only.csv | 'Bethesda Senior Center' |
-| ----- | ------ | ----- | ----- |
 | | Census block group code | GEOID20 from block group shape file | 131350501051 |
-| ----- | ------ | ----- | ----- |
 | distance_m | distance in meters from the centroid of the block (id_orig) to id_dest | haversine distance from (orig_lat, orig_lon) to (dest_lat, dest_lon) | FLOAT |
-| ----- | ------ | ----- | ----- |
 | county | name of county and two letter state abbreviation | location from the config file | 'Gwinnett_GA' |
-| ----- | ------ | ----- | ----- |
 | Address | If a physical polling location, street address | 'Address' from County_ST_location_only.csv  | '788 Hillcrest Rd NW, Lilburn, GA 20047'|
-| ----- | ------ | ----- | ----- |
 | | If not a potential coordinate, name of the associated census block group |  | NA |
-| ----- | ------ | ----- | ----- |
 | dest_lat | latitude of the address or census block group centroid of the destination | google maps or INTPTLAT20 of id_dest from block group shape file| FLOAT |
-| ----- | ------ | ----- | ----- |
 | dest_lon | longitude of the address or census block group centroid of the destination | google maps or INTPTLON20 of id_dest from block group shape file| FLOAT |
-| ----- | ------ | ----- | ----- |
 | orig_lat | latitude of census block centroid of the origin | INTPTLAT20 of id_orig from block shape file| FLOAT |
-| ----- | ------ | ----- | ----- |
 | orig_lon | longitude of census block centroid of the origin | INTPTLON20 of id_orig from block shape file| FLOAT |
-| ----- | ------ | ----- | ----- |
 |location_type | A description of the id_dest location | 'Location Type' from County_ST_location_only.csv or 'bg_centroid' | 'EV_2022_2020' or 'Library - Potential' or 'bg_centroid'|
-| ----- | ------ | ----- | ----- |
 | dest_type | A coarser description of the id_dest that given in location type | Either 'polling' (if previous polling location), potential (if a building that is a potential polling location), 'bg_centroid' (if a census block centroid) |
-| ----- | ------ | ----- | ----- |
 | population | total population of census block | 'P3_001N' of P3 data or 'P4_001N' of P4 data| INT |
-| ----- | ------ | ----- | ----- |
 | hispanic | total hispanic population of census block | 'P4_002N' of P4 data| INT |
-| ----- | ------ | ----- | ----- |
 | non-hispanic | total non-hispanic population of census block | 'P4_003N' of P4 data| INT |
-| ----- | ------ | ----- | ----- |
 | white | single race white population of census block | 'P3_003N' of P3 data | INT |
-| ----- | ------ | ----- | ----- |
 | black | single race black population of census block | 'P3_004N' of P3 data | INT |
-| ----- | ------ | ----- | ----- |
 | native | single race native population of census block | 'P3_005N' of P3 data | INT |
-| ----- | ------ | ----- | ----- |
 | asian | single race asian population of census block | 'P3_006N' of P3 data | INT |
-| ----- | ------ | ----- | ----- |
 | pacific_islaner | single race pacific_islander population of census block | 'P3_007N' of P3 data | INT |
-| ----- | ------ | ----- | ----- |
 | other | single race other population of census block | 'P3_008N' of P3 data | INT |
-| ----- | ------ | ----- | ----- |
 | multiple_races | total multi-racial population of census block | 'P3_009N' of P3 data | INT |
-| ----- | ------ | ----- | ----- |
+
 # Output datasets
 
 For each set of parameters specified in a config file (CONFIG_FOLDER/County_config_DESCRIPTOR.yaml), the program produces 4 output files.
