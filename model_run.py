@@ -51,6 +51,8 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
         print(f'model built for {run_prefix}.')
 
     #solve model
+    #ea_model.pprint(filename = 'ea_model.txt')
+    #breakpoint()
     solve_model(ea_model, config.time_limit, log=log, log_file_path=config.log_file_path)
     if log:
         print(f'model solved for {run_prefix}.')
