@@ -1,7 +1,13 @@
 #Constants for the optimization function
 location: Gwinnett_GA
 year: '2020'
-level: original
+bad_types: 
+    - 'Election Day Loc - Potential'
+    - 'College Campus - Potential'
+    - 'Community Center - Potential'
+    - 'Fire Station - Potential'
+    - 'Library - Potential'
+    - 'Other - Potential'
 beta: -2
 time_limit: 360000 #100 hours minutes
 capacity: 5
