@@ -17,10 +17,8 @@ class PollingModelConfig:
     '''Name of the county or city of interest'''
     year: List[str]
     '''list of years to be studied'''
-    level: str
-    '''{'original': consider only the original polling locations,
-        'expanded': consider all schools
-        'full': consider all schools and census block group centroids}'''
+    bad_types: List[str]
+    '''list of location types not to be considered in this model'''
     beta: float
     '''level of inequality aversion: [-10,0], where 0 indicates indifference, and thus uses the
     mean. -2 isa good number '''
