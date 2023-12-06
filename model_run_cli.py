@@ -1,3 +1,9 @@
+#######################################
+#Created on 6 December 2023
+#
+#@author: Voting Rights Code
+#######################################
+
 ''' Command line util to run models '''
 
 import argparse

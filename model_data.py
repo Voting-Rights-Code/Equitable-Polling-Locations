@@ -1,8 +1,8 @@
 #######################################
-#Created on 27 May 2023
+#Created on 6 December 2023
 #
 #@author: Voting Rights Code
-#@attribution: Josh Murell
+#@attribution: based off of code by Josh Murell
 #######################################
 
 import pandas as pd

@@ -1,3 +1,10 @@
+#######################################
+#Created on 6 December 2023
+#
+#@author: Voting Rights Code
+#@attribution: based off of code by Josh Murell
+#######################################
+
 '''
 Factory function to build the pyomo population model
 '''

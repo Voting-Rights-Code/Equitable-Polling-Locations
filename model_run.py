@@ -1,3 +1,8 @@
+#######################################
+#Created on 6 December 2023
+#
+#@author: Voting Rights Code
+#######################################
 '''
 This file sets up a pyomo/scip run based on a config file, e.g.
 Gwinnett_GA_configs/Gwinnett_config_full_11.py

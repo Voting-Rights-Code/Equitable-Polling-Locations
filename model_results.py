@@ -1,3 +1,10 @@
+#######################################
+#Created on 6 December 2023
+#
+#@author: Voting Rights Code
+#@attribution: based off of code by Josh Murell
+#######################################
+
 import numpy as np
 import pandas as pd
 import os

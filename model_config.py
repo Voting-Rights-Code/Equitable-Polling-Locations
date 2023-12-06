@@ -1,3 +1,9 @@
+#######################################
+#Created on 6 December 2023
+#
+#@author: Voting Rights Code
+#######################################
+
 ''' Utils for configuring models '''
 from typing import List
 from dataclasses import dataclass
