@@ -6,7 +6,7 @@ year:
 bad_types: 
     - 'Election Day Loc - Potential'
     - 'bg_centroid' 
-beta: -2
+beta: -1
 time_limit: 360000 #100 hours minutes
 capacity: 5
 
