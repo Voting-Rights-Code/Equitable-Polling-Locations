@@ -15,9 +15,9 @@ In the following table, the first three rows have the same mean, while the last 
 | Distances traveled  | Mean minimizing | Max minimizing | KP minimizing|
 | ----- | ------ | ----- | ------ |
 |.25, .25, .25, .25, 4 | Yes | | |
-| .5, .5, .5, .5, 3| Yes | Yes | Depending on \beta |
-| .25, .25, .5, 1, 3 | Yes | Yes |  |
-| .5, .5, .5, .75, 3 |  | Yes | Depending on \beta |
+| .5, .5, .5, .5, 3| Yes | Yes | Depending on beta |
+| .25, .25, .5, 1, 3 | Yes | Yes | Depending on beta |
+| .5, .5, .5, .75, 3 |  | Yes |  |
 
 ### How it works
 Given a set of existing and candidate polling locations, output the most equitable (by Kolm-Pollak distance) set of polling locations. The outputs of this model can be used to measure inequity among different racial groups in terms of access to polls (measured solely in terms of distance) and investigate how changes in choices and number of polling locations would change these inequities.
@@ -26,13 +26,13 @@ The algorithm for this model is as follows:
 1. Create a list of potential polling locations
     1. Start with a list of historical polling locations
     1. Add to this a list of  buildings where one could feasibly site future polling locations
-    1. Combine this data with a list of "best case scenario" polling locations, modeled by census block group centroids
-1. Compute the distance from the centroid of each census block to the potential polling location (building or best case scenario)
-    1. We average over census blocks rather than individual houses for computational feasibility.
+    1. Combine this data with a list of "best case scenario" polling locations, modeled by census block *group* centroids
+1. Compute the distance from the centroid of each census block (representing residences) to each potential polling location (building or best case scenario)
+    1. We average over census blocks rather than individual houses for computational feasibility
 1. Compute the Kolm-Pollack weight from each block group to each polling location
-    1. KP_factor  = e^(- beta* alpha * distance)
+    1. KP_factor  = e^(- beta * alpha * distance)
         1. beta is a user defined parameter
-        1. alpha is a data derived normalization factor (alpha = \sum (population * distance_to_closest_poll^2))
+        1. alpha is a data derived normalization factor (alpha = (\sum (block population * distance_to_closest_poll)) / (\sum (block_population * distance_to_closest_poll^2))
     1. The KP_factor plays the role of a weighted distance in a standard objective function.
         1. The exponential in the KP_factor penalizes inequality in distances traveled
         1. For instance a group of 5 people all having to travel 1 mile to a polling location would have a lower KP_factor than a situation where 4 people travel 1/2 a mile while the fifth travels 3, even though the average distance traveled in both cases is the same.
@@ -46,7 +46,7 @@ The algorithm for this model is as follows:
     1. A user defined bound on the number of new locations
         1. Some maximal percent allowed to be new
         1. Some minimal percent that must have been a polling location in the past
-        1. This can be easily modified to accommodate other needs
+        1. This can be easily modified to accommodate other needs (for example, require existing locations to remain open)
     1. Each census block can only be matched to one polling location
     1. Each census block must be matched to a single open precinct
     1. A user defined overcrowding constraint
@@ -209,7 +209,7 @@ The columns of this data set are as follows:
 | | Census block group code | GEOID20 from block group shape file | 131350501051 |
 | distance_m | distance in meters from the centroid of the block (id_orig) to id_dest | haversine distance from (orig_lat, orig_lon) to (dest_lat, dest_lon) | FLOAT |
 | county | name of county and two letter state abbreviation | location from the config file | 'Gwinnett_GA' |
-| Address | If a physical polling location, street address | 'Address' from County_ST_location_only.csv  | '788 Hillcrest Rd NW, Lilburn, GA 20047'|
+| address | If a physical polling location, street address | 'Address' from County_ST_location_only.csv  | '788 Hillcrest Rd NW, Lilburn, GA 20047'|
 | | If not a potential coordinate, name of the associated census block group |  | NA |
 | dest_lat | latitude of the address or census block group centroid of the destination | google maps or INTPTLAT20 of id_dest from block group shape file| FLOAT |
 | dest_lon | longitude of the address or census block group centroid of the destination | google maps or INTPTLON20 of id_dest from block group shape file| FLOAT |
@@ -224,7 +224,7 @@ The columns of this data set are as follows:
 | black | single race black population of census block | 'P3_004N' of P3 data | INT |
 | native | single race native population of census block | 'P3_005N' of P3 data | INT |
 | asian | single race asian population of census block | 'P3_006N' of P3 data | INT |
-| pacific_islaner | single race pacific_islander population of census block | 'P3_007N' of P3 data | INT |
+| pacific_islander | single race pacific_islander population of census block | 'P3_007N' of P3 data | INT |
 | other | single race other population of census block | 'P3_008N' of P3 data | INT |
 | multiple_races | total multi-racial population of census block | 'P3_009N' of P3 data | INT |
 
