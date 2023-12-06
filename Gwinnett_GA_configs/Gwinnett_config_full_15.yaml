@@ -3,7 +3,8 @@ location: Gwinnett_GA
 year: 
   - '2020'
   - '2022'
-level: full
+bad_types: 
+    - 'Election Day Loc - Potential'
 beta: -2
 time_limit: 360000 #100 hours minutes
 capacity: 5
