@@ -10,6 +10,7 @@ Factory function to build the pyomo population model
 '''
 
 import math
+import warnings
 
 import pyomo.environ as pyo
 
@@ -202,6 +203,10 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     
     #KP factor 
     dist_df['KP_factor'] = math.e**(-config.beta*alpha*dist_df['distance_m'])
+    max_KP_factor = dist_df.groupby('id_orig')['KP_factor'].agg('max').max()
+    if max_KP_factor > 9e19:
+        warnings.warn(f'Max KP_factor is {max_KP_factor}. SCIP can only handle values up to {1e20}. Consider a less negative value of beta.')
+        breakpoint()
     model.KP_factor = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'KP_factor']].set_index(['id_orig', 'id_dest']))
     #new location marker
     dist_df['new_location'] = 0
