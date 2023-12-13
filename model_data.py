@@ -226,11 +226,17 @@ def build_source(location):
 
 #########
 #Read the intermediate data frame from file, and pull the relevant rows
+#Note this this function is called twice, once for calculating alpha and once for
+#the base data set. 
+#The call for alpha should only take the original polling locations.#########
 #########
 
-def clean_data(config: PollingModelConfig):
+def clean_data(config: PollingModelConfig, for_alpha):
     location = config.location
-    level = config.level
+    if for_alpha: 
+        level = 'original'
+    else:
+        level = config.level
     year_list = config.year
 
     #read in data
