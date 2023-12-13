@@ -1,6 +1,13 @@
 import pandas as pd 
 from random import sample 
+
+###########
+#WARNING!!!! If you rerun this file, you will break all the pytests
+#TODO: Maybe set a seed (and then fix the pytests) so that this file can be rerun?
+###########
+
 df = pd.read_csv('datasets/polling/Gwinnett_GA/Gwinnett_GA.csv')
+df = df[df.population > 0 ]
 
 #pick 10 random places of origin
 random_origs = sample(list(df.id_orig.unique()), 10)
