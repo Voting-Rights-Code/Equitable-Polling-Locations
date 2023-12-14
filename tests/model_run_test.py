@@ -14,7 +14,7 @@ def test_alpha_min():
     alpha  = model_data.alpha_min(alpha_df)
     print(f'{round(alpha, 11)}')
 
-    assert round(alpha, 11) ==  7.137299e-05
+    assert round(alpha, 11) ==  7.239801e-05
 
 # TODO: Work in progress, Susama please finish
 '''def test_alpha_new():

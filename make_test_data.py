@@ -1,10 +1,8 @@
 import pandas as pd 
-from random import sample 
+from random import sample, seed 
 
-###########
-#WARNING!!!! If you rerun this file, you will break all the pytests
-#TODO: Maybe set a seed (and then fix the pytests) so that this file can be rerun?
-###########
+#set seed
+seed(157934)
 
 df = pd.read_csv('datasets/polling/Gwinnett_GA/Gwinnett_GA.csv')
 df = df[df.population > 0 ]
