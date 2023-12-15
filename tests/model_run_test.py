@@ -16,8 +16,6 @@ dist_df = model_data.clean_data(config, False)
 alpha_df = model_data.clean_data(config, True)
 alpha = model_data.alpha_min(alpha_df)
 
-model = model_factory.polling_model_factory(dist_df, alpha, config)
-model_solver.solve_model(model, config.time_limit)
 
 def test_alpha_min():
     assert round(alpha, 11) ==  7.239801e-05 #value from R code
@@ -30,14 +28,52 @@ def test_kp_factor():
     compare = dist_df2.merge(fixed_test_data, how = 'outer')
     assert compare.KP_factor.equals(compare.kp_factor)
 
-def test_matching():
-    matching_list= [(key[0], key[1]) for key in model.matching if model.matching[key].value ==1]
-    assert matching_list == [(131350502312007, 'George Pierce Park Community Recreation Center'), (131350504421001, 'George Pierce Park Community Recreation Center'), (131350504273001, 'George Pierce Park Community Recreation Center'), (131350504522010, 'George Pierce Park Community Recreation Center'), (131350505221002, 'George Pierce Park Community Recreation Center'), (131350506174015, 'Bogan Park Community Recreation Center'), (131350503151002, 'George Pierce Park Community Recreation Center'), (131350505223003, 'George Pierce Park Community Recreation Center'), (131350505631006, 'George Pierce Park Community Recreation Center'), (131350501053055, 'Bogan Park Community Recreation Center')]
 
-'''def tests_build_open_rule():
-    # TODO change 5 to something appropriate
-    open_rule = model_factory.precincts_open(5)
+model = model_factory.polling_model_factory(dist_df, alpha, config)
+model_solver.solve_model(model, config.time_limit)
 
-    model = create_test_model()
-    # TODO change None
-    assert open_rule(model) == 'Something' '''
+open_precincts = {key for key in model.open if model.open[key].value ==1}
+#test model constraints
+def test_open_constraint():
+    #number of open precincts as described in config
+    assert len(open_precincts) == config.precincts_open
+
+potential_precincts = set(dist_df[dist_df.dest_type == 'potential'].id_dest)
+
+def test_max_new_constraint():
+    #number of new precincts less than maxpctnew of number open
+    new_precincts = potential_precincts.intersection(open_precincts)
+    assert len(new_precincts) < config.maxpctnew* config.precincts_open
+
+old_polls = len(dist_df[dist_df.location_type == 'polling'])
+
+def test_min_old_constraint():
+    #number of old precincts more than minpctold of old polls
+    old_precincts = open_precincts.difference(potential_precincts)
+    assert len(old_precincts) >= config.minpctold*old_polls
+
+all_residences = set(dist_df.id_orig.unique())
+matched_residences = {key[0] for key in model.matching if model.matching[key].value ==1}
+
+def test_res_assigned():
+    #each residence assigned to exactly one precinct 
+    #Note: ignoring the radius calculation here
+    assert matched_residences == all_residences
+
+matched_precincts = {key[1] for key in model.matching if model.matching[key].value ==1}
+def test_precinct_open():
+    #residences matched to open precincts (and all open precincts matched)
+    assert matched_precincts == open_precincts
+
+total_pop = dist_df.groupby('id_orig')['population'].agg('unique').str[0].sum()
+
+def test_capacity():
+    #each open precinct doesn't serve more that capacity * total pop / number open
+    matching_list= [(key[0], key[1], model.matching[key].value) for key in model.matching if model.matching[key].value ==1]
+    matching_df = pd.DataFrame(matching_list, columns = ['id_orig', 'id_dest', 'matching'])
+
+    #merge with dist_df
+    result_df = pd.merge(dist_df, matching_df, on = ['id_orig', 'id_dest'])
+    dest_pop_df = result_df[['id_dest', 'population']].groupby('id_dest').agg('sum')
+    assert all(dest_pop_df.population <=(config.capacity*total_pop/config.precincts_open))
+
