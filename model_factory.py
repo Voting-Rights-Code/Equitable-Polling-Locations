@@ -73,7 +73,7 @@ def build_objective_rule(
         return (average_weighted_distances)
     if config.beta == 0:
         return obj_rule_0
-    if config.beta != 0: 
+    if config.beta != 0:
         return obj_rule_not_0
 
 #@timer
@@ -160,6 +160,9 @@ def build_capacity_rule(
         return (sum(model.population[res]*model.matching[res,precinct] for res in model.within_precinct_radius[precinct])<=(capacity*total_pop/precincts_open))
     return capacity_rule
 
+def compute_kp_factor(config: PollingModelConfig, alpha: float, dist_df):
+    return math.e**(-config.beta * alpha * dist_df['distance_m'])
+
 @timer
 def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> PollingModel:
     '''
@@ -168,7 +171,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     #define max_min parameter needed for certain calculations
     global_max_min_dist = get_max_min_dist(dist_df)
     max_min = config.max_min_mult* global_max_min_dist
-    
+
     #Calculate number of old polling locations
     old_polls = len(set(dist_df[dist_df['dest_type']=='polling']['id_dest']))
 
@@ -180,7 +183,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
 
     ####define constants####
     #total population
-    total_pop = dist_df.groupby('id_orig')['population'].agg('unique').str[0].sum() 
+    total_pop = dist_df.groupby('id_orig')['population'].agg('unique').str[0].sum()
     ####set model to be concrete####
     model = pyo.ConcreteModel()
 
@@ -190,8 +193,8 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     #all possible residence locations with population > 0 (unique)
     model.residences = pyo.Set(initialize = list(set(dist_df['id_orig'])))
     #residence, precint pairs
-    model.pairs = model.residences * model.precincts 
-    
+    model.pairs = model.residences * model.precincts
+
     ####define model parameters####
     #Populations of residences
     model.population = pyo.Param(model.residences, initialize =dist_df.groupby('id_orig')['population'].agg('mean'))
@@ -200,9 +203,10 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     model.distance = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'distance_m']].set_index(['id_orig', 'id_dest']))
     #population weighted distances
     model.weighted_dist = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'Weighted_dist']].set_index(['id_orig', 'id_dest']))
-    
-    #KP factor 
-    dist_df['KP_factor'] = math.e**(-config.beta*alpha*dist_df['distance_m'])
+
+    #KP factor
+    dist_df['KP_factor'] = compute_kp_factor(config, alpha, dist_df)
+    # math.e**(-config.beta*alpha*dist_df['distance_m'])
     max_KP_factor = dist_df.groupby('id_orig')['KP_factor'].agg('max').max()
     if max_KP_factor > 9e19:
         warnings.warn(f'Max KP_factor is {max_KP_factor}. SCIP can only handle values up to {1e20}. Consider a less negative value of beta.')
@@ -213,7 +217,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
 
     model.new_locations = pyo.Param(model.precincts, initialize = dist_df[['id_dest', 'new_location']].drop_duplicates().set_index(['id_dest']))
 
-    ####define model variables####  
+    ####define model variables####
     model.matching = pyo.Var(model.pairs, domain=pyo.Binary )
     model.open = pyo.Var(model.precincts, domain=pyo.Binary )
 
@@ -252,7 +256,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
         total_pop=total_pop,
         precincts_open=precincts_open,
     )
- 
+
     model.capacity_constraint = pyo.Constraint(model.precincts, rule=capacity_rule)
 
     #model.obj.pprint()
