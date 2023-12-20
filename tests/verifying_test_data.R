@@ -4,7 +4,7 @@ library(data.table)
 #Change directory
 #######
 setwd('~')
-setwd('../../Voting Rights Code/Equitable-Polling-Locations - Copy')
+setwd('../../Voting Rights Code/Equitable-Polling-Locations')
 
 #######
 #Read in data
