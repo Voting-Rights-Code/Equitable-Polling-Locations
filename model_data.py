@@ -227,7 +227,7 @@ def build_source(location):
 #The call for alpha should only take the original polling locations.#########
 #########
 
-def clean_data(config: PollingModelConfig, for_alpha):
+def clean_data(config: PollingModelConfig, for_alpha: bool):
     location = config.location
     if for_alpha: 
         level = 'original'
