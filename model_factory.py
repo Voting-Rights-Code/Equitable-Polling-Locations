@@ -164,6 +164,9 @@ def build_capacity_rule(
 def compute_kp_factor(config: PollingModelConfig, alpha: float, dist_df):
     return math.e**(-config.beta * alpha * dist_df['distance_m'])
 
+def compute_kp_factor(config: PollingModelConfig, alpha: float, dist_df):
+    return math.e**(-config.beta * alpha * dist_df['distance_m'])
+
 @timer
 def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> PollingModel:
     '''
@@ -205,8 +208,8 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     model.distance = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'distance_m']].set_index(['id_orig', 'id_dest']))
     #population weighted distances
     model.weighted_dist = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'Weighted_dist']].set_index(['id_orig', 'id_dest']))
-
-    #KP factor
+    
+    #KP factor 
     dist_df['KP_factor'] = compute_kp_factor(config, alpha, dist_df)
     max_KP_factor = dist_df.groupby('id_orig')['KP_factor'].agg('max').max()
     if max_KP_factor > 9e19:
