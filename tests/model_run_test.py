@@ -30,7 +30,7 @@ OLD_POLLS = len(DIST_DF[DIST_DF.location_type == 'polling'])
 ALL_RESIDENCES = set(DIST_DF.id_orig.unique())
 MATCHED_RESIDENCES = {key[0] for key in MODEL.matching if MODEL.matching[key].value ==1}
 MATCHED_PRECINCTS = {key[1] for key in MODEL.matching if MODEL.matching[key].value ==1}
-
+breakpoint()
 def test_alpha_min():
     assert round(ALPHA, 11) ==  7.239801e-05 #value from R code
 
