@@ -1,6 +1,7 @@
 #Constants for the optimization function
 location: Gwinnett_GA
-year: '2020'
+year: 
+  - '2020'
 level: original
 beta: -2
 time_limit: 360000 #100 hours minutes
