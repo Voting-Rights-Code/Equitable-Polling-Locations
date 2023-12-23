@@ -91,10 +91,10 @@ ggsave('at_most_11.png')
 
 
 good_runs_pops <- ede_df[num_polls != 50, 
-			][!(descriptor %in% c('full_27', 'full_30')),] 
-			[demographic == 'population', ] 
+			][!(descriptor %in% c('full_27', 'full_30')),
+			][demographic == 'population', ] 
 
-ggplot(good_runs_pops[level %in% c('expanded', 'full') & demographic == 'population', ], aes(x =  num_polls, y = y_EDE, group = level, 
+ggplot(good_runs_pops[level %in% c('expanded', 'full'), ], aes(x =  num_polls, y = y_EDE, group = level, 
 			color = level))+
 		geom_line()+ geom_point()+
 		labs(x = 'Number of polls', y = 'Equity weighted distance (m)')
