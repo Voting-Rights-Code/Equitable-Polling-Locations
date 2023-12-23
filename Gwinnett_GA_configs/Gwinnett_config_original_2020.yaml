@@ -1,6 +1,7 @@
 #Constants for the optimization function
 location: Gwinnett_GA
-year: '2020'
+year: 
+  - '2020'
 bad_types: 
     - 'Election Day Loc - Potential'
     - 'College Campus - Potential'
