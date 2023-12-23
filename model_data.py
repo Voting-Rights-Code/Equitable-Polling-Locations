@@ -224,11 +224,10 @@ def build_source(location):
 #Read the intermediate data frame from file, and pull the relevant rows
 #########
 
-def clean_data(config: PollingModelConfig):
+def clean_data(config: PollingModelConfig, for_alpha: bool):
     location = config.location
     year_list = config.year
-    bad_location_list = config.bad_types
-
+    
     #read in data
     data_dir = os.path.join('datasets', 'polling', location)
     file_name = location + '.csv'
@@ -236,10 +235,15 @@ def clean_data(config: PollingModelConfig):
     if not os.path.isfile(file_path):
         raise ValueError(f'Do not currently have any data for {location} from {config.config_file_path}')
     df = pd.read_csv(file_path, index_col=0)
-    #change column names
-    #if location in {'Salem', 'Test'}:
-    #    df = change_demo_names(df)
-    #check year validity
+
+    #pull out unique location types is this data
+    unique_location_types = df['location_type'].unique()
+    
+    if for_alpha: 
+        bad_location_list = [location_type for location_type in unique_location_types if 'Potential' in location_type or 'centroid' in location_type]
+    else:
+        bad_location_list = config.bad_types
+
     polling_location_types = set(df[df.dest_type == 'polling']['location_type'])
     for year in year_list:
         if not any(str(year) in poll for poll in polling_location_types):
@@ -249,7 +253,7 @@ def clean_data(config: PollingModelConfig):
     df = df[df['population']>0]
 
     #exclude bad location types
-    unique_location_types = df['location_type'].unique()
+
     # The bad types must be valid location types
     if not set(bad_location_list).issubset(set(unique_location_types)):
         raise ValueError(f'unrecognized bad locaion types types {set(bad_location_list).differenceset(unique_location_types)} in {config.config_file_path}' )
