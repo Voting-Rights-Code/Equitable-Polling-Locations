@@ -160,6 +160,9 @@ def build_capacity_rule(
         return (sum(model.population[res]*model.matching[res,precinct] for res in model.within_precinct_radius[precinct])<=(capacity*total_pop/precincts_open))
     return capacity_rule
 
+def compute_kp_factor(config: PollingModelConfig, alpha: float, dist_df):
+    return math.e**(-config.beta * alpha * dist_df['distance_m'])
+
 @timer
 def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> PollingModel:
     '''
@@ -203,7 +206,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     model.weighted_dist = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'Weighted_dist']].set_index(['id_orig', 'id_dest']))
     
     #KP factor 
-    dist_df['KP_factor'] = math.e**(-config.beta*alpha*dist_df['distance_m'])
+    dist_df['KP_factor'] = compute_kp_factor(config, alpha, dist_df)
     max_KP_factor = dist_df.groupby('id_orig')['KP_factor'].agg('max').max()
     if max_KP_factor > 9e19:
         warnings.warn(f'Max KP_factor is {max_KP_factor}. SCIP can only handle values up to {1e20}. Consider a less negative value of beta.')

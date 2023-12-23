@@ -23,7 +23,7 @@ alpha = sum(sample_alpha$population * sample_alpha$distance_m)/ sum(sample_alpha
 #Calculate kp_factors (for expanded)
 #######
 
-sample_expanded <- sample[location_type != 'bg_centroid', ]
+sample_expanded <- sample[!(location_type %in% c('bg_centroid', "Election Day Loc - Potential")), ]
 sample_expanded<- sample_expanded[ , kp_factor :=exp(2 * alpha * distance_m)]
 test_kp_factor <- sample_expanded[ , .(id_orig, id_dest, kp_factor)]
 fwrite(test_kp_factor, 'tests/test_kp_factor.csv')
