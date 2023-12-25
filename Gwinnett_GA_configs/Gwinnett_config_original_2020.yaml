@@ -3,7 +3,9 @@ location: Gwinnett_GA
 year: 
   - '2020'
 bad_types: 
-    - 'Election Day Loc - Potential'
+    - 'Election Day School - Potential'
+    - 'Election Day Church - Potential'
+    - 'Election Day Other - Potential'
     - 'College Campus - Potential'
     - 'Community Center - Potential'
     - 'Fire Station - Potential'
