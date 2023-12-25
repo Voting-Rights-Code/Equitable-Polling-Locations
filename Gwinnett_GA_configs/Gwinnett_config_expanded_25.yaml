@@ -4,11 +4,11 @@ year:
     - '2020'
     - '2022'
 bad_types: 
-    - 'Election Day School - Potential'
-    - 'Election Day Church - Potential'
-    - 'Election Day Other - Potential'
+    - 'Elec Day School - Potential'
+    - 'Elec Day Church - Potential'
+    - 'Elec Day Other - Potential'
     - 'bg_centroid' 
-beta: -1
+beta: -2
 time_limit: 360000 #100 hours minutes
 capacity: 5
 

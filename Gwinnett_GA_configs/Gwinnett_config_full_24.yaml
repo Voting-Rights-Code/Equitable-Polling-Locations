@@ -4,10 +4,10 @@ year:
   - '2020'
   - '2022'
 bad_types: 
-    - 'Election Day School - Potential'
-    - 'Election Day Church - Potential'
-    - 'Election Day Other - Potential'
-beta: -1
+    - 'Elec Day School - Potential'
+    - 'Elec Day Church - Potential'
+    - 'Elec Day Other - Potential'
+beta: -2
 time_limit: 360000 #100 hours minutes
 capacity: 5
 
