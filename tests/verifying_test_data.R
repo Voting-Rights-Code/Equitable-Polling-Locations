@@ -27,3 +27,9 @@ sample_expanded <- sample[!(location_type %in% c('bg_centroid', "Election Day Lo
 sample_expanded<- sample_expanded[ , kp_factor :=exp(2 * alpha * distance_m)]
 test_kp_factor <- sample_expanded[ , .(id_orig, id_dest, kp_factor)]
 fwrite(test_kp_factor, 'tests/test_kp_factor.csv')
+
+
+dt_old_2020<- fread("Gwinnett_GA_results/Gwinnett_GA_original_old/Gwinnett_GA_configs.Gwinnett_config_original_2020_result.csv")
+dt_new_2020<- fread("Gwinnett_GA_results/Gwinnett_GA_configs.Gwinnett_config_original_2020_result.csv")
+all.equal(dt_old_2020, dt_new_2020)
+

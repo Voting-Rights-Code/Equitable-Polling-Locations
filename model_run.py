@@ -29,7 +29,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     '''
 
     config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
-    run_prefix = f'{config.location}_configs.{config_file_basename}'
+    run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
     
     #check if source data avaible
     source_file_name = config.location + '.csv'
@@ -38,6 +38,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
         warnings.warn(f'File {source_path} not found. Creating it.')
         build_source(config.location)
 
+    #breakpoint()
     #get main data frame
     dist_df = clean_data(config, False)
 
@@ -52,7 +53,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
 
     #solve model
     #ea_model.pprint(filename = 'ea_model.txt')
-    #breakpoint()
+    
     solve_model(ea_model, config.time_limit, log=log, log_file_path=config.log_file_path)
     if log:
         print(f'model solved for {run_prefix}.')
