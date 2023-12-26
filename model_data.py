@@ -258,7 +258,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool):
     df = df[df['population']>0]
 
     #exclude bad location types
-    unique_location_types = df['location_type'].unique()
+    
     # The bad types must be valid location types
     if not set(bad_location_list).issubset(set(unique_location_types)):
         raise ValueError(f'unrecognized bad location types types {set(bad_location_list).difference(set(unique_location_types))} in {config.config_file_path}' )
