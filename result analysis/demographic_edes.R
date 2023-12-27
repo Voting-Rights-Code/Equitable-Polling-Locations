@@ -8,6 +8,12 @@ library(stringr)
 setwd('~')
 setwd('../../Voting Rights Code/Equitable-Polling-Locations')
 
+#######
+#Set Constants
+#######
+
+config_folder = 'Gwinnett_GA_no_school_no_fire_configs'
+
 ######
 #Read in results
 ######
@@ -37,17 +43,10 @@ process_results <-function(config_folder, result_type){
 	
 	#combine into one df
 	big_df <- do.call(rbind, df_list)
-	
-	#add level column 
-	big_df <- big_df[ , level:= 'No levels this run'
-		][grepl('expanded', descriptor), level:='expanded'
-		][grepl('full', descriptor), level:='full'
-		][grepl('original', descriptor), level:='original'
-		]
+
 	return(big_df)
 }
 
-config_folder = 'Gwinnett_GA_no_school_no_fire_configs'
 
 #combine all files with a descriptor column attached
 ede_df<- process_results(config_folder, 'edes')
@@ -65,11 +64,32 @@ precinct_df <- merge(precinct_df,nums_to_join, all.x = T)
 residence_df <- merge(residence_df,nums_to_join, all.x = T)
 result_df <- merge(result_df,nums_to_join, all.x = T)
 
+#create the datatables for the originals for later
+ede_orig_df<- process_results('Gwinnett_GA_configs', 'edes')
+precinct_orig_df<- process_results('Gwinnett_GA_configs', 'precinct_distances')
+residence_orig_df<- process_results('Gwinnett_GA_configs', 'residence_distances')
+result_orig_df<- process_results('Gwinnett_GA_configs', 'result')
+
+ede_orig_df<-ede_orig_df[grepl('original', descriptor),]
+precinct_orig_df<-precinct_orig_df[grepl('original', descriptor),]
+residence_orig_df<-residence_orig_df[grepl('original', descriptor),]
+result_orig_df<-result_orig_df[grepl('original', descriptor),]
+
+num_polls <- precinct_orig_df[ , .(num_polls = .N/6), by = descriptor]
+num_residences <- residence_orig_df[ , .(num_residences = .N/6), by = descriptor]
+nums_to_join <- merge(num_polls, num_residences, all = T)
+
+ede_orig_df <- merge(ede_orig_df,nums_to_join, all.x = T)
+precinct_orig_df <- merge(precinct_orig_df,nums_to_join, all.x = T)
+residence_orig_df <- merge(residence_orig_df,nums_to_join, all.x = T)
+result_orig_df <- merge(result_orig_df,nums_to_join, all.x = T)
+
 
 #######
 #plot edes
 #######
-setwd('result analysis/')
+plot_folder = paste0('result analysis/', config_folder)
+setwd(plot_folder)
 
 ggplot(ede_df[level =='expanded', ]
 	, aes(x = num_polls, y = y_EDE, 
@@ -81,18 +101,18 @@ ggplot(ede_df[level =='expanded', ]
 
 ggsave('demographic_edes_with_originals.png')
 
-ggplot(ede_df[level =='expanded', ], aes(x = num_polls, y = y_EDE, 
+ggplot(ede_df[grepl('no_bg', descriptor), ], aes(x = num_polls, y = y_EDE, 
 		group = demographic, color = demographic, shape = demographic)) +
 		geom_line()+ geom_point()+ 
 		labs(x = 'Number of polls', y = 'Equity weighted distance (m)')
 
 ggsave('demographic_edes.png')
 
-at_most_11 <- rbind(ede_df[level =='original', ], ede_df[descriptor == 'expanded_11', ])
-level_order <- c('expanded_11', 'original_2022', 'original_2020')
+at_most_11 <- rbind(ede_orig_df, ede_df[descriptor == 'no_bg_11', ])
+descriptor_order <- c('no_bg_11', 'original_2022', 'original_2020')
 ggplot(at_most_11, aes(x = descriptor, y = y_EDE, 
 		group = demographic, color = demographic, shape = demographic)) +
-		geom_point(aes(x = factor(descriptor, level = level_order))) +
+		geom_point(aes(x = factor(descriptor, level = descriptor_order))) +
 		labs(x = 'Optimization run', y = 'Equity weighted distance (m)')
 
 ggsave('at_most_11.png')
@@ -110,7 +130,7 @@ ggplot(good_runs_pops[level %in% c('expanded', 'full'), ], aes(x =  num_polls, y
 ggsave('demographic_edes_expanded_full.png')
 
 ggplot(precinct_df[demographic == 'population',
-		][level == 'expanded', ], aes(x = num_polls, y = id_dest)) +
+		], aes(x = num_polls, y = id_dest)) +
 		geom_point(aes(size = demo_pop)) + 
 		labs(x = 'Number of polls', y = 'EV location')
 
@@ -125,17 +145,16 @@ ggplot(precinct_df[demographic != 'population',
 ggsave('expanded_precinct_persistence_all.png')
 
 res_pop <- residence_df[demographic == 'population',
-		][num_polls != 50, 
-			][!(descriptor %in% c('full_27', 'full_29')), 
-			]#[level %in% c('expanded', 'full')] 
+		]
 ggplot(res_pop, aes(x = num_polls, y = avg_dist, group = descriptor)) +
 	stat_boxplot(geom = "errorbar")+
-	geom_boxplot(outlier.shape = NA, aes(fill = level)) + 
+	geom_boxplot(outlier.shape = NA) + 
 	scale_y_log10(limits = c(500,10500)) +
 	labs(x = 'Number of polls', y = 'Average distance (m)')
 ggsave('avg_dist_distribution_boxplots.png')
 
-res_pop_orig_and_22 <- res_pop[descriptor %in% c('original_2020', 'original_2022', 'expanded_22')]
+res_pop_orig_and_22 <- rbind(residence_orig_df, residence_df[descriptor == 'no_bg_11', ])
+
 ggplot(res_pop_orig_and_22, aes(x = avg_dist, fill = descriptor)) + 
 	#geom_density()	
 	geom_histogram(position = "dodge", alpha = 0.8)+
@@ -144,7 +163,6 @@ ggplot(res_pop_orig_and_22, aes(x = avg_dist, fill = descriptor)) +
 		labels = c("22 Locations", "2020 locations", "2022 locations"))
 	
 ggsave('avg_dist_distribution_hist.png')
-
 
 
 res_aa <- residence_df[demographic == 'black'
