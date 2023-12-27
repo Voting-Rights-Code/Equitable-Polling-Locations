@@ -1,17 +1,17 @@
 library(data.table)
 library(ggplot2)
 library(lubridate)
-library(mapview)
+#library(mapview)
 library(sf)
 library(cartogram)
-library(broom)
+#library(broom)
 
 #########
 #change directory for map data
 #this is data from Tiger, 2020
 #########
 setwd("~")
-setwd("../../Equitable-Polling-Locations/datasets/census/tiger/Gwinnett_GA/") 
+setwd("../../Voting Rights Code/Equitable-Polling-Locations/datasets/census/tiger/Gwinnett_GA/") 
 
 process_maps <- function(file_name){
     #read in map data as data table
@@ -29,22 +29,12 @@ map_bg_dt <- process_maps("tl_2020_13135_bg20.shp")
 #make sf type
 map_bg_sf <- st_as_sf(map_bg_dt)
 
-#ggplot() +
-#  geom_sf(data = maps_bg_sf)
-
-#Block shape files
-#maps_block_dt <- process_maps("tl_2020_13135_tabblock20.shp")
-#make sf type
-#maps_block_sf <- st_as_sf(maps_block_dt)
-
-#ggplot() +
-#  geom_sf(data = maps_block_sf)
 
 #########
 #get populations
 #########
 setwd("~")
-setwd("../../Equitable-Polling-Locations/datasets/census/redistricting/Gwinnett_GA") 
+setwd("../../Voting Rights Code/Equitable-Polling-Locations/datasets/census/redistricting/Gwinnett_GA") 
 
 process_demographics <-function(folder_name){
 #Take P3 and P4 tables from the indicated folder and makes a combined demographics table
@@ -83,27 +73,36 @@ block_demo <- process_demographics('.')
 
 bg_demo_shape <- merge(map_bg_dt, bg_demo, by.x = c('GEOID20'), by.y = c('Geography'))
 bg_demo_sf <- st_as_sf(bg_demo_shape)
-bg_demo_merc <- st_transform(bg_demo_sf, 3857)
+bg_demo_merc <- st_transform(bg_demo_sf, 4326) #must use this projection if you want to add points to map
 cartogram <- cartogram_cont(bg_demo_merc, "Population", itermax = 50, maxSizeError = 1.02)
+
+#########
+#Change directory
+#########
+setwd("~")
+setwd('../../Voting Rights Code/Equitable-Polling-Locations/Gwinnett_GA_results') 
+
+#######
+#Set Constants
+#######
+config_folder = 'Gwinnett_GA_no_school_no_fire_configs'
 
 #########
 #Get model output
 #########
-setwd("~")
-setwd("../../Equitable-Polling-Locations/Gwinnett_GA_results") 
-
 res_dist_list = list.files()[grepl('residence_distances', list.files())]
-res_dist_list = res_dist_list[!grepl('full', res_dist_list)]
+res_dist_list = res_dist_list[grepl(config_folder, res_dist_list)]
 #to_map = res_dist_list[1]
 
 #If precincts want to be mapped as well
-#result_list = list.files()[grepl('result', list.files())]
-#result_list = result_list[!grepl('full', res_dist_list)]
+result_list = list.files()[grepl('result', list.files())]
+result_list = result_list[grepl(config_folder, result_list)]
 #result = result_list[1]
 
 make_bg_maps <-function(file_to_map, map_type){
 	#read in results to map
 	res_dist_df <- fread(file_to_map)
+	#the last 3 digits are the block, remove these for block group
 	res_dist_df <- res_dist_df[ , id_orig := as.character(id_orig)
 		][ , BG_Geography := gsub('.{3}$', '', id_orig)]
 	
@@ -113,6 +112,10 @@ make_bg_maps <-function(file_to_map, map_type){
 		map_demo = cartogram
 	}else if (map_type == 'map'){
 		map_demo = bg_demo_merc
+		#in this case, also put in the precincts
+		ev_df_name <-sub('residence_distances', 'result', file_to_map)
+		result_df <- fread(ev_df_name)
+		ev_locs <- result_df[ , .(long = unique(dest_lon), lat = unique(dest_lat)), by = id_dest]
 	}else {map_demo = other}
 
 	block_geog <- data.table(GEOID20 = map_demo$GEOID20)
@@ -126,8 +129,6 @@ make_bg_maps <-function(file_to_map, map_type){
 		by.x = c("GEOID20"), by.y = c("BG_Geography"), all.y = T)
 	
 	#aggregrage block to groups
-	#summary_cols = names(demo_dist)[!names(demo_dist) %in% c('AREA20', 
-	#				'Geographic Area Name')] 
 	bg_demo_dist <- demo_dist[ , .(demo_pop = sum(demo_pop),
 						weighted_dist = sum(weighted_dist)), by = GEOID20
 					][ , avg_dist := weighted_dist/demo_pop]
@@ -138,11 +139,15 @@ make_bg_maps <-function(file_to_map, map_type){
 	#make maps
 	plotted <- ggplot() +
 		geom_sf(data = demo_dist_shape, aes(fill = avg_dist)) + 
-		scale_fill_gradient(high='white', low='darkgreen', limits = c(100, 15000))  
-		
+		scale_fill_gradient(high='white', low='darkgreen', limits = c(100, 15000)) 
+	if (map_type == 'map'){
+		plotted = plotted + 
+		geom_point(data = ev_locs, aes(x = long, y = lat))}
+	plotted
+	ggplot(data = ev_locs, aes(x = long, y = lat)) + geom_point()
 	#write to file
 	descriptor = gsub(".*config_(.*)_res.*", "\\1", file_to_map)
-	ggsave(paste0('../result analysis/', map_type, '_',descriptor, '.png'), plotted)
+	ggsave(paste0('../result analysis/', config_folder, '/',map_type, '_',descriptor, '.png'), plotted)
 	}
 sapply(res_dist_list, function(x)make_bg_maps(x, 'cartogram'))
 sapply(res_dist_list, function(x)make_bg_maps(x, 'map'))
