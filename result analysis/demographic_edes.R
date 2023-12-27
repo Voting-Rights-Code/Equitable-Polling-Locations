@@ -12,9 +12,14 @@ setwd('../../Voting Rights Code/Equitable-Polling-Locations')
 #Read in results
 ######
 #local run
-process_results <-function(result_type){
-	#Read and name data of the correct type
-	files <- list.files('Gwinnett_GA_results/', pattern = result_type)
+process_results <-function(config_folder, result_type){
+	#select which results we want
+	files <- list.files('Gwinnett_GA_results/')
+	files <- files[grepl(config_folder, files) &grepl(result_type, files)]
+	file_path <- paste0('Gwinnett_GA_results/', files)
+	df_list <- lapply(file_path, fread)
+
+	#name the data
 	config_names_long <- lapply(files, function(x){gsub(".*Gwinnett_config_\\s*|.csv*", "", x)})	
 	config_names <- lapply(config_names_long, function(x){gsub(paste0('_',result_type), "", x)})
 	file_path <- paste0('Gwinnett_GA_results/', files)
@@ -22,30 +27,33 @@ process_results <-function(result_type){
 	names(df_list) <- config_names
 
 	#label with names and levels
-	#num_polls <- c(rep(11:30, 2), 50, 9, 11) #note, this is hard coded and brittle
-	#mapply(function(x, y){x[ , num_polls:=y/6]}, df_list, num_polls)
 	mapply(function(x, y){x[ , descriptor:= y]}, df_list, names(df_list))
 	
+	#Change id_dest and id_orig to strings as needed
 	if ('id_dest' %in% names(df_list[[1]])){
 		sapply(df_list, function(x){x[ , id_dest:= as.character(id_dest)]})}
 	if ('id_orig' %in% names(df_list[[1]])){
 		sapply(df_list, function(x){x[ , id_orig:= as.character(id_orig)]})}
 	
+	#combine into one df
 	big_df <- do.call(rbind, df_list)
 	
-	#add level column
-	big_df <- big_df[grepl('expanded', descriptor), level:='expanded'
+	#add level column 
+	big_df <- big_df[ , level:= 'No levels this run'
+		][grepl('expanded', descriptor), level:='expanded'
 		][grepl('full', descriptor), level:='full'
 		][grepl('original', descriptor), level:='original'
 		]
 	return(big_df)
 }
 
+config_folder = 'Gwinnett_GA_no_school_no_fire_configs'
+
 #combine all files with a descriptor column attached
-ede_df<- process_results('edes')
-precinct_df<- process_results('precinct_distances')
-residence_df<- process_results('residence_distances')
-result_df<- process_results('result')
+ede_df<- process_results(config_folder, 'edes')
+precinct_df<- process_results(config_folder, 'precinct_distances')
+residence_df<- process_results(config_folder, 'residence_distances')
+result_df<- process_results(config_folder, 'result')
 
 #label descriptors with polls and residences
 num_polls <- precinct_df[ , .(num_polls = .N/6), by = descriptor]
