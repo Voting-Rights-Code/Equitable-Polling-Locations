@@ -27,7 +27,7 @@ process_maps <- function(file_name){
 #Block group shape files
 map_bg_dt <- process_maps("tl_2020_13135_bg20.shp")
 #make sf type
-map_bg_sf <- st_as_sf(map_bg_dt)
+#map_bg_sf <- st_as_sf(map_bg_dt)
 
 
 #########
@@ -65,19 +65,23 @@ process_demographics <-function(folder_name){
 bg_demo <- process_demographics("block group demographics")
 
 #block demographics
-block_demo <- process_demographics('.')
+#block_demo <- process_demographics('.')
 
 #########
 #make block level cartogram
 #########
 
+#merge the bg shape dt with the bg demo dt
 bg_demo_shape <- merge(map_bg_dt, bg_demo, by.x = c('GEOID20'), by.y = c('Geography'))
+#make it an sf object for mapping
 bg_demo_sf <- st_as_sf(bg_demo_shape)
+#assign it a projection
 bg_demo_merc <- st_transform(bg_demo_sf, 4326) #must use this projection if you want to add points to map
+#make it into a cartogram
 cartogram <- cartogram_cont(bg_demo_merc, "Population", itermax = 50, maxSizeError = 1.02)
 
 #########
-#Change directory
+#Make maps and cartograms
 #########
 setwd("~")
 setwd('../../Voting Rights Code/Equitable-Polling-Locations/Gwinnett_GA_results') 
@@ -118,8 +122,10 @@ make_bg_maps <-function(file_to_map, map_type){
 		ev_locs <- result_df[ , .(long = unique(dest_lon), lat = unique(dest_lat)), by = id_dest]
 	}else {map_demo = other}
 
+	#because map_demo is not a data.table or data.frame, it cannot be aggregated
+	#as a data frame, and I cannot figure out how to aggregate an sf object
+	#This is a work around for that
 	block_geog <- data.table(GEOID20 = map_demo$GEOID20)
-	
 	geom_cols <- c('GEOID20', 'geometry')
 	map_sf <- map_demo[, geom_cols]
 	
@@ -128,11 +134,11 @@ make_bg_maps <-function(file_to_map, map_type){
 		res_dist_df[demographic == 'population', .(BG_Geography, demo_pop, weighted_dist)], 
 		by.x = c("GEOID20"), by.y = c("BG_Geography"), all.y = T)
 	
-	#aggregrage block to groups
+	#aggregrage block to groups (the entire point of this exercise)
 	bg_demo_dist <- demo_dist[ , .(demo_pop = sum(demo_pop),
 						weighted_dist = sum(weighted_dist)), by = GEOID20
 					][ , avg_dist := weighted_dist/demo_pop]
-		
+			
 	#combine with demo_dist with map
 	demo_dist_shape<- merge(map_sf, bg_demo_dist, all = T)	
 	
