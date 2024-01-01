@@ -89,8 +89,8 @@ setwd('../../Voting Rights Code/Equitable-Polling-Locations/Gwinnett_GA_results'
 #######
 #Set Constants
 #######
-config_folder = 'Gwinnett_GA_no_school_no_fire_configs'
-
+#config_folder = 'Gwinnett_GA_no_school_no_fire_configs'
+config_folder = 'Gwinnett_GA_configs'
 #########
 #Get model output
 #########

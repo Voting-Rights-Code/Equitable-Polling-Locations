@@ -112,10 +112,24 @@ at_most_11 <- rbind(ede_orig_df, ede_df[descriptor == 'no_bg_11', ])
 descriptor_order <- c('no_bg_11', 'original_2022', 'original_2020')
 ggplot(at_most_11, aes(x = descriptor, y = y_EDE, 
 		group = demographic, color = demographic, shape = demographic)) +
-		geom_point(aes(x = factor(descriptor, level = descriptor_order))) +
+		geom_point(aes(x = factor(descriptor, level = descriptor_order), ), size = 9) +
 		labs(x = 'Optimization run', y = 'Equity weighted distance (m)')
-
 ggsave('at_most_11.png')
+
+
+ggplot(at_most_11, aes(x = descriptor, y = y_EDE, 
+		group = demographic, color = demographic, shape = demographic)) +
+		geom_point(aes(x = factor(descriptor, level = descriptor_order), size = 9)) +
+		labs(x = 'Optimization run', y = 'Equity weighted distance (m)')+
+		lims(y = c(3500, 6250))
+ggsave('at_most_11_for_comp_with_avg_dist.png')
+
+ggplot(at_most_11, aes(x = descriptor, y = avg_dist, 
+		group = demographic, color = demographic, shape = demographic)) +
+		geom_point(aes(x = factor(descriptor, level = descriptor_order), size = 9)) +
+		labs(x = 'Optimization run', y = 'Average distance (m)')+
+		lims(y = c(3500, 6250))
+ggsave('at_most_11_avg.png')
 
 
 good_runs_pops <- ede_df[num_polls != 50, 
@@ -129,6 +143,12 @@ ggplot(good_runs_pops[level %in% c('expanded', 'full'), ], aes(x =  num_polls, y
 
 ggsave('demographic_edes_expanded_full.png')
 
+ggplot(ede_df[demographic == 'population', ], aes(x =  num_polls, y = y_EDE))+
+		geom_line()+ geom_point()+
+		labs(x = 'Number of polls', y = 'Equity weighted distance (m)')
+
+ggsave('population_edes.png')
+
 ggplot(precinct_df[demographic == 'population',
 		], aes(x = num_polls, y = id_dest)) +
 		geom_point(aes(size = demo_pop)) + 
@@ -137,7 +157,7 @@ ggplot(precinct_df[demographic == 'population',
 ggsave('expanded_precinct_persistence.png')
 
 ggplot(precinct_df[demographic != 'population',
-		][level == 'expanded', ], aes(x = num_polls, y = id_dest)) +
+		], aes(x = num_polls, y = id_dest)) +
 		geom_point(aes(size = demo_pop)) + 
 		labs(x = 'Number of polls', y = 'EV location') + facet_wrap(~ demographic) +
 		theme(legend.position = c(0.9, 0.2))
