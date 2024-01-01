@@ -9,7 +9,10 @@ Gwinnett_GA_configs/Gwinnett_config_full_11.py
 '''
 
 import os
+import math
+import sys
 import warnings
+import pyomo.environ as pyo
 
 from model_config import PollingModelConfig
 
@@ -48,8 +51,19 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     alpha_df = clean_data(config, True)
     alpha  = alpha_min(alpha_df)
 
+    # 1. compute optimal solution without excluding penalized sites (model 1)
+    # 2. if there are no penalized sites in the optimal solution,
+    #    continue to result_df with solution to model 1 (this includes the case
+    #    that there are no penalized sites)
+    # 3. convert objective value to KP score (kp1)
+    # 4. compute optimal solution excluding penalized sites (model 2)
+    # 5. convert objective value to KP score (kp2)
+    # 6. compute penalty as (kp2-kp1)/len(selected penalized sites in model 1)
+    # 7. compute optimal soltuion including penalized sites, but with given penalty (model 3)
+    # 8. continue to result_df with solution to model 3
+
     #build model
-    ea_model = polling_model_factory(dist_df, alpha, config)
+    ea_model = polling_model_factory(dist_df, alpha, config, exclude_penalized_sites=False)
     if log:
         print(f'model built for {run_prefix}.')
 
@@ -61,6 +75,60 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     #incorporate result into main dataframe
     result_df = incorporate_result(dist_df, ea_model)
 
+    selected_sites = set(result_df.id_dest)
+    penalized_selections = {x for x in selected_sites if x in config.penalized_sites}
+
+    penalized_string = "\n  ".join(sorted(penalized_selections))
+    print(f'Unpenalized model selected {len(penalized_selections)} penalized sites:\n  {penalized_string}')
+
+    if penalized_selections: # penalized sites were selected, move to step 3
+        obj_value = pyo.value(ea_model.obj)
+        kp1 = -1/(config.beta*alpha)*math.log(obj_value) if config.beta else obj_value
+            
+
+        # solve model with penalized sites excluded
+        ea_model_exclusions = polling_model_factory(dist_df, alpha, config, exclude_penalized_sites=True)
+        if log:
+            print(f'model with exclusions built for {run_prefix}.')
+
+        #solve model
+        solve_model(ea_model_exclusions, config.time_limit, log=log, log_file_path=config.log_file_path)
+        if log:
+            print(f'model with exclusions solved for {run_prefix}.')
+        
+        obj_value = pyo.value(ea_model_exclusions.obj)
+        kp2 = -1/(config.beta*alpha)*math.log(obj_value) if config.beta else obj_value
+
+        penalty = (kp2-kp1)/len(penalized_selections)
+
+        print(f'{kp1 = :.2f}, {kp2 = :.2f}')
+        print(f'computed penalty is {penalty:.2f}')
+
+        ea_model_penalized =  polling_model_factory(dist_df, alpha, config,
+                                                    exclude_penalized_sites=False,
+                                                    site_penalty=penalty,
+                                                    kp_penalty_parameter=kp1)
+        if log:
+            print(f'penalized model built for {run_prefix}.')
+
+        #solve model
+        solve_model(ea_model_penalized, config.time_limit, log=log, log_file_path=config.log_file_path)
+        if log:
+            print(f'penalized model solved for {run_prefix}.')
+
+        #incorporate result into main dataframe
+        result_df = incorporate_result(dist_df, ea_model_penalized)
+        
+        selected_sites = set(result_df.id_dest)
+        penalized_selections = {x for x in selected_sites if x in config.penalized_sites}
+
+        if penalized_selections:
+            penalized_string = "\n  ".join(sorted(penalized_selections))
+            print(f'Penalized model selected {len(penalized_selections)} penalized sites:\n  {penalized_string}')
+        else:
+            print('Penalized model selected no penalized sites.')
+
+        
     #calculate the new alpha given this assignment
     alpha_new = alpha_min(result_df)
 
