@@ -248,6 +248,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool):
         raise ValueError(f'Do not currently have any data for {file_path} from {config.config_file_path}')
 
     df = pd.read_csv(file_path, index_col=0)
+
     #change column names
     #if location in {'Salem', 'Test'}:
     #    df = change_demo_names(df)

@@ -59,22 +59,36 @@ def build_objective_rule(
         #residence_precinct_pairs: list,
         #dist_df: pd.DataFrame,
         total_pop: int,
+        alpha: float,
+        *,
+        site_penalty: float=0,
+        kp_penalty_parameter: float=0, 
     ):
     '''The function to be minimized:
     Variables: model.matching, indexed by reisidence precinct pairs'''
-    def obj_rule_0(model):
-        #take average populated weighted distance
-        average_weighted_distances = sum(model.matching[pair]* model.weighted_dist[pair] for pair in model.pairs)/total_pop
-        return (average_weighted_distances)
-    def obj_rule_not_0(model):
-        #take average by kp factor weight
-        #pair[0] = residence
-        average_weighted_distances = sum(model.population[pair[0]]* model.matching[pair]* model.KP_factor[pair] for pair in model.pairs)/total_pop
-        return (average_weighted_distances)
-    if config.beta == 0:
-        return obj_rule_0
-    if config.beta != 0:
-        return obj_rule_not_0
+    if site_penalty:
+        def obj_rule_0(model):
+            average_weighted_distances = (sum(model.matching[pair]* model.weighted_dist[pair] for pair in model.pairs)/total_pop
+                                          + sum(model.open[site]*site_penalty for site in model.penalized_sites))
+            return (average_weighted_distances)
+
+        def obj_rule_not_0(model):
+            average_weighted_distances = ((sum(model.population[pair[0]]* model.matching[pair]* model.KP_factor[pair]
+                                              for pair in model.pairs)/total_pop)
+                                          + math.exp(-config.beta*alpha*kp_penalty_parameter)*(model.penalty_exp-1))
+            return (average_weighted_distances)
+    else:
+        def obj_rule_0(model):
+            #take average populated weighted distance
+            average_weighted_distances = sum(model.matching[pair]* model.weighted_dist[pair] for pair in model.pairs)/total_pop
+            return (average_weighted_distances)
+        def obj_rule_not_0(model):
+            #take average by kp factor weight
+            #pair[0] = residence
+            average_weighted_distances = sum(model.population[pair[0]]* model.matching[pair]* model.KP_factor[pair] for pair in model.pairs)/total_pop
+            return (average_weighted_distances)
+
+    return obj_rule_not_0 if config.beta else obj_rule_0
 
 #@timer
 def build_open_rule(
@@ -142,6 +156,27 @@ def build_precinct_open_rule():
         return(model.matching[res,prec]<= model.open[prec])
     return precinct_open_rule
 
+def build_exclude_sites_rule():
+    '''exclude these sites from being selected'''
+    def exclude_sites_rule(
+        model: pyo.ConcreteModel,
+        precinct
+    ) -> bool:
+        return (model.open[precinct] == 0)
+    return exclude_sites_rule
+
+def build_penalty_rule(alpha: float, beta: float, site_penalty: float):
+    '''set the penalty factor'''
+    def penalty_rule(model: pyo.ConcreteModel) -> bool:
+        return (model.penalty == -alpha * beta * sum(model.open[s]*site_penalty for s in model.penalized_sites))
+    return penalty_rule
+
+def build_penalty_approximation_rule():
+    '''set the penalty factor'''
+    def penalty_approximation_rule(model: pyo.ConcreteModel, linearization_point: float) -> bool:
+        return (model.penalty_exp >= math.exp(linearization_point)*(1+model.penalty-linearization_point))
+    return penalty_approximation_rule
+
 #@timer
 def build_capacity_rule(
         config: PollingModelConfig,
@@ -164,10 +199,17 @@ def compute_kp_factor(config: PollingModelConfig, alpha: float, dist_df):
     return math.e**(-config.beta * alpha * dist_df['distance_m'])
 
 @timer
-def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> PollingModel:
+def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
+                          exclude_penalized_sites: bool=False,
+                          site_penalty: float=0,
+                          kp_penalty_parameter: float=0) -> PollingModel:
     '''
-        Returns the polling locatoin pyomo model.
+        Returns the polling location pyomo model.
     '''
+
+    if site_penalty and not kp_penalty_parameter:
+        raise ValueError(f'kp_penalty_parameter must be positive if site_penalty is positive ({site_penalty=}')
+        
     #define max_min parameter needed for certain calculations
     global_max_min_dist = get_max_min_dist(dist_df)
     max_min = config.max_min_mult* global_max_min_dist
@@ -194,7 +236,9 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     model.residences = pyo.Set(initialize = list(set(dist_df['id_orig'])))
     #residence, precint pairs
     model.pairs = model.residences * model.precincts
-
+    #penalized sites
+    model.penalized_sites = pyo.Set(initialize=config.penalized_sites)
+    
     ####define model parameters####
     #Populations of residences
     model.population = pyo.Param(model.residences, initialize =dist_df.groupby('id_orig')['population'].agg('mean'))
@@ -221,6 +265,10 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     model.matching = pyo.Var(model.pairs, domain=pyo.Binary )
     model.open = pyo.Var(model.precincts, domain=pyo.Binary )
 
+    if site_penalty:
+        model.penalty_exp = pyo.Var(domain=pyo.NonNegativeReals)
+        model.penalty = pyo.Var(domain=pyo.NonNegativeReals)
+    
     ####define parameter dependent indices####
     #residences in precint radius
     model.within_residence_radius = pyo.Set(model.residences, initialize = {res:[prec for prec in model.precincts if model.distance[(res,prec)] <= max_min] for res in model.residences})
@@ -228,16 +276,29 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     model.within_precinct_radius = pyo.Set(model.precincts, initialize = {prec:[res for res in model.residences if model.distance[(res,prec)] <= max_min] for prec in model.precincts})
 
     # Set the objective function
-    obj_rule = build_objective_rule(config,                 total_pop)
+    obj_rule = build_objective_rule(config, total_pop, alpha, site_penalty=site_penalty, kp_penalty_parameter=kp_penalty_parameter)
     model.obj = pyo.Objective(rule=obj_rule, sense=pyo.minimize)
 
     #### Define Constraints
     open_rule = build_open_rule(precincts_open)
     model.open_constraint = pyo.Constraint(rule=open_rule)
 
+    if site_penalty:
+        penalty_rule = build_penalty_rule(alpha, config.beta, site_penalty)
+        model.penalty_constraint = pyo.Constraint(rule=penalty_rule)
+
+        linearization_points = [-alpha*config.beta*i*site_penalty for i in range(len(config.penalized_sites)+1)]
+        penalty_approximation_rule = build_penalty_approximation_rule()
+        model.penalty_approximation_constraint = pyo.Constraint(linearization_points, rule=penalty_approximation_rule)
+        
     #percent of new precincts not to exceed maxpctnew
     max_new_rule = build_max_new_rule(config, precincts_open)
     model.max_new_constraint = pyo.Constraint(rule=max_new_rule)
+
+    #optionally exclude penalized sites
+    if exclude_penalized_sites:
+        exclude_sites_rule = build_exclude_sites_rule()
+        model.exclude_sites_constraint = pyo.Constraint(model.penalized_sites, rule=exclude_sites_rule)
 
     #percent of established precincts not to dip below minpctold
     min_old_rule = build_min_old_rule(config, old_polls)
