@@ -1,13 +1,23 @@
-source('../../result analysis/demographic_edes.R')
+#######
+#Change directory
+#######
+setwd(here())
+
+#######
+#source functions
+#######
+
+source('result analysis/graph_functions.R')
+
 
 #######
 #Set Constants
 #######
 #Location must be part of config folder string
 
-location = 'DeKalb_GA'
-config_folder = 'DeKalb_GA_no_bg_school_configs'
-FFA_poll_number  = 20 #the optimal number of polls that FFA is suggesting for this county
+location = 'Gwinnett_GA'
+config_folder = 'Gwinnett_GA_no_bg_eday_configs'
+FFA_poll_number  = 22 #the optimal number of polls that FFA is suggesting for this county
 
 #######
 #Location of original location results
