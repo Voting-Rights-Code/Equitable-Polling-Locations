@@ -14,9 +14,8 @@ source('result analysis/graph_functions.R')
 #######
 #Location must be part of config folder string
 
-location = 'Gwinnett_GA'
-config_folder = 'Gwinnett_GA_no_bg_school_fire_configs'
-
+location = 'DeKalb_GA'
+config_folder = 'DeKalb_GA_original_configs'
 
 #######
 #Check that location and folders valid
