@@ -179,10 +179,10 @@ plot_boxplots <- function(residence_df){
 	ggsave('avg_dist_distribution_boxplots.png')
 	}
 
-plot_orig_ideal_hist <- function(orig_residence_df, residence_df, ideal_num){
+plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_num){
 	#make histogram of the average distances traveled and the y_edes in the original and ideal situations 
 	orig_residence_df <- orig_residence_df[demographic == 'population', ]
-	ideal_residence_df <- residence_df[demographic == 'population', ][num_polls == ideal_num, ]
+	ideal_residence_df <- config_residence_df[demographic == 'population', ][num_polls == ideal_num, ]
 	res_pop_orig_and_ideal <- rbind( ideal_residence_df, orig_residence_df)
 	location_ <- paste0(location, '_')
 	config_label <- sub(location_, '', config_folder)
@@ -190,13 +190,15 @@ plot_orig_ideal_hist <- function(orig_residence_df, residence_df, ideal_num){
 
 	#avg_distance
 	ggplot(res_pop_orig_and_ideal, aes(x = avg_dist, fill = descriptor)) + 
-		geom_histogram(position = "dodge", alpha = 0.8)+
-		labs(x = 'Average distance traveled to poll (m)', y = 'Number of census blocks') +
+		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
+		labs(x = 'Average distance traveled to poll (m)', y = 'Number of people') +
 		scale_fill_manual(values=c("red", "blue", "green"), name = "Optimization run ", 
 		labels = descriptor_order)
 		ggsave('avg_dist_distribution_hist.png')
 
 }
+
+
 
 
 compare_configs<- function(config_ede, config_folder2){
