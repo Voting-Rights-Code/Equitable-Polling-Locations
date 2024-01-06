@@ -31,6 +31,7 @@ county_config_ = paste0(county, '_', 'config', '_')
 
 #######
 #Check that location and folders valid
+#this also ensures that you are in the right folder to read data
 #######
 
 check_location_valid(location, config_folder)
