@@ -15,7 +15,7 @@ source('result analysis/graph_functions.R')
 #Location must be part of config folder string
 
 location = 'DeKalb_GA'
-config_folder = 'DeKalb_GA_original_configs'
+config_folder = 'DeKalb_GA_no_bg_school_configs'
 
 #######
 #Check that location and folders valid
@@ -62,6 +62,8 @@ bg_demo_flat <- st_transform(bg_demo_sf, 4326) #must use this projection if you 
 #make it into a cartogram
 bg_demo_merc <- st_transform(bg_demo_sf, 3857)
 cartogram <- cartogram_cont(bg_demo_merc, "Population", itermax = 50, maxSizeError = 1.02)
+
+aa_cartogram <- cartogram_cont(bg_demo_merc, "Black", itermax = 50, maxSizeError = 1.02)
 
 #########
 #Make maps and cartograms

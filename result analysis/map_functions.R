@@ -30,14 +30,14 @@ process_demographics <-function(folder_name){
    
     #clean up data
     #select "Geography" "Geographic Area Name" and demographic columns
-    P3_demo<-P3_demo[,c(1:3, 7, 9, 11, 13, 15, 17, 19)]
-    P4_demo<-P4_demo[,c(1:3, 5, 7)]
+    P3_demo<-P3_demo[,c(1:3,5:11 )]
+    P4_demo<-P4_demo[,c(1:2, 4:5)]
     #Change Population column name
     setnames(P3_demo, names(P3_demo)[3:10], c("Population", "White", "Black", "Native", "Asian", "PacificIslander", "Other", "Multiple"))
-    setnames(P4_demo, names(P4_demo)[3:5], c("Population", "Hispanic", "NonHispanic")
+    setnames(P4_demo, names(P4_demo)[3:4], c("Hispanic", "NonHispanic")
     )
     #merge to get all demographics
-    demo = merge(P3_demo, P4_demo, by = c('Geography', 'Geographic Area Name', 'Population'), all = TRUE)
+    demo = merge(P3_demo, P4_demo, by = c('Geography', 'Geographic Area Name'), all = TRUE)
     #Change geography tag to match mapping data
     demo = demo[, Geography := sub(".*US", '', Geography)]
 }
