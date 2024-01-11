@@ -55,9 +55,11 @@ orig_df_list <- read_result_data(original_locations)
 #Check result validity
 #######
 
-#This will return an error (and index) in case of inconsistency
-check_run_validity(config_df_list[[4]], orig_df_list[[4]])
+#This will return and descriptor case of inconsistency
+bad_runs <- check_run_validity(config_df_list[[4]], orig_df_list[[4]])
 
+#remove any bad runs from the data
+config_df_list <- lapply(config_df_list, function(x){x[!(descriptor %in% bad_runs), ]})
 
 #######
 #Plot data
