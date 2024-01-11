@@ -90,18 +90,20 @@ check_run_validity <- function(config, orig){
 	#Input: A pair of result_dfs (each corresponding to a config folder) that should have the same number of matched residences
 	#Check that they do both within and across data frames
 	#Else return an error
+	combined_df <- rbind(config, orig)
+	unique_num_residences <- length(unique(combined_df$num_residences))
+
+	max_num_residences = max(combined_df$num_residences)
+	bad_runs <- combined_df[ , .(num_polls = mean(num_polls)), by = c('descriptor', 'num_residences')][num_residences < max_num_residences, ]
 	
-	unique_num_residences <- c(length(unique(config$num_residences)), length(unique(orig$num_residences)))
-	if (any(unique_num_residences) != 1){
-		cat('The following indices corresond to bad runs with different numbers of residences', which(unique_num_residences != 1))
-		stop('Not all runs in the config folder match the same number of residences')
-	} else {#else all(unique_num_residences) == 1
-		num_residences <- c(unique(config$num_residences), unique(orig$num_residences))
-		if (length(unique(num_residences)) != 1) {
-			cat('The number of residences matched in each config is', num_residences)
-			stop('Not all the config folders under consideration match the same number of residences')
-		}
+	#flag if an "original" run has too few residences
+	if (any(grepl('original', bad_runs$descriptor))){
+		stop('One of the original runs does not match enough residences. Rerun')
+	} else if (nrow(bad_runs)>0){#if there is a bad run, remove it
+		cat('The following runs do not have enough residences: ', bad_runs$descriptor)
+		warning('Removing the data from these runs')
 	}
+	return(bad_runs$descriptor)
 }
 
 #######
