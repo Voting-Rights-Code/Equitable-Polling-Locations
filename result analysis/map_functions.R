@@ -154,7 +154,7 @@ make_bg_maps <-function(file_to_map, map_type, demo_str = 'population'){
 		#in this case, also put in the precincts
 		ev_df_name <-sub('residence_distances', 'result', file_to_map)
 		result_df <- fread(paste0(here(), '/',result_folder, '/', ev_df_name))
-		ev_locs <- result_df[ , .(long = unique(dest_lon), lat = unique(dest_lat)), by = id_dest]
+		ev_locs <- result_df[ , .(long = unique(dest_lon), lat = unique(dest_lat), type = unique(dest_type)), by = id_dest]
 	} else {
 		stop('map_type must be either map or cartogram')
 	}
@@ -170,7 +170,8 @@ make_bg_maps <-function(file_to_map, map_type, demo_str = 'population'){
 		scale_fill_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]])) 
 	if (map_type == 'map'){
 		plotted = plotted + 
-		geom_point(data = ev_locs, aes(x = long, y = lat))}
+		geom_point(data = ev_locs, aes(x = long, y = lat, color = type))+ 
+		scale_color_manual(breaks = c('polling', 'potential', 'bg_centroid'), values = c('red', 'black', 'dimgrey'))}
 	#write to file
 	descriptor = gsub(".*config_(.*)_res.*", "\\1", file_to_map)
 	num_polls <- str_extract(descriptor, '[0,-9]+')

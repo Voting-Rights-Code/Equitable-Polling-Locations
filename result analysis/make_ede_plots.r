@@ -16,7 +16,7 @@ source('result analysis/graph_functions.R')
 #Location must be part of config folder string
 
 location = 'DeKalb_GA'
-config_folder = 'DeKalb_GA_no_school_configs'
+config_folder = 'DeKalb_GA_bg_penalized_no_school_configs'
 FFA_poll_number  = 20 #the optimal number of polls that FFA is suggesting for this county
 
 #######
