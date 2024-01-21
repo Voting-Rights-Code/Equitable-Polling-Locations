@@ -17,6 +17,8 @@
     1. Build a user interface for this model, maybe a jupyter notebook is sufficient?
     1. Would help with salesmanship, getting others to adopt the technology
 
+* Figure out why some of the runs with census block group centroids are not matching all the census blocks
+
 * Integrating TargetSmart/ Catalyist geolocation of voter addresses to the main data base 
     1. Goal: to replace census derived voting age population with actual registered voters in the census block
     1. Unclear if census has just citizenship data and whether or not that would be useful
@@ -34,6 +36,7 @@
 * Location preference
     1.  A a penalty to certain locations (Daphne Skipper)
     1. Allow the user to choose not to use certain locations (Susama Agarwala) 
+    1. These need to be merged
 
 * Preliminary analysis on distance from poll and turn out (Daniel Berger)
     1. Initial results not promising.
