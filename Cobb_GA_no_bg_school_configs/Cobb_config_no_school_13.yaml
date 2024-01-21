@@ -11,7 +11,7 @@ time_limit: 360000 #100 hours minutes
 capacity: 5
 
 ####Optional#####
-precincts_open: 15
+precincts_open: 13
 max_min_mult: 5 #scalar >= 1
 maxpctnew: 1 # in interval [0,1]
 minpctold: .8 # in interval [0,1]
