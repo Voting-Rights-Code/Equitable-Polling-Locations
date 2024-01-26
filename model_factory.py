@@ -11,7 +11,6 @@ Factory function to build the pyomo population model
 
 import math
 import warnings
-import warnings
 
 import pyomo.environ as pyo
 
@@ -160,9 +159,6 @@ def build_capacity_rule(
     ) -> bool:
         return (sum(model.population[res]*model.matching[res,precinct] for res in model.within_precinct_radius[precinct])<=(capacity*total_pop/precincts_open))
     return capacity_rule
-
-def compute_kp_factor(config: PollingModelConfig, alpha: float, dist_df):
-    return math.e**(-config.beta * alpha * dist_df['distance_m'])
 
 def compute_kp_factor(config: PollingModelConfig, alpha: float, dist_df):
     return math.e**(-config.beta * alpha * dist_df['distance_m'])
