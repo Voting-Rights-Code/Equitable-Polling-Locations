@@ -184,6 +184,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     ####define constants####
     #total population
     total_pop = dist_df.groupby('id_orig')['population'].agg('unique').str[0].sum()
+    
     ####set model to be concrete####
     model = pyo.ConcreteModel()
 
@@ -203,13 +204,13 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     model.distance = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'distance_m']].set_index(['id_orig', 'id_dest']))
     #population weighted distances
     model.weighted_dist = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'Weighted_dist']].set_index(['id_orig', 'id_dest']))
-
-    #KP factor
+    
+    #KP factor 
     dist_df['KP_factor'] = compute_kp_factor(config, alpha, dist_df)
-    # math.e**(-config.beta*alpha*dist_df['distance_m'])
     max_KP_factor = dist_df.groupby('id_orig')['KP_factor'].agg('max').max()
     if max_KP_factor > 9e19:
         warnings.warn(f'Max KP_factor is {max_KP_factor}. SCIP can only handle values up to {1e20}. Consider a less negative value of beta.')
+        breakpoint()
     model.KP_factor = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'KP_factor']].set_index(['id_orig', 'id_dest']))
     #new location marker
     dist_df['new_location'] = 0
@@ -251,12 +252,13 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     precinct_open_rule = build_precinct_open_rule()
     model.precinct_open_constraint = pyo.Constraint(model.pairs, rule=precinct_open_rule)
 
+    #Each polling location can serve a max population
+    # that is a multiplicative factor of total_population/ precincts_open
     capacity_rule = build_capacity_rule(
         config=config,
         total_pop=total_pop,
         precincts_open=precincts_open,
     )
-
     model.capacity_constraint = pyo.Constraint(model.precincts, rule=capacity_rule)
 
     #model.obj.pprint()

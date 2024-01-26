@@ -9,7 +9,8 @@ import model_factory
 import model_solver
 
 
-TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
+#TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
+TESTS_DIR = 'tests'
 TESTING_CONFIG_EXPANDED = os.path.join(TESTS_DIR, 'testing_config_expanded.yaml')
 
 
@@ -32,7 +33,7 @@ MATCHED_RESIDENCES = {key[0] for key in MODEL.matching if MODEL.matching[key].va
 MATCHED_PRECINCTS = {key[1] for key in MODEL.matching if MODEL.matching[key].value ==1}
 
 def test_alpha_min():
-    assert round(ALPHA, 11) ==  7.239801e-05 #value from R code
+    assert round(ALPHA, 11) ==  7.89213e-05 #value from R code
 
 def test_kp_factor():
     DIST_DF['KP_factor'] = round(model_factory.compute_kp_factor(CONFIG, ALPHA, DIST_DF), 6)

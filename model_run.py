@@ -32,8 +32,9 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     '''
 
     config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
-    run_prefix = f'{config.location}_configs.{config_file_basename}'
-
+    run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
+    run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
+    
     #check if source data avaible
     source_file_name = config.location + '.csv'
     source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
@@ -41,10 +42,13 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
         warnings.warn(f'File {source_path} not found. Creating it.')
         build_source(config.location)
 
+    #breakpoint()
+    #breakpoint()
     #get main data frame
     dist_df = clean_data(config, False)
+    dist_df = clean_data(config, False)
 
-    #get alpha
+    #get alpha 
     alpha_df = clean_data(config, True)
     alpha  = alpha_min(alpha_df)
 
@@ -54,6 +58,10 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
         print(f'model built for {run_prefix}.')
 
     #solve model
+    #ea_model.pprint(filename = 'ea_model.txt')
+    
+    #ea_model.pprint(filename = 'ea_model.txt')
+    
     solve_model(ea_model, config.time_limit, log=log, log_file_path=config.log_file_path)
     if log:
         print(f'model solved for {run_prefix}.')

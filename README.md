@@ -91,6 +91,7 @@ First activate the environment if not done so already:
                 ```python ./model_run_cli.py -vv -l logs ./Gwinnett_GA_configs/Gwinnett_config_full_*.yaml```
             * To run only the full_11 and write log files out to the logs directory:
         ```python ./model_run_cli.py -l logs ./Gwinnett_GA_configs/Gwinnett_config_full_11.yaml```
+        * NOTE: BEWARE OF CAPITALIZATION. Both ./Gwinnett_GA_configs/Gwinnett* and ./Gwinnett_Ga_configs/Gwinnett* (note capitalization) will run on Windows. However, due to string replacement work in other parts of the programs, the former is preferred.
   
 
 From Google Colab:
@@ -177,14 +178,16 @@ The columns of this data set should be named and formatted as
 
 ### **CONFIG_FOLDER/County_config_DESCRIPTOR.yaml**
 These are the config files for the various runs.
-Example path Gwinnett_GA_configs/Gwinnett_config_full_11.yaml
+
+Example path: Gwinnett_GA_configs/Gwinnett_config_full_11.yaml
+
+Recommended convention: Each config folder should only have one parameter changing. For example, DeKalb_GA_no_bg_school_config should contain only (and all) runs with block groups and schools in the bad list, changing only the number of desired polling locations
   * Mandatory arguments
     * location: County_ST. This variable is used throughout to name files
     * year: List of years one wants to consider actual polling locations for. E.g. ['2022', '2020']
-    * level: one of 'original', 'expanded', 'full'
-      * original: Use if you just want to reassign people more optimally to existing polling locations
-      * expanded: Includes a set of identified potential polling locations. Use if you want to select a more optimal set of polling locations
-      * full: Includes the census block group centroids. Use if you want a more ideal list of locations, for instance, to understand where to look for potential polling locations that have yet to be identified.
+    * bad_types: List of location types not to be considered in this model. 
+        * E.g. ['Election Day Loc - Potential', 'bg_centroid' ]
+        * Must be labels already existing in the data
     * beta: In [-2, 0]. Aversion to inequality. If 0, this computes the mean distance. The further away from 0, the greater the aversion to inequality.
     * time_limit: maximal number of minutes that the optimizer will run
     * capacity: >= 1. A multiplicative factor that indicates how much more than *population/precincts_open* a precinct is allowed to be allotted
@@ -271,3 +274,8 @@ The four files can be described as follow:
         * the coordinates of the block centroid (orig_lat and orig_lon) and the coordinates of the destination (dest_lat and dest_lon)
         * population of each of the demographic groups per census block
         * It also reports weighted distance and KP factor, which are population level variables, but these columns are never used and should be removed in a future release.
+
+# Result Analysis
+TBW
+
+* need to have block group level demographics for maps

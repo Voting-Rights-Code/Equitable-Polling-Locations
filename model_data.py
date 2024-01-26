@@ -56,9 +56,10 @@ def build_source(location):
     else:
         raise ValueError(f'Census data from table P4 not found. Follow download instruction from README.')
     #3. Census geographic data
-    file_name_block = 'tl_2020_13135_tabblock20.shp'
-    file_name_bg = 'tl_2020_13135_bg20.shp'
-    geography_dir = os.path.join(DATASETS_DIR, 'census', 'tiger', location)
+    geography_dir = os.path.join('datasets', 'census', 'tiger', location)
+    file_list = os.listdir(geography_dir)
+    file_name_block = [f for f in file_list if f.endswith('tabblock20.shp')][0]
+    file_name_bg = [f for f in file_list if f.endswith('bg20.shp')][0]
     BLOCK_SOURCE_FILE  = os.path.join(geography_dir, file_name_block)
     BLOCK_GROUP_SOURCE_FILE  = os.path.join(geography_dir, file_name_bg)
     if os.path.exists(BLOCK_SOURCE_FILE):
@@ -233,12 +234,8 @@ def build_source(location):
 
 def clean_data(config: PollingModelConfig, for_alpha: bool):
     location = config.location
-    if for_alpha: 
-        level = 'original'
-    else:
-        level = config.level
     year_list = config.year
-
+    
     #read in data
     data_dir = os.path.join(DATASETS_DIR, 'polling', location)
     file_name = location + '.csv'
@@ -248,31 +245,38 @@ def clean_data(config: PollingModelConfig, for_alpha: bool):
         raise ValueError(f'Do not currently have any data for {file_path} from {config.config_file_path}')
 
     df = pd.read_csv(file_path, index_col=0)
-    #change column names
-    #if location in {'Salem', 'Test'}:
-    #    df = change_demo_names(df)
-    #check year validity
+
+    #pull out unique location types is this data
+    unique_location_types = df['location_type'].unique()
+    
+    if for_alpha: 
+        bad_location_list = [location_type for location_type in unique_location_types if 'Potential' in location_type or 'centroid' in location_type]
+    else:
+        bad_location_list = config.bad_types
+
     polling_location_types = set(df[df.dest_type == 'polling']['location_type'])
     for year in year_list:
         if not any(str(year) in poll for poll in polling_location_types):
-            raise ValueError(f'Do not currently have any data for {location} {level} for {year} from {config.config_file_path}')
+            raise ValueError(f'Do not currently have any data for {location} for {year} from {config.config_file_path}')
+            raise ValueError(f'Do not currently have any data for {location} for {year} from {config.config_file_path}')
     #drop duplicates and empty block groups
     df = df.drop_duplicates() #put in to avoid duplications down the line.
     df = df[df['population']>0]
 
-    #select data based on level
-    if level not in ['original', 'expanded','full']:
-        raise ValueError('level must be in {original, expanded,full}')
-    #Note, only values of dest_type is 'polling', 'potential' and 'bg_centroid'
-    unique_dest_types = df['dest_type'].unique()
-    if len(set(unique_dest_types) - set(['potential', 'polling', 'bg_centroid'])) != 0:
-        raise ValueError(f'unrecognized destination types {set(unique_dest_types)} from {config.config_file_path}' )
-    if level=='original':
-        df = df[df['dest_type']=='polling']         # keep only polling locations
-    elif level=='expanded':
-        df = df[df['dest_type']!='bg_centroid']     # keep schools and polling locations
-    else: #level == full
-        df = df
+    #exclude bad location types
+    
+    # The bad types must be valid location types
+    if not set(bad_location_list).issubset(set(unique_location_types)):
+        raise ValueError(f'unrecognized bad location types types {set(bad_location_list).difference(set(unique_location_types))} in {config.config_file_path}' )
+    #drop rows of bad location types in df
+    df = df[~df['location_type'].isin(bad_location_list)]
+    #exclude bad location types
+    
+    # The bad types must be valid location types
+    if not set(bad_location_list).issubset(set(unique_location_types)):
+        raise ValueError(f'unrecognized bad location types types {set(bad_location_list).difference(set(unique_location_types))} in {config.config_file_path}' )
+    #drop rows of bad location types in df
+    df = df[~df['location_type'].isin(bad_location_list)]
 
     #select data based on year
     #select the polling locations only for the indicated years
