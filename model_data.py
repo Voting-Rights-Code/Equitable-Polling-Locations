@@ -56,7 +56,7 @@ def build_source(location):
     else:
         raise ValueError(f'Census data from table P4 not found. Follow download instruction from README.')
     #3. Census geographic data
-    geography_dir = os.path.join('datasets', 'census', 'tiger', location)
+    geography_dir = os.path.join(DATASETS_DIR, 'census', 'tiger', location)
     file_list = os.listdir(geography_dir)
     file_name_block = [f for f in file_list if f.endswith('tabblock20.shp')][0]
     file_name_bg = [f for f in file_list if f.endswith('bg20.shp')][0]
