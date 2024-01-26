@@ -73,7 +73,7 @@ def build_objective_rule(
         return (average_weighted_distances)
     if config.beta == 0:
         return obj_rule_0
-    if config.beta != 0: 
+    if config.beta != 0:
         return obj_rule_not_0
 
 #@timer
@@ -171,7 +171,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     #define max_min parameter needed for certain calculations
     global_max_min_dist = get_max_min_dist(dist_df)
     max_min = config.max_min_mult* global_max_min_dist
-    
+
     #Calculate number of old polling locations
     old_polls = len(set(dist_df[dist_df['dest_type']=='polling']['id_dest']))
 
@@ -194,8 +194,8 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     #all possible residence locations with population > 0 (unique)
     model.residences = pyo.Set(initialize = list(set(dist_df['id_orig'])))
     #residence, precint pairs
-    model.pairs = model.residences * model.precincts 
-    
+    model.pairs = model.residences * model.precincts
+
     ####define model parameters####
     #Populations of residences
     model.population = pyo.Param(model.residences, initialize =dist_df.groupby('id_orig')['population'].agg('mean'))
@@ -218,7 +218,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
 
     model.new_locations = pyo.Param(model.precincts, initialize = dist_df[['id_dest', 'new_location']].drop_duplicates().set_index(['id_dest']))
 
-    ####define model variables####  
+    ####define model variables####
     model.matching = pyo.Var(model.pairs, domain=pyo.Binary )
     model.open = pyo.Var(model.precincts, domain=pyo.Binary )
 

@@ -23,6 +23,9 @@ from model_results import (
     write_results,
 )
 
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
+
 def run_on_config(config: PollingModelConfig, log: bool=False):
     '''
     The entry point to exectue a pyomo/scip run.
@@ -33,7 +36,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     
     #check if source data avaible
     source_file_name = config.location + '.csv'
-    source_path = os.path.join('datasets', 'polling', config.location, source_file_name)
+    source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
     if not os.path.exists(source_path):
         warnings.warn(f'File {source_path} not found. Creating it.')
         build_source(config.location)

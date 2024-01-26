@@ -6,7 +6,7 @@ library(stringr)
 #Change directory
 #######
 setwd('~')
-setwd('../../Equitable-Polling-Locations')
+setwd('../../Voting Rights Code/Equitable-Polling-Locations')
 
 ######
 #Read in results
@@ -91,7 +91,7 @@ ggsave('at_most_11.png')
 
 
 good_runs_pops <- ede_df[num_polls != 50, 
-			][!(descriptor %in% c('full_27', 'full_29')), 
+			][!(descriptor %in% c('full_27', 'full_30')),
 			][demographic == 'population', ] 
 
 ggplot(good_runs_pops[level %in% c('expanded', 'full'), ], aes(x =  num_polls, y = y_EDE, group = level, 
@@ -114,7 +114,7 @@ ggplot(precinct_df[demographic != 'population',
 		labs(x = 'Number of polls', y = 'EV location') + facet_wrap(~ demographic) +
 		theme(legend.position = c(0.9, 0.2))
 
-ggsave('expanded_precinct_persistence.png')
+ggsave('expanded_precinct_persistence_all.png')
 
 res_pop <- residence_df[demographic == 'population',
 		][num_polls != 50, 
@@ -133,7 +133,7 @@ ggplot(res_pop_orig_and_22, aes(x = avg_dist, fill = descriptor)) +
 	geom_histogram(position = "dodge", alpha = 0.8)+
 	labs(x = 'Average distance traveled to poll (m)', y = 'Number of census blocks') +
 	scale_fill_manual(values=c("red", "blue", "green"), name = "Optimization run ", 
-		labels = c("22 Locations", "2020 locations", "2022 locations")) +
+		labels = c("22 Locations", "2020 locations", "2022 locations"))
 	
 ggsave('avg_dist_distribution_hist.png')
 

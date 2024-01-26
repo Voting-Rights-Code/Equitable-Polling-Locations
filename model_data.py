@@ -8,9 +8,13 @@
 import pandas as pd
 import math
 import os
+from pathlib import Path
 from haversine import haversine
 import geopandas as gpd
 from model_config import PollingModelConfig
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
 
 ##########################
@@ -24,7 +28,7 @@ def build_source(location):
     ######
     #1. Potential polling locations
     file_name = location + '_locations_only.csv'
-    LOCATION_SOURCE_FILE = os.path.join('datasets', 'polling', location, file_name)
+    LOCATION_SOURCE_FILE = os.path.join(DATASETS_DIR, 'polling', location, file_name)
     if os.path.exists(LOCATION_SOURCE_FILE):
         #warnings.warn(f'{file_name} found. Last modified {os.path.getmtime(LOCATION_SOURCE_FILE)}.')
         locations = pd.read_csv(LOCATION_SOURCE_FILE)
@@ -34,7 +38,7 @@ def build_source(location):
     #2. Census demographic data
     file_nameP3 = 'DECENNIALPL2020.P3-Data.csv'
     file_nameP4 = 'DECENNIALPL2020.P4-Data.csv'
-    demographics_dir = os.path.join('datasets', 'census', 'redistricting', location)
+    demographics_dir = os.path.join(DATASETS_DIR, 'census', 'redistricting', location)
     P3_SOURCE_FILE  = os.path.join(demographics_dir, file_nameP3)
     P4_SOURCE_FILE  = os.path.join(demographics_dir, file_nameP4)
     if os.path.exists(P3_SOURCE_FILE):
@@ -52,7 +56,7 @@ def build_source(location):
     else:
         raise ValueError(f'Census data from table P4 not found. Follow download instruction from README.')
     #3. Census geographic data
-    geography_dir = os.path.join('datasets', 'census', 'tiger', location)
+    geography_dir = os.path.join(DATASETS_DIR, 'census', 'tiger', location)
     file_list = os.listdir(geography_dir)
     file_name_block = [f for f in file_list if f.endswith('tabblock20.shp')][0]
     file_name_bg = [f for f in file_list if f.endswith('bg20.shp')][0]
@@ -217,12 +221,15 @@ def build_source(location):
 
     full_df = full_df[FULL_DF_COLS]
     output_file_name = location + '.csv'
-    output_path = os.path.join('datasets', 'polling', location, output_file_name)
+    output_path = os.path.join(DATASETS_DIR, 'polling', location, output_file_name)
     full_df.to_csv(output_path, index = True)
     return
 
 #########
 #Read the intermediate data frame from file, and pull the relevant rows
+#Note this this function is called twice, once for calculating alpha and once for
+#the base data set. 
+#The call for alpha should only take the original polling locations.#########
 #########
 
 def clean_data(config: PollingModelConfig, for_alpha: bool):
@@ -230,11 +237,13 @@ def clean_data(config: PollingModelConfig, for_alpha: bool):
     year_list = config.year
     
     #read in data
-    data_dir = os.path.join('datasets', 'polling', location)
+    data_dir = os.path.join(DATASETS_DIR, 'polling', location)
     file_name = location + '.csv'
-    file_path = os.path.join(data_dir, file_name)
+    file_path = os.path.join(CURRENT_DIR, data_dir, file_name)
+
     if not os.path.isfile(file_path):
-        raise ValueError(f'Do not currently have any data for {location} from {config.config_file_path}')
+        raise ValueError(f'Do not currently have any data for {file_path} from {config.config_file_path}')
+
     df = pd.read_csv(file_path, index_col=0)
 
     #pull out unique location types is this data
