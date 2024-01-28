@@ -1,17 +1,19 @@
 # List of features to implement
 
 * Code base upkeep 
-    1. Get gitlab working correctly with appropriate protections
-        1. Currently no able to push to main
-    1. Tagging / versioning is getting pretty urgent
     1. Do we want an asana board/ some other github compatible format for this list?
 
 * Organizational upkeep
-    1. Public announcement / Medium post / Linked In something?
+    1. Medium post / Publicity strategy
     1. LLC
     1. Volunteer recruitiment
-    1. Reaching out to other orgs
+    1. List of forums to publicize to / org to reach out to
     1. Where do we want this to go after spring (when counties will have made their decisions about polling locations)
+
+* Do we need a website?
+    1. Investigate costing
+    1. Design and make spiffy
+    1. Probably too early to worry about SEO, but keep in the back of one's head.
 
 * GUI
     1. Build a user interface for this model, maybe a jupyter notebook is sufficient?
@@ -33,6 +35,11 @@
     1. I (we) would love to extend this work to other organizations. (NAACP TMI and CLC come to mind, and also reach out the UCSC folk to see if there is room for collaboration). This requires that we have more bandwidth/ person hours on deck to be able to manage these relationships and perform the necessary work.
 
 # Features in progress
+* Organizational upkeep (Susama)
+    1. Public announcement / Linked In post
+    1. Reaching out to other orgs
+    
+
 * Location preference
     1.  A a penalty to certain locations (Daphne Skipper)
     1. Allow the user to choose not to use certain locations (Susama Agarwala) 
@@ -55,7 +62,15 @@
     1. These counties need a list of potential locations made for them that is consistent with local rules for the area.
     1. This [this drive folder](https://drive.google.com/drive/folders/1gQ2LzREbuyhiO-KhufFYiFRh47iwFJaJ?usp=drive_link) for data FFA has shared with us
 # Implemented features
-* Make repo public
+
+
+* Code base upkeep (Chad and Susama)
+    1. Get gitlab working correctly with appropriate protections
+        1. Currently no able to push to main
+    1. Tagging / versioning is getting pretty urgent
+
+
+* Make repo public (Chad and Susama)
     1. Fix readme / installation instructions
     1. Create testing infrastructure 
     1. Brainstorm about how to announce 
