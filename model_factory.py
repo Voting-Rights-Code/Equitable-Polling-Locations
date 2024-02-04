@@ -239,9 +239,6 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
     #penalized sites
     model.penalized_sites = pyo.Set(initialize=config.penalized_sites)
 
-    print('------>',len(dist_df), len(model.precincts), len(model.residences), len(model.pairs), len(model.penalized_sites))
-    print(list(set(dist_df.id_dest)))
-    return
     ####define model parameters####
     #Populations of residences
     model.population = pyo.Param(model.residences, initialize =dist_df.groupby('id_orig')['population'].agg('mean'))

@@ -14,6 +14,8 @@ maxpctnew: 1 # in interval [0,1]
 minpctold: .8 # in interval [0,1]
 bad_types:
     - 'bg_centroid'
+    - 'Elec Day School - Potential'
+    - 'Elec Day Church - Potential'
 penalized_sites:
     - 'Gwinnett County fire station - Potential 17'
     - 'Gwinnett County fire station - Potential 18'
