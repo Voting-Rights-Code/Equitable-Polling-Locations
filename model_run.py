@@ -31,12 +31,12 @@ from model_results import (
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
-def run_on_config(config: PollingModelConfig, log: bool=False, model_name: str=None):
+def run_on_config(config: PollingModelConfig, log: bool=False, model_name: str=''):
     '''
     The entry point to exectue a pyomo/scip run.
     '''
 
-    model_string = f"{model_name if model_name else ''} -> ({config.location} - {config.precincts_open})"
+    model_string = f"{model_name if model_name else config.name} -> ({config.location} - {config.precincts_open})"
 
     line_number = 1
     
@@ -90,9 +90,10 @@ def run_on_config(config: PollingModelConfig, log: bool=False, model_name: str=N
     selected_sites = set(result_df.id_dest)
     penalized_selections = {x for x in selected_sites if x in config.penalized_sites}
 
-    line_number = my_print(f'Unpenalized model selected {len(penalized_selections)} penalized sites:', line_number)
-    for s in sorted(penalized_selections):
-        line_number = my_print(f'\t ---> {s}', line_number)
+    if log:
+        line_number = my_print(f'Unpenalized model selected {len(penalized_selections)} penalized sites:', line_number)
+        for s in sorted(penalized_selections):
+            line_number = my_print(f'\t ---> {s}', line_number)
 
     if penalized_selections: # penalized sites were selected, move to step 3
         obj_value = pyo.value(ea_model.obj)
@@ -114,8 +115,9 @@ def run_on_config(config: PollingModelConfig, log: bool=False, model_name: str=N
 
         penalty = (kp2-kp1)/len(penalized_selections)
 
-        line_number = my_print(f'{kp1 = :.2f}, {kp2 = :.2f}', line_number)
-        line_number = my_print(f'computed penalty is {penalty:.2f}', line_number)
+        if log:
+            line_number = my_print(f'{kp1 = :.2f}, {kp2 = :.2f}', line_number)
+            line_number = my_print(f'computed penalty is {penalty:.2f}', line_number)
 
         ea_model_penalized =  polling_model_factory(dist_df, alpha, config,
                                                     exclude_penalized_sites=False,
@@ -136,18 +138,20 @@ def run_on_config(config: PollingModelConfig, log: bool=False, model_name: str=N
         selected_sites = set(result_df.id_dest)
         penalized_selections = {x for x in selected_sites if x in config.penalized_sites}
 
-        if penalized_selections:
-            line_number = my_print(f'Penalized model selected {len(penalized_selections)} penalized sites:', line_number)
-            for s in sorted(penalized_selections):
-                line_number = my_print(f'\t ---> {s}', line_number)
-        else:
-            line_number = my_print('Penalized model selected no penalized sites.', line_number)
+        if log:
+            if penalized_selections:
+                line_number = my_print(f'Penalized model selected {len(penalized_selections)} penalized sites:', line_number)
+                for s in sorted(penalized_selections):
+                    line_number = my_print(f'\t ---> {s}', line_number)
+            else:
+                line_number = my_print('Penalized model selected no penalized sites.', line_number)
 
 
     obj_value = pyo.value(final_model[1].obj)
     kp_pen = -1/(config.beta*alpha)*math.log(obj_value) if config.beta else obj_value
     kp = compute_kp_score(result_df, config.beta, alpha=alpha)
-    line_number = my_print(f'Final Model = {final_model[0]}, KP Pen = {kp_pen:.2f}, KP = {kp:.2f}, Penalty={kp_pen-kp:.2f}', line_number)
+    if log:
+        line_number = my_print(f'Final Model = {final_model[0]}, KP Pen = {kp_pen:.2f}, KP = {kp:.2f}, Penalty={kp_pen-kp:.2f}', line_number)
 
     #calculate the new alpha given this assignment
     alpha_new = alpha_min(result_df)
