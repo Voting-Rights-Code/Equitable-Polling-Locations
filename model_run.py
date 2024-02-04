@@ -41,8 +41,11 @@ def run_on_config(config: PollingModelConfig, log: bool=False, model_name: str='
     line_number = 1
     
     def my_print(message, line_number):
-        print(f'{model_string} Line {line_number}: {message}')
-        return line_number + 1
+        if log:
+            print(f'{model_string} Line {line_number}: {message}')
+            return line_number + 1
+        else:
+            return line_number
     
     config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
     run_prefix = f'{config.location}_configs.{config_file_basename}'
@@ -76,13 +79,11 @@ def run_on_config(config: PollingModelConfig, log: bool=False, model_name: str='
     ea_model = polling_model_factory(dist_df, alpha, config, exclude_penalized_sites=False)
     final_model = ('base model', ea_model)
 
-    if log:
-        line_number = my_print(f'model built for {run_prefix}.', line_number)
+    line_number = my_print(f'model built for {run_prefix}.', line_number)
 
     #solve model
     solve_model(ea_model, config.time_limit, log=log, log_file_path=config.log_file_path)
-    if log:
-        line_number = my_print(f'model solved for {run_prefix}.', line_number)
+    line_number = my_print(f'model solved for {run_prefix}.', line_number)
 
     #incorporate result into main dataframe
     result_df = incorporate_result(dist_df, ea_model)
@@ -90,10 +91,9 @@ def run_on_config(config: PollingModelConfig, log: bool=False, model_name: str='
     selected_sites = set(result_df.id_dest)
     penalized_selections = {x for x in selected_sites if x in config.penalized_sites}
 
-    if log:
-        line_number = my_print(f'Unpenalized model selected {len(penalized_selections)} penalized sites:', line_number)
-        for s in sorted(penalized_selections):
-            line_number = my_print(f'\t ---> {s}', line_number)
+    line_number = my_print(f'Unpenalized model selected {len(penalized_selections)} penalized sites:', line_number)
+    for s in sorted(penalized_selections):
+        line_number = my_print(f'\t ---> {s}', line_number)
 
     if penalized_selections: # penalized sites were selected, move to step 3
         obj_value = pyo.value(ea_model.obj)
@@ -102,35 +102,30 @@ def run_on_config(config: PollingModelConfig, log: bool=False, model_name: str='
 
         # solve model with penalized sites excluded
         ea_model_exclusions = polling_model_factory(dist_df, alpha, config, exclude_penalized_sites=True)
-        if log:
-            line_number = my_print(f'model with exclusions built for {run_prefix}.', line_number)
+        line_number = my_print(f'model with exclusions built for {run_prefix}.', line_number)
 
         #solve model
         solve_model(ea_model_exclusions, config.time_limit, log=log, log_file_path=config.log_file_path)
-        if log:
-            line_number = my_print(f'model with exclusions solved for {run_prefix}.', line_number)
+        line_number = my_print(f'model with exclusions solved for {run_prefix}.', line_number)
         
         obj_value = pyo.value(ea_model_exclusions.obj)
         kp2 = -1/(config.beta*alpha)*math.log(obj_value) if config.beta else obj_value
 
         penalty = (kp2-kp1)/len(penalized_selections)
 
-        if log:
-            line_number = my_print(f'{kp1 = :.2f}, {kp2 = :.2f}', line_number)
-            line_number = my_print(f'computed penalty is {penalty:.2f}', line_number)
+        line_number = my_print(f'{kp1 = :.2f}, {kp2 = :.2f}', line_number)
+        line_number = my_print(f'computed penalty is {penalty:.2f}', line_number)
 
         ea_model_penalized =  polling_model_factory(dist_df, alpha, config,
                                                     exclude_penalized_sites=False,
                                                     site_penalty=penalty,
                                                     kp_penalty_parameter=kp1)
         final_model = ('penalized', ea_model_penalized)
-        if log:
-            line_number = my_print(f'penalized model built for {run_prefix}.', line_number)
+        line_number = my_print(f'penalized model built for {run_prefix}.', line_number)
 
         #solve model
         solve_model(ea_model_penalized, config.time_limit, log=log, log_file_path=config.log_file_path)
-        if log:
-            line_number = my_print(f'penalized model solved for {run_prefix}.', line_number)
+        line_number = my_print(f'penalized model solved for {run_prefix}.', line_number)
 
         #incorporate result into main dataframe
         result_df = incorporate_result(dist_df, ea_model_penalized)
@@ -138,20 +133,18 @@ def run_on_config(config: PollingModelConfig, log: bool=False, model_name: str='
         selected_sites = set(result_df.id_dest)
         penalized_selections = {x for x in selected_sites if x in config.penalized_sites}
 
-        if log:
-            if penalized_selections:
-                line_number = my_print(f'Penalized model selected {len(penalized_selections)} penalized sites:', line_number)
-                for s in sorted(penalized_selections):
-                    line_number = my_print(f'\t ---> {s}', line_number)
-            else:
-                line_number = my_print('Penalized model selected no penalized sites.', line_number)
+        if penalized_selections:
+            line_number = my_print(f'Penalized model selected {len(penalized_selections)} penalized sites:', line_number)
+            for s in sorted(penalized_selections):
+                line_number = my_print(f'\t ---> {s}', line_number)
+        else:
+            line_number = my_print('Penalized model selected no penalized sites.', line_number)
 
 
     obj_value = pyo.value(final_model[1].obj)
     kp_pen = -1/(config.beta*alpha)*math.log(obj_value) if config.beta else obj_value
     kp = compute_kp_score(result_df, config.beta, alpha=alpha)
-    if log:
-        line_number = my_print(f'Final Model = {final_model[0]}, KP Pen = {kp_pen:.2f}, KP = {kp:.2f}, Penalty={kp_pen-kp:.2f}', line_number)
+    line_number = my_print(f'Final Model = {final_model[0]}, KP Pen = {kp_pen:.2f}, KP = {kp:.2f}, Penalty={kp_pen-kp:.2f}', line_number)
 
     #calculate the new alpha given this assignment
     alpha_new = alpha_min(result_df)
