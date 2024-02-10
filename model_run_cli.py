@@ -57,7 +57,7 @@ def run_config(config: PollingModelConfig, log: bool=False, verbose=False):
     # pylint: disable-next=line-too-long
     if verbose:
         print(f'Starting config: {config.config_file_path} -> Output dir: {config.result_folder}')
-    model_run.run_on_config(config, log, model_name=config.name)
+    model_run.run_on_config(config, log)
     if verbose:
         print(f'Finished config: {config.config_file_path}')
 
@@ -87,9 +87,6 @@ def main(args: argparse.Namespace):
     # If any level of verbosity is set, the display SCIP logs
     log: bool = args.verbose > 0
 
-    for i, c in enumerate(configs):
-        c.name = f'Model {i}'
-    
     if args.concurrent > 1:
         print(f'Running concurrent with a pool size of {args.concurrent} against {total_files} config file(s)')
         with Pool(args.concurrent) as pool:
