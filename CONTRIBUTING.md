@@ -13,11 +13,11 @@ Welcome to Voting Rights Code. Thank you for considering working with us. If you
 We are a bunch of volunteers that care enough about civil rights to check our egos at the door and roll up our sleeves. 
 * We don't have a ton of processes (yet) because we're still small enough to be flexible
 * We do have good communication skills and ask for help when we need it, and get it
-* We treat each other like friends even if we don't aggree with everyone's every last idea
+* We treat each other like friends even if we don't agree with everyone's every last idea
 * We care enough about the work to get it right, and do our best, whatever that means for our particular skillset 
 * We care enough about ourselves and each to not force ourselves and each other to do work we don't want to do.
 
-## Code of conduct
+## Best Practices
 
 1. We figure out what information we need to know in order to get our task done.
     1. If we don't have a piece of information that we need -> we ask (email or [Discord](https://discord.com/channels/1106301559811350540/1106302529194688623)).
