@@ -15,6 +15,12 @@ Our contributing instructions are intentionally light because we are a small gro
 
 > *(I (Daphne) prefer [PEP 8 – Style Guide for Python Code](https://peps.python.org/pep-0008/). I find it a easier to read and understand as a recreational coder. Dan suggested that we could also use some combination of Autopep8, black, isort, flake8, pylint, etc. before a push to get a consistent style.)*
 
+> (*Two comment (SA):*
+1. *I don't want to get too hung up on style guide, certainly not following someting to the letter.*
+1. *Furthermore, there are things that don't see in pep8 or google that I like, such as descriptive variable names, removing debugging comments and internal notes before pushing to main, not doing computations in logging messages, or don't like about the above guides like (if foo: instead of if foo != 0)* 
+    1. *I know I'm guilty of breaking some of these*
+    1. *I don't feel strongly enough about this to get in the way*
+)
 #### Testing
 1. Information about testing goes here
 
