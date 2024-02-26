@@ -35,6 +35,17 @@ Our contributing instructions are intentionally light because we are a small gro
 
 > *This is really just a placeholder. I don't know what the process should be, but I think there should be one.*
 
+Current process (SA):
+* Main holds the code that is ready for external viewers
+* Feature or ticked assosicated branched hold the code for changes to main
+* To add to the code base
+    1. Make a new branch from `main` or the relevevant feature or issue branch
+    1. Name this `feature/descriptive_name_of_what_is_to_be_changed`
+    1. Pull from the parent branch frequently
+    1. Discuss your code and the relevant changes with the issue owner frequently
+    1. When your code is clean and ready, create a pull request to merge into `main`
+    1. After a thorough code-review, maintainers will merge into `main`
+
 ## Communication is key
  - Our light contributing instructions function best with a heavy dose of communication.
  - If you have questions as you are working, please ask rather than forging ahead in uncertainty; email or [Discord](https://discord.com/channels/1106301559811350540/1106302529194688623) works well to reach us quickly.
