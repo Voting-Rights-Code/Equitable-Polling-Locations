@@ -43,8 +43,12 @@ Current process (SA):
     1. Name this `feature/descriptive_name_of_what_is_to_be_changed`
     1. Pull from the parent branch frequently
     1. Discuss your code and the relevant changes with the issue owner frequently
-    1. When your code is clean and ready, create a pull request to merge into `main`
-    1. After a thorough code-review, maintainers will merge into `main`
+    1. When your code is clean and ready, merge to the parent branch
+    1. If the parent is `main` 
+        1. create a pull request to merge into `main`
+        1. after a thorough code-review, maintainers will merge into `main`
+    1. If the parent is an intermediate branch
+        1. perform a code review with the team/ person working on the parent branch before merging
 
 ## Communication is key
  - Our light contributing instructions function best with a heavy dose of communication.
