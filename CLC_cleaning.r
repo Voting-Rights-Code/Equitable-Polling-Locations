@@ -61,8 +61,11 @@ multi_address <- address_groups[address_dups > 1, ]$name
 big_dup_address <- big_dt[name %in% multi_address, ]
 
 
-#There are 508 of these 
+#There are 508 of these ma
 bad_locations <- unique(big_dup_address$name)
+
+#maybe time to do this by hand on a spreadsheet now.
+fwrite(big_dt, "CLC_relevant_data.csv")
 
 #fix these manually
 good_address_1 <- big_dup_names[name == bad_locations[1], ]$address
