@@ -67,6 +67,53 @@ bad_locations <- unique(big_dup_address$name)
 #maybe time to do this by hand on a spreadsheet now.
 fwrite(big_dt, "CLC_relevant_data.csv")
 
+#####
+#After hand cleaning
+#####
+
+cleaner <- fread("CLC_relevant_data.csv")
+
+#Does every address have an unique name?
+address_name <- cleaner[ , .(num_names = length(unique(name))), by = address]
+address_name[num_names >1, ] #yes
+
+#Does every name, count have an unique address?
+name_county_address <- cleaner[ , .(num_address = length(unique(address))), by = c('name', 'county_name')]
+name_county_address[num_address >1, ] #yes
+
+#Is every address year pair unique
+address_year_unique <- cleaner[ , .(address_year_count = .N), by = c('address', 'Year')]
+address_year_unique[address_year_count >1,]#yes
+
+#Is every name, county year pair unique
+name_year_unique <- cleaner[ , .(name_year_count = .N), by = c('name', 'Year', 'county_name')]
+name_year_unique[name_year_count >1,]#yes
+
+########
+#Label locations with years
+########
+
+dt <- cleaner[ , .(`Location type` = paste(Year, collapse = '_')), by = c('name', 'address', 'county_name')][ , `Location type` := paste('polling', `Location type`, sep = '_')]
+
+setnames(dt, c('name', 'address'), c('Location', 'Address'))
+
+########
+#write to file by county
+########
+berkeley_dt <- dt[county_name == "BERKELEY", ][, county_name := NULL] 
+greenville_dt <- dt[county_name == "GREENVILLE", ][, county_name := NULL]
+lexington_dt <- dt[county_name == "LEXINGTON", ][,county_name := NULL]
+richland_dt <- dt[county_name == 'RICHLAND', ][,county_name := NULL]
+york_dt <- dt[county_name == 'YORK',][,county_name := NULL]
+
+fwrite(berkeley_dt, '../Berkeley_SC/Berkeley_SC_locations_only.csv')
+fwrite(greenville_dt, '../Greenville_SC/Greenville_SC_locations_only.csv')
+fwrite(lexington_dt, '../Lexington_SC/Lexington_SC_locations_only.csv')
+fwrite(richland_dt, '../Richland_SC/Richland_SC_locations_only.csv')
+fwrite(york_dt, '../York_SC/York_SC_locations_only.csv')
+########
+#old stuff below
+########
 #fix these manually
 good_address_1 <- big_dup_names[name == bad_locations[1], ]$address
 big_dt <- big_dt[name == bad_locations[1], address := good_address_1[1]]
