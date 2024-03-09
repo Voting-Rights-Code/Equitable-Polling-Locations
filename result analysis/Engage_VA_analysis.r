@@ -67,6 +67,7 @@ if (file.exists(file.path(here(), plot_folder))){
 plot_demographic_edes(config_df_list[[1]])
 
 #Plot the edes for all runs in original_location and equivalent optimization runs by demographic
+#TODO: Give Jenn config_df_list[[1]] for tableau work  
 plot_original(config_df_list[[1]])
 
 #Plot the edes for all runs in config_folder for the population as a whole

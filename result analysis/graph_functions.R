@@ -167,17 +167,24 @@ plot_original <- function(orig_ede){
 	#select the relevant optimized runs
 	orig_num_polls <- unique(orig_ede$num_polls)
 	descriptor_order <- unique(orig_ede$descriptor)
+
+	#select y axis bounds
+	all_y_values = c(c(orig_ede$avg_dist), c(orig_ede$y_EDE))
+	y_min = min(all_y_values)
+	y_max = max(all_y_values)
 	#plot with y_EDE
 	y_EDE = ggplot(orig_ede, aes(x = descriptor, y = y_EDE, 
 		group = demographic, color = demographic, shape = demographic)) +
 		geom_point(aes(x = factor(descriptor, level = descriptor_order), ), size = 9) +
-		labs(x = 'Optimization run', y = 'Equity weighted distance (m)')
+		labs(x = 'Optimization run', y = 'Equity weighted distance (m)') + 
+		ylim(y_min, y_max)
 	ggsave('orig_y_EDE.png', y_EDE)
 	#polot with avg_dist
 	avg = ggplot(orig_ede, aes(x = descriptor, y = avg_dist, 
 		group = demographic, color = demographic, shape = demographic)) +
-		geom_point(aes(x = factor(descriptor, level = descriptor_order), size = 9)) +
-		labs(x = 'Optimization run', y = 'Average distance (m)')
+		geom_point(aes(x = factor(descriptor, level = descriptor_order)), size = 9) +
+		labs(x = 'Optimization run', y = 'Average distance (m)') +
+		ylim(y_min, y_max)
 	ggsave('orig_avg.png', avg)
 }
 
@@ -190,17 +197,25 @@ plot_original_optimized <- function(config_ede, orig_ede){
 	optimized_run_dfs <- config_ede[num_polls %in% orig_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
 	descriptor_order <- unique(orig_and_optimal$descriptor)
+
+	#select y axis bounds
+	all_y_values = c(c(orig_and_optimal$avg_dist), c(orig_and_optimal$y_EDE))
+	y_min = min(all_y_values)
+	y_max = max(all_y_values)
+
 	#plot with y_EDE
 	ggplot(orig_and_optimal, aes(x = descriptor, y = y_EDE, 
 		group = demographic, color = demographic, shape = demographic)) +
 		geom_point(aes(x = factor(descriptor, level = descriptor_order), ), size = 9) +
-		labs(x = 'Optimization run', y = 'Equity weighted distance (m)')
+		labs(x = 'Optimization run', y = 'Equity weighted distance (m)') +
+		ylim(y_min, y_max)
 	ggsave('orig_and_optimal.png')
 	#polot with avg_dist
 	ggplot(orig_and_optimal, aes(x = descriptor, y = avg_dist, 
 		group = demographic, color = demographic, shape = demographic)) +
-		geom_point(aes(x = factor(descriptor, level = descriptor_order), size = 9)) +
-		labs(x = 'Optimization run', y = 'Average distance (m)')
+		geom_point(aes(x = factor(descriptor, level = descriptor_order)), size = 9) +
+		labs(x = 'Optimization run', y = 'Average distance (m)')+ 
+		ylim(y_min, y_max)
 	ggsave('orig_and_optimal_avg.png')
 }
 
