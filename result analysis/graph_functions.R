@@ -25,6 +25,25 @@ check_config_folder_valid <- function(config_folder){
 #Functions to read in results
 ######
 
+##### Code for when one config file contains multiple locations and year data in i (E.G. Engage_VA analysis)#####
+combine_results_multi_county_historical <- function(config_folder, result_type){
+	#combine all the data of a certain type 
+	#(ede, precinct, residence, result)
+	#from indicated config_folder with multiple locations
+	#and year encoded in the name and output a df
+	#config_folder, result_type: string
+	#returns: data frame
+
+	#select which results we want
+	result_folder_list <-sapply(location_list, function(location){paste(location, 'results/', sep = '_')})
+	files <- list.files(result_folder)
+	files <- files[grepl(config_folder, files) &grepl(result_type, files)]
+	file_path <- paste0(result_folder, files)
+	df_list <- lapply(file_path, fread)
+
+}
+
+##### Code for when there is only one location in the config folder, and config folder starts with that string (e.g. FFA analysis) ######
 combine_results <-function(config_folder, result_type){
 	#combine all the data of a certain type 
 	#(ede, precinct, residence, result)
