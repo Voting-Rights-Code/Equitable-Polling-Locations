@@ -66,11 +66,10 @@ if (file.exists(file.path(here(), plot_folder))){
 
 #Plot the edes for all runs in original_location and equivalent optimization runs by demographic
 #TODO: Give Jenn config_df_list[[1]] for tableau work  
-demo_pop <- config_df_list[[2]][ , .(total_population = sum(demo_pop)), by  = c('descriptor', 'demographic')]
-total_pop <- demo_pop[demographic == 'population', c('descriptor', 'total_population')]
-demo_pop <- merge(demo_pop, total_pop, by = 'descriptor')
-setnames(demo_pop, c('total_population.x', 'total_population.y'), c('total_demo_population', 'total_population'))
-demo_pop[ , pct_demo_population := total_demo_population/ total_population]
-edes_with_pop <- merge(config_df_list[[1]], demo_pop, by = c('descriptor', 'demographic'))
-plot_original(edes_with_pop)
-
+#plot_original(config_df_list[[1]], scale_bool = F)
+#plot_original_pop_sized(config_df_list[[1]], conf_df_list[[2]])
+pop_scaled_edes <- ede_with_pop(config_df_list)
+#population scaled graph
+plot_election_edes(pop_scaled_edes, suffix = 'pop_scaled')
+#unscaled graph
+plot_election_edes(config_df_list[[1]], suffix ='')
