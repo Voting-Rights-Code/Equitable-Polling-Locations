@@ -68,20 +68,11 @@ plot_demographic_edes(config_df_list[[1]])
 
 #Plot the edes for all runs in original_location and equivalent optimization runs by demographic
 #TODO: Give Jenn config_df_list[[1]] for tableau work  
-plot_original(config_df_list[[1]])
+demo_pop <- config_df_list[[2]][ , .(total_population = sum(demo_pop)), by  = c('descriptor', 'demographic')]
+total_pop <- demo_pop[demographic == 'population', c('descriptor', 'total_population')]
+demo_pop <- merge(demo_pop, total_pop, by = 'descriptor')
+setnames(demo_pop, c('total_population.x', 'total_population.y'), c('total_demo_population', 'total_population'))
+demo_pop[ , pct_demo_population := total_demo_population/ total_population]
+edes_with_pop <- merge(config_df_list[[1]], demo_pop, by = c('descriptor', 'demographic'))
+plot_original(edes_with_pop)
 
-#Plot the edes for all runs in config_folder for the population as a whole
-plot_population_edes(config_df_list[[1]])
-
-#Plot which precincts are used for each number of polls
-plot_precinct_persistence(config_df_list[[2]])
-
-#Boxplots of the average distances traveled and the y_edes at each run in folder
-plot_boxplots(config_df_list[[3]])
-
-#Histgram of the original distributions and that for the desired number of polls
-plot_orig_ideal_hist(orig_df_list[[3]], config_df_list[[3]], FFA_poll_number)
-
-#if you want to compare config_folder runs to a different folder, this plots on a population level
-#config_folder2 = 
-#compare_configs(config_df_list[1], config_folder2)

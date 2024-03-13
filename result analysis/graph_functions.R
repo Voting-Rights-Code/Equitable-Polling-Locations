@@ -175,14 +175,14 @@ plot_original <- function(orig_ede){
 	#plot with y_EDE
 	y_EDE = ggplot(orig_ede, aes(x = descriptor, y = y_EDE, 
 		group = demographic, color = demographic, shape = demographic)) +
-		geom_point(aes(x = factor(descriptor, level = descriptor_order), ), size = 9) +
+		geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) +
 		labs(x = 'Optimization run', y = 'Equity weighted distance (m)') + 
 		ylim(y_min, y_max)
 	ggsave('orig_y_EDE.png', y_EDE)
 	#polot with avg_dist
 	avg = ggplot(orig_ede, aes(x = descriptor, y = avg_dist, 
 		group = demographic, color = demographic, shape = demographic)) +
-		geom_point(aes(x = factor(descriptor, level = descriptor_order)), size = 9) +
+		geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population)) +
 		labs(x = 'Optimization run', y = 'Average distance (m)') +
 		ylim(y_min, y_max)
 	ggsave('orig_avg.png', avg)
