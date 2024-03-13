@@ -24,8 +24,53 @@ check_config_folder_valid <- function(config_folder){
 ######
 #Functions to read in results
 ######
+combine_results<- function(config_folder, result_type, analysis_type){
+	if (analysis_type == 'historical'){
+		return(combine_results_multi_county_historical(config_folder, result_type))}
+	else if (analysis_type == 'placement'){
+		return(combine_results_placement(config_folder, result_type))}
+	else{
+		stop("Incorrect analysis_type provided")
+	}
+}
 
-combine_results <-function(config_folder, result_type){
+##### Code for when one config file contains multiple locations and year data in i (E.G. Engage_VA analysis)#####
+combine_results_multi_county_historical <- function(config_folder, result_type){
+	#combine all the data of a certain type 
+	#(ede, precinct, residence, result)
+	#from indicated config_folder with multiple locations
+	#and year encoded in the name and output a df
+	#config_folder, result_type: string
+	#returns: data frame
+
+	#select which results we want
+	result_folder_list <-sapply(location, function(x){paste(x, 'results/', sep = '_')})
+	files <- lapply(result_folder_list, list.files)
+	files <- sapply(location_list, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
+	file_path <- sapply(location, function(x){paste0(result_folder_list[[x]], files[[x]])})
+	df_list <- lapply(file_path, fread)
+
+	#pull the historical year from the file names
+	years <- str_extract(files, '(?<=original_)[0-9]*')
+	descriptor <- mapply(function(x,y){paste(x, y, sep='_')}, county, years)
+	
+	#descriptor is county_name_year
+	mapply(function(x, y){x[ , descriptor:= y]}, df_list, descriptor)
+	
+	#Change id_dest and id_orig to strings as needed
+	if ('id_dest' %in% names(df_list[[1]])){
+		sapply(df_list, function(x){x[ , id_dest:= as.character(id_dest)]})}
+	if ('id_orig' %in% names(df_list[[1]])){
+		sapply(df_list, function(x){x[ , id_orig:= as.character(id_orig)]})}
+	
+	#combine into one df
+	big_df <- do.call(rbind, df_list)
+
+	return(big_df)
+}
+
+##### Code for when there is only one location in the config folder, and config folder starts with that string (e.g. FFA analysis) ######
+combine_results_placement <-function(config_folder, result_type){
 	#combine all the data of a certain type 
 	#(ede, precinct, residence, result)
 	#from indicated config_folder and output a df
@@ -39,11 +84,9 @@ combine_results <-function(config_folder, result_type){
 	file_path <- paste0(result_folder, files)
 	df_list <- lapply(file_path, fread)
 
-	#name the data from the file names
+	#label with names and levels
 	config_names_long <- lapply(files, function(x){gsub(paste0('.*', county_config_,"\\s*|.csv*"), "", x)})	
 	config_names <- lapply(config_names_long, function(x){gsub(paste0('_',result_type), "", x)})
-	file_path <- paste0(result_folder, files)
-	df_list <- lapply(file_path, fread)
 	names(df_list) <- config_names
 
 	#label with names and levels
@@ -61,17 +104,18 @@ combine_results <-function(config_folder, result_type){
 	return(big_df)
 }
 
-read_result_data<- function(config_folder){
+read_result_data<- function(config_folder, analysis_type){
 	#read in and format all the results data assocaited to a 
 	#given config folder.
 	#config_folder: string
+	#analysis_type: string (hisorical, placement)
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
 	
 	#combine all files with a descriptor column attached
-	ede_df<- combine_results(config_folder, 'edes')
-	precinct_df<- combine_results(config_folder, 'precinct_distances')
-	residence_df<- combine_results(config_folder, 'residence_distances')
-	result_df<- combine_results(config_folder, 'result')
+	ede_df<- combine_results(config_folder, 'edes', analysis_type)
+	precinct_df<- combine_results(config_folder, 'precinct_distances', analysis_type)
+	residence_df<- combine_results(config_folder, 'residence_distances', analysis_type)
+	result_df<- combine_results(config_folder, 'result', analysis_type)
 
 	#label descriptors with polls and residences
 	num_polls <- precinct_df[ , .(num_polls = .N/6), by = descriptor]
@@ -86,11 +130,10 @@ read_result_data<- function(config_folder){
 	return(list(ede_df, precinct_df, residence_df, result_df))
 }
 
-check_run_validity <- function(config, orig){
+check_run_validity <- function(combined_df){
 	#Input: A pair of result_dfs (each corresponding to a config folder) that should have the same number of matched residences
 	#Check that they do both within and across data frames
 	#Else return an error
-	combined_df <- rbind(config, orig)
 	unique_num_residences <- length(unique(combined_df$num_residences))
 
 	max_num_residences = max(combined_df$num_residences)
@@ -118,6 +161,34 @@ plot_demographic_edes<-function(ede_df){
 	ggsave('demographic_edes.png')
 }
 
+plot_original <- function(orig_ede){	
+	#makes two plots, one showing the y_ede differences between the actual positioning and an equivalent optimized run; the other doing the same but with average distances
+
+	#select the relevant optimized runs
+	orig_num_polls <- unique(orig_ede$num_polls)
+	descriptor_order <- unique(orig_ede$descriptor)
+
+	#select y axis bounds
+	all_y_values = c(c(orig_ede$avg_dist), c(orig_ede$y_EDE))
+	y_min = min(all_y_values)
+	y_max = max(all_y_values)
+	#plot with y_EDE
+	y_EDE = ggplot(orig_ede, aes(x = descriptor, y = y_EDE, 
+		group = demographic, color = demographic, shape = demographic)) +
+		geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) +
+		labs(x = 'Optimization run', y = 'Equity weighted distance (m)') + 
+		ylim(y_min, y_max)
+	ggsave('orig_y_EDE.png', y_EDE)
+	#polot with avg_dist
+	avg = ggplot(orig_ede, aes(x = descriptor, y = avg_dist, 
+		group = demographic, color = demographic, shape = demographic)) +
+		geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population)) +
+		labs(x = 'Optimization run', y = 'Average distance (m)') +
+		ylim(y_min, y_max)
+	ggsave('orig_avg.png', avg)
+}
+
+
 plot_original_optimized <- function(config_ede, orig_ede){	
 	#makes two plots, one showing the y_ede differences between the actual positioning and an equivalent optimized run; the other doing the same but with average distances
 
@@ -126,17 +197,25 @@ plot_original_optimized <- function(config_ede, orig_ede){
 	optimized_run_dfs <- config_ede[num_polls %in% orig_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
 	descriptor_order <- unique(orig_and_optimal$descriptor)
+
+	#select y axis bounds
+	all_y_values = c(c(orig_and_optimal$avg_dist), c(orig_and_optimal$y_EDE))
+	y_min = min(all_y_values)
+	y_max = max(all_y_values)
+
 	#plot with y_EDE
 	ggplot(orig_and_optimal, aes(x = descriptor, y = y_EDE, 
 		group = demographic, color = demographic, shape = demographic)) +
 		geom_point(aes(x = factor(descriptor, level = descriptor_order), ), size = 9) +
-		labs(x = 'Optimization run', y = 'Equity weighted distance (m)')
+		labs(x = 'Optimization run', y = 'Equity weighted distance (m)') +
+		ylim(y_min, y_max)
 	ggsave('orig_and_optimal.png')
 	#polot with avg_dist
 	ggplot(orig_and_optimal, aes(x = descriptor, y = avg_dist, 
 		group = demographic, color = demographic, shape = demographic)) +
-		geom_point(aes(x = factor(descriptor, level = descriptor_order), size = 9)) +
-		labs(x = 'Optimization run', y = 'Average distance (m)')
+		geom_point(aes(x = factor(descriptor, level = descriptor_order)), size = 9) +
+		labs(x = 'Optimization run', y = 'Average distance (m)')+ 
+		ylim(y_min, y_max)
 	ggsave('orig_and_optimal_avg.png')
 }
 
