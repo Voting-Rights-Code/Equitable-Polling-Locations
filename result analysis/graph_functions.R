@@ -175,14 +175,16 @@ plot_election_edes <- function(orig_ede, suffix = ''){
 	#set point size
 	#does data contain scaling data
 	scale_bool = 'pct_demo_population' %in% names(orig_ede)
-	if (!scale_bool){
-		orig_ede[ , pct_demo_population := 5]
-	}
-
+	
 	#plot with y_EDE
 	y_EDE = ggplot(orig_ede, aes(x = descriptor, y = y_EDE, 
-		group = demographic, color = demographic, shape = demographic)) +
-		geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) +
+		group = demographic, color = demographic, shape = demographic)) 
+	if (scale_bool){
+		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) )
+	} else{
+		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order)),size = 5 )
+	}
+		y_EDE = y_EDE +
 		labs(x = 'Optimization run', y = 'Equity weighted distance (m)') + 
 		ylim(y_min, y_max)
 	name = paste('orig', suffix, 'y_EDE.png', sep = '_')
@@ -190,8 +192,13 @@ plot_election_edes <- function(orig_ede, suffix = ''){
 	
 	#plot with avg_dist
 	avg = ggplot(orig_ede, aes(x = descriptor, y = avg_dist, 
-		group = demographic, color = demographic, shape = demographic)) +
-		geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) +
+		group = demographic, color = demographic, shape = demographic)) 
+if (scale_bool){
+		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) )
+	} else{
+		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order) ),size = 5)
+	}
+		avg = avg +
 		labs(x = 'Optimization run', y = 'Average distance (m)') +
 		ylim(y_min, y_max)
 	name = paste('orig', suffix, 'avg.png', sep = '_')
