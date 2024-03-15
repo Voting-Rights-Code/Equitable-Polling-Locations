@@ -24,7 +24,7 @@ check_config_folder_valid <- function(config_folder){
 ######
 #Functions to read in results
 ######
-combine_results<- function(config_folder, result_type, analysis_type){
+combine_results<- function(config_folder, result_type, analysis_type = 'placement'){
 	if (analysis_type == 'historical'){
 		return(combine_results_multi_county_historical(config_folder, result_type))}
 	else if (analysis_type == 'placement'){
