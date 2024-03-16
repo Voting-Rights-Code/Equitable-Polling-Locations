@@ -17,9 +17,11 @@ source('result analysis/map_functions.R')
 #######
 #Location must be part of config folder string
 
-location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
-config_folder = 'Engage_VA_2024_configs'
+#location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
+location = 'Greenville_SC'
+config_folder = 'Greenville_SC_original_configs'
 county = gsub('.{3}$','',location)
+county_config_ = paste0(county, '_', 'config', '_')
 
 
 #######
@@ -39,6 +41,7 @@ config_df_list <- read_result_data(config_folder, 'historical')
 #config_precinct_df<- config_df_list[[2]]
 #config_residence_df<- config_df_list[[3]]
 #config_result_df<- config_df_list[[4]]
+
 
 #######
 #Check result validity
@@ -62,7 +65,8 @@ res_dist_list = list.files(result_folder)[grepl('residence_distances', list.file
 res_dist_list = res_dist_list[grepl(config_folder, res_dist_list)]
 
 #get avg distance bounds for maps
-county_config_ <- county_config_[1] #cludge. Fix later
+if (length(county_config_ >1)){
+county_config_ <- county_config_[1]} #cludge. Fix later
 color_bounds <- distance_bounds(config_folder)
 
 #######
@@ -97,3 +101,4 @@ mapply(function(x,y, z){make_bg_maps(x, 'map', result_folder_name = y, this_loca
 
 mapply(function(x,y, z){make_demo_dist_map(x, 'white', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
+mapply(function(x,y, z){make_demo_dist_map(x, 'black', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)

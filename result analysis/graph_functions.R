@@ -47,11 +47,11 @@ combine_results_multi_county_historical <- function(config_folder, result_type){
 	result_folder_list <-sapply(location, function(x){paste(x, 'results/', sep = '_')})
 	files <- lapply(result_folder_list, list.files)
 	files <- sapply(location, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
-	file_path <- sapply(location, function(x){paste0(result_folder_list[[x]], files[[x]])})
+	file_path <- mapply(function(folder, file){paste0(folder, file)}, result_folder_list, files)
 	df_list <- lapply(file_path, fread)
 
 	#pull the historical year from the file names
-	years <- str_extract(files, '(?<=original_)[0-9]*')
+	years <- paste0('20', str_extract(files, '(?<=20)[0-9]*'))
 	descriptor <- mapply(function(x,y){paste(x, y, sep='_')}, county, years)
 	
 	#descriptor is county_name_year
