@@ -42,9 +42,11 @@ process_demographics <-function(folder_name){
     demo = merge(P3_demo, P4_demo, by = c('Geography', 'Geographic Area Name'), all = TRUE)
     #Change geography tag to match mapping data
     demo = demo[, Geography := sub(".*US", '', Geography)]
+	#drop empty block groups
+	demo = demo[population >0, ]
 }
 
-process_residence <- function(file_name, demo_str){
+process_residence <- function(file_name, demo_str, result_folder){
 	#read in residence data from the model output, which is at the block 
 	#level, and aggregate it at the block group level,
 	#selecting for the given demographic
@@ -136,24 +138,24 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 	return(map)
 }
 
-make_bg_maps <-function(file_to_map, map_type, demo_str = 'population'){
+make_bg_maps <-function(file_to_map, map_type, result_folder_name = result_folder, this_location = location, demo_str = 'population'){
 	#read in a residence_distance file from the correct config_folder, combine this and use it to color the map by distance to matched location, for the indicated demographic
 	#If the map type is "map", then also plot the polling locations
 
 	#read in block level data and aggregate to block group level
-	res_dist_demo <- process_residence(file_to_map, demo_str)
+	res_dist_demo <- process_residence(file_to_map, demo_str, result_folder_name)
 
 	#extract demographics from map
 	#must do this way because map is an sf object, not a data.table
 	if (map_type == 'cartogram'){
-		map_demo = make_or_load_maps(location, 'cartogram', demo_str)
+		map_demo = make_or_load_maps(this_location, 'cartogram', demo_str)
 		map_name = paste('distance', demo_str, map_type, sep = '_')
 	}else if (map_type == 'map'){
-		map_demo = make_or_load_maps(location, 'map')
+		map_demo = make_or_load_maps(this_location, 'map')
 		map_name = paste('distance', map_type, sep = '_')
 		#in this case, also put in the precincts
 		ev_df_name <-sub('residence_distances', 'result', file_to_map)
-		result_df <- fread(paste0(here(), '/',result_folder, '/', ev_df_name))
+		result_df <- fread(paste0(here(), '/',result_folder_name, '/', ev_df_name))
 		ev_locs <- result_df[ , .(long = unique(dest_lon), lat = unique(dest_lat), type = unique(dest_type)), by = id_dest]
 	} else {
 		stop('map_type must be either map or cartogram')
@@ -173,17 +175,17 @@ make_bg_maps <-function(file_to_map, map_type, demo_str = 'population'){
 		geom_point(data = ev_locs, aes(x = long, y = lat, color = type))+ 
 		scale_color_manual(breaks = c('polling', 'potential', 'bg_centroid'), values = c('red', 'black', 'dimgrey'))}
 	#write to file
-	descriptor = gsub(".*config_(.*)_res.*", "\\1", file_to_map)
+	descriptor = gsub(".*configs.(.*)_res.*", "\\1", file_to_map)
 	num_polls <- str_extract(descriptor, '[0,-9]+')
-	ggsave(paste0(here(), '/', plot_folder, '/',map_name, '_',num_polls, '_','polls.png'), plotted)
+	ggsave(paste0(here(), '/', plot_folder, '/',map_name, '_',descriptor, '_','polls.png'), plotted)
 	}
 
-make_demo_dist_map <-function(file_to_map, demo_str){
+make_demo_dist_map <-function(file_to_map, demo_str, result_folder_name = result_folder, this_location = location){
 
 	#read in block level data and aggregate to block group level
-	res_dist_df <- process_residence(file_to_map, demo_str)
+	res_dist_df <- process_residence(file_to_map, demo_str, result_folder_name)
 	#get map
-	map_demo <- make_or_load_maps(location, 'map')
+	map_demo <- make_or_load_maps(this_location, 'map')
 	geom_cols <- c('GEOID20', 'INTPTLON20', 'INTPTLAT20', 'geometry')
 	map_sf <- map_demo[, geom_cols]
 	#change lat/lon to numeric
@@ -200,9 +202,9 @@ make_demo_dist_map <-function(file_to_map, demo_str){
 		scale_color_gradient(low='white', high='darkgreen', (limits = c(color_bounds[[1]], color_bounds[[2]])))
 
 	#write to file
-	descriptor = gsub(".*config_(.*)_res.*", "\\1", file_to_map)
+	descriptor = gsub(".*configs.(.*)_res.*", "\\1", file_to_map)
 	num_polls <- str_extract(descriptor, '[0,-9]+')
-	ggsave(paste0(here(), '/', plot_folder, '/', demo_str, '_','pop_and_dist','_',num_polls, '_','polls.png'), plotted)
+	ggsave(paste0(here(), '/', plot_folder, '/', demo_str, '_','pop_and_dist','_',descriptor, '_','polls.png'), plotted)
 
 }
 

@@ -24,7 +24,7 @@ check_config_folder_valid <- function(config_folder){
 ######
 #Functions to read in results
 ######
-combine_results<- function(config_folder, result_type, analysis_type){
+combine_results<- function(config_folder, result_type, analysis_type = 'placement'){
 	if (analysis_type == 'historical'){
 		return(combine_results_multi_county_historical(config_folder, result_type))}
 	else if (analysis_type == 'placement'){
@@ -46,7 +46,7 @@ combine_results_multi_county_historical <- function(config_folder, result_type){
 	#select which results we want
 	result_folder_list <-sapply(location, function(x){paste(x, 'results/', sep = '_')})
 	files <- lapply(result_folder_list, list.files)
-	files <- sapply(location_list, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
+	files <- sapply(location, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
 	file_path <- sapply(location, function(x){paste0(result_folder_list[[x]], files[[x]])})
 	df_list <- lapply(file_path, fread)
 
@@ -161,33 +161,60 @@ plot_demographic_edes<-function(ede_df){
 	ggsave('demographic_edes.png')
 }
 
-plot_original <- function(orig_ede){	
+plot_election_edes <- function(orig_ede, suffix = ''){	
 	#makes two plots, one showing the y_ede differences between the actual positioning and an equivalent optimized run; the other doing the same but with average distances
 
-	#select the relevant optimized runs
-	orig_num_polls <- unique(orig_ede$num_polls)
+	#set graph order
 	descriptor_order <- unique(orig_ede$descriptor)
 
 	#select y axis bounds
 	all_y_values = c(c(orig_ede$avg_dist), c(orig_ede$y_EDE))
 	y_min = min(all_y_values)
 	y_max = max(all_y_values)
+
+	#set point size
+	#does data contain scaling data
+	scale_bool = 'pct_demo_population' %in% names(orig_ede)
+	
 	#plot with y_EDE
 	y_EDE = ggplot(orig_ede, aes(x = descriptor, y = y_EDE, 
-		group = demographic, color = demographic, shape = demographic)) +
-		geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) +
+		group = demographic, color = demographic, shape = demographic)) 
+	if (scale_bool){
+		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) )
+	} else{
+		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order)),size = 5 )
+	}
+		y_EDE = y_EDE +
 		labs(x = 'Optimization run', y = 'Equity weighted distance (m)') + 
 		ylim(y_min, y_max)
-	ggsave('orig_y_EDE.png', y_EDE)
-	#polot with avg_dist
+	name = paste('orig', suffix, 'y_EDE.png', sep = '_')
+	ggsave(name, y_EDE)
+	
+	#plot with avg_dist
 	avg = ggplot(orig_ede, aes(x = descriptor, y = avg_dist, 
-		group = demographic, color = demographic, shape = demographic)) +
-		geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population)) +
+		group = demographic, color = demographic, shape = demographic)) 
+if (scale_bool){
+		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) )
+	} else{
+		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order) ),size = 5)
+	}
+		avg = avg +
 		labs(x = 'Optimization run', y = 'Average distance (m)') +
 		ylim(y_min, y_max)
-	ggsave('orig_avg.png', avg)
+	name = paste('orig', suffix, 'avg.png', sep = '_')
+	ggsave(name, avg)
 }
 
+ede_with_pop<- function(config_df_list){
+	#plot the originals graphs but with po
+	demo_pop <- config_df_list[[2]][ , .(total_population = sum(demo_pop)), by  = c('descriptor', 'demographic')]
+	total_pop <- demo_pop[demographic == 'population', c('descriptor', 'total_population')]
+	demo_pop <- merge(demo_pop, total_pop, by = 'descriptor')
+	setnames(demo_pop, c('total_population.x', 'total_population.y'), c('total_demo_population', 'total_population'))
+	demo_pop[ , pct_demo_population := total_demo_population/ total_population]
+	edes_with_pop <- merge(config_df_list[[1]], demo_pop, by = c('descriptor', 'demographic'))
+	return(edes_with_pop)
+}
 
 plot_original_optimized <- function(config_ede, orig_ede){	
 	#makes two plots, one showing the y_ede differences between the actual positioning and an equivalent optimized run; the other doing the same but with average distances
@@ -196,27 +223,7 @@ plot_original_optimized <- function(config_ede, orig_ede){
 	orig_num_polls <- unique(orig_ede$num_polls)
 	optimized_run_dfs <- config_ede[num_polls %in% orig_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
-	descriptor_order <- unique(orig_and_optimal$descriptor)
-
-	#select y axis bounds
-	all_y_values = c(c(orig_and_optimal$avg_dist), c(orig_and_optimal$y_EDE))
-	y_min = min(all_y_values)
-	y_max = max(all_y_values)
-
-	#plot with y_EDE
-	ggplot(orig_and_optimal, aes(x = descriptor, y = y_EDE, 
-		group = demographic, color = demographic, shape = demographic)) +
-		geom_point(aes(x = factor(descriptor, level = descriptor_order), ), size = 9) +
-		labs(x = 'Optimization run', y = 'Equity weighted distance (m)') +
-		ylim(y_min, y_max)
-	ggsave('orig_and_optimal.png')
-	#polot with avg_dist
-	ggplot(orig_and_optimal, aes(x = descriptor, y = avg_dist, 
-		group = demographic, color = demographic, shape = demographic)) +
-		geom_point(aes(x = factor(descriptor, level = descriptor_order)), size = 9) +
-		labs(x = 'Optimization run', y = 'Average distance (m)')+ 
-		ylim(y_min, y_max)
-	ggsave('orig_and_optimal_avg.png')
+	plot_election_edes(orig_and_optimal, suffix = 'and_optimal')
 }
 
 plot_population_edes <- function(ede_df){	

@@ -10,7 +10,7 @@ setwd(here())
 #######
 
 source('result analysis/graph_functions.R')
-
+source('result analysis/map_functions.R')
 
 #######
 #Set Constants
@@ -20,7 +20,6 @@ source('result analysis/graph_functions.R')
 location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
 config_folder = 'Engage_VA_2024_configs'
 county = gsub('.{3}$','',location)
-county_config_ = paste0(county, '_', 'config', '_')
 
 
 #######
@@ -53,6 +52,20 @@ bad_runs <- sapply(county, function(x){check_run_validity(config_df_list[[4]][gr
 config_df_list <- lapply(config_df_list, function(x){x[!(descriptor %in% bad_runs), ]})
 
 #######
+#Constants for mapping
+#######
+#set result folder
+result_folder = paste(location, 'results', sep = '_')
+
+#get all file names the result_folder with the strings config_folder and 'residence_distances'
+res_dist_list = list.files(result_folder)[grepl('residence_distances', list.files(result_folder))]
+res_dist_list = res_dist_list[grepl(config_folder, res_dist_list)]
+
+#get avg distance bounds for maps
+county_config_ <- county_config_[1] #cludge. Fix later
+color_bounds <- distance_bounds(config_folder)
+
+#######
 #Plot data
 #######
 plot_folder = paste0('result analysis/', config_folder)
@@ -66,11 +79,21 @@ if (file.exists(file.path(here(), plot_folder))){
 
 #Plot the edes for all runs in original_location and equivalent optimization runs by demographic
 #TODO: Give Jenn config_df_list[[1]] for tableau work  
-demo_pop <- config_df_list[[2]][ , .(total_population = sum(demo_pop)), by  = c('descriptor', 'demographic')]
-total_pop <- demo_pop[demographic == 'population', c('descriptor', 'total_population')]
-demo_pop <- merge(demo_pop, total_pop, by = 'descriptor')
-setnames(demo_pop, c('total_population.x', 'total_population.y'), c('total_demo_population', 'total_population'))
-demo_pop[ , pct_demo_population := total_demo_population/ total_population]
-edes_with_pop <- merge(config_df_list[[1]], demo_pop, by = c('descriptor', 'demographic'))
-plot_original(edes_with_pop)
+#plot_original(config_df_list[[1]], scale_bool = F)
+#plot_original_pop_sized(config_df_list[[1]], conf_df_list[[2]])
+pop_scaled_edes <- ede_with_pop(config_df_list)
+#population scaled graph
+plot_election_edes(pop_scaled_edes, suffix = 'pop_scaled')
+#unscaled graph
+plot_election_edes(config_df_list[[1]], suffix ='')
+
+#########
+#Make maps and cartograms
+#########
+
+
+
+mapply(function(x,y, z){make_bg_maps(x, 'map', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
+
+mapply(function(x,y, z){make_demo_dist_map(x, 'white', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
