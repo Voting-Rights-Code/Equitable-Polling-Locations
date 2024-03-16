@@ -18,8 +18,8 @@ source('result analysis/map_functions.R')
 #Location must be part of config folder string
 
 #location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
-location = 'Greenville_SC'
-config_folder = 'Greenville_SC_original_configs'
+location = 'York_SC'
+config_folder = 'York_SC_original_configs'
 county = gsub('.{3}$','',location)
 county_config_ = paste0(county, '_', 'config', '_')
 
