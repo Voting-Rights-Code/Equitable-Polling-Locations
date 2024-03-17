@@ -18,8 +18,8 @@ source('result analysis/map_functions.R')
 #Location must be part of config folder string
 
 #location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
-location = 'York_SC'
-config_folder = 'York_SC_original_configs'
+location = 'Greenville_SC'
+config_folder = 'Greenville_SC_original_configs'
 county = gsub('.{3}$','',location)
 county_config_ = paste0(county, '_', 'config', '_')
 
@@ -42,7 +42,7 @@ config_df_list <- read_result_data(config_folder, 'historical')
 #config_residence_df<- config_df_list[[3]]
 #config_result_df<- config_df_list[[4]]
 
-
+config_df_list[[2]][ , .(a = unique(num_polls), b = unique(num_residences)), by = descriptor]
 #######
 #Check result validity
 #######
