@@ -12,7 +12,8 @@ from pathlib import Path
 from haversine import haversine
 import geopandas as gpd
 from model_config import PollingModelConfig
-
+import logging # kill this dead
+import sys # ktd
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
@@ -225,6 +226,56 @@ def build_source(location):
     full_df.to_csv(output_path, index = True)
     return
 
+
+def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str) -> pd.DataFrame:
+    '''
+    Given a dataframe with origin and destination ids, update the distance_m column
+    with driving distances in the given driving distance file. If distance_m exists in df, it
+    will be renamed haversine_m.
+
+    Arguments
+    df: A pandas DataFrame that contains id_orig and id_dest
+    driving_distance_file_path: the path to a file that contains a driving distance for each
+                                origin/destination pair. Each line will be of the form
+                                id_orig, id_dest, distance_m. This file must contain a distance
+                                for every possible origin/destination pair.
+
+    Raises
+    ValueError - if anything goes wrong (missing file, bad format, missing data)
+
+    Returns
+    The original dataframe with the distance_m column populated with the driving distances.
+
+    '''
+    logging.warning(f'inserting driving distances {driving_distance_file_path}')
+    if os.path.exists(driving_distance_file_path):
+        #warnings.warn(f'{file_name} found. Last modified {os.path.getmtime(LOCATION_SOURCE_FILE)}.')
+        driving_distance = pd.read_csv(driving_distance_file_path)
+    else:
+        raise ValueError(f'Driving Distance File ({driving_distance_file_path}) not found.')
+    if {'id_orig', 'id_dest', 'distance_m'} - set(driving_distance.columns):
+        raise ValueError(f'Driving Distance File ({driving_distance_file_path}) '
+                         'must contain id_orig, id_dest, and distance_m columns')
+
+    if 'distance_m' in df.columns:
+        df = df.rename(columns={'distance_m':'haversine_m'})
+
+    combined_df = pd.merge(df, driving_distance, on=['id_orig', 'id_dest'], how='left')
+
+    if len(combined_df[pd.isnull(combined_df.distance_m)]) > 0:
+        this_df = combined_df[pd.isnull(combined_df.distance_m)]
+        missing_sources = set(this_df.id_orig)
+        missing_dests = set(this_df.id_dest)
+        if len(missing_dests) < len(missing_sources):
+            logging.warning(f'{len(missing_dests)} missing dests in driving distances: {missing_dests}')
+        else:
+            logging.warning(f'{len(missing_sources)} missing orig in driving distances: {missing_sources}')
+        this_df.to_csv('../../missing_driving_distances.csv', index=False)
+        raise ValueError(f'Driving Distance File ({driving_distance_file_path}) '
+                         'does not contain driving distances for all id_orig/id_dest pairs.')
+
+    return combined_df
+
 #########
 #Read the intermediate data frame from file, and pull the relevant rows
 #Note this this function is called twice, once for calculating alpha and once for
@@ -289,6 +340,10 @@ def clean_data(config: PollingModelConfig, for_alpha: bool):
     #drop these
     df = df.drop_duplicates()
 
+    # replace distances with driving distances
+    if config.driving_distance_file_path is not None:
+        df = insert_driving_distances(df, config.driving_distance_file_path)
+    
     #check that population is unique by id_orig
     pop_df = df.groupby('id_orig')['population'].agg('unique').str.len()
     if any(pop_df>1):
