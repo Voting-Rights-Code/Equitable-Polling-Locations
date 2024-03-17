@@ -29,7 +29,7 @@ def incorporate_result(dist_df, model):
     #if no matches, raise error
     if all(result_df['matching'].isnull()):
         raise ValueError('The model has no matched precincts')
-    result_df = result_df.loc[result_df['matching'] ==1]
+    result_df = result_df.loc[round(result_df['matching']).astype(int) ==1]
     return(result_df)
 
 @timer
