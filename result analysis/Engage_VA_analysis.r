@@ -17,9 +17,10 @@ source('result analysis/map_functions.R')
 #######
 #Location must be part of config folder string
 
-#location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
-location = 'Greenville_SC'
-config_folder = 'Greenville_SC_original_configs'
+location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
+config_folder = 'Engage_VA_2024_configs'
+#location = 'Greenville_SC'
+#config_folder = 'Greenville_SC_original_configs'
 county = gsub('.{3}$','',location)
 county_config_ = paste0(county, '_', 'config', '_')
 
@@ -69,6 +70,7 @@ if (length(county_config_ >1)){
 county_config_ <- county_config_[1]} #cludge. Fix later
 color_bounds <- distance_bounds(config_folder)
 
+
 #######
 #Plot data
 #######
@@ -95,10 +97,38 @@ plot_election_edes(config_df_list[[1]], suffix ='')
 #Make maps and cartograms
 #########
 
-
-
 mapply(function(x,y, z){make_bg_maps(x, 'map', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
 mapply(function(x,y, z){make_demo_dist_map(x, 'white', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
 mapply(function(x,y, z){make_demo_dist_map(x, 'black', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
+
+mapply(function(x,y, z){make_demo_dist_map(x, 'population', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
+
+
+#######
+#Regression work
+#######
+
+map_folders <- paste0('../../datasets/census/tiger/', location, '/')
+map_files <- paste0(map_folders, list.files(map_folders)[endsWith(list.files(map_folders), 'tabblock20.shp')])
+
+map_data<- lapply(map_files, st_read)
+block_areas <- lapply(map_data, function(x){x[, c('GEOID20', 'ALAND20', 'AWATER20')]})
+if (length(block_areas > 4)){
+    block_areas <- do.call(rbind, block_areas)
+}
+
+regression_data <- merge(config_df_list[[4]], block_areas, by.x = 'id_orig', by.y = 'GEOID20', all.x = T)
+regression_data[ , `:=`(pop_density_m = population/(ALAND20 + AWATER20), pop_density_km = 1e6 *population/(ALAND20 + AWATER20),dist_m = Weighted_dist/ population, pct_white= 100 * white/population, pct_black = 100 *black/population)]
+
+model1 <- lm(dist_m ~ pop_density_km + white + black, data = regression_data, weights = population )
+model2 <- lm(Weighted_dist ~ pop_density + pct_white + pct_black, data = regression_data)
+
+dt1 <- regression_data[pop_density_km >64 , as.list(coef(lm(dist_m ~ pop_density_km + white + black,  weights = population ))), by = descriptor]
+dt2m <- regression_data[ , as.list(coef(lm(Weighted_dist ~ pop_density_m + pct_white + pct_black ))),  by = descriptor]
+dt2km <- regression_data[ , as.list(coef(lm(Weighted_dist ~ pop_density_km + pct_white + pct_black ))),  by = descriptor]
+
+head(dt1)
+head(dt2m)
+head(dt2km)

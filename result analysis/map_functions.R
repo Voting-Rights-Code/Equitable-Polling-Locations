@@ -173,7 +173,8 @@ make_bg_maps <-function(file_to_map, map_type, result_folder_name = result_folde
 	if (map_type == 'map'){
 		plotted = plotted + 
 		geom_point(data = ev_locs, aes(x = long, y = lat, color = type))+ 
-		scale_color_manual(breaks = c('polling', 'potential', 'bg_centroid'), values = c('red', 'black', 'dimgrey'))}
+		scale_color_manual(breaks = c('polling', 'potential', 'bg_centroid'), values = c('red', 'black', 'dimgrey'), name = 'Poll Type')}
+	plotted <- plotted + labs(fill = 'Avg Straight line distance (m)')
 	#write to file
 	descriptor = gsub(".*configs.(.*)_res.*", "\\1", file_to_map)
 	num_polls <- str_extract(descriptor, '[0,-9]+')
@@ -199,7 +200,7 @@ make_demo_dist_map <-function(file_to_map, demo_str, result_folder_name = result
 	plotted <- ggplot() +
 		geom_sf(data = demo_dist_shape) +  
 		geom_point(data = demo_dist_shape, aes(x = INTPTLON20, y = INTPTLAT20, size =demo_pop, color = avg_dist)) + 
-		scale_color_gradient(low='white', high='darkgreen', (limits = c(color_bounds[[1]], color_bounds[[2]])))
+		scale_color_gradient(low='white', high='darkgreen', (limits = c(color_bounds[[1]], color_bounds[[2]])), name = 'Avg Straight line distance (m)') + labs(size = paste(demographic_legend_dict[demo_str], 'population'))
 
 	#write to file
 	descriptor = gsub(".*configs.(.*)_res.*", "\\1", file_to_map)
