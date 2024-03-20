@@ -150,6 +150,18 @@ check_run_validity <- function(combined_df){
 }
 
 #######
+#dictionary for labels
+#######
+
+demographic_legend_dict <- c(
+	'asian' = 'Asian (not PI)', 
+	'black' = 'African American', 
+	'white' = 'White', 
+	'hispanic' = 'Latine',
+	'native' = 'First Nations',
+	'population' = 'Total Population')
+
+#######
 #functions to make plots
 #######
 
@@ -178,29 +190,32 @@ plot_election_edes <- function(orig_ede, suffix = ''){
 	
 	#plot with y_EDE
 	y_EDE = ggplot(orig_ede, aes(x = descriptor, y = y_EDE, 
-		group = demographic, color = demographic, shape = demographic)) 
+		group = demographic, color = demographic)) 
 	if (scale_bool){
-		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) )
+		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) +
+			labs(x = 'Optimization run', y = 'Equity weighted distance (m)', color = 'Demographic', size = 'Percent Total Population')
 	} else{
-		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order)),size = 5 )
+		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order)),size = 5 )+ 
+			labs(x = 'Optimization run', y = 'Equity weighted distance (m)', color = 'Demographic')
 	}
-		y_EDE = y_EDE +
-		labs(x = 'Optimization run', y = 'Equity weighted distance (m)') + 
-		ylim(y_min, y_max)
+	y_EDE = y_EDE +	ylim(y_min, y_max) + 
+		scale_color_discrete(labels = demographic_legend_dict)
+
 	name = paste('orig', suffix, 'y_EDE.png', sep = '_')
 	ggsave(name, y_EDE)
 	
 	#plot with avg_dist
 	avg = ggplot(orig_ede, aes(x = descriptor, y = avg_dist, 
-		group = demographic, color = demographic, shape = demographic)) 
+		group = demographic, color = demographic)) 
 if (scale_bool){
-		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) )
+		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) + 
+			labs(x = 'Optimization run', y = 'Equity weighted distance (m)', color = 'Demographic', size = 'Percent Total Population')
 	} else{
-		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order) ),size = 5)
+		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order) ),size = 5) + 
+			labs(x = 'Optimization run', y = 'Equity weighted distance (m)', color = 'Demographic')
 	}
-		avg = avg +
-		labs(x = 'Optimization run', y = 'Average distance (m)') +
-		ylim(y_min, y_max)
+	avg = avg + ylim(y_min, y_max) +
+		scale_color_discrete(labels = demographic_legend_dict)
 	name = paste('orig', suffix, 'avg.png', sep = '_')
 	ggsave(name, avg)
 }
