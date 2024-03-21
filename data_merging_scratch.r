@@ -4,7 +4,8 @@ library(here)
 setwd(here())
 
 state <- "SC"
-county_list <- c("Greenville", "Lexington", "Richland", "York")
+county_list <- c("Berkeley")
+#county_list <- c("Greenville", "Lexington", "Richland", "York")
 lat_lon_file_name <- paste(county_list, state, 'addresses_out.csv', sep='_')
 lat_lon_folder <- paste('../voting_data/data', state, county_list, sep= '/' )  
 lat_lon_path <- paste(lat_lon_folder, lat_lon_file_name, sep = '/')
@@ -24,5 +25,5 @@ bad_cols <- names(lat_lon_data[[1]])[4:11]
 lat_lon_copy <- copy(lat_lon_data)
 lat_lon_data<- lapply(lat_lon_data, function(x){x[ , (bad_cols):= NULL]})
 lapply(lat_lon_data, function(x){setnames(x, names(x), c('Location', 'Address', 'Location type', 'Latitude', 'Longitude'))})
-lat_lon_data <- lapply(lat_lon_data, function(x){x[ , `Lat, Long` := paste(Latitude, Longitude, sep = ', ')]}m)
+lat_lon_data <- lapply(lat_lon_data, function(x){x[ , `Lat, Long` := paste(Latitude, Longitude, sep = ', ')]})
 mapply(function(x,y){fwrite(x, y)}, lat_lon_data, polling_path)

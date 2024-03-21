@@ -17,10 +17,10 @@ source('result analysis/map_functions.R')
 #######
 #Location must be part of config folder string
 
-location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
-config_folder = 'Engage_VA_2024_configs'
-#location = 'Greenville_SC'
-#config_folder = 'Greenville_SC_original_configs'
+#location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
+#config_folder = 'Engage_VA_2024_configs'
+location = 'Berkeley_SC'
+config_folder = 'Berkeley_SC_original_configs'
 county = gsub('.{3}$','',location)
 county_config_ = paste0(county, '_', 'config', '_')
 
@@ -113,9 +113,9 @@ mapply(function(x,y, z){make_demo_dist_map(x, 'population', result_folder_name =
 map_folders <- paste0('../../datasets/census/tiger/', location, '/')
 map_files <- paste0(map_folders, list.files(map_folders)[endsWith(list.files(map_folders), 'tabblock20.shp')])
 
-map_data<- lapply(map_files, st_read)
+map_data<- lapply(map_files, function(x){as.data.table(st_read(x))})
 block_areas <- lapply(map_data, function(x){x[, c('GEOID20', 'ALAND20', 'AWATER20')]})
-if (length(block_areas > 4)){
+if (length(block_areas)> 1){
     block_areas <- do.call(rbind, block_areas)
 }
 
@@ -125,7 +125,7 @@ regression_data[ , `:=`(pop_density_m = population/(ALAND20 + AWATER20), pop_den
 model1 <- lm(dist_m ~ pop_density_km + white + black, data = regression_data, weights = population )
 model2 <- lm(Weighted_dist ~ pop_density + pct_white + pct_black, data = regression_data)
 
-dt1 <- regression_data[pop_density_km >64 , as.list(coef(lm(dist_m ~ pop_density_km + white + black,  weights = population ))), by = descriptor]
+dt1 <- regression_data[ , as.list(coef(lm(dist_m ~ pop_density_km + white + black,  weights = population ))), by = descriptor]
 dt2m <- regression_data[ , as.list(coef(lm(Weighted_dist ~ pop_density_m + pct_white + pct_black ))),  by = descriptor]
 dt2km <- regression_data[ , as.list(coef(lm(Weighted_dist ~ pop_density_km + pct_white + pct_black ))),  by = descriptor]
 
