@@ -174,7 +174,12 @@ make_bg_maps <-function(file_to_map, map_type, result_folder_name = result_folde
 		plotted = plotted + 
 		geom_point(data = ev_locs, aes(x = long, y = lat, color = type))+ 
 		scale_color_manual(breaks = c('polling', 'potential', 'bg_centroid'), values = c('red', 'black', 'dimgrey'), name = 'Poll Type')}
-	plotted <- plotted + labs(fill = 'Avg Straight line distance (m)')
+	if (grepl('driving', config_folder)){
+	plotted <- plotted + labs(fill = 'Avg driving distance (m)')
+	} else {
+		plotted <- plotted + labs(fill = 'Avg straight line distance (m)')
+	}
+
 	#write to file
 	descriptor = gsub(".*configs.(.*)_res.*", "\\1", file_to_map)
 	num_polls <- str_extract(descriptor, '[0,-9]+')

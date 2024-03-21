@@ -18,7 +18,7 @@ source('result analysis/map_functions.R')
 #Location must be part of config folder string
 
 location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
-config_folder = 'Engage_VA_2024_configs'
+config_folder = 'Engage_VA_2024_driving_configs'
 #location = 'Greenville_SC'
 #config_folder = 'Greenville_SC_original_configs'
 county = gsub('.{3}$','',location)
@@ -66,7 +66,7 @@ res_dist_list = list.files(result_folder)[grepl('residence_distances', list.file
 res_dist_list = res_dist_list[grepl(config_folder, res_dist_list)]
 
 #get avg distance bounds for maps
-if (length(county_config_ >1)){
+if (length(county_config_) >1){
 county_config_ <- county_config_[1]} #cludge. Fix later
 color_bounds <- distance_bounds(config_folder)
 
@@ -115,7 +115,7 @@ map_files <- paste0(map_folders, list.files(map_folders)[endsWith(list.files(map
 
 map_data<- lapply(map_files, st_read)
 block_areas <- lapply(map_data, function(x){x[, c('GEOID20', 'ALAND20', 'AWATER20')]})
-if (length(block_areas > 4)){
+if (length(block_areas)> 1){
     block_areas <- do.call(rbind, block_areas)
 }
 
@@ -126,9 +126,14 @@ model1 <- lm(dist_m ~ pop_density_km + white + black, data = regression_data, we
 model2 <- lm(Weighted_dist ~ pop_density + pct_white + pct_black, data = regression_data)
 
 dt1 <- regression_data[pop_density_km >64 , as.list(coef(lm(dist_m ~ pop_density_km + white + black,  weights = population ))), by = descriptor]
+dt1.1 <- regression_data[pop_density_km >64 , as.list(coef(lm(dist_m ~ pop_density_km + pct_white + pct_black,  weights = population ))), by = descriptor]
+dt1.2 <- regression_data[pop_density_km >64 , as.list(coef(lm(dist_m ~ pop_density_km + pct_white,  weights = population ))), by = descriptor]
 dt2m <- regression_data[ , as.list(coef(lm(Weighted_dist ~ pop_density_m + pct_white + pct_black ))),  by = descriptor]
 dt2km <- regression_data[ , as.list(coef(lm(Weighted_dist ~ pop_density_km + pct_white + pct_black ))),  by = descriptor]
 
 head(dt1)
+head(dt1.1)
+head(dt1.2)
+
 head(dt2m)
 head(dt2km)
