@@ -188,17 +188,25 @@ plot_election_edes <- function(orig_ede, suffix = ''){
 	#does data contain scaling data
 	scale_bool = 'pct_demo_population' %in% names(orig_ede)
 	
+	#is this driving distance data
+	if (grepl('driving', config_folder)){
+		ylabel = 'Equity weighted driving distance (m)'
+		title_str = "driving distance by demographic and optimization run"
+	} else {
+		ylabel = 'Equity weighted distance (m)'
+		title_str = "distance by demographic and optimization run"
+	}
 	#plot with y_EDE
 	y_EDE = ggplot(orig_ede, aes(x = descriptor, y = y_EDE, 
 		group = demographic, color = demographic)) 
 	if (scale_bool){
 		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) +
-			labs(x = 'Optimization run', y = 'Equity weighted distance (m)', color = 'Demographic', size = 'Percent Total Population')
+			labs(x = 'Optimization run', y = ylabel, color = 'Demographic', size = 'Percent Total Population')
 	} else{
 		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order)),size = 5 )+ 
-			labs(x = 'Optimization run', y = 'Equity weighted distance (m)', color = 'Demographic')
+			labs(x = 'Optimization run', y = ylabel, color = 'Demographic')
 	}
-	y_EDE = y_EDE +	ylim(y_min, y_max) + 
+	y_EDE = y_EDE +	ylim(y_min, y_max) + ggtitle(paste('Equity weighted', title_str))
 		scale_color_discrete(labels = demographic_legend_dict)
 
 	name = paste('orig', suffix, 'y_EDE.png', sep = '_')
@@ -209,12 +217,12 @@ plot_election_edes <- function(orig_ede, suffix = ''){
 		group = demographic, color = demographic)) 
 if (scale_bool){
 		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) + 
-			labs(x = 'Optimization run', y = 'Equity weighted distance (m)', color = 'Demographic', size = 'Percent Total Population')
+			labs(x = 'Optimization run', y = ylabel, color = 'Demographic', size = 'Percent Total Population')
 	} else{
 		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order) ),size = 5) + 
-			labs(x = 'Optimization run', y = 'Equity weighted distance (m)', color = 'Demographic')
+			labs(x = 'Optimization run', y = ylabel, color = 'Demographic')
 	}
-	avg = avg + ylim(y_min, y_max) +
+	avg = avg + ylim(y_min, y_max) + ggtitle(paste('Average', title_str)) + 
 		scale_color_discrete(labels = demographic_legend_dict)
 	name = paste('orig', suffix, 'avg.png', sep = '_')
 	ggsave(name, avg)

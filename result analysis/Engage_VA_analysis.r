@@ -99,12 +99,15 @@ plot_election_edes(config_df_list[[1]], suffix ='')
 
 mapply(function(x,y, z){make_bg_maps(x, 'map', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
+mapply(function(x,y, z){make_bg_maps(x, 'cartogram', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
+
 mapply(function(x,y, z){make_demo_dist_map(x, 'white', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
 mapply(function(x,y, z){make_demo_dist_map(x, 'black', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
 mapply(function(x,y, z){make_demo_dist_map(x, 'population', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
+make_demo_dist_map(res_dist_list[[1]], 'population', result_folder_name = result_folder[1], this_location = location[1])
 
 #######
 #Regression work
@@ -125,15 +128,18 @@ regression_data[ , `:=`(pop_density_m = population/(ALAND20 + AWATER20), pop_den
 model1 <- lm(dist_m ~ pop_density_km + white + black, data = regression_data, weights = population )
 model2 <- lm(Weighted_dist ~ pop_density + pct_white + pct_black, data = regression_data)
 
-dt1 <- regression_data[pop_density_km >64 , as.list(coef(lm(dist_m ~ pop_density_km + white + black,  weights = population ))), by = descriptor]
-dt1.1 <- regression_data[pop_density_km >64 , as.list(coef(lm(dist_m ~ pop_density_km + pct_white + pct_black,  weights = population ))), by = descriptor]
-dt1.2 <- regression_data[pop_density_km >64 , as.list(coef(lm(dist_m ~ pop_density_km + pct_white,  weights = population ))), by = descriptor]
+dt1 <- regression_data[ , as.list(coef(lm(dist_m ~ pop_density_km + white + black,  weights = population ))), by = descriptor]
+dt1.1 <- regression_data[ , as.list(coef(lm(dist_m ~ pop_density_km + pct_white + pct_black,  weights = population ))), by = descriptor]
+dt1.2 <- regression_data[ , as.list(coef(lm(dist_m ~ pop_density_km + pct_white,  weights = population ))), by = descriptor]
+dt1.3 <- regression_data[, as.list(coef(lm(dist_m ~ pop_density_km + pct_black,  weights = population ))), by = descriptor]
+
+
 dt2m <- regression_data[ , as.list(coef(lm(Weighted_dist ~ pop_density_m + pct_white + pct_black ))),  by = descriptor]
 dt2km <- regression_data[ , as.list(coef(lm(Weighted_dist ~ pop_density_km + pct_white + pct_black ))),  by = descriptor]
 
 head(dt1)
 head(dt1.1)
 head(dt1.2)
-
-head(dt2m)
-head(dt2km)
+head(dt1.3)
+#head(dt2m)
+#head(dt2km)

@@ -167,17 +167,29 @@ make_bg_maps <-function(file_to_map, map_type, result_folder_name = result_folde
 	demo_dist_shape<- merge(map_sf, res_dist_demo, all = T)	
 	
 	#make maps
+	if (grepl('driving', config_folder)){
+		title_str = 'Average driving distance to poll (m)'
+		fill_str = 'Avg driving distance (m)'
+	} else{
+		title_str = 'Average distance to poll (m)'
+		fill_str = 'Avg straight line distance (m)'
+	}
 	plotted <- ggplot() +
 		geom_sf(data = demo_dist_shape, aes(fill = avg_dist)) + 
-		scale_fill_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]])) 
+		scale_fill_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = fill_str) 
 	if (map_type == 'map'){
 		plotted = plotted + 
 		geom_point(data = ev_locs, aes(x = long, y = lat, color = type))+ 
-		scale_color_manual(breaks = c('polling', 'potential', 'bg_centroid'), values = c('red', 'black', 'dimgrey'), name = 'Poll Type')}
+		scale_color_manual(breaks = c('polling', 'potential', 'bg_centroid'), values = c('red', 'black', 'dimgrey'), name = 'Poll Type') +  xlab('') + ylab('') 
+	} else{ 
+		plotted = plotted + theme(axis.text.x=element_blank(), axis.text.y=element_blank(), axis.ticks = element_blank())
+	}
+	plotted = plotted + ggtitle(title_str, paste('Block group', map_type , 'of', gsub('_', ' ', this_location) ))
+
 	if (grepl('driving', config_folder)){
-	plotted <- plotted + labs(fill = 'Avg driving distance (m)')
+	plotted <- plotted #+ labs(fill = 'Avg driving distance (m)')
 	} else {
-		plotted <- plotted + labs(fill = 'Avg straight line distance (m)')
+		plotted <- plotted #+ labs(fill = 'Avg straight line distance (m)')
 	}
 
 	#write to file
@@ -202,10 +214,20 @@ make_demo_dist_map <-function(file_to_map, demo_str, result_folder_name = result
 	demo_dist_shape<- merge(map_sf, res_dist_df, all = T)
 
 	#plot map with a point at the centroid, colored by distance, sized by size
+	if (grepl('driving', config_folder)){
+		title_str = 'average driving distance to poll (m)'
+		color_str = 'Avg driving distance (m)'
+	} else{
+		title_str = 'average distance to poll (m)'
+		color_str = 'Avg straight line distance (m)'
+	}
 	plotted <- ggplot() +
 		geom_sf(data = demo_dist_shape) +  
 		geom_point(data = demo_dist_shape, aes(x = INTPTLON20, y = INTPTLAT20, size =demo_pop, color = avg_dist)) + 
-		scale_color_gradient(low='white', high='darkgreen', (limits = c(color_bounds[[1]], color_bounds[[2]])), name = 'Avg Straight line distance (m)') + labs(size = paste(demographic_legend_dict[demo_str], 'population'))
+		scale_color_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = color_str) + 
+		labs(size = paste(demographic_legend_dict[demo_str], 'population') ) + 
+		xlab('') + ylab('') + 
+		ggtitle(paste(demographic_legend_dict[demo_str], title_str), paste('Block groups in', gsub('_', ' ', this_location)))
 
 	#write to file
 	descriptor = gsub(".*configs.(.*)_res.*", "\\1", file_to_map)
