@@ -18,9 +18,9 @@ source('result analysis/map_functions.R')
 #Location must be part of config folder string
 
 #location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
-#config_folder = 'Engage_VA_2024_configs'
-location = 'Berkeley_SC'
-config_folder = 'Berkeley_SC_original_configs'
+#config_folder = 'Engage_VA_2024_driving_configs'
+location = 'Lexington_SC'
+config_folder = 'Lexington_SC_original_configs'
 county = gsub('.{3}$','',location)
 county_config_ = paste0(county, '_', 'config', '_')
 
@@ -66,7 +66,7 @@ res_dist_list = list.files(result_folder)[grepl('residence_distances', list.file
 res_dist_list = res_dist_list[grepl(config_folder, res_dist_list)]
 
 #get avg distance bounds for maps
-if (length(county_config_ >1)){
+if (length(county_config_) >1){
 county_config_ <- county_config_[1]} #cludge. Fix later
 color_bounds <- distance_bounds(config_folder)
 
@@ -99,12 +99,15 @@ plot_election_edes(config_df_list[[1]], suffix ='')
 
 mapply(function(x,y, z){make_bg_maps(x, 'map', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
+mapply(function(x,y, z){make_bg_maps(x, 'cartogram', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
+
 mapply(function(x,y, z){make_demo_dist_map(x, 'white', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
 mapply(function(x,y, z){make_demo_dist_map(x, 'black', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
 mapply(function(x,y, z){make_demo_dist_map(x, 'population', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
+make_demo_dist_map(res_dist_list[[1]], 'population', result_folder_name = result_folder[1], this_location = location[1])
 
 #######
 #Regression work
@@ -113,22 +116,59 @@ mapply(function(x,y, z){make_demo_dist_map(x, 'population', result_folder_name =
 map_folders <- paste0('../../datasets/census/tiger/', location, '/')
 map_files <- paste0(map_folders, list.files(map_folders)[endsWith(list.files(map_folders), 'tabblock20.shp')])
 
-map_data<- lapply(map_files, function(x){as.data.table(st_read(x))})
+map_data<- lapply(map_files, st_read)
 block_areas <- lapply(map_data, function(x){x[, c('GEOID20', 'ALAND20', 'AWATER20')]})
 if (length(block_areas)> 1){
     block_areas <- do.call(rbind, block_areas)
 }
 
 regression_data <- merge(config_df_list[[4]], block_areas, by.x = 'id_orig', by.y = 'GEOID20', all.x = T)
-regression_data[ , `:=`(pop_density_m = population/(ALAND20 + AWATER20), pop_density_km = 1e6 *population/(ALAND20 + AWATER20),dist_m = Weighted_dist/ population, pct_white= 100 * white/population, pct_black = 100 *black/population)]
+regression_data[ , `:=`(area = ALAND20 + AWATER20, pop_density_m = population/(ALAND20 + AWATER20), pop_density_km = 1e6 *population/(ALAND20 + AWATER20),dist_m = Weighted_dist/ population, pct_white= 100 * white/population, pct_black = 100 *black/population)]
 
 model1 <- lm(dist_m ~ pop_density_km + white + black, data = regression_data, weights = population )
 model2 <- lm(Weighted_dist ~ pop_density + pct_white + pct_black, data = regression_data)
 
 dt1 <- regression_data[ , as.list(coef(lm(dist_m ~ pop_density_km + white + black,  weights = population ))), by = descriptor]
+dt1.1 <- regression_data[ , as.list(coef(lm(dist_m ~ pop_density_km + pct_white + pct_black,  weights = population ))), by = descriptor]
+dt1.2 <- regression_data[ , as.list(coef(lm(dist_m ~ pop_density_km + pct_white,  weights = population ))), by = descriptor]
+dt1.3 <- regression_data[, as.list(coef(lm(dist_m ~ pop_density_km + pct_black,  weights = population ))), by = descriptor]
+dt1.4 <- regression_data[, as.list(coef(lm(dist_m ~ pop_density_km + black,  weights = population ))), by = descriptor]
+dt1.5 <- regression_data[, as.list(coef(lm(dist_m ~ population + area + pct_black,  weights = population ))), by = descriptor]
+dt1.6 <- regression_data[, as.list(coef(lm(dist_m ~ pop_density_km  + pct_black + pop_density_km*pct_black),  weights = population )), by = descriptor]
+
+
 dt2m <- regression_data[ , as.list(coef(lm(Weighted_dist ~ pop_density_m + pct_white + pct_black ))),  by = descriptor]
 dt2km <- regression_data[ , as.list(coef(lm(Weighted_dist ~ pop_density_km + pct_white + pct_black ))),  by = descriptor]
 
 head(dt1)
-head(dt2m)
-head(dt2km)
+head(dt1.1)
+head(dt1.2)
+head(dt1.3)
+head(dt1.4)
+head(dt1.5)
+head(dt1.6) 
+quantile(regression_data$pop_density_km)
+quantile(regression_data$pct_black)
+pop_scaled_edes[demographic == 'black',]
+
+
+#richland & Berkeley
+#Note the pct_black and pop_density uncorrelation
+#dt 1.6 tells interesting story
+
+#for York
+#AA community appears unaffected by change
+#note that the AA community is only 18% of total population
+#however, it is really concentrated:
+#quantile(regression_data$pct_black)     
+#        0%        25%        50%        75%       100%
+#  0.000000   0.000000   6.749165  25.000000 100.000000
+#Makes it likely that the polling locations that were removed/ moved were in the most heavily AA communities
+
+#for Greenville
+#similar to York
+
+#Berkeley
+
+#head(dt2m)
+#head(dt2km)

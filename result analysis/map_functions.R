@@ -103,20 +103,14 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 		#name resetting needed because of st_write truncating names
 		names(map) <- c("GEOID20", "AREA20", "INTPTLAT20", "INTPTLON20", "Geographic Area Name", "population", "white", "black", "native", "asian", "pacific_islander", "other", "multiple_races", "hispanic", "non-hispanic", "geometry")
 	} else {
-		#get demographics
-		setwd(paste0(here(), '/datasets/census/redistricting/', location ))
 		#block group demographics
-		bg_demo <- process_demographics("block group demographics")
+		bg_demo <- process_demographics(paste0(here(), '/datasets/census/redistricting/', location, "/block group demographics"))
 
 		#get shape file
-		setwd(paste0(here(), '/datasets/census/tiger/', location ))
 		#Block group shape files
-		bg_shape_file <- list.files(pattern = 'bg20.shp$')
+		bg_shape_file <- list.files(paste0(here(), '/datasets/census/tiger/', location ), pattern = 'bg20.shp$')
 		#get map data
-		map_bg_dt <- process_maps(bg_shape_file)
-
-		#reset directory
-		setwd(here())
+		map_bg_dt <- process_maps(paste0(here(), '/datasets/census/tiger/', location, '/', bg_shape_file))
 
 		#merge the bg shape dt with the bg demo dt
 		bg_demo_shape <- merge(map_bg_dt, bg_demo, by.x = c('GEOID20'), by.y = c('Geography'))
@@ -131,7 +125,8 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 		#make map and write to file
 		map <- st_transform(bg_demo_sf, projection)
 		if (map_type == 'cartogram'){
-			map <- cartogram_cont(map, demographic, itermax = 100, maxSizeError = 1.02)
+			map <- cartogram_cont(map, demographic, itermax = 200, maxSizeError = 1.02)
+			
 		}
 		st_write(map, file.path(here(), map_folder, map_name))
 	}
@@ -167,14 +162,31 @@ make_bg_maps <-function(file_to_map, map_type, result_folder_name = result_folde
 	demo_dist_shape<- merge(map_sf, res_dist_demo, all = T)	
 	
 	#make maps
+	if (grepl('driving', config_folder)){
+		title_str = 'Average driving distance to poll (m)'
+		fill_str = 'Avg driving distance (m)'
+	} else{
+		title_str = 'Average distance to poll (m)'
+		fill_str = 'Avg straight line distance (m)'
+	}
 	plotted <- ggplot() +
 		geom_sf(data = demo_dist_shape, aes(fill = avg_dist)) + 
-		scale_fill_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]])) 
+		scale_fill_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = fill_str) 
 	if (map_type == 'map'){
 		plotted = plotted + 
 		geom_point(data = ev_locs, aes(x = long, y = lat, color = type))+ 
-		scale_color_manual(breaks = c('polling', 'potential', 'bg_centroid'), values = c('red', 'black', 'dimgrey'), name = 'Poll Type')}
-	plotted <- plotted + labs(fill = 'Avg Straight line distance (m)')
+		scale_color_manual(breaks = c('polling', 'potential', 'bg_centroid'), values = c('red', 'black', 'dimgrey'), name = 'Poll Type') +  xlab('') + ylab('') 
+	} else{ 
+		plotted = plotted + theme(axis.text.x=element_blank(), axis.text.y=element_blank(), axis.ticks = element_blank())
+	}
+	plotted = plotted + ggtitle(title_str, paste('Block group', map_type , 'of', gsub('_', ' ', this_location) ))
+
+	if (grepl('driving', config_folder)){
+	plotted <- plotted #+ labs(fill = 'Avg driving distance (m)')
+	} else {
+		plotted <- plotted #+ labs(fill = 'Avg straight line distance (m)')
+	}
+
 	#write to file
 	descriptor = gsub(".*configs.(.*)_res.*", "\\1", file_to_map)
 	num_polls <- str_extract(descriptor, '[0,-9]+')
@@ -197,10 +209,25 @@ make_demo_dist_map <-function(file_to_map, demo_str, result_folder_name = result
 	demo_dist_shape<- merge(map_sf, res_dist_df, all = T)
 
 	#plot map with a point at the centroid, colored by distance, sized by size
+	#set names
+	if (grepl('driving', config_folder)){
+		title_str = 'average driving distance to poll (m)'
+		color_str = 'Avg driving distance (m)'
+	} else{
+		title_str = 'average distance to poll (m)'
+		color_str = 'Avg straight line distance (m)'
+	}
+	#size limits
+	pop_dist_df <- process_residence(file_to_map, 'population', result_folder_name)
+	max_pop <- max(pop_dist_df$demo_pop)
+	print(max_pop)
 	plotted <- ggplot() +
 		geom_sf(data = demo_dist_shape) +  
-		geom_point(data = demo_dist_shape, aes(x = INTPTLON20, y = INTPTLAT20, size =demo_pop, color = avg_dist)) + 
-		scale_color_gradient(low='white', high='darkgreen', (limits = c(color_bounds[[1]], color_bounds[[2]])), name = 'Avg Straight line distance (m)') + labs(size = paste(demographic_legend_dict[demo_str], 'population'))
+		geom_point(data = demo_dist_shape, aes(x = INTPTLON20, y = INTPTLAT20, size= demo_pop, color = avg_dist)) +
+		scale_color_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = color_str) + 
+		labs(size = paste(demographic_legend_dict[demo_str], 'population') ) + 
+		xlab('') + ylab('') + scale_size(limits= c(0, max_pop))
+		ggtitle(paste(demographic_legend_dict[demo_str], title_str), paste('Block groups in', gsub('_', ' ', this_location)))
 
 	#write to file
 	descriptor = gsub(".*configs.(.*)_res.*", "\\1", file_to_map)
