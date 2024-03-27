@@ -2,7 +2,7 @@
 A utility to read in the polling location addresses and their associated lat/lons and compare the to
 Google's for the purpose of quality control.
 
-This utility expects the Google Maps API key string to be stored in a single line file called API.KEY in this directory.
+This utility expects the Google Maps API key string to be stored in a single line file called api.key in this directory.
 '''
 
 import argparse
@@ -63,15 +63,15 @@ def validate_csv(api_key: str, source_file: str, dest_file: str):
     output_results = []
 
     for _, row in df.iterrows():
-        address = make_address(row)
+        query_address = make_query_address(row)
         row_dict = row.to_dict()
 
         # Don't query google if we have the lat lon already.
-        already_geocoded = row_dict[headers.GOOGLE_LAT_COL] and row_dict[headers.GOOGLE_LAT_COL]
+        already_geocoded = row_dict.get(headers.GOOGLE_LAT_COL) and row_dict.get(headers.GOOGLE_LAT_COL)
         if already_geocoded:
             geo_code_result = {}
         else:
-            geo_code_result = geo_code(api_key, address)
+            geo_code_result = geo_code(api_key, query_address)
 
         output_row = { **row_dict, **geo_code_result }
 
@@ -109,25 +109,26 @@ def compute_distance(output_row: dict) -> int:
     return round(distance)
 
 
-def make_address(row) -> str:
+def make_query_address(row) -> str:
     ''' Parse out the address fields from the source csv and create a google api friendly address string '''
 
+    id_col = row[headers.ID_COL]
     address_col = row[headers.ADDRESS_COL]
     city_col = row[headers.CITY_COL]
     state_col = row[headers.STATE_COL]
     zip_col = row[headers.ZIP_COL]
-    address = f'{address_col}, {city_col}, {state_col} {zip_col}'
+    address = f'{id_col} {address_col}, {city_col}, {state_col} {zip_col}'
 
     return address
 
 
-def geo_code(api_key: str, address: str) -> dict:
+def geo_code(api_key: str, query_address: str) -> dict:
     ''' Call google geocode api and return a dict containing the google official address google's lat/lon '''
 
     gmaps = googlemaps.Client(key=api_key)
-    query_result = gmaps.geocode(address)
+    query_result = gmaps.geocode(query_address)
     if not query_result:
-        raise InvalidGecodeResult(f'Invalid geocode result for address: {address}')
+        raise InvalidGecodeResult(f'Invalid geocode result for address: {query_address}')
 
     return parse_google_geocode(query_result)
 
