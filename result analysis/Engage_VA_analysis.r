@@ -21,6 +21,7 @@ source('result analysis/map_functions.R')
 #config_folder = 'Engage_VA_2024_driving_configs'
 location = 'Lexington_SC'
 config_folder = 'Lexington_SC_original_configs'
+reference_tag = '2022'
 county = gsub('.{3}$','',location)
 county_config_ = paste0(county, '_', 'config', '_')
 
@@ -107,49 +108,47 @@ mapply(function(x,y, z){make_demo_dist_map(x, 'black', result_folder_name = y, t
 
 mapply(function(x,y, z){make_demo_dist_map(x, 'population', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
-make_demo_dist_map(res_dist_list[[1]], 'population', result_folder_name = result_folder[1], this_location = location[1])
+
 
 #######
 #Regression work
 #######
 
-map_folders <- paste0('../../datasets/census/tiger/', location, '/')
-map_files <- paste0(map_folders, list.files(map_folders)[endsWith(list.files(map_folders), 'tabblock20.shp')])
+#get data to run regression
 
-map_data<- lapply(map_files, st_read)
-block_areas <- lapply(map_data, function(x){x[, c('GEOID20', 'ALAND20', 'AWATER20')]})
-if (length(block_areas)> 1){
-    block_areas <- do.call(rbind, block_areas)
-}
+regression_data <- get_regression_data(location, config_df_list[[4]])
+descriptor_list <- unique(regression_data$descriptor)
+reference <- descriptor_list[grepl(reference_tag, descriptor_list)]
+regression_data <- calculate_pct_change(regression_data, reference)
 
-regression_data <- merge(config_df_list[[4]], block_areas, by.x = 'id_orig', by.y = 'GEOID20', all.x = T)
-regression_data[ , `:=`(area = ALAND20 + AWATER20, pop_density_m = population/(ALAND20 + AWATER20), pop_density_km = 1e6 *population/(ALAND20 + AWATER20),dist_m = Weighted_dist/ population, pct_white= 100 * white/population, pct_black = 100 *black/population)]
+#run regeression by descriptor and store coefs in a data frame
+distance_model <- regression_data[, as.list(coef(lm(distance_m ~ pop_density_km  + pct_black + pop_density_km*pct_black),  weights = population )), by = descriptor]
+setnames(distance_model, c('(Intercept)', 'pop_density_km', 'pct_black','pop_density_km:pct_black'), c('intercept', 'density_coef', 'pct_black_coef', 'density_black_interaction_coef'))
+fwrite(distance_model, paste0(county, '_distance_model.csv'))
 
-model1 <- lm(dist_m ~ pop_density_km + white + black, data = regression_data, weights = population )
-model2 <- lm(Weighted_dist ~ pop_density + pct_white + pct_black, data = regression_data)
+change_model<- regression_data[, as.list(coef(lm(pct_extra_in_2022 ~ pop_density_km  + pct_black + pop_density_km*pct_black),  weights = population )), by = descriptor]
+setnames(change_model, c('(Intercept)', 'pop_density_km', 'pct_black','pop_density_km:pct_black'), c('intercept', 'density_coef', 'pct_black_coef', 'density_black_interaction_coef'))
+fwrite(change_model, paste0(county, '_pct_change_model.csv'))
 
-dt1 <- regression_data[ , as.list(coef(lm(dist_m ~ pop_density_km + white + black,  weights = population ))), by = descriptor]
-dt1.1 <- regression_data[ , as.list(coef(lm(dist_m ~ pop_density_km + pct_white + pct_black,  weights = population ))), by = descriptor]
-dt1.2 <- regression_data[ , as.list(coef(lm(dist_m ~ pop_density_km + pct_white,  weights = population ))), by = descriptor]
-dt1.3 <- regression_data[, as.list(coef(lm(dist_m ~ pop_density_km + pct_black,  weights = population ))), by = descriptor]
-dt1.4 <- regression_data[, as.list(coef(lm(dist_m ~ pop_density_km + black,  weights = population ))), by = descriptor]
-dt1.5 <- regression_data[, as.list(coef(lm(dist_m ~ population + area + pct_black,  weights = population ))), by = descriptor]
-dt1.6 <- regression_data[, as.list(coef(lm(dist_m ~ pop_density_km  + pct_black + pop_density_km*pct_black),  weights = population )), by = descriptor]
+#plot predicted distances at a given density
+plot_predicted_distances(regression_data, distance_model)
+
+#2d Plot actual distances by density and black
+sapply(descriptor_list, function(x){plot_distance_by_density_black(regression_data, x)})
+
+#3d Plot actual distances by density and black
+sapply(descriptor_list, function(x){plot_distance_by_density_black_3d(regression_data, x)})
 
 
-dt2m <- regression_data[ , as.list(coef(lm(Weighted_dist ~ pop_density_m + pct_white + pct_black ))),  by = descriptor]
-dt2km <- regression_data[ , as.list(coef(lm(Weighted_dist ~ pop_density_km + pct_white + pct_black ))),  by = descriptor]
+#3d Plot pct distance changed by density and black
+sapply(descriptor_list[descriptor_list != reference], function(x){plot_pct_change_by_density_black_3d(regression_data, x)})
+    
 
-head(dt1)
-head(dt1.1)
-head(dt1.2)
-head(dt1.3)
-head(dt1.4)
-head(dt1.5)
-head(dt1.6) 
-quantile(regression_data$pop_density_km)
-quantile(regression_data$pct_black)
-pop_scaled_edes[demographic == 'black',]
+location_list = c('Berkeley', 'Greenville', 'Lexington', 'Richland', 'York')
+file_list = sapply(location_list, function(x)paste0('../', x, '_SC_original_configs/', x, '_pct_change_model.csv'))
+dt_list <- lapply(file_list, fread)
+dt <- do.call(rbind, dt_list)
+
 
 
 #richland & Berkeley
