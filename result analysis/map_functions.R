@@ -169,6 +169,10 @@ make_bg_maps <-function(file_to_map, map_type, result_folder_name = result_folde
 		title_str = 'Average distance to poll (m)'
 		fill_str = 'Avg straight line distance (m)'
 	}
+
+	county = gsub('.{3}$','',this_location)
+	numeric_label = str_extract(file_to_map, '[0-9]+')
+	descriptor = paste(county, numeric_label, sep ='_')
 	plotted <- ggplot() +
 		geom_sf(data = demo_dist_shape, aes(fill = avg_dist)) + 
 		scale_fill_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = fill_str) 
@@ -179,7 +183,7 @@ make_bg_maps <-function(file_to_map, map_type, result_folder_name = result_folde
 	} else{ 
 		plotted = plotted + theme(axis.text.x=element_blank(), axis.text.y=element_blank(), axis.ticks = element_blank())
 	}
-	plotted = plotted + ggtitle(title_str, paste('Block group', map_type , 'of', gsub('_', ' ', this_location) ))
+	plotted = plotted + ggtitle(title_str, paste('Block group', map_type , 'of', gsub('_', ' ', descriptor) ))
 
 	if (grepl('driving', config_folder)){
 	plotted <- plotted #+ labs(fill = 'Avg driving distance (m)')
@@ -211,12 +215,16 @@ make_demo_dist_map <-function(file_to_map, demo_str, result_folder_name = result
 	#plot map with a point at the centroid, colored by distance, sized by size
 	#set names
 	if (grepl('driving', config_folder)){
-		title_str = 'average driving distance to poll (m)'
+		title_str = 'population average driving distance to poll (m)'
 		color_str = 'Avg driving distance (m)'
 	} else{
-		title_str = 'average distance to poll (m)'
+		title_str = 'population average distance to poll (m)'
 		color_str = 'Avg straight line distance (m)'
 	}
+
+	county = gsub('.{3}$','',this_location)
+	numeric_label = str_extract(file_to_map, '[0-9]+')
+	descriptor = paste(county, numeric_label, sep ='_')
 	#size limits
 	pop_dist_df <- process_residence(file_to_map, 'population', result_folder_name)
 	max_pop <- max(pop_dist_df$demo_pop)
@@ -226,8 +234,8 @@ make_demo_dist_map <-function(file_to_map, demo_str, result_folder_name = result
 		geom_point(data = demo_dist_shape, aes(x = INTPTLON20, y = INTPTLAT20, size= demo_pop, color = avg_dist)) +
 		scale_color_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = color_str) + 
 		labs(size = paste(demographic_legend_dict[demo_str], 'population') ) + 
-		xlab('') + ylab('') + scale_size(limits= c(0, max_pop))
-		ggtitle(paste(demographic_legend_dict[demo_str], title_str), paste('Block groups in', gsub('_', ' ', this_location)))
+		xlab('') + ylab('') + scale_size(limits= c(0, max_pop)) + 
+		ggtitle(paste(demographic_legend_dict[demo_str], title_str), paste('Block groups in', gsub('_', ' ', descriptor)))
 
 	#write to file
 	descriptor = gsub(".*configs.(.*)_res.*", "\\1", file_to_map)

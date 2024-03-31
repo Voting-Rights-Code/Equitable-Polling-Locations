@@ -19,8 +19,8 @@ source('result analysis/map_functions.R')
 
 #location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
 #config_folder = 'Engage_VA_2024_driving_configs'
-location = 'Lexington_SC'
-config_folder = 'Lexington_SC_original_configs'
+location = 'Richland_SC'
+config_folder = 'Richland_SC_original_configs'
 reference_tag = '2022'
 county = gsub('.{3}$','',location)
 county_config_ = paste0(county, '_', 'config', '_')
@@ -149,25 +149,23 @@ file_list = sapply(location_list, function(x)paste0('../', x, '_SC_original_conf
 dt_list <- lapply(file_list, fread)
 dt <- do.call(rbind, dt_list)
 
+within_grp_ineq <- pop_scaled_edes[, ratio:= y_EDE/avg_dist
+            ][, c('descriptor', 'demographic', 'ratio')
+            ][order(ratio)]
 
+foo <- lm(pct_white ~ pop_density_km, regression_data)
+summary(foo)
 
-#richland & Berkeley
-#Note the pct_black and pop_density uncorrelation
-#dt 1.6 tells interesting story
+cor(regression_data$pct_white, regression_data$pop_density_km)
 
-#for York
-#AA community appears unaffected by change
-#note that the AA community is only 18% of total population
-#however, it is really concentrated:
-#quantile(regression_data$pct_black)     
-#        0%        25%        50%        75%       100%
-#  0.000000   0.000000   6.749165  25.000000 100.000000
-#Makes it likely that the polling locations that were removed/ moved were in the most heavily AA communities
+quantile(regression_data$pop_density_km)
 
-#for Greenville
-#similar to York
+head(pop_scaled_edes[demographic == 'population', c('descriptor', 'num_polls', 'avg_dist')])
+low_year = '2016'
+avg_low = pop_scaled_edes[grepl(low_year, descriptor), ]$avg_dist
+avg_high = pop_scaled_edes[grepl('2022', descriptor), ]$avg_dist
+bar <- pop_scaled_edes[grepl(low_year, descriptor), c('demographic')][ , difference:= avg_high-avg_low]
+head(bar)
 
-#Berkeley
+dt[descriptor == paste(county, low_year, sep = '_'), ]
 
-#head(dt2m)
-#head(dt2km)

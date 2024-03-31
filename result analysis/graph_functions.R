@@ -160,7 +160,7 @@ demographic_legend_dict <- c(
 	'white' = 'White', 
 	'hispanic' = 'Latine',
 	'native' = 'First Nations',
-	'population' = 'Total Population')
+	'population' = 'Total')
 
 #######
 #functions to make plots
