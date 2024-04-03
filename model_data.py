@@ -258,18 +258,10 @@ def clean_data(config: PollingModelConfig, for_alpha: bool):
     for year in year_list:
         if not any(str(year) in poll for poll in polling_location_types):
             raise ValueError(f'Do not currently have any data for {location} for {year} from {config.config_file_path}')
-            raise ValueError(f'Do not currently have any data for {location} for {year} from {config.config_file_path}')
     #drop duplicates and empty block groups
     df = df.drop_duplicates() #put in to avoid duplications down the line.
     df = df[df['population']>0]
 
-    #exclude bad location types
-    
-    # The bad types must be valid location types
-    if not set(bad_location_list).issubset(set(unique_location_types)):
-        raise ValueError(f'unrecognized bad location types types {set(bad_location_list).difference(set(unique_location_types))} in {config.config_file_path}' )
-    #drop rows of bad location types in df
-    df = df[~df['location_type'].isin(bad_location_list)]
     #exclude bad location types
     
     # The bad types must be valid location types
@@ -282,7 +274,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool):
     #select the polling locations only for the indicated years
     #keep all other locations
     not_polling = df[(df.dest_type != 'polling')]
-    polling_year_list =  [df[df.location_type.str.contains('polling_'.join([str(year)]))] for year in year_list]
+    polling_year_list =  [df[df.location_type.str.contains(str(year))] for year in year_list]
     polling_year_list.append(not_polling)
     df = pd.concat(polling_year_list)
     #the concatenation will create duplicates if a polling location is used multiple years
