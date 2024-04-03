@@ -417,7 +417,7 @@ plot_distance_by_density_black_3d <- function(data, this_descriptor){
 				hoverinfo = "text", 
 				mode = 'markers')%>% 
 		layout(title = paste(this_descriptor, "Distance to Polls for Census Blocks"),
-				scene = list(xaxis = list(title = 'Percent Black'),
+				scene = list(xaxis = list(title = 'Percent African American'),
 				yaxis = list(title = 'Population Density (percentile)'),
 				zaxis = list(title = 'Distance (m)', range =color_bounds)))
 	htmlwidgets::saveWidget(as_widget(fig), paste0(this_descriptor, '_dist_by_density_black.html'))
@@ -451,8 +451,8 @@ plot_pct_change_by_density_black_3d <- function(data, this_descriptor){
 							'<br>Population Density Percentile :', density_pctile, '<br>Population :', population), 
 				hoverinfo = "text", 
 				mode = 'markers')%>% 
-		layout(title = paste(this_descriptor, "Percent change in distance to 2022"),
-				scene = list(xaxis = list(title = 'Percent Black'),
+		layout(title = paste("Percent change in distance", gsub('_', ' ', this_descriptor),  "to 2022"),
+				scene = list(xaxis = list(title = 'Percent African American'),
 				yaxis = list(title = 'Population Density (percentile)'),
 				zaxis = list(title = 'Percent Extra Distance in 2022')))
 

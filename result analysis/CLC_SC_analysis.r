@@ -19,8 +19,8 @@ source('result analysis/map_functions.R')
 
 #location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
 #config_folder = 'Engage_VA_2024_driving_configs'
-location = 'Richland_SC'
-config_folder = 'Richland_SC_original_configs'
+location = 'York_SC'
+config_folder = 'York_SC_original_configs'
 reference_tag = '2022'
 county = gsub('.{3}$','',location)
 county_config_ = paste0(county, '_', 'config', '_')
@@ -100,7 +100,7 @@ plot_election_edes(config_df_list[[1]], suffix ='')
 
 mapply(function(x,y, z){make_bg_maps(x, 'map', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
-mapply(function(x,y, z){make_bg_maps(x, 'cartogram', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
+#mapply(function(x,y, z){make_bg_maps(x, 'cartogram', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
 mapply(function(x,y, z){make_demo_dist_map(x, 'white', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
@@ -124,20 +124,20 @@ regression_data <- calculate_pct_change(regression_data, reference)
 #run regeression by descriptor and store coefs in a data frame
 distance_model <- regression_data[, as.list(coef(lm(distance_m ~ pop_density_km  + pct_black + pop_density_km*pct_black),  weights = population )), by = descriptor]
 setnames(distance_model, c('(Intercept)', 'pop_density_km', 'pct_black','pop_density_km:pct_black'), c('intercept', 'density_coef', 'pct_black_coef', 'density_black_interaction_coef'))
-fwrite(distance_model, paste0(county, '_distance_model.csv'))
+#fwrite(distance_model, paste0(county, '_distance_model.csv'))
 
 change_model<- regression_data[, as.list(coef(lm(pct_extra_in_2022 ~ pop_density_km  + pct_black + pop_density_km*pct_black),  weights = population )), by = descriptor]
 setnames(change_model, c('(Intercept)', 'pop_density_km', 'pct_black','pop_density_km:pct_black'), c('intercept', 'density_coef', 'pct_black_coef', 'density_black_interaction_coef'))
-fwrite(change_model, paste0(county, '_pct_change_model.csv'))
+#fwrite(change_model, paste0(county, '_pct_change_model.csv'))
 
 #plot predicted distances at a given density
-plot_predicted_distances(regression_data, distance_model)
+#plot_predicted_distances(regression_data, distance_model)
 
 #2d Plot actual distances by density and black
-sapply(descriptor_list, function(x){plot_distance_by_density_black(regression_data, x)})
+#sapply(descriptor_list, function(x){plot_distance_by_density_black(regression_data, x)})
 
 #3d Plot actual distances by density and black
-sapply(descriptor_list, function(x){plot_distance_by_density_black_3d(regression_data, x)})
+#sapply(descriptor_list, function(x){plot_distance_by_density_black_3d(regression_data, x)})
 
 
 #3d Plot pct distance changed by density and black
