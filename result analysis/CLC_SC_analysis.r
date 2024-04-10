@@ -21,6 +21,8 @@ source('result analysis/map_functions.R')
 #CONFIG_FOLDER = 'Engage_VA_2024_driving_configs'
 
 #Basic constants for analysis
+#LOCATION must be either a string or list of strings
+#CONFIG_FOLDER must be a string
 LOCATION = 'York_SC'
 CONFIG_FOLDER = 'York_SC_original_configs'
 
@@ -42,7 +44,7 @@ check_config_folder_valid(CONFIG_FOLDER)
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
-config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'historical'')
+config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'historical')
 #config_ede_df<- config_df_list[[1]]
 #config_precinct_df<- config_df_list[[2]]
 #config_residence_df<- config_df_list[[3]]
