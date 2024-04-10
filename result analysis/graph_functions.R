@@ -25,18 +25,18 @@ check_config_folder_valid <- function(config_folder){
 ######
 #Functions to read in results
 ######
-combine_results<- function(config_folder, result_type, analysis_type = 'placement'){
+combine_results<- function(config_folder, result_type, location, analysis_type = 'placement'){
 	if (analysis_type == 'historical'){
-		return(combine_results_multi_county_historical(config_folder, result_type))}
+		return(combine_results_multi_county_historical(config_folder, result_type, location))}
 	else if (analysis_type == 'placement'){
-		return(combine_results_placement(config_folder, result_type))}
+		return(combine_results_placement(config_folder, result_type,location))}
 	else{
 		stop("Incorrect analysis_type provided")
 	}
 }
 
 ##### Code for when one config file contains multiple locations and year data in i (E.G. Engage_VA analysis)#####
-combine_results_multi_county_historical <- function(config_folder, result_type){
+combine_results_multi_county_historical <- function(config_folder, result_type,location){
 	#combine all the data of a certain type 
 	#(ede, precinct, residence, result)
 	#from indicated config_folder with multiple locations
@@ -71,7 +71,7 @@ combine_results_multi_county_historical <- function(config_folder, result_type){
 }
 
 ##### Code for when there is only one location in the config folder, and config folder starts with that string (e.g. FFA analysis) ######
-combine_results_placement <-function(config_folder, result_type){
+combine_results_placement <-function(config_folder, result_type, location){
 	#combine all the data of a certain type 
 	#(ede, precinct, residence, result)
 	#from indicated config_folder and output a df
@@ -105,18 +105,18 @@ combine_results_placement <-function(config_folder, result_type){
 	return(big_df)
 }
 
-read_result_data<- function(config_folder, analysis_type){
+read_result_data<- function(config_folder, location, analysis_type){
 	#read in and format all the results data assocaited to a 
 	#given config folder.
 	#config_folder: string
-	#analysis_type: string (hisorical, placement)
+	#analysis_type: string (historical, placement)
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
 	
 	#combine all files with a descriptor column attached
-	ede_df<- combine_results(config_folder, 'edes', analysis_type)
-	precinct_df<- combine_results(config_folder, 'precinct_distances', analysis_type)
-	residence_df<- combine_results(config_folder, 'residence_distances', analysis_type)
-	result_df<- combine_results(config_folder, 'result', analysis_type)
+	ede_df<- combine_results(config_folder, 'edes', location, analysis_type)
+	precinct_df<- combine_results(config_folder, 'precinct_distances', location, analysis_type)
+	residence_df<- combine_results(config_folder, 'residence_distances', location, analysis_type)
+	result_df<- combine_results(config_folder, 'result', location, analysis_type)
 
 	#label descriptors with polls and residences
 	num_polls <- precinct_df[ , .(num_polls = .N/6), by = descriptor]
