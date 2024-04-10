@@ -84,7 +84,9 @@ combine_results<- function(location, config_folder, result_type, analysis_type =
 }
 
 
-
+###################
+# BEGIN REMOVE
+###################
 combine_results_multi_county_historical <- function(config_folder, result_type){
 	#combine all the data of a certain type 
 	#(ede, precinct, residence, result)
@@ -154,6 +156,9 @@ combine_results_placement <-function(config_folder, result_type){
 
 	return(big_df)
 }
+###################
+# END REMOVE
+###################
 
 read_result_data<- function(location, config_folder, analysis_type){
 	#read in and format all the results data assocaited to a 
@@ -181,6 +186,11 @@ read_result_data<- function(location, config_folder, analysis_type){
 	return(list(ede_df, precinct_df, residence_df, result_df))
 }
 
+###################
+# BEGIN REMOVE
+# No longer needed due to bug fix
+###################
+
 check_run_validity <- function(combined_df){
 	#Input: A pair of result_dfs (each corresponding to a config folder) that should have the same number of matched residences
 	#Check that they do both within and across data frames
@@ -199,6 +209,10 @@ check_run_validity <- function(combined_df){
 	}
 	return(bad_runs$descriptor)
 }
+
+###################
+# END REMOVE
+###################
 
 #######
 #dictionary for labels

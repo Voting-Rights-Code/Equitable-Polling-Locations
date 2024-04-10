@@ -44,13 +44,14 @@ check_config_folder_valid(config_folder)
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
-config_df_list <- read_result_data(config_folder, 'placement')
+config_df_list <- read_result_data(location, config_folder, 'placement')
 #config_ede_df<- config_df_list[[1]]
 #config_precinct_df<- config_df_list[[2]]
 #config_residence_df<- config_df_list[[3]]
 #config_result_df<- config_df_list[[4]]
 
-orig_df_list <- read_result_data(original_locations, 'placement')
+
+orig_df_list <- read_result_data(location, original_locations, 'historical')
 #defined as above
 
 #######
