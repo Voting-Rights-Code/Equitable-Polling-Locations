@@ -42,10 +42,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
         warnings.warn(f'File {source_path} not found. Creating it.')
         build_source(config.location)
 
-    #breakpoint()
-    #breakpoint()
     #get main data frame
-    dist_df = clean_data(config, False)
     dist_df = clean_data(config, False)
 
     #get alpha 
@@ -58,10 +55,6 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
         print(f'model built for {run_prefix}.')
 
     #solve model
-    #ea_model.pprint(filename = 'ea_model.txt')
-    
-    #ea_model.pprint(filename = 'ea_model.txt')
-    
     solve_model(ea_model, config.time_limit, log=log, log_file_path=config.log_file_path)
     if log:
         print(f'model solved for {run_prefix}.')

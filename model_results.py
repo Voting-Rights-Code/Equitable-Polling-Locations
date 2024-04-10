@@ -29,6 +29,8 @@ def incorporate_result(dist_df, model):
     #if no matches, raise error
     if all(result_df['matching'].isnull()):
         raise ValueError('The model has no matched precincts')
+    if any(result_df['matching'].isnull()):
+        raise ValueError('The model has some unmatched precincts')
     result_df = result_df.loc[round(result_df['matching']).astype(int) ==1]
     return(result_df)
 
@@ -40,7 +42,7 @@ def demographic_domain_summary(result_df, domain):
 
     if domain not in ['id_dest', 'id_orig']:
         raise ValueError('domain much be in [id_dest, id_orig]')
-    #Transform to get distance and population by demographic, destination pairs
+    #Transform to get distance and population by demographic, destination pairs for each origin
     demographic_all = pd.melt(result_df[[domain, 'distance_m', 'population','white', 'black', 'native', 'asian', 'hispanic']], id_vars = [domain, 'distance_m'], value_vars = ['population','white', 'black', 'native', 'asian', 'hispanic'], var_name = 'demographic', value_name = 'demo_pop')
 
     #create a weighted distance column for people of each demographic
@@ -52,7 +54,7 @@ def demographic_domain_summary(result_df, domain):
     #calculate the total distance traveled by each demographic group
     demographic_dist = demographic_all[[domain, 'demographic', 'weighted_dist']].groupby([domain, 'demographic']).agg('sum')
 
-    #merge the datasets
+    #merge the demographic_pop and demographic_dist
     demographic_prec = pd.concat([demographic_dist, demographic_pop], axis = 1)
 
     #calculate the average distance

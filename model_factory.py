@@ -166,7 +166,7 @@ def compute_kp_factor(config: PollingModelConfig, alpha: float, dist_df):
 @timer
 def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> PollingModel:
     '''
-        Returns the polling locatoin pyomo model.
+        Returns the polling location pyomo model.
     '''
     #define max_min parameter needed for certain calculations
     global_max_min_dist = get_max_min_dist(dist_df)
