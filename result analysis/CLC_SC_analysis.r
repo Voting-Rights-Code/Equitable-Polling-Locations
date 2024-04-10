@@ -19,12 +19,18 @@ source('result analysis/map_functions.R')
 
 #location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
 #CONFIG_FOLDER = 'Engage_VA_2024_driving_configs'
+
+#Basic constants for analysis
 LOCATION = 'York_SC'
 CONFIG_FOLDER = 'York_SC_original_configs'
-REFERENCE_TAG = '2022'
+ANALYSIS_TYPE = 'historical'
+
+#Run-time constants built off base constants
 COUNTY = gsub('.{3}$','',LOCATION)
 COUNTY_CONFIG_ = paste0(COUNTY, '_', 'config', '_')
-ANALYSIS_TYPE = 'historical'
+
+#Run-type specific constants
+REFERENCE_TAG = '2022'
 
 #######
 #Check that config folder valid
