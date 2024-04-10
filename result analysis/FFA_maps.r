@@ -14,8 +14,8 @@ source('result analysis/graph_functions.R')
 #######
 #Location must be part of config folder string
 
-location = 'DeKalb_GA'
-config_folder ='DeKalb_GA_original_configs'
+location = 'Cobb_GA'
+config_folder ='Cobb_GA_no_bg_school_configs'
 
 #some values for graph labeling
 county = gsub('.{3}$','',location)
@@ -47,7 +47,8 @@ if (!file.exists(file.path(here(), plot_folder))){
 #get avg distance bounds for maps
 color_bounds <- distance_bounds(config_folder)
 
-sapply(res_dist_list, function(x)make_bg_maps(x, 'cartogram'))
+#Choosing not to do cartograms because of convergence difficulties
+#sapply(res_dist_list, function(x)make_bg_maps(x, 'cartogram'))
 sapply(res_dist_list, function(x)make_bg_maps(x, 'map'))
 sapply(res_dist_list, function(x)make_demo_dist_map(x, 'black'))
 

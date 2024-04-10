@@ -17,8 +17,8 @@ source('result analysis/graph_functions.R')
 #######
 #Location must be part of config folder string
 
-location = 'DeKalb_GA'
-config_folder = 'DeKalb_GA_bg_penalized_no_school_configs'
+location = 'Cobb_GA'
+config_folder = 'Cobb_GA_no_bg_school_configs'
 FFA_poll_number  = 20 #the optimal number of polls that FFA is suggesting for this county
 
 #######
@@ -74,14 +74,18 @@ if (file.exists(file.path(here(), plot_folder))){
     setwd(file.path(here(), plot_folder))
 }
 
-#Plot the edes for all runs in config_folder by demographic
+#Add percent population to data ede data for graph scaling for all general config folder and orig
+pop_scaled_edes <- ede_with_pop(config_df_list)
+pop_scaled_edes_orig <- ede_with_pop(orig_df_list)
+
+#Plot the edes for all runs in config_folder by demographic and population only
 plot_demographic_edes(config_df_list[[1]])
+plot_population_edes(config_df_list[[1]])
+
 
 #Plot the edes for all runs in original_location and equivalent optimization runs by demographic
 plot_original_optimized(config_df_list[[1]], orig_df_list[[1]])
-
-#Plot the edes for all runs in config_folder for the population as a whole
-plot_population_edes(config_df_list[[1]])
+plot_original_optimized(pop_scaled_edes, pop_scaled_edes_orig, '_scaled')
 
 #Plot which precincts are used for each number of polls
 plot_precinct_persistence(config_df_list[[2]])

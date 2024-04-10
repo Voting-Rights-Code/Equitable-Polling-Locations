@@ -242,14 +242,14 @@ ede_with_pop<- function(config_df_list){
 	return(edes_with_pop)
 }
 
-plot_original_optimized <- function(config_ede, orig_ede){	
+plot_original_optimized <- function(config_ede, orig_ede, suffix = ''){	
 	#makes two plots, one showing the y_ede differences between the actual positioning and an equivalent optimized run; the other doing the same but with average distances
 
 	#select the relevant optimized runs
 	orig_num_polls <- unique(orig_ede$num_polls)
 	optimized_run_dfs <- config_ede[num_polls %in% orig_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
-	plot_election_edes(orig_and_optimal, suffix = 'and_optimal')
+	plot_election_edes(orig_and_optimal, paste0('and_optimal', suffix))
 }
 
 plot_population_edes <- function(ede_df){	
@@ -266,7 +266,7 @@ plot_precinct_persistence <- function(precinct_df){
 	ggplot(precinct_df[demographic == 'population',
 		], aes(x = num_polls, y = id_dest)) +
 		geom_point(aes(size = demo_pop)) + 
-		labs(x = 'Number of polls', y = 'EV location')
+		labs(x = 'Number of polls', y = 'EV location', size = paste(demographic_legend_dict['population'], 'population'))
 
 	ggsave('expanded_precinct_persistence.png')
 
@@ -274,7 +274,7 @@ plot_precinct_persistence <- function(precinct_df){
 	ggplot(precinct_df[demographic != 'population',
 		], aes(x = num_polls, y = id_dest)) +
 		geom_point(aes(size = demo_pop)) + 
-		labs(x = 'Number of polls', y = 'EV location') + facet_wrap(~ demographic) +
+		labs(x = 'Number of polls', y = 'EV location', size = 'Population') + facet_wrap(~ demographic) +
 		theme(legend.position = c(0.9, 0.2))
 
 	ggsave('expanded_precinct_persistence_all.png')
