@@ -18,27 +18,33 @@ source('result analysis/map_functions.R')
 #Location must be part of config folder string
 
 #location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
-#config_folder = 'Engage_VA_2024_driving_configs'
-location = 'York_SC'
-config_folder = 'York_SC_original_configs'
-reference_tag = '2022'
-county = gsub('.{3}$','',location)
-county_config_ = paste0(county, '_', 'config', '_')
+#CONFIG_FOLDER = 'Engage_VA_2024_driving_configs'
 
+#Basic constants for analysis
+#LOCATION must be either a string or list of strings
+#CONFIG_FOLDER must be a string
+LOCATION = 'York_SC'
+CONFIG_FOLDER = 'York_SC_original_configs'
+
+#Run-time constants built off base constants
+#COUNTY = gsub('.{3}$','',LOCATION)
+
+#Run-type specific constants
+REFERENCE_TAG = '2022'
 
 #######
 #Check that config folder valid
 #this also ensures that you are in the right folder to read data
 #######
 
-check_config_folder_valid(config_folder)
+check_config_folder_valid(CONFIG_FOLDER)
 
 #######
 #Read in data
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
-config_df_list <- read_result_data(config_folder, 'historical')
+config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'historical')
 #config_ede_df<- config_df_list[[1]]
 #config_precinct_df<- config_df_list[[2]]
 #config_residence_df<- config_df_list[[3]]
@@ -51,31 +57,29 @@ config_df_list[[2]][ , .(a = unique(num_polls), b = unique(num_residences)), by 
 
 #This will return and descriptor case of inconsistency 
 #(assuming that a config file has multiple counties)
-bad_runs <- sapply(county, function(x){check_run_validity(config_df_list[[4]][grepl(x, descriptor), ])})
+#bad_runs <- sapply(COUNTY, function(x){check_run_validity(config_df_list[[4]][grepl(x, descriptor), ])})
 
 #remove any bad runs from the data
-config_df_list <- lapply(config_df_list, function(x){x[!(descriptor %in% bad_runs), ]})
+#config_df_list <- lapply(config_df_list, function(x){x[!(descriptor %in% bad_runs), ]})
 
 #######
 #Constants for mapping
 #######
 #set result folder
-result_folder = paste(location, 'results', sep = '_')
+result_folder = paste(LOCATION, 'results', sep = '_')
 
-#get all file names the result_folder with the strings config_folder and 'residence_distances'
+#get all file names the result_folder with the strings CONFIG_FOLDER and 'residence_distances'
 res_dist_list = list.files(result_folder)[grepl('residence_distances', list.files(result_folder))]
-res_dist_list = res_dist_list[grepl(config_folder, res_dist_list)]
+res_dist_list = res_dist_list[grepl(CONFIG_FOLDER, res_dist_list)]
 
 #get avg distance bounds for maps
-if (length(county_config_) >1){
-county_config_ <- county_config_[1]} #cludge. Fix later
-color_bounds <- distance_bounds(config_folder)
+color_bounds <- distance_bounds(LOCATION, CONFIG_FOLDER)
 
 
 #######
 #Plot data
 #######
-plot_folder = paste0('result analysis/', config_folder)
+plot_folder = paste0('result analysis/', CONFIG_FOLDER)
 if (file.exists(file.path(here(), plot_folder))){
     setwd(file.path(here(), plot_folder))    
 } else{
@@ -90,23 +94,23 @@ if (file.exists(file.path(here(), plot_folder))){
 #plot_original_pop_sized(config_df_list[[1]], conf_df_list[[2]])
 pop_scaled_edes <- ede_with_pop(config_df_list)
 #population scaled graph
-plot_election_edes(pop_scaled_edes, suffix = 'pop_scaled')
+plot_election_edes(CONFIG_FOLDER, pop_scaled_edes, suffix = 'pop_scaled')
 #unscaled graph
-plot_election_edes(config_df_list[[1]], suffix ='')
+plot_election_edes(CONFIG_FOLDER, config_df_list[[1]], suffix ='')
 
 #########
 #Make maps and cartograms
 #########
 
-mapply(function(x,y, z){make_bg_maps(x, 'map', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
+mapply(function(x,y, z){make_bg_maps(CONFIG_FOLDER, x, 'map', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
 
-#mapply(function(x,y, z){make_bg_maps(x, 'cartogram', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
+#mapply(function(x,y, z){make_bg_maps(CONFIG_FOLDER, x, 'cartogram', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
 
-mapply(function(x,y, z){make_demo_dist_map(x, 'white', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
+mapply(function(x,y, z){make_demo_dist_map(CONFIG_FOLDER, x, 'white', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
 
-mapply(function(x,y, z){make_demo_dist_map(x, 'black', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
+mapply(function(x,y, z){make_demo_dist_map(CONFIG_FOLDER, x, 'black', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
 
-mapply(function(x,y, z){make_demo_dist_map(x, 'population', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
+mapply(function(x,y, z){make_demo_dist_map(CONFIG_FOLDER, x, 'population', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
 
 
 
@@ -116,19 +120,19 @@ mapply(function(x,y, z){make_demo_dist_map(x, 'population', result_folder_name =
 
 #get data to run regression
 
-regression_data <- get_regression_data(location, config_df_list[[4]])
+regression_data <- get_regression_data(LOCATION, config_df_list[[4]])
 descriptor_list <- unique(regression_data$descriptor)
-reference <- descriptor_list[grepl(reference_tag, descriptor_list)]
+reference <- descriptor_list[grepl(REFERENCE_TAG, descriptor_list)]
 regression_data <- calculate_pct_change(regression_data, reference)
 
 #run regeression by descriptor and store coefs in a data frame
 distance_model <- regression_data[, as.list(coef(lm(distance_m ~ pop_density_km  + pct_black + pop_density_km*pct_black),  weights = population )), by = descriptor]
 setnames(distance_model, c('(Intercept)', 'pop_density_km', 'pct_black','pop_density_km:pct_black'), c('intercept', 'density_coef', 'pct_black_coef', 'density_black_interaction_coef'))
-#fwrite(distance_model, paste0(county, '_distance_model.csv'))
+#fwrite(distance_model, paste0(COUNTY, '_distance_model.csv'))
 
 change_model<- regression_data[, as.list(coef(lm(pct_extra_in_2022 ~ pop_density_km  + pct_black + pop_density_km*pct_black),  weights = population )), by = descriptor]
 setnames(change_model, c('(Intercept)', 'pop_density_km', 'pct_black','pop_density_km:pct_black'), c('intercept', 'density_coef', 'pct_black_coef', 'density_black_interaction_coef'))
-#fwrite(change_model, paste0(county, '_pct_change_model.csv'))
+#fwrite(change_model, paste0(COUNTY, '_pct_change_model.csv'))
 
 #plot predicted distances at a given density
 #plot_predicted_distances(regression_data, distance_model)
@@ -167,5 +171,5 @@ avg_high = pop_scaled_edes[grepl('2022', descriptor), ]$avg_dist
 bar <- pop_scaled_edes[grepl(low_year, descriptor), c('demographic')][ , difference:= avg_high-avg_low]
 head(bar)
 
-dt[descriptor == paste(county, low_year, sep = '_'), ]
+dt[descriptor == paste(COUNTY, low_year, sep = '_'), ]
 

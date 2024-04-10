@@ -164,7 +164,7 @@ read_result_data<- function(location, config_folder, analysis_type){
 	#read in and format all the results data assocaited to a 
 	#given config folder.
 	#config_folder: string
-	#analysis_type: string (hisorical, placement)
+	#analysis_type: string (historical, placement)
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
 	
 	#combine all files with a descriptor column attached
