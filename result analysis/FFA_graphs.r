@@ -80,7 +80,7 @@ pop_scaled_edes <- ede_with_pop(config_df_list)
 pop_scaled_edes_orig <- ede_with_pop(orig_df_list)
 
 #Plot the edes for all runs in config_folder by demographic and population only
-plot_demographic_edes(config_df_list[[1]])
+plot_poll_edes(config_df_list[[1]])
 plot_population_edes(config_df_list[[1]])
 
 
@@ -97,6 +97,3 @@ plot_boxplots(config_df_list[[3]])
 #Histgram of the original distributions and that for the desired number of polls
 plot_orig_ideal_hist(orig_df_list[[3]], config_df_list[[3]], FFA_poll_number)
 
-#if you want to compare config_folder runs to a different folder, this plots on a population level
-#config_folder2 = 
-#compare_configs(config_df_list[1], config_folder2)

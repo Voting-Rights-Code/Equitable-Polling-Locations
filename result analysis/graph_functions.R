@@ -230,7 +230,11 @@ demographic_legend_dict <- c(
 #functions to make plots
 #######
 
-plot_demographic_edes<-function(ede_df){
+#makes a plot showing how y_EDEs change for each demographic group as the 
+#number of polls is increased
+
+#DOES NOT ACCOMODATE DRIVING DISTANCES
+plot_poll_edes<-function(ede_df){
 	ggplot(ede_df, aes(x = num_polls, y = y_EDE, 
 		group = demographic, color = demographic, shape = demographic)) +
 		geom_line()+ geom_point()+ 
@@ -238,10 +242,17 @@ plot_demographic_edes<-function(ede_df){
 	ggsave('demographic_edes.png')
 }
 
-plot_election_edes <- function(config_folder, orig_ede, suffix = ''){	
-	#makes two plots, one showing the y_ede differences between the actual positioning and an equivalent optimized run; the other doing the same but with average distances
+#makes two plots, one showing the y_ede the other avg distance
+#showing how these variables change across the included runs
+#Note: This can produce a graph very similar to the one above,
+#but the formatting of this one is better for historical analysis,
+#while the formatting of the previous is better for many polls
 
-	#set graph order
+#ACCOMODATES DRIVING DISTANCES
+
+plot_historic_edes <- function(orig_ede, suffix = ''){	
+	
+	#set x axis label order
 	descriptor_order <- unique(orig_ede$descriptor)
 
 	#select y axis bounds
@@ -295,8 +306,8 @@ if (scale_bool){
 	ggsave(name, avg)
 }
 
+#join population data to ede graphs in order to get population scaled graphs
 ede_with_pop<- function(config_df_list){
-	#join population data to ede graphs
 	demo_pop <- config_df_list[[2]][ , .(total_population = sum(demo_pop)), by  = c('descriptor', 'demographic')]
 	total_pop <- demo_pop[demographic == 'population', c('descriptor', 'total_population')]
 	demo_pop <- merge(demo_pop, total_pop, by = 'descriptor')
@@ -306,18 +317,19 @@ ede_with_pop<- function(config_df_list){
 	return(edes_with_pop)
 }
 
+#compares optimized runs with historical runs having the same number of 
+#polls (via plot_historical_edes)
 plot_original_optimized <- function(config_ede, orig_ede, suffix = ''){	
-	#makes two plots, one showing the y_ede differences between the actual positioning and an equivalent optimized run; the other doing the same but with average distances
-
 	#select the relevant optimized runs
 	orig_num_polls <- unique(orig_ede$num_polls)
 	optimized_run_dfs <- config_ede[num_polls %in% orig_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
-	plot_election_edes(orig_and_optimal, paste0('and_optimal', suffix))
+	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix))
 }
 
+#like plot_poll_edes, but plots just the y_edes for the
+# population as a whole, and not demographic groups
 plot_population_edes <- function(ede_df){	
-	#plots just the y_edes for the population as a whole
 	ggplot(ede_df[demographic == 'population', ], aes(x =  num_polls, y = y_EDE))+
 		geom_line()+ geom_point()+
 		labs(x = 'Number of polls', y = 'Equity weighted distance (m)')
@@ -325,27 +337,27 @@ plot_population_edes <- function(ede_df){
 	ggsave('population_edes.png')
 }
 
+#a plot showing which precincts are used for which number of polls
+#also makes a panel of graphs showing which demographics are assigned to each poll
 plot_precinct_persistence <- function(precinct_df){
-	#a plot showing which precincts are used for which number of polls
 	ggplot(precinct_df[demographic == 'population',
 		], aes(x = num_polls, y = id_dest)) +
 		geom_point(aes(size = demo_pop)) + 
 		labs(x = 'Number of polls', y = 'EV location', size = paste(demographic_legend_dict['population'], 'population'))
 
-	ggsave('expanded_precinct_persistence.png')
+	ggsave('precinct_persistence.png')
 
-	#also makes a panel of graphs showing which demographics are assigned to each poll
 	ggplot(precinct_df[demographic != 'population',
 		], aes(x = num_polls, y = id_dest)) +
 		geom_point(aes(size = demo_pop)) + 
 		labs(x = 'Number of polls', y = 'EV location', size = 'Population') + facet_wrap(~ demographic) +
 		theme(legend.position = c(0.9, 0.2))
 
-	ggsave('expanded_precinct_persistence_all.png')
+	ggsave('precinct_persistence_demographic.png')
 }
 
+#make boxplots of the average distances traveled and the y_edes at each run 
 plot_boxplots <- function(residence_df){
-	#make boxplots of the average distances traveled and the y_edes at each run 
 	res_pop <- residence_df[demographic == 'population',
 		]
 	#avg distance
@@ -357,21 +369,20 @@ plot_boxplots <- function(residence_df){
 	ggsave('avg_dist_distribution_boxplots.png')
 	}
 
+#make histogram of the average distances traveled in the historical and ideal situations 
 plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_num){
-	#make histogram of the average distances traveled and the y_edes in the original and ideal situations 
 	orig_residence_df <- orig_residence_df[demographic == 'population', ]
 	ideal_residence_df <- config_residence_df[demographic == 'population', ][num_polls == ideal_num, ]
 	res_pop_orig_and_ideal <- rbind( ideal_residence_df, orig_residence_df)
-	location_ <- paste0(location, '_')
-	config_label <- sub(location_, '', config_folder)
-	descriptor_order <- unique(res_pop_orig_and_ideal$descriptor)
+	#location_ <- paste0(location, '_')
+	#config_label <- sub(location_, '', config_folder)
+	#descriptor_order <- unique(res_pop_orig_and_ideal$descriptor)
 
 	#avg_distance
 	ggplot(res_pop_orig_and_ideal, aes(x = avg_dist, fill = descriptor)) + 
 		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
 		labs(x = 'Average distance traveled to poll (m)', y = 'Number of people') +
-		scale_fill_manual(values=c("red", "blue", "green"), name = "Optimization run ", 
-		labels = descriptor_order)
+		scale_fill_manual(values=c("red", "blue", "green"), name = "Optimization run ")
 		ggsave('avg_dist_distribution_hist.png')
 
 }
