@@ -25,21 +25,72 @@ check_config_folder_valid <- function(config_folder){
 ######
 #Functions to read in results
 ######
-combine_results<- function(config_folder, result_type, analysis_type = 'placement'){
+combine_results_old<- function(config_folder, result_type, analysis_type = 'placement'){
+	#determined what type of analysis is to be done, and call the appropriate function
+	#currently valid types: historical (see CLC work); placement (see FFA work)
 	if (analysis_type == 'historical'){
 		return(combine_results_multi_county_historical(config_folder, result_type))}
 	else if (analysis_type == 'placement'){
 		return(combine_results_placement(config_folder, result_type))}
 	else{
-		stop("Incorrect analysis_type provided")
+		stop("Incorrect analysis_type provided. Analysis type must be historical or placement")
 	}
 }
 
-##### Code for when one config file contains multiple locations and year data in i (E.G. Engage_VA analysis)#####
+combine_results<- function(location, config_folder, result_type, analysis_type = 'placement'){
+	#determined what type of analysis is to be done, and call the appropriate function
+	#currently valid types: historical (see CLC work); placement (see FFA work)
+	if (analysis_type == 'historical'){
+		#select which results we want (potentially from a list of folders)
+		result_folder_list <-sapply(location, function(x){paste(x, 'results/', sep = '_')})
+		files <- lapply(result_folder_list, list.files)
+		files <- sapply(location, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
+		file_path <- mapply(function(folder, file){paste0(folder, file)}, result_folder_list, files)
+		
+		#pull the historical year from the file names
+		years <-  gsub('.*?([0-9]+).*', '\\1', files)
+		descriptor <- mapply(function(x,y){paste(x, y, sep='_')}, location, years)}
+	else if (analysis_type == 'placement'){
+		result_folder <-paste(location, 'results/', sep = '_')
+		files <- list.files(result_folder)
+		files <- files[grepl(config_folder, files) &grepl(result_type, files)]
+		file_path <- paste0(result_folder, files)
+		
+		#pull number of polls data from the file names
+		num_polls <-  gsub('.*?([0-9]+).*', '\\1', files)
+		descriptor <- sapply(num_polls, function(x){paste('Optimized', num_polls, 'polls', sep='_')})}
+	else{
+		stop("Incorrect analysis_type provided. Analysis type must be historical or placement")}
+	
+	#read data
+	df_list <- lapply(file_path, fread)
+
+	#add appropriate descriptor
+	mapply(function(x, y){x[ , descriptor:= y]}, df_list, descriptor)
+	
+	#Change id_dest and id_orig to strings as needed
+	if ('id_dest' %in% names(df_list[[1]])){
+		sapply(df_list, function(x){x[ , id_dest:= as.character(id_dest)]})}
+	if ('id_orig' %in% names(df_list[[1]])){
+		sapply(df_list, function(x){x[ , id_orig:= as.character(id_orig)]})}
+	
+	#combine into one df
+	big_df <- do.call(rbind, df_list)
+
+	return(big_df)
+}
+
+
+
+##### Historical analysis function
+##### One config file contains multiple locations or multiple years
+##### (E.G. Engage_VA or CLC analysis)
+##### N.B. Year must be in the config file name for this to work, 
+	# it must be the ONLY numbers in the file name
 combine_results_multi_county_historical <- function(config_folder, result_type){
 	#combine all the data of a certain type 
 	#(ede, precinct, residence, result)
-	#from indicated config_folder with multiple locations
+	#from indicated config_folder with potentially multiple locations
 	#and year encoded in the name and output a df
 	#config_folder, result_type: string
 	#returns: data frame
@@ -52,8 +103,8 @@ combine_results_multi_county_historical <- function(config_folder, result_type){
 	df_list <- lapply(file_path, fread)
 
 	#pull the historical year from the file names
-	years <- paste0('20', str_extract(files, '(?<=20)[0-9]*'))
-	descriptor <- mapply(function(x,y){paste(x, y, sep='_')}, county, years)
+	years <-  gsub('.*?([0-9]+).*', '\\1', files)
+	descriptor <- mapply(function(x,y){paste(x, y, sep='_')}, location, years)
 	
 	#descriptor is county_name_year
 	mapply(function(x, y){x[ , descriptor:= y]}, df_list, descriptor)
@@ -70,7 +121,8 @@ combine_results_multi_county_historical <- function(config_folder, result_type){
 	return(big_df)
 }
 
-##### Code for when there is only one location in the config folder, and config folder starts with that string (e.g. FFA analysis) ######
+##### Code for when there is only one location in the config folder,
+	# config folder starts with that string (e.g. FFA analysis) ######
 combine_results_placement <-function(config_folder, result_type){
 	#combine all the data of a certain type 
 	#(ede, precinct, residence, result)
@@ -105,7 +157,7 @@ combine_results_placement <-function(config_folder, result_type){
 	return(big_df)
 }
 
-read_result_data<- function(config_folder, analysis_type){
+read_result_data<- function(location, config_folder, analysis_type){
 	#read in and format all the results data assocaited to a 
 	#given config folder.
 	#config_folder: string
@@ -113,10 +165,10 @@ read_result_data<- function(config_folder, analysis_type){
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
 	
 	#combine all files with a descriptor column attached
-	ede_df<- combine_results(config_folder, 'edes', analysis_type)
-	precinct_df<- combine_results(config_folder, 'precinct_distances', analysis_type)
-	residence_df<- combine_results(config_folder, 'residence_distances', analysis_type)
-	result_df<- combine_results(config_folder, 'result', analysis_type)
+	ede_df<- combine_results(location, config_folder, 'edes', analysis_type)
+	precinct_df<- combine_results(location, config_folder, 'precinct_distances', analysis_type)
+	residence_df<- combine_results(location, config_folder, 'residence_distances', analysis_type)
+	result_df<- combine_results(location, config_folder, 'result', analysis_type)
 
 	#label descriptors with polls and residences
 	num_polls <- precinct_df[ , .(num_polls = .N/6), by = descriptor]
