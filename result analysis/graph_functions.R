@@ -238,7 +238,7 @@ plot_demographic_edes<-function(ede_df){
 	ggsave('demographic_edes.png')
 }
 
-plot_election_edes <- function(orig_ede, suffix = ''){	
+plot_election_edes <- function(config_folder, orig_ede, suffix = ''){	
 	#makes two plots, one showing the y_ede differences between the actual positioning and an equivalent optimized run; the other doing the same but with average distances
 
 	#set graph order

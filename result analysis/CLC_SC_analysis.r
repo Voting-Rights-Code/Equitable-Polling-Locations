@@ -23,11 +23,9 @@ source('result analysis/map_functions.R')
 #Basic constants for analysis
 LOCATION = 'York_SC'
 CONFIG_FOLDER = 'York_SC_original_configs'
-ANALYSIS_TYPE = 'historical'
 
 #Run-time constants built off base constants
-COUNTY = gsub('.{3}$','',LOCATION)
-COUNTY_CONFIG_ = paste0(COUNTY, '_', 'config', '_')
+#COUNTY = gsub('.{3}$','',LOCATION)
 
 #Run-type specific constants
 REFERENCE_TAG = '2022'
@@ -44,7 +42,7 @@ check_config_folder_valid(CONFIG_FOLDER)
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
-config_df_list <- read_result_data(CONFIG_FOLDER, LOCATION, ANALYSIS_TYPE)
+config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'historical'')
 #config_ede_df<- config_df_list[[1]]
 #config_precinct_df<- config_df_list[[2]]
 #config_residence_df<- config_df_list[[3]]
@@ -57,10 +55,10 @@ config_df_list[[2]][ , .(a = unique(num_polls), b = unique(num_residences)), by 
 
 #This will return and descriptor case of inconsistency 
 #(assuming that a config file has multiple counties)
-bad_runs <- sapply(COUNTY, function(x){check_run_validity(config_df_list[[4]][grepl(x, descriptor), ])})
+#bad_runs <- sapply(COUNTY, function(x){check_run_validity(config_df_list[[4]][grepl(x, descriptor), ])})
 
 #remove any bad runs from the data
-config_df_list <- lapply(config_df_list, function(x){x[!(descriptor %in% bad_runs), ]})
+#config_df_list <- lapply(config_df_list, function(x){x[!(descriptor %in% bad_runs), ]})
 
 #######
 #Constants for mapping
@@ -73,9 +71,7 @@ res_dist_list = list.files(result_folder)[grepl('residence_distances', list.file
 res_dist_list = res_dist_list[grepl(CONFIG_FOLDER, res_dist_list)]
 
 #get avg distance bounds for maps
-if (length(COUNTY_CONFIG_) >1){
-COUNTY_CONFIG_ <- COUNTY_CONFIG_[1]} #cludge. Fix later
-color_bounds <- distance_bounds(CONFIG_FOLDER)
+color_bounds <- distance_bounds(LOCATION, CONFIG_FOLDER)
 
 
 #######
@@ -96,23 +92,23 @@ if (file.exists(file.path(here(), plot_folder))){
 #plot_original_pop_sized(config_df_list[[1]], conf_df_list[[2]])
 pop_scaled_edes <- ede_with_pop(config_df_list)
 #population scaled graph
-plot_election_edes(pop_scaled_edes, suffix = 'pop_scaled')
+plot_election_edes(CONFIG_FOLDER, pop_scaled_edes, suffix = 'pop_scaled')
 #unscaled graph
-plot_election_edes(config_df_list[[1]], suffix ='')
+plot_election_edes(CONFIG_FOLDER, config_df_list[[1]], suffix ='')
 
 #########
 #Make maps and cartograms
 #########
 
-mapply(function(x,y, z){make_bg_maps(x, 'map', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
+mapply(function(x,y, z){make_bg_maps(CONFIG_FOLDER, x, 'map', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
 
-#mapply(function(x,y, z){make_bg_maps(x, 'cartogram', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
+#mapply(function(x,y, z){make_bg_maps(CONFIG_FOLDER, x, 'cartogram', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
 
-mapply(function(x,y, z){make_demo_dist_map(x, 'white', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
+mapply(function(x,y, z){make_demo_dist_map(CONFIG_FOLDER, x, 'white', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
 
-mapply(function(x,y, z){make_demo_dist_map(x, 'black', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
+mapply(function(x,y, z){make_demo_dist_map(CONFIG_FOLDER, x, 'black', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
 
-mapply(function(x,y, z){make_demo_dist_map(x, 'population', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
+mapply(function(x,y, z){make_demo_dist_map(CONFIG_FOLDER, x, 'population', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
 
 
 

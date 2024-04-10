@@ -72,11 +72,11 @@ process_residence <- function(file_name, demo_str, result_folder){
 	return(bg_res_demo_dist)
 }
 
-distance_bounds <- function(config_folder){
+distance_bounds <- function(location, config_folder){
 	#calculate the min and max average distances traveled by census block for maps
 
 	#get full residence data
-	residence_df<- combine_results(config_folder, 'residence_distances')
+	residence_df<- combine_results(location, config_folder, 'residence_distances')
 	residence_df <- residence_df[demographic == 'population', ]
 	min_avg_dist <- min(residence_df$avg_dist)
 	max_avg_dist <- max(residence_df$avg_dist)
@@ -133,7 +133,7 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 	return(map)
 }
 
-make_bg_maps <-function(file_to_map, map_type, result_folder_name = result_folder, this_location = location, demo_str = 'population'){
+make_bg_maps <-function(config_folder, file_to_map, map_type, result_folder_name = result_folder, this_location = location, demo_str = 'population'){
 	#read in a residence_distance file from the correct config_folder, combine this and use it to color the map by distance to matched location, for the indicated demographic
 	#If the map type is "map", then also plot the polling locations
 
@@ -197,7 +197,7 @@ make_bg_maps <-function(file_to_map, map_type, result_folder_name = result_folde
 	ggsave(paste0(here(), '/', plot_folder, '/',map_name, '_',descriptor, '_','polls.png'), plotted)
 	}
 
-make_demo_dist_map <-function(file_to_map, demo_str, result_folder_name = result_folder, this_location = location){
+make_demo_dist_map <-function(config_folder, file_to_map, demo_str, result_folder_name = result_folder, this_location = location){
 
 	#read in block level data and aggregate to block group level
 	res_dist_df <- process_residence(file_to_map, demo_str, result_folder_name)
