@@ -236,9 +236,10 @@ demographic_legend_dict <- c(
 #DOES NOT ACCOMODATE DRIVING DISTANCES
 plot_poll_edes<-function(ede_df){
 	ggplot(ede_df, aes(x = num_polls, y = y_EDE, 
-		group = demographic, color = demographic, shape = demographic)) +
+		group = demographic, color = demographic)) +
 		geom_line()+ geom_point()+ 
-		labs(x = 'Number of polls', y = 'Equity weighted distance (m)')
+		labs(x = 'Number of polls', y = 'Equity weighted distance (m)', color = 'Demographic')+ 
+		scale_color_discrete(labels = demographic_legend_dict)
 	ggsave('demographic_edes.png')
 }
 

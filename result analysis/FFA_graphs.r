@@ -28,8 +28,8 @@ FFA_poll_number  = 20 #the optimal number of polls that FFA is suggesting for th
 
 original_locations = paste(location, 'original', 'configs', sep = '_')
 #some values for graph labeling
-county = gsub('.{3}$','',location)
-county_config_ = paste0(county, '_', 'config', '_')
+#county = gsub('.{3}$','',location)
+#county_config_ = paste0(county, '_', 'config', '_')
 
 #######
 #Check that location and folders valid
@@ -59,10 +59,10 @@ orig_df_list <- read_result_data(location, original_locations, 'historical')
 #######
 
 #This will return and descriptor case of inconsistency
-bad_runs <- check_run_validity(rbind(config_df_list[[4]], orig_df_list[[4]]))
+#bad_runs <- check_run_validity(rbind(config_df_list[[4]], orig_df_list[[4]]))
 
 #remove any bad runs from the data
-config_df_list <- lapply(config_df_list, function(x){x[!(descriptor %in% bad_runs), ]})
+#config_df_list <- lapply(config_df_list, function(x){x[!(descriptor %in% bad_runs), ]})
 
 #######
 #Plot data
@@ -82,7 +82,6 @@ pop_scaled_edes_orig <- ede_with_pop(orig_df_list)
 #Plot the edes for all runs in config_folder by demographic and population only
 plot_poll_edes(config_df_list[[1]])
 plot_population_edes(config_df_list[[1]])
-
 
 #Plot the edes for all runs in original_location and equivalent optimization runs by demographic
 plot_original_optimized(config_df_list[[1]], orig_df_list[[1]])
