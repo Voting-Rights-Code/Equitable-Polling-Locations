@@ -24,18 +24,21 @@ check_config_folder_valid <- function(config_folder){
 
 ######
 #Functions to read in results
+#Two types to analysis: historical (see CLC work); placement (see FFA work)
 ######
-combine_results_old<- function(config_folder, result_type, analysis_type = 'placement'){
-	#determined what type of analysis is to be done, and call the appropriate function
-	#currently valid types: historical (see CLC work); placement (see FFA work)
-	if (analysis_type == 'historical'){
-		return(combine_results_multi_county_historical(config_folder, result_type))}
-	else if (analysis_type == 'placement'){
-		return(combine_results_placement(config_folder, result_type))}
-	else{
-		stop("Incorrect analysis_type provided. Analysis type must be historical or placement")
-	}
-}
+
+#####Formatting notes:
+	# Historical analysis
+	   # One config file contains multiple locations or multiple years
+ 	   # (E.G. Engage_VA or CLC analysis)
+	   # N.B. Year must be in the config file name for this to work, 
+		 # it must be the ONLY numbers in the file name
+	# Placement analysis
+	   # One config file contains single location and either
+	      # multiple optimized placement
+	   # (E.g. FFA analysis)
+	   # N.B. Number of polls must be in the config file name for this to work, 
+		 # it must be the ONLY numbers in the file name
 
 combine_results<- function(location, config_folder, result_type, analysis_type = 'placement'){
 	#determined what type of analysis is to be done, and call the appropriate function
@@ -82,11 +85,6 @@ combine_results<- function(location, config_folder, result_type, analysis_type =
 
 
 
-##### Historical analysis function
-##### One config file contains multiple locations or multiple years
-##### (E.G. Engage_VA or CLC analysis)
-##### N.B. Year must be in the config file name for this to work, 
-	# it must be the ONLY numbers in the file name
 combine_results_multi_county_historical <- function(config_folder, result_type){
 	#combine all the data of a certain type 
 	#(ede, precinct, residence, result)
