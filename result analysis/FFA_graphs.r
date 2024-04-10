@@ -94,6 +94,6 @@ plot_precinct_persistence(config_df_list[[2]])
 #Boxplots of the average distances traveled and the y_edes at each run in folder
 plot_boxplots(config_df_list[[3]])
 
-#Histgram of the original distributions and that for the desired number of polls
+#Histogram of the original distributions and that for the desired number of polls
 plot_orig_ideal_hist(orig_df_list[[3]], config_df_list[[3]], FFA_poll_number)
 

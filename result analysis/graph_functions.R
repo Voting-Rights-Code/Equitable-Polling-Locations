@@ -319,6 +319,8 @@ ede_with_pop<- function(config_df_list){
 
 #compares optimized runs with historical runs having the same number of 
 #polls (via plot_historical_edes)
+
+#ACCOMODATES DRIVING DISTANCES
 plot_original_optimized <- function(config_ede, orig_ede, suffix = ''){	
 	#select the relevant optimized runs
 	orig_num_polls <- unique(orig_ede$num_polls)
@@ -329,6 +331,8 @@ plot_original_optimized <- function(config_ede, orig_ede, suffix = ''){
 
 #like plot_poll_edes, but plots just the y_edes for the
 # population as a whole, and not demographic groups
+
+#DOES NOT ACCOMODATE DRIVING DISTANCES
 plot_population_edes <- function(ede_df){	
 	ggplot(ede_df[demographic == 'population', ], aes(x =  num_polls, y = y_EDE))+
 		geom_line()+ geom_point()+
@@ -357,6 +361,8 @@ plot_precinct_persistence <- function(precinct_df){
 }
 
 #make boxplots of the average distances traveled and the y_edes at each run 
+
+#DOES NOT ACCOMODATE DRIVING DISTANCES
 plot_boxplots <- function(residence_df){
 	res_pop <- residence_df[demographic == 'population',
 		]
@@ -370,13 +376,12 @@ plot_boxplots <- function(residence_df){
 	}
 
 #make histogram of the average distances traveled in the historical and ideal situations 
+
+#DOES NOT ACCOMODATE DRIVING DISTANCES
 plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_num){
 	orig_residence_df <- orig_residence_df[demographic == 'population', ]
 	ideal_residence_df <- config_residence_df[demographic == 'population', ][num_polls == ideal_num, ]
 	res_pop_orig_and_ideal <- rbind( ideal_residence_df, orig_residence_df)
-	#location_ <- paste0(location, '_')
-	#config_label <- sub(location_, '', config_folder)
-	#descriptor_order <- unique(res_pop_orig_and_ideal$descriptor)
 
 	#avg_distance
 	ggplot(res_pop_orig_and_ideal, aes(x = avg_dist, fill = descriptor)) + 
@@ -388,36 +393,6 @@ plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_n
 }
 
 
-
-
-compare_configs<- function(config_ede, config_folder2){
-	#takes a config folder name, processes the files in it, and compares its mean y_ede to the current one under consideration
-
-	#Check that folder is valid
-	check_location_valid(location, config_folder2)
-	check_config_folder_valid(config_folder2)
-
-	#Read in data
-	config2_df_list <- read_result_data(config_folder2)
-	config2_ede <- config2_df_list[1]
-
-	#label configs
-	location_ <- paste0(location, '_')
-	config1_label <- sub(location_, '', config_folder)
-	config2_label <- sub(location_, '', config2_folder) 
-	config_ede <- config_ede[ , run := config1_label]
-	config2_ede <- config2_ede[ , run := config2_label]
-	
-	#combine and select the population scores only
-	dt <-rbind(config_ede, config2_ede)
-	dt <- dt[demographic == 'population', ]
-	ggplot(dt, aes(x =  num_polls, y = y_EDE, group = run, 
-			color = run))+
-		geom_line()+ geom_point()+
-		labs(x = 'Number of polls', y = 'Equity weighted distance (m)')
-
-	ggsave(paste0(config1_label, '_vs_', config2_label, '.png'))
-}
 
 #######
 #make regression
