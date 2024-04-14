@@ -10,6 +10,7 @@ Gwinnett_GA_configs/Gwinnett_config_full_11.py
 
 import os
 import warnings
+import sys
 
 from model_config import PollingModelConfig
 
@@ -35,17 +36,14 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
     run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
     
-    #check if source data avaible
     source_file_name = config.location + '.csv'
     source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
     if not os.path.exists(source_path):
         warnings.warn(f'File {source_path} not found. Creating it.')
         build_source(config.location)
-
-    #breakpoint()
+ 
     #breakpoint()
     #get main data frame
-    dist_df = clean_data(config, False)
     dist_df = clean_data(config, False)
 
     #get alpha 

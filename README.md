@@ -179,6 +179,16 @@ The columns of this data set should be named and formatted as
 | | If potential location, has a 'location type' category and the word 'Potential' (case sensitive) | 'Community Center - Potential' |
 | Lat, Long | Comma separated concatenation of latitude and longitude (can be read off of google maps by right clicking on the location marker for the address.) | '33.964717796407434, -83.85827288222517' |
 
+### **datasets/driving/County_ST/County_ST_driving_distances.csv**:
+OPTIONAL file for using driving distances (that have been calculated externally) in the optimization. This file will only be accessed if the optional parameter 'driving' is set to True.
+Example file name: datasets/driving/Gwinnett_GA/Gwinnett_GA_driving_distances.csv
+The columns are as follows:
+|Column Name | Definition | Example |
+| ----- | ----- | ----- |
+| id_orig | Census block id that matches the 'FIPSCODEBLOCKNUM' portion of the GEOID column from the file datasets/census/tiger/County_ST/tl_YYYY_FIPS_tabblockYY.shp file | 131510703153004 |
+| id_dest | Name of potential polling location, as in the Location column of the file datasets/polling/County_ST/County_ST_locations_only.csv. | 'EV_2022_2020' or 'General_2020' or 'Primary_2022_2020_2018' or 'DropBox_2022' |
+| distance_m | Driving distance from id_orig to id_dest in meters | 10040.72 |
+
 ### **CONFIG_FOLDER/County_config_DESCRIPTOR.yaml**
 These are the config files for the various runs.
 
@@ -200,7 +210,7 @@ Recommended convention: Each config folder should only have one parameter changi
     * max_min_mult: >= 1. A scalar to limit the search radius to match polling locations. If this is too small, the optimizer may not find a solution. Default: 1
     * maxpctnew = In [0,1]. The percent of new locations allowed to be matched. Default = 1
     * minpctold = In [0,1]. The percent of existing locations allowed to be matched. Default = 0
-
+    * driving = In [True,False]. If True, then driving distances (versus straight-line/Haversine distances) are used. This option requires driving distances in the datasets folder as described above. Default = False
 # Intermediate dataset
 
 ### **datasets/polling/County_ST/County_ST.csv**:

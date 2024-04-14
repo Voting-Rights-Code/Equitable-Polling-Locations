@@ -22,6 +22,7 @@ DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 #read in data and write relevant dataframe for model to file
 ##########################
 #build distance data set from census data and potential pollig location data.
+#using driving distances if driving = True
 
 def build_source(location):
     ######
@@ -190,6 +191,7 @@ def build_source(location):
 
     full_df['distance_m'] = full_df.apply(lambda row: haversine((row.INTPTLAT20, row.INTPTLON20), (row.Latitude, row.Longitude)), axis=1)*1000
 
+
     #####
     #Rename, select columns and write to file
     #####
@@ -221,6 +223,7 @@ def build_source(location):
     ]
 
     full_df = full_df[FULL_DF_COLS]
+    
     output_file_name = location + '.csv'
     output_path = os.path.join(DATASETS_DIR, 'polling', location, output_file_name)
     full_df.to_csv(output_path, index = True)
@@ -286,6 +289,7 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str) 
 def clean_data(config: PollingModelConfig, for_alpha: bool):
     location = config.location
     year_list = config.year
+    driving = config.driving
     
     #read in data
     data_dir = os.path.join(DATASETS_DIR, 'polling', location)
@@ -309,8 +313,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool):
     for year in year_list:
         if not any(str(year) in poll for poll in polling_location_types):
             raise ValueError(f'Do not currently have any data for {location} for {year} from {config.config_file_path}')
-            raise ValueError(f'Do not currently have any data for {location} for {year} from {config.config_file_path}')
-    #drop duplicates and empty block groups
+   #drop duplicates and empty block groups
     df = df.drop_duplicates() #put in to avoid duplications down the line.
     df = df[df['population']>0]
 
@@ -339,15 +342,17 @@ def clean_data(config: PollingModelConfig, for_alpha: bool):
     #the concatenation will create duplicates if a polling location is used multiple years
     #drop these
     df = df.drop_duplicates()
-
-    # replace distances with driving distances
-    if config.driving_distance_file_path is not None:
-        df = insert_driving_distances(df, config.driving_distance_file_path)
     
     #check that population is unique by id_orig
     pop_df = df.groupby('id_orig')['population'].agg('unique').str.len()
     if any(pop_df>1):
         raise ValueError(f"Some id_orig has multiple associated populations from {config.config_file_path}")
+
+    # incorporate driving distances if desired
+    if driving:
+        driving_file_name = location + '_driving_distances.csv'
+        DRIVING_DISTANCES_FILE = os.path.join(DATASETS_DIR, 'driving', location, driving_file_name)
+        df = insert_driving_distances(df, DRIVING_DISTANCES_FILE)
 
     #create other useful columns
     df['Weighted_dist'] = df['population'] * df['distance_m']
