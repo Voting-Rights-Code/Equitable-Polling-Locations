@@ -10,7 +10,6 @@ Gwinnett_GA_configs/Gwinnett_config_full_11.py
 
 import os
 import warnings
-import sys
 
 from model_config import PollingModelConfig
 
