@@ -55,7 +55,7 @@ combine_results<- function(location, config_folder, result_type, analysis_type =
 		
 		#pull the historical year from the file names
 		years <-  gsub('.*?([0-9]+).*', '\\1', files)
-		descriptor <- mapply(function(x,y){paste(x, y, sep='_')}, location, years)}
+		descriptor <- mapply(function(x,y){paste(x, y, sep='_')}, location, years)} #county and year
 	else if (analysis_type == 'placement'){
 		result_folder <-paste(location, 'results/', sep = '_')
 		files <- list.files(result_folder)
@@ -64,7 +64,7 @@ combine_results<- function(location, config_folder, result_type, analysis_type =
 		
 		#pull number of polls data from the file names
 		num_polls <-  gsub('.*?([0-9]+).*', '\\1', files)
-		descriptor <- sapply(num_polls, function(x){paste('Optimized', num_polls, 'polls', sep='_')})}
+		descriptor <- sapply(num_polls, function(x){paste('Optimized', num_polls, 'polls', sep='_')})} #number of polls
 	else{
 		stop("Incorrect analysis_type provided. Analysis type must be historical or placement")}
 	
@@ -85,83 +85,6 @@ combine_results<- function(location, config_folder, result_type, analysis_type =
 
 	return(big_df)
 }
-
-
-###################
-# BEGIN REMOVE
-###################
-combine_results_multi_county_historical <- function(config_folder, result_type){
-	#combine all the data of a certain type 
-	#(ede, precinct, residence, result)
-	#from indicated config_folder with potentially multiple locations
-	#and year encoded in the name and output a df
-	#config_folder, result_type: string
-	#returns: data frame
-
-	#select which results we want
-	result_folder_list <-sapply(location, function(x){paste(x, 'results/', sep = '_')})
-	files <- lapply(result_folder_list, list.files)
-	files <- sapply(location, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
-	file_path <- mapply(function(folder, file){paste0(folder, file)}, result_folder_list, files)
-	df_list <- lapply(file_path, fread)
-
-	#pull the historical year from the file names
-	years <-  gsub('.*?([0-9]+).*', '\\1', files)
-	descriptor <- mapply(function(x,y){paste(x, y, sep='_')}, location, years)
-	
-	#descriptor is county_name_year
-	mapply(function(x, y){x[ , descriptor:= y]}, df_list, descriptor)
-	
-	#Change id_dest and id_orig to strings as needed
-	if ('id_dest' %in% names(df_list[[1]])){
-		sapply(df_list, function(x){x[ , id_dest:= as.character(id_dest)]})}
-	if ('id_orig' %in% names(df_list[[1]])){
-		sapply(df_list, function(x){x[ , id_orig:= as.character(id_orig)]})}
-	
-	#combine into one df
-	big_df <- do.call(rbind, df_list)
-
-	return(big_df)
-}
-
-##### Code for when there is only one location in the config folder,
-	# config folder starts with that string (e.g. FFA analysis) ######
-combine_results_placement <-function(config_folder, result_type){
-	#combine all the data of a certain type 
-	#(ede, precinct, residence, result)
-	#from indicated config_folder and output a df
-	#config_folder, result_type: string
-	#returns: data frame
-
-	#select which results we want
-	result_folder <-paste(location, 'results/', sep = '_')
-	files <- list.files(result_folder)
-	files <- files[grepl(config_folder, files) &grepl(result_type, files)]
-	file_path <- paste0(result_folder, files)
-	df_list <- lapply(file_path, fread)
-
-	#label with names and levels
-	config_names_long <- lapply(files, function(x){gsub(paste0('.*', county_config_,"\\s*|.csv*"), "", x)})	
-	config_names <- lapply(config_names_long, function(x){gsub(paste0('_',result_type), "", x)})
-	names(df_list) <- config_names
-
-	#label with names and levels
-	mapply(function(x, y){x[ , descriptor:= y]}, df_list, names(df_list))
-	
-	#Change id_dest and id_orig to strings as needed
-	if ('id_dest' %in% names(df_list[[1]])){
-		sapply(df_list, function(x){x[ , id_dest:= as.character(id_dest)]})}
-	if ('id_orig' %in% names(df_list[[1]])){
-		sapply(df_list, function(x){x[ , id_orig:= as.character(id_orig)]})}
-	
-	#combine into one df
-	big_df <- do.call(rbind, df_list)
-
-	return(big_df)
-}
-###################
-# END REMOVE
-###################
 
 read_result_data<- function(location, config_folder, analysis_type){
 	#read in and format all the results data assocaited to a 
@@ -189,33 +112,6 @@ read_result_data<- function(location, config_folder, analysis_type){
 	return(list(ede_df, precinct_df, residence_df, result_df))
 }
 
-###################
-# BEGIN REMOVE
-# No longer needed due to bug fix
-###################
-
-check_run_validity <- function(combined_df){
-	#Input: A pair of result_dfs (each corresponding to a config folder) that should have the same number of matched residences
-	#Check that they do both within and across data frames
-	#Else return an error
-	unique_num_residences <- length(unique(combined_df$num_residences))
-
-	max_num_residences = max(combined_df$num_residences)
-	bad_runs <- combined_df[ , .(num_polls = mean(num_polls)), by = c('descriptor', 'num_residences')][num_residences < max_num_residences, ]
-	
-	#flag if an "original" run has too few residences
-	if (any(grepl('original', bad_runs$descriptor))){
-		stop('One of the original runs does not match enough residences. Rerun')
-	} else if (nrow(bad_runs)>0){#if there is a bad run, remove it
-		cat('The following runs do not have enough residences: ', bad_runs$descriptor)
-		warning('Removing the data from these runs')
-	}
-	return(bad_runs$descriptor)
-}
-
-###################
-# END REMOVE
-###################
 
 #######
 #dictionary for labels
@@ -396,11 +292,7 @@ plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_n
 
 }
 
-
-
-#######
-#make regression
-#######
+#####CAUTION: USED FOR DELIVERY, BUT EXPERIMENTAL######
 
 get_regression_data<-function(location, result_df){
 
@@ -420,6 +312,49 @@ get_regression_data<-function(location, result_df){
 	regression_data[ , `:=`(area = ALAND20 + AWATER20, pop_density_km = 1e6 *population/(ALAND20 + AWATER20), pct_white= 100 * white/population, pct_black = 100 *black/population)][ , density_pctile := rank(pop_density_km)/length(pop_density_km)][ , fuzzy_dist :=distance_m][fuzzy_dist <100, fuzzy_dist := 100]
 	return(regression_data)
 }
+
+calculate_pct_change <- function(data, reference_descriptor){
+
+	data_wide <- dcast(data, id_orig ~descriptor, value.var = 'fuzzy_dist')
+	cols <- names(data_wide)[names(data_wide) != 'id_orig']
+	
+	data_wide[, (cols) := lapply(.SD, function(x)(get(reference_descriptor) - x)/x), .SDcols = cols]
+
+	dif_data<- melt(data_wide, id = c('id_orig'), variable = 'descriptor', value = 'pct_extra_in_2022')
+
+	data <- merge(data, dif_data, by = c('id_orig', 'descriptor'))
+	return(data)
+}
+
+plot_pct_change_by_density_black_3d <- function(data, this_descriptor){
+	
+	fig <- plot_ly(data[descriptor == this_descriptor, ], 
+				x= ~pct_black, 
+				y = ~density_pctile, 
+				z = ~pct_extra_in_2022,
+				size = ~I(population*.3), 
+				text = ~paste('<br>Percent extra in 2022:', pct_extra_in_2022,
+							'<br>Distance (m) :', fuzzy_dist, 
+							'<br>Percent Black :', pct_black, 
+							'<br>Population Density / km^2 :', pop_density_km, 
+							'<br>Population Density Percentile :', density_pctile, '<br>Population :', population), 
+				hoverinfo = "text", 
+				mode = 'markers')%>% 
+		layout(title = paste("Percent change in distance", gsub('_', ' ', this_descriptor),  "to 2022"),
+				scene = list(xaxis = list(title = 'Percent African American'),
+				yaxis = list(title = 'Population Density (percentile)'),
+				zaxis = list(title = 'Percent Extra Distance in 2022')))
+
+	htmlwidgets::saveWidget(as_widget(fig), paste0(this_descriptor, 'pct_diff_by_density_black.html'))
+	return(fig)
+}
+
+#####STOP HERE######
+#####REGRESSION FUNCTIONS AFTER THIS MAY NOT WORK AS DESIRED######
+
+#######
+#make regression
+#######
 
 plot_predicted_distances<- function(regression_data, model){
 
@@ -477,39 +412,5 @@ plot_distance_by_density_black_3d <- function(data, this_descriptor){
 	htmlwidgets::saveWidget(as_widget(fig), paste0(this_descriptor, '_dist_by_density_black.html'))
 }
 
-calculate_pct_change <- function(data, reference_descriptor){
-
-	data_wide <- dcast(data, id_orig ~descriptor, value.var = 'fuzzy_dist')
-	cols <- names(data_wide)[names(data_wide) != 'id_orig']
-	
-	data_wide[, (cols) := lapply(.SD, function(x)(get(reference_descriptor) - x)/x), .SDcols = cols]
-
-	dif_data<- melt(data_wide, id = c('id_orig'), variable = 'descriptor', value = 'pct_extra_in_2022')
-
-	data <- merge(data, dif_data, by = c('id_orig', 'descriptor'))
-	return(data)
-}
 
 
-plot_pct_change_by_density_black_3d <- function(data, this_descriptor){
-	
-	fig <- plot_ly(data[descriptor == this_descriptor, ], 
-				x= ~pct_black, 
-				y = ~density_pctile, 
-				z = ~pct_extra_in_2022,
-				size = ~I(population*.3), 
-				text = ~paste('<br>Percent extra in 2022:', pct_extra_in_2022,
-							'<br>Distance (m) :', fuzzy_dist, 
-							'<br>Percent Black :', pct_black, 
-							'<br>Population Density / km^2 :', pop_density_km, 
-							'<br>Population Density Percentile :', density_pctile, '<br>Population :', population), 
-				hoverinfo = "text", 
-				mode = 'markers')%>% 
-		layout(title = paste("Percent change in distance", gsub('_', ' ', this_descriptor),  "to 2022"),
-				scene = list(xaxis = list(title = 'Percent African American'),
-				yaxis = list(title = 'Population Density (percentile)'),
-				zaxis = list(title = 'Percent Extra Distance in 2022')))
-
-	htmlwidgets::saveWidget(as_widget(fig), paste0(this_descriptor, 'pct_diff_by_density_black.html'))
-	return(fig)
-}

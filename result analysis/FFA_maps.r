@@ -14,41 +14,44 @@ source('result analysis/graph_functions.R')
 #######
 #Location must be part of config folder string
 
-location = 'Cobb_GA'
-config_folder ='Cobb_GA_no_bg_school_configs'
-
-#some values for graph labeling
-#county = gsub('.{3}$','',location)
-#county_config_ = paste0(county, '_', 'config', '_')
+LOCATION = 'Cobb_GA'
+CONFIG_FOLDER ='Cobb_GA_no_bg_school_configs'
 
 #######
 #Check that location and folders valid
 #######
 
-check_location_valid(location, config_folder)
-check_config_folder_valid(config_folder)
+#Does the config folder exist?
+check_config_folder_valid(CONFIG_FOLDER)
+#Does the config folder contain files associated to the location
+check_location_valid(LOCATION, CONFIG_FOLDER)
+
+#########
+#Set up maps and cartograms
+#########
+#set result folder
+result_folder = paste(LOCATION, 'results', sep = '_')
+
+#get all file names the result_folder with the strings config_folder and 'residence_distances'
+res_dist_list = list.files(result_folder)[grepl('residence_distances', list.files(result_folder))]
+res_dist_list = res_dist_list[grepl(CONFIG_FOLDER, res_dist_list)]
+
+
+#get avg distance bounds for map coloring
+color_bounds <- distance_bounds(LOCATION, CONFIG_FOLDER)
+
 
 #########
 #Make maps and cartograms
 #########
-#set result folder
-result_folder = paste(location, 'results', sep = '_')
-
-#get all file names the result_folder with the strings config_folder and 'residence_distances'
-res_dist_list = list.files(result_folder)[grepl('residence_distances', list.files(result_folder))]
-res_dist_list = res_dist_list[grepl(config_folder, res_dist_list)]
-
 #check if relevant directory exists
-plot_folder = paste0('result analysis/', config_folder)
+plot_folder = paste0('result analysis/', CONFIG_FOLDER)
 if (!file.exists(file.path(here(), plot_folder))){
     dir.create(file.path(here(), plot_folder))
 }
 
-#get avg distance bounds for maps
-color_bounds <- distance_bounds(location, config_folder)
-
 #Choosing not to do cartograms because of convergence difficulties
 #sapply(res_dist_list, function(x)make_bg_maps(x, 'cartogram'))
-sapply(res_dist_list, function(x)make_bg_maps(config_folder, x, 'map'))
-sapply(res_dist_list, function(x)make_demo_dist_map(config_folder, x, 'black'))
+sapply(res_dist_list, function(x)make_bg_maps(CONFIG_FOLDER, x, 'map'))
+sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'black'))
 
