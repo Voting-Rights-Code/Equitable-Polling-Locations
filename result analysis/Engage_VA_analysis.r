@@ -20,7 +20,7 @@ source('result analysis/map_functions.R')
 #CONFIG_FOLDER must be a string
 
 location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
-config_folder = 'Engage_VA_2024_driving_configs'
+config_folder = 'Engage_VA_2024_configs'
 
 
 #######
