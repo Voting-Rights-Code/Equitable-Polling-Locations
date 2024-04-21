@@ -1,0 +1,778 @@
+\documentclass[11pt]{article}
+
+
+\usepackage{amssymb, amsmath, verbatim, amsthm,url, multirow,fullpage,mathtools, appendix, mathrsfs, graphicx, outlines, subcaption}
+\usepackage{longtable, rotating,makecell,array}
+\usepackage[aligntableaux=top]{ytableau}
+
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1.5ex plus 0.5ex minus 0.2ex}
+
+
+%***************************
+%Frontmatter Table of contents
+%***************************
+% Annotations
+%Equation display shortcuts
+%Theorem environments
+%***************************
+
+%*****************
+% Annotations
+\usepackage{soul}
+\usepackage[colorinlistoftodos,textsize=footnotesize]{todonotes}
+\newcommand{\hlfix}[2]{\texthl{#1}\todo{#2}}
+\newcommand{\hlnew}[2]{\texthl{#1}\todo[color=green!40]{#2}}
+\newcommand{\sanote}{\todo[color=violet!30]}
+\newcommand{\esnote}{\todo[color=orange!40]}
+\newcommand{\note}{\todo[color=green!40]}
+\newcommand{\newstart}{\note{The inserted text starts here}}
+\newcommand{\newfinish}{\note{The inserted text finishes here}}
+\setstcolor{red}
+%***************************
+
+%*****************
+%Equation display shortcuts
+\def\ba #1\ea{\begin{align} #1 \end{align}}
+\def\bas #1\eas{\begin{align*} #1 \end{align*}}
+\def\bml #1\eml{\begin{multline} #1 \end{multline}}
+\def\bmls #1\emls{\begin{multline*} #1 \end{multline*}}
+%*****************
+
+%*****************
+%Theorem environments
+\newtheorem{thm}{Theorem}[section]
+\newtheorem{conj}[thm]{Conjecture}
+\newtheorem{lem}[thm]{Lemma}
+\newtheorem{cor}[thm]{Corollary}
+\newtheorem{prop}[thm]{Proposition}
+\newtheorem{alg}[thm]{Algorithm}
+
+\theoremstyle{remark}
+\newtheorem{eg}[thm]{Example}
+\newtheorem{claim}[thm]{Claim}
+
+\theoremstyle{definition}
+\newtheorem{dfn}[thm]{Definition}
+\newtheorem{rmk}[thm]{Remark}
+\newtheorem{ntn}[thm]{Notation}
+%*****************
+
+\title{South Carolina County Analysis}
+\author{Voting Rights Code}
+\date{\today}
+\begin{document}
+\maketitle
+\section{Summary}
+	
+	Counties: Berkeley, Greenville, Lexington, Richland, York.
+\subsection{Summary of findings}
+
+\begin{outline}
+	\1 Lexington County is the `control', in that it did not see a significant change in the number of polling locations in 2022.
+	\1 Change in average distance traveled by demographic groups:
+		\2 In all counties but Lexington, all communities experienced an increase in average distance to assigned poll. However, some communities were affected differently than others. 
+		\2 Berkeley: The small Asian-American and Latine communities experienced the greatest average increases, followed by the sizable African American community.
+		\2 Greenville: The White community experienced the greatest increase, followed by the African American community
+		\2 Richland: The African American community experienced the greatest increase
+		\2 York: The African American community experienced the greatest increase; over 3-5 times the increase experienced by any other community
+	\1 Within group inequality:
+		\2 Berkeley: All demographic groups saw an improvement (decrease) to within group inequality
+		\2 Greenville: Asian, African American and Latine communities experienced an increase in within group inequality
+		\2 Richland: All demographic groups saw an improvement (decrease) to within group inequality
+		\2 York: The White community experiences the greatest within group inequality in 2022
+	\1 Note that if the average distance to assigned poll increases but the inequality decreases, this means that the shortest distances to assigned polls are disproportionately greater in 2022 than in other years. 
+		\2 This holds for all demographic groups in Berkeley and Richland counties
+	\1 Extra distance to assigned poll by demographics and demographic density
+		\2 We include maps and graphs to try to better understand the relationship between the extra distance in 2022 and the demographic makeup (and population density) of the census blocks and block groups. However, this story is subtle, and we do not fully understand it. We would be happy to keep working on this, if there is interest.
+\end{outline}
+	
+	
+\subsection{Data and Methodology}
+	For all counties studied, we assign the voting age population to polls by 
+\begin{outline}
+	\1 Minimizing a function of the average distance and the maximum distance from the assigned polling location of the entire county's population.
+		\2 5 people living a mile each from their assigned poll is prefered to 4 people being assigned a poll .5 miles away and the last being assigned one 3 miles away.
+	\1 Requiring that each polling location have roughly the same number of people assigned to them
+		\2 If a county has 2000 people and 10 polling locations, then each polling location cannot be assigned more than 300 people ($(2000 / 10) \times 1.5$ )
+	\1 Population is assigned at the census block level (not at the individual level)
+		\2 The entire voting age population is used, not registered voters
+		\2 Data is from the 2020 census for all graphs
+		\2 Racial/Ethnicity data is taken from the census.
+			\3 Everyone is either Hispanic or Non-Hispanic
+			\3 Everyone is in some racial category: White, Black, Asian, Pacific Islander, Native, Other, Multi-Racial
+			\3 This means that someone who is both Asian and Hispanic appear in both the Hispanic category and the Asian category.
+		\2 Not all racial options are represented in the data. We focus on White, Black, Asian and Latine populations. (While Native is present in some of the graphs, it is not discussed in detail because of the small size of the population in the counties studied.)
+\end{outline}
+
+The results presented here are within 2$\%$ of optimal.\footnote{By \emph{optimal} we mean that any other assignment of people to polling locations will either not satisfy these constraints, or will have higher average distance or greater inequality (i.e. standard deviation in distance to polls) than this assignment.} 
+
+We recognize that the constraints that we have implemented are overly simplistic, and that in actual poll assignment, there are more constraints that must be considered (such as precinct requirements which may not respect census block boundaries, or the fact that all adults in a county are not registered to vote or even eligible to vote).
+
+We note that there are no demographic considerations in the model. We assign people to polls based only on the census block they live in. All demographic differences shown below are a result of the segregated nature of our societies.
+
+
+\section{Demographic level distance to poll analysis \label{sec:distances}}
+In this section, we present results on the distances to the assigned polls for the population as a whole and by the following demographics: White, Black, Asian (non-Pacific Islander) Native American and Hispanic.
+
+We present data for both the average distance to the assigned polling location, and the equity weighted distance (which is the function we optimize for). We note that the equity weighted distance is always greater than the average distance (it can only be equal if everyone was located the \emph{the exact same distance} from the assigned poll, and it can never be less than the average distance). To get a sense of relative inequality experienced within a sub population, one may divide the equity weighted distance by the averaged distance. 
+\begin{eg}
+	For instance, if the White population has an average distance of 10 and an equity weighted distance of 20, then while the African American population has an average distance of 7 and an equity weighted distance of 21, then we see that the distribution of distances to assigned polls has a greater spread for the African American population than for the White population ($21/7 = 3$ for the African American population while $20/10$ is 2 for the White.) This is not a measure of standard deviation of the distances. It is however, a quick way to get a rank order of the within population inequality for distance to the assigned poll.
+\end{eg}
+
+\subsection{Berkeley \label{sec:Berkeley distances}}
+According to the census, in 2020, Berkeley county had a total of 173,949 adults, broken down by percent into the following ethnic and racial categories:
+
+\begin{tabular} {| c | c |} 
+	\hline
+	Asian (non PI) &  0.025 \\ \hline
+	African American & 0.22 \\ \hline
+	Latine & 0.075 \\ \hline
+	First Nations & 0.0067 \\ \hline
+	White  & 0.64 \\ \hline
+\end{tabular}
+
+
+Their average and equity weighted distances to the polls from 2014-2022 are shown in Figure \ref{fig:Berkeley distance graphs}.
+
+\begin{figure}
+	\begin{subfigure}{.8\textwidth}
+		\centering
+		\includegraphics[width=.8\linewidth]{result analysis/Berkeley_SC_original_configs/orig_pop_scaled_avg}
+		\label{sfig:Berkeley avg dist}
+	\end{subfigure} \newline
+	\begin{subfigure}{.8\textwidth}
+		\centering
+		\includegraphics[width=.8\linewidth]{result analysis/Berkeley_SC_original_configs/orig_pop_scaled_y_EDE}
+		\label{sfig:Berkeley equity dist}
+	\end{subfigure}
+	\caption{Average and equity weighted distance for Berkeley county by demographic, 2014-2022}
+	\label{fig:Berkeley distance graphs}
+\end{figure}
+
+
+From 2014-2020, the number of polling locations steadily increased from 48 to 60. In 2022, it was reduced to 36. During the first period, the distance from each census block to the assigned polling location decreased steadily from 2.4 kilometers to 1.9 kilometers. In 2022, this average distance jumps to 3.6 kilometers. 
+
+Throughout the entire period, the majority White community is assigned to polling locations that are closer, on average than the African American community. In 2014, the majority White population's polling locations on average 322 meters closer than the African American community's locations. By 2020, this difference decreases to 237 meters. However, in 2022, this difference jumps to 404 meters. Furthermore, in 2022, the community closest on average to their polling locations (White, 3.5 km) is over 350 meters further away from the worst affected community in any of the other years (African American, 2022). Also, while the minority Latine and Asian communities are closer to their polling locations than the White community during 2014-2020, they are further away in 2022.
+
+On the other hand, the within group inequalities for all demographic groups is lower in 2022 than it is in any other year. While the average distances for all demographic groups decrease from 2014 to 2020, there is no consistent pattern for the within group inequalities.
+
+The year 2020, had the largest number of polls and the lowest average distance. Compared to 2020, in 2022, the distance to assigned polling locations for the White community increases the least, 1.6 kilometer. The differences between 2022 and 2020 for various demographic groups is caputured in the table below:
+
+\begin{tabular}{|c|c|}
+	\hline
+	Demographic group & Extra average meters in 2022 \\ \hline
+	Asian (not PI) &   2362 \\ \hline
+	African American &   1754  \\ \hline
+	Latine & 2047 \\ \hline
+	White &  1578\\ \hline
+	Total population &  1689\\ \hline
+\end{tabular}
+
+
+\subsection{Greenville \label{sec:Greenville distances}}
+According to the census, in 2020, Greenville county had a total of 406,243 adults, broken down by percent into the following ethnic and racial categories:
+
+\begin{tabular} {| c | c |} 
+	\hline
+	Asian (non PI) &  0.025 \\ \hline
+	African American & 0.16 \\ \hline
+	Latine & 0.094 \\ \hline
+	First Nations & 0.0044 \\ \hline
+	White  & 0.69 \\ \hline
+\end{tabular}
+
+
+Their average and equity weighted distances to the polls from 2014-2022 are shown in Figure \ref{fig:Greenville distance graphs}.
+
+\begin{figure}
+	\begin{subfigure}{.8\textwidth}
+		\centering
+		\includegraphics[width=.8\linewidth]{result analysis/Greenville_SC_original_configs/orig_pop_scaled_avg}
+		\label{sfig:Greenville avg dist}
+	\end{subfigure} \newline
+	\begin{subfigure}{.8\textwidth}
+		\centering
+		\includegraphics[width=.8\linewidth]{result analysis/Greenville_SC_original_configs/orig_pop_scaled_y_EDE}
+		\label{sfig:Greenville equity dist}
+	\end{subfigure}
+	\caption{Average and equity weighted distance for Greenville county by demographic, 2014-2022}
+	\label{fig:Greenville distance graphs}
+\end{figure}
+
+
+From 2014-2018, there were 150 to 151 polling locations. In 2020, there were 145, and in 2020 there were 106. During the first period, on average, the population is assigned to a polling location 1.3 kilometers from their census block, in 2022, this average distance jumps to 1.4 kilometers and in 2022, it jumps again to 1.8.
+
+While the average distance from the assigned polling locations jump slightly from the first three elections to 2020, the equity weighted distance remains very constant during all four years, indicating that while a reduction in the number of polling locations increased average distance to the polls, the new locations were placed more equitably than they had been in the previous three elections. By contrast, in 2022, the equity weighted distance jumped nearly 700 meters for the county overall. 
+
+We note that the majority White populations are assigned to polling locations further away than the minority Black population. In 2014-2020, the White population is assigned a poll about 230-250 meters further away than the African American community. However, in 2022, the average distances differ by over 290 meters. Furthermore, in 2022, the community closest on average to their polling locations (Latine, 1.5 km) is over 80 meters further away from the worst affected community in any of the other years (White, 2020).
+
+In terms of within group inequality, from 2014-2020, the demographic communities are consistently ranked (interms of increasing inequality) African America, Asian, Latine then White. In 2022, however, the African American community experiences within group inequality similar to the Asian community in the previous period. The Asian community experiences within group inequality similar to the Latine community in the previous period, the Latine community experiences the greatest inequality across all 5 years while the White within group inequality does not siginificantly change. 
+
+The year 2016, had the largest number of polls and the lowest average distance. Compared to 2016, in 2022, the African American and White communities were assigned to polling locations the furthest away. The differences between 2022 and 2020 for various demographic groups is caputured in the table below:
+
+\begin{tabular}{|c|c|}
+	\hline
+	Demographic group & Extra average meters in 2022 \\ \hline
+	Asian (not PI) &   334 \\ \hline
+	African American &   363  \\ \hline
+	Latine & 301 \\ \hline
+	White &  406\\ \hline
+	Total population &  389\\ \hline
+\end{tabular}
+
+\subsection{Lexington \label{sec:Lexington distances}}
+According to the census, in 2020, Lexington county had a total of 22,504  adults, broken down by percent into the following ethnic and racial categories:
+
+\begin{tabular} {| c | c |} 
+	\hline
+	Asian (non PI) &  0.022 \\ \hline
+	African American & 0.14 \\ \hline
+	Latine & 0.061 \\ \hline
+	First Nations & 0.0048 \\ \hline
+	White  & 0.75 \\ \hline
+\end{tabular}
+
+
+Their average and equity weighted distances to the polls from 2014-2022 are shown in Figure \ref{fig:Lexington distance graphs}.
+
+\begin{figure}
+	\begin{subfigure}{.8\textwidth}
+		\centering
+		\includegraphics[width=.8\linewidth]{result analysis/Lexington_SC_original_configs/orig_pop_scaled_avg}
+		\label{sfig:Lexington avg dist}
+	\end{subfigure} \newline
+	\begin{subfigure}{.8\textwidth}
+		\centering
+		\includegraphics[width=.8\linewidth]{result analysis/Lexington_SC_original_configs/orig_pop_scaled_y_EDE}
+		\label{sfig:Lexington equity dist}
+	\end{subfigure}
+	\caption{Average and equity weighted distance for Lextington county by demographic, 2014-2022}
+	\label{fig:Lexington distance graphs}
+\end{figure}
+
+From 2014-2022, there were 92-95 polling locations. This is the one county that did not see a drop in polling locations in 2022. During the entire period, the population is assigned to a polling location 1.7 kilometers from their census block, with the lowest average distance from 2014-2018 when there were 95 polls (1708 meters), and the largest in 2020 when there were the fewest number of polls (1733 m).
+
+The majority White population consistently lives 190 to 200 meters further to their polls than the minority Black community. 
+
+The within group inequality is consistent across the set of 5 years, with the minority Asian community faring best, following by the majority White community, then the African American and Latine communities. 
+
+As a result, we do not see much change in either the average distances or equity weighted distances for the different communities from 2014 - 2022. 
+
+\begin{tabular}{|c|c|}
+	\hline
+	Demographic group & Extra average meters in 2022 \\ \hline
+	Asian (not PI) &   17.8 \\ \hline
+	African American &   -1.56  \\ \hline
+	Latine & 17.9 \\ \hline
+	White &  23.3\\ \hline
+	Total population &  19.8\\ \hline
+\end{tabular}
+
+
+\subsection{Richland \label{sec:Richland distances}}
+According to the census, in 2020, Richland county had a total of 327,481  adults, broken down by percent into the following ethnic and racial categories:
+
+\begin{tabular} {| c | c |} 
+	\hline
+	Asian (non PI) &  0.028 \\ \hline
+	African American & 0.44 \\ \hline
+	Latine & 0.056 \\ \hline
+	First Nations & 0.0034 \\ \hline
+	White  & 0.45 \\ \hline
+\end{tabular}
+
+Their average and equity weighted distances to the polls from 2014-2022 are shown in Figure \ref{fig:Richland distance graphs}.
+
+\begin{figure}
+	\begin{subfigure}{.8\textwidth}
+		\centering
+		\includegraphics[width=.8\linewidth]{result analysis/Richland_SC_original_configs/orig_pop_scaled_avg}
+		\label{sfig:Richland avg dist}
+	\end{subfigure} \newline
+	\begin{subfigure}{.8\textwidth}
+		\centering
+		\includegraphics[width=.8\linewidth]{result analysis/Richland_SC_original_configs/orig_pop_scaled_y_EDE}
+		\label{sfig:Richland equity dist}
+	\end{subfigure}
+	\caption{Average and equity weighted distance for Richland county by demographic, 2014-2022}
+	\label{fig:Richland distance graphs}
+\end{figure}
+
+From 2014-2020, there were 140 to 143 polling locations. In 2022, there were 111. During the first period, on average, the population is assigned to a polling location 1.3 kilometers from their census block, while in 2022, this average distance jumps to 1.5 kilometers. 
+
+We note that the plurality White and African American populations are assigned to polling locations similar distances away. In 2014-2020, the average distances for the populations are less than 30 meters of each other, with the African American community being assigned generally closer than the White community. However, in 2022, the average distances differ by over 40 meters with the African American community traveling, on average, further. 
+
+While the average distance increased for everyone from the 2014-2020 period to 2022, the equity weighted distances in did not change very much at all for the White or Latine communities, but did drastically for the Asian or African American communities. 
+
+In terms of within group inequality, the 2022 polls gave the minority Asian community the best equity of any demographic over the entire time period. The White and Latine communities also experienced less within group inequality in 2022 than they had in any other year. The withing group inequality for the African American community remained effectively unchanged. 
+
+Note that in 2020, in spite of having the fewest number of poling locations prior to 2022 (140), the average distance traveled by all demographic groups was the least. Compared to 2020, in 2022,
+the African American community was assigned to a polling locations the furthest away (on average almost a kilometer further away), in spite of being on consistently the closest to their polls prior to 2020. The differences between 2022 and 2016 for various demographic groups is caputured in the table below:
+
+\begin{tabular}{|c|c|}
+	\hline
+	Demographic group & Extra average meters in 2022 \\ \hline
+	Asian (not PI) &   192 \\ \hline
+	African American &   239  \\ \hline
+	Latine & 161 \\ \hline
+	White &  160\\ \hline
+	Total population &  201\\ \hline
+\end{tabular}
+
+\subsection{York \label{sec:York distances}}
+According to the census, in 2020, York county had a total of 213,111 adults, broken down by percent into the following ethnic and racial categories:
+
+\begin{tabular} {| c | c |} 
+\hline
+ Asian (non PI) &  0.029 \\ \hline
+African American & 0.18 \\ \hline
+Latine & 0.0572 \\ \hline
+First Nations & 0.0074 \\ \hline
+White  & 0.70 \\ \hline
+\end{tabular}
+
+Their average and equity weighted distances to the polls from 2014-2022 are shown in Figure \ref{fig:York distance graphs}.
+
+\begin{figure}
+	\begin{subfigure}{.8\textwidth}
+		\centering
+		\includegraphics[width=.8\linewidth]{result analysis/York_SC_original_configs/orig_pop_scaled_avg}
+		\label{sfig:York avg dist}
+	\end{subfigure} \newline
+	\begin{subfigure}{.8\textwidth}
+		\centering
+		\includegraphics[width=.8\linewidth]{result analysis/York_SC_original_configs/orig_pop_scaled_y_EDE}
+		\label{sfig:York equity dist}
+	\end{subfigure}
+	\caption{Average and equity weighted distance for York county by demographic, 2014-2022}
+	\label{fig:York distance graphs}
+\end{figure}
+
+From 2014-2020, there were 88 or 89 polling locations. In 2022, there were 79. During the first period, on average, the population is assigned to a polling location between 1.5 and 1.6 kilometers from their census block, while in 2022, this average distance jumps to 1.7 kilometers. 
+
+In terms of the within group inequality, the Asian population is consistently has the most uniform distance to the assigned poll. The greatest within group inequalities are experiences (in decreasing order) by the White, Latine, African American communities in 2022.
+
+Note that in 2016, inspite of having the fewest number of poling locations prior to 2022 (89), the average distance traveled by all demographic groups was the least. Compared to 2016, in 2022, the African American community was assigned to a polling locations the furthest away (on average half a kilometer further away), in spite of being on consistently the closest to their polls prior to 2020. The differences between 2022 and 2016 for various demographic groups is caputured in the table below:
+
+\begin{tabular}{|c|c|}
+	\hline
+	Demographic group & Extra average meters in 2022 \\ \hline
+	Asian (not PI) &   102 \\ \hline
+	African American &   553  \\ \hline
+	Latine & 170 \\ \hline
+	White &  162\\ \hline
+	Total population &  232\\ \hline
+\end{tabular}
+
+\section{Distances, Race and Population Density}
+We note that each of the five counties are made of both urban and suburban areas. Due to the structure of urban versus suburban societies, the impact of a mile traveled in different parts of the county is different. Similarly, due to varying population densities across the county, it makes sense for there to be more polling locations in more dense areas. Therefore in order to properly understand the distance metrics on different communities in the county, one needs to consider the population density of the blocks (which is a set of analysis that we have started, but not completed yet.)
+
+%While not included in this document, the attached files 
+In the following subsection, we include maps of block groups colored by the average distance to polling locations, as well as maps with block groups labeled with dots representing the population size as well as the average distance to the assigned poll. While these maps are effective at locating the worst served block groups, it does not give insight into the racial disparities in the data. 
+
+Instead, we consider the difference between the distance to the assigned polling location for each block group in a given year, compared to 2022 and plot it against block group population density and percent African American (see included .html files for each county.) For this graph, a block having a Percent black value of 25 means that the block's population is $25\%$ African American, while having a Percent extra distance in 2022 value of 25 means that the residents of that block were assigned a polling location 25 times as far away in 2022 than in the year of the graph.
+
+
+
+
+\begin{comment}
+	
+We also run regressions of the difference against population density, percent black and the interaction between the two. The coefficents are presented in the following table, for the years with the greatest difference between average distances, relative to 2022
+
+\begin{tabular}{|c|c|c|c|c|c|}
+	\hline
+	County & Year & Intercept & Percent Black & Population Density & Density, Percent Black interaction \\ \hline
+	Berkeley & 2016 & 1.2604083 & 0.0003928316 & -0.005297425 & 5.133987e-06 \\ \hline
+	Greenville & 2018 & 0.5754647 & -0.0001107857 & 0.00260356 & 7.832775e-07 \\ \hline
+	Lexington & 2016 & 0.02628441 & 2.160725e-05 & 2.160725e-05 & 2.160725e-05 \\ \hline
+	Richland &  2020 & 0.2114449 & 3.955007e-05 & 0.003908468 & -1.278315e-06 \\ \hline
+	York & 2016 &  0.1819664 & -0.0001493098 & -0.0001493098 & 4.179699e-06 \\ \hline
+\end{tabular}
+
+For reference, below is a table of population density quantiles:
+
+\begin{tabular}{|c|c|c|c|c|c|}
+	\hline
+	County & 0 & 25 & 50 & 75 & 100 \\ \hline
+Berrkeley & 
+3.671134e-02 & 1.000624e+02 & 7.223758e+02 & 1.686248e+03 & 1.626016e+04 \\ \hline
+Greenville &
+2.801307e-01 & 2.082525e+02 & 6.921191e+02 & 1.215831e+03 & 1.428709e+04 \\ \hline
+Lexington & 
+3.239787e-01 & 6.911607e+01 & 3.287738e+02 & 9.477101e+02 & 1.136364e+04\\ \hline
+Richland & 
+3.562033e-01 & 3.227889e+02 & 9.072460e+02 & 1.514387e+03 & 3.355113e+04\\ \hline	
+York &
+3.021619e-01 & 9.592633e+01 & 4.601927e+02 & 1.152032e+03 & 2.372458e+04 \\ \hline
+	\end{tabular}
+\end{comment}
+\begin{comment}
+\subsection{Race and population density}
+In each of the five counties we study, there is not a strong relationship between the percent of a block groups population that is White and its density. We can see this by regressing population density of the block groups against the dependent variable percent white. This is presented in the table below. Recall that all data is from the 2020 census:
+
+\begin{tabular}{| c |c|c|}
+	\hline
+	County & Intercept & Population/ $km^2$ \\ \hline
+	Berkeley & 5.9 & .00086 \\ \hline
+	Greenville & 72.0692908 & -0.0043945 \\ \hline
+	Lexington & 71 & -.0044 \\ \hline
+	Richland & 45 & -.000238\\ \hline
+	York & 69.0958968 & -0.0037198 \\ \hline
+\end{tabular}
+
+York quantiles:
+3.021619e-01 9.592633e+01 4.601927e+02 1.152032e+03 2.372458e+04 
+
+At most, in Greenville county, a block  with a thousand more people per square kilometer is, in expectation to be $4.5\%$ less white. At worse, in Richland county a block  with a thousand more people per square kilometer is, in expectation to be $.24\%$ less white. Therefore, race and 
+\end{comment}
+
+\subsection{Berkeley}
+Figure \ref{fig:Berkeley distance maps} gives the maps comparing Berkeley in 2016 (the lowest average distance) to 2022. Some obvious undeserved communities result from removing a polling location in the northwest corner of the county and from the very dense southwest part of the county.
+
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Berkeley_SC_original_configs/distance_map_Berkeley_config_original_2016_polls.png}
+		\label{sfig:York_2016_bg_dist}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Berkeley_SC_original_configs/distance_map_Berkeley_config_original_2022_polls.png}
+		\label{sfig:Berkeley_2022_bg_dist}
+	\end{subfigure}
+	\caption{Polling locations and block group distances for Berkeley in 2016 and 2022}
+	\label{fig:Berkeley distance maps}
+\end{figure}
+
+In the next set of figures (Figures \ref{fig:Berkeley distance Total population maps}, \ref{fig:Berkeley distance White population maps} and \ref{fig:Berkeley distance Black population maps}), the polling locations are removed but the size of the dots represent the number of people of the indicated demographic in the region. These maps are still colored by distance to the assigned poll.
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Berkeley_SC_original_configs/population_pop_and_dist_Berkeley_config_original_2016_polls.png}
+		\label{sfig:York_2016_bg_dist_pop}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Berkeley_SC_original_configs/population_pop_and_dist_Berkeley_config_original_2022_polls.png}
+		\label{sfig:Berkeley_2022_bg_dist}
+	\end{subfigure}
+	\caption{Total population and distances by block group for Berkeley in 2016 and 2022}
+	\label{fig:Berkeley distance Total population maps}
+\end{figure}
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Berkeley_SC_original_configs/white_pop_and_dist_Berkeley_config_original_2016_polls.png}
+		\label{sfig:York_2016_bg_dist_pop}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Berkeley_SC_original_configs/white_pop_and_dist_Berkeley_config_original_2022_polls.png}
+		\label{sfig:Berkeley_2022_bg_dist}
+	\end{subfigure}
+	\caption{White population and distances by block group for Berkeley in 2016 and 2022}
+	\label{fig:Berkeley distance White population maps}
+\end{figure}
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Berkeley_SC_original_configs/black_pop_and_dist_Berkeley_config_original_2016_polls.png}
+		\label{sfig:York_2016_bg_dist_pop}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Berkeley_SC_original_configs/black_pop_and_dist_Berkeley_config_original_2022_polls.png}
+		\label{sfig:Berkeley_2022_bg_dist}
+	\end{subfigure}
+	\caption{African American population and distances by block group for Berkeley in 2016 and 2022}
+	\label{fig:Berkeley distance Black population maps}
+\end{figure}
+
+Finally, the included file: \textrm{Berkeley\_SC\_original\_configs/Berkeley\_2016pct\_diff\_by\_density\_black.html} shows that in Berkeley county, the less African American and more dense a block, the more likely that it would have to travel further to the poll. 
+
+\pagebreak
+
+\subsection{Greenville} 
+Here are the maps comparing Greenville in 2018 (the lowest average distance) to 2022. Some obvious undeserved communities result from removing a polling location in the northwest corner of the county and several in the east of the county.
+
+We note that there appears to be a polling location for 2022 (Burnsview Baptist Church, 9690 Reidville Rd, Greer, SC) that is reported for Greenville County in 2022, but appears to be physically outside of it.
+
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Greenville_SC_original_configs/distance_map_Greenville_config_original_2018_polls.png}
+		\label{sfig:York_2018_bg_dist}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Greenville_SC_original_configs/distance_map_Greenville_config_original_2022_polls.png}
+		\label{sfig:Greenville_2022_bg_dist}
+	\end{subfigure}
+	\caption{Polling locations and block group distances for Greenville in 2018 and 2022}
+	\label{fig:Greenville distance maps}
+\end{figure}
+
+In the next set of figures, (Figures \ref{fig:Greenville distance Total population maps}, \ref{fig:Greenville  distance White population maps} and \ref{fig:Greenville distance Black population maps}) the polling locations are removed but the size of the dots represent the number of people of the indicated demographic in the region. These maps are still colored by distance to the assigned poll.
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Greenville_SC_original_configs/population_pop_and_dist_Greenville_config_original_2018_polls.png}
+		\label{sfig:York_2018_bg_dist_pop}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Greenville_SC_original_configs/population_pop_and_dist_Greenville_config_original_2022_polls.png}
+		\label{sfig:Greenville_2022_bg_dist}
+	\end{subfigure}
+	\caption{Total population and distances by block group for Greenville in 2018 and 2022}
+	\label{fig:Greenville distance Total population maps}
+\end{figure}
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Greenville_SC_original_configs/white_pop_and_dist_Greenville_config_original_2018_polls.png}
+		\label{sfig:York_2018_bg_dist_pop}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Greenville_SC_original_configs/white_pop_and_dist_Greenville_config_original_2022_polls.png}
+		\label{sfig:Greenville_2022_bg_dist}
+	\end{subfigure}
+	\caption{White population and distances by block group for Greenville in 2018 and 2022}
+	\label{fig:Greenville distance White population maps}
+\end{figure}
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Greenville_SC_original_configs/black_pop_and_dist_Greenville_config_original_2018_polls.png}
+		\label{sfig:York_2018_bg_dist_pop}
+	\end{subfigure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Greenville_SC_original_configs/black_pop_and_dist_Greenville_config_original_2022_polls.png}
+		\label{sfig:Greenville_2022_bg_dist}
+	\end{subfigure}
+	\caption{African American population and distances by block group for Greenville in 2018 and 2022}
+	\label{fig:Greenville distance Black population maps}
+\end{figure}
+
+Finally, the included file: \textrm{Greenville\_SC\_original\_configs/Greenville\_2018pct\_diff\_by\_density\_black.html} shows that in Greenville county, the less African American and more dense a block, the more likely that it would have to travel further to the poll. 
+
+\pagebreak 
+
+\subsection{Lexington}
+Here are the maps comparing Lexington in 2016 (the lowest average distance) to 2022. This is the control county. There is not a significant change in average distance at the block group level of distances to assigned polls.
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Lexington_SC_original_configs/distance_map_Lexington_config_original_2016_polls.png}
+		\label{sfig:York_2016_bg_dist}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Lexington_SC_original_configs/distance_map_Lexington_config_original_2022_polls.png}
+		\label{sfig:Lexington_2022_bg_dist}
+	\end{subfigure}
+	\caption{Polling locations and block group distances for Lexington in 2016 and 2022}
+	\label{fig:Lexington distance maps}
+\end{figure}
+
+In the next set of figures, (Figures \ref{fig:Lexington distance Total population maps}, \ref{fig:Lexington distance White population maps} and \ref{fig:Lexington distance Black population maps}) the polling locations are removed but the size of the dots represent the number of people of the indicated demographic in the region. These maps are still colored by distance to the assigned poll.
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Lexington_SC_original_configs/population_pop_and_dist_Lexington_config_original_2016_polls.png}
+		\label{sfig:York_2016_bg_dist_pop}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Lexington_SC_original_configs/population_pop_and_dist_Lexington_config_original_2022_polls.png}
+		\label{sfig:Lexington_2022_bg_dist}
+	\end{subfigure}
+	\caption{Total population and distances by block group for Lexington in 2016 and 2022}
+	\label{fig:Lexington distance Total population maps}
+\end{figure}
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Lexington_SC_original_configs/white_pop_and_dist_Lexington_config_original_2016_polls.png}
+		\label{sfig:York_2016_bg_dist_pop}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Lexington_SC_original_configs/white_pop_and_dist_Lexington_config_original_2022_polls.png}
+		\label{sfig:Lexington_2022_bg_dist}
+	\end{subfigure}
+	\caption{White population and distances by block group for Lexington in 2016 and 2022}
+	\label{fig:Lexington distance White population maps}
+\end{figure}
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Lexington_SC_original_configs/black_pop_and_dist_Lexington_config_original_2016_polls.png}
+		\label{sfig:York_2016_bg_dist_pop}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Lexington_SC_original_configs/black_pop_and_dist_Lexington_config_original_2022_polls.png}
+		\label{sfig:Lexington_2022_bg_dist}
+	\end{subfigure}
+	\caption{African American population and distances by block group for Lexington in 2016 and 2022}
+	\label{fig:Lexington distance Black population maps}
+\end{figure}
+
+Finally, the included file: \textrm{Lexington\_SC\_original\_configs/Lexington\_2016pct\_diff\_by\_density\_black.html} shows that what minor changes of no significant consequence looks like. 
+\pagebreak
+
+\subsection{Richland}
+Here are the maps comparing Richland in 2020 (the lowest average distance) to 2022. Some obvious undeserved communities result from removing two polling location in the southeast corner of the county.
+
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Richland_SC_original_configs/distance_map_Richland_config_original_2020_polls.png}
+		\label{sfig:York_2020_bg_dist}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Richland_SC_original_configs/distance_map_Richland_config_original_2022_polls.png}
+		\label{sfig:Richland_2022_bg_dist}
+	\end{subfigure}
+	\caption{Polling locations and block group distances for Richland in 2020 and 2022}
+	\label{fig:Richland distance maps}
+\end{figure}
+
+In the next set of figures, (Figures \ref{fig:Richland distance Total population maps}, \ref{fig:Richland distance White population maps} and \ref{fig:Richland distance Black population maps}) the polling locations are removed but the size of the dots represent the number of people of the indicated demographic in the region. These maps are still colored by distance to the assigned poll.
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Richland_SC_original_configs/population_pop_and_dist_Richland_config_original_2020_polls.png}
+		\label{sfig:York_2020_bg_dist_pop}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Richland_SC_original_configs/population_pop_and_dist_Richland_config_original_2022_polls.png}
+		\label{sfig:Richland_2022_bg_dist}
+	\end{subfigure}
+	\caption{Total population and distances by block group for Richland in 2020 and 2022}
+	\label{fig:Richland distance Total population maps}
+\end{figure}
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Richland_SC_original_configs/white_pop_and_dist_Richland_config_original_2020_polls.png}
+		\label{sfig:York_2020_bg_dist_pop}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Richland_SC_original_configs/white_pop_and_dist_Richland_config_original_2022_polls.png}
+		\label{sfig:Richland_2022_bg_dist}
+	\end{subfigure}
+	\caption{White population and distances by block group for Richland in 2020 and 2022}
+	\label{fig:Richland distance White population maps}
+\end{figure}
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Richland_SC_original_configs/black_pop_and_dist_Richland_config_original_2020_polls.png}
+		\label{sfig:York_2020_bg_dist_pop}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/Richland_SC_original_configs/black_pop_and_dist_Richland_config_original_2022_polls.png}
+		\label{sfig:Richland_2022_bg_dist}
+	\end{subfigure}
+	\caption{African American population and distances by block group for Richland in 2020 and 2022}
+	\label{fig:Richland distance Black population maps}
+\end{figure}
+
+Finally, the included file: \textrm{Richland\_SC\_original\_configs/Richland\_2020pct\_diff\_by\_density\_black.html} shows that in Richland county, communities of all levels of density and percent African American percentage are being affected, and very likely we are being prevented from understanding the full picture due to the scale of the z axis. 
+
+\pagebreak
+
+\subsection{York}
+Here are the maps comparing York in 2016 (the lowest average distance) to 2022. Some obvious undeserved communities result from removing a polling location in the southwest corner of the county and two in the south east.
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/York_SC_original_configs/distance_map_York_config_original_2016_polls.png}
+		\label{sfig:York_2016_bg_dist}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/York_SC_original_configs/distance_map_York_config_original_2022_polls.png}
+		\label{sfig:York_2022_bg_dist}
+	\end{subfigure}
+	\caption{Polling locations and block group distances for York in 2016 and 2022}
+	\label{fig:York distance maps}
+\end{figure}
+
+In the next set of figures, (Figures \ref{fig:York distance Total population maps}, \ref{fig:York distance White population maps} and \ref{fig:York distance Black population maps})  the polling locations are removed but the size of the dots represent the number of people of the indicated demographic in the region. These maps are still colored by distance to the assigned poll.
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/York_SC_original_configs/population_pop_and_dist_York_config_original_2016_polls.png}
+		\label{sfig:York_2016_bg_dist_pop}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/York_SC_original_configs/population_pop_and_dist_York_config_original_2022_polls.png}
+		\label{sfig:York_2022_bg_dist}
+	\end{subfigure}
+	\caption{Total population and distances by block group for York in 2016 and 2022}
+	\label{fig:York distance Total population maps}
+\end{figure}
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/York_SC_original_configs/white_pop_and_dist_York_config_original_2016_polls.png}
+		\label{sfig:York_2016_bg_dist_pop}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/York_SC_original_configs/white_pop_and_dist_York_config_original_2022_polls.png}
+		\label{sfig:York_2022_bg_dist}
+	\end{subfigure}
+	\caption{White population and distances by block group for York in 2016 and 2022}
+	\label{fig:York distance White population maps}
+\end{figure}
+
+\begin{figure}
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/York_SC_original_configs/black_pop_and_dist_York_config_original_2016_polls.png}
+		\label{sfig:York_2016_bg_dist_pop}
+	\end{subfigure} 
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{result analysis/York_SC_original_configs/black_pop_and_dist_York_config_original_2022_polls.png}
+		\label{sfig:York_2022_bg_dist}
+	\end{subfigure}
+	\caption{African American population and distances by block group for York in 2016 and 2022}
+	\label{fig:York distance Black population maps}
+\end{figure}
+
+Finally, the included file: \textrm{York\_SC\_original\_configs/York\_2016pct\_diff\_by\_density\_black.html} shows that in York county, there are two populations more likely to be affected: the heavily African American and densest block, and the whitest blocks of middling density. 
+
+\end{document}
