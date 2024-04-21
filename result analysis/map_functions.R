@@ -1,10 +1,45 @@
 library(data.table)
 library(ggplot2)
 library(lubridate)
-#library(mapview)
 library(sf)
 library(cartogram)
-#library(broom)
+
+######
+#General process
+######
+
+# The mapping files are set to run independently of the graph files.
+# These functions associate demographics and average distances to each 
+# county and optimization run separately
+# NOTE: Right now, the these maps are not completely adapted to denote when
+#		the incoming data includes driving distances. This is a future feature
+
+# Work flow:
+###########
+# 1. make_or_load_maps:
+#	 * creates a base map or cartogram with associated census demographic data. 
+#		* Only Census data used for this. 
+#		* No optimization data involved
+#    	* WARNING: If making cartograms, make certain that the final error is acceptable. This is not currently automated
+#	 * process_demographics puts together a single datatable of relevant P3 and P4 census data
+#	 * process_maps pulls out the block group level shape files
+#	 * These two get merged and written to file
+# 2. make_bg_maps:
+#	 * takes base maps of cartograms and associates average distance traveled to each block group
+# 	 * process_residence:
+#	 	* takes the output of the optimization process and aggregates average distance up to the block group level
+#	 	* the aggregation is done by removing the last three digits of the block group id
+#	 	* returns only the distance data for a specific demographic group
+#    * merge optimization data with map data
+#	 * produce a map or cartogram colored by distance to asigged location
+#	 	* if a map, put the polling locations on the map as well
+#	 	* distance_bounds: the color bounds are set for ALL the maps in the config_folder
+# 3. make_demo_dist_map:
+#	 * only a map, not a cartogram
+# 	 * same as above, but places a dot in each block representing a demographic group
+#	 * the color is as above
+#	 * the size of the dot corresponds to population. 
+# 	 	* the size scale is determined by the total populations of the block groups
 
 source('result analysis/graph_functions.R')
 

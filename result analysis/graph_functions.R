@@ -9,15 +9,18 @@ library(plotly)
 #Check that location and folders valid
 #######
 check_location_valid <- function(location, config_folder){
-	#raise error if config folder does not start with location
-	if (!grepl(paste0('^', location), config_folder)){
-    stop('Given config folder does not start with the given location')
+	#raise error if config folder does contain a file with location in the file name
+	county = gsub('.{3}$','',location)
+	location_in_folder =  sapply(county, function(x)any(grepl(x, list.files(config_folder))))
+	if (!all(location_in_folder)){
+		bad_locations = paste(location[!location_in_folder], collapse = ', ')
+    	stop(paste('Given config folder does not contain data for the following location(s):', bad_locations))
 }
 }
 
 check_config_folder_valid <- function(config_folder){
 	#raise error if config folder not a directory
-	if (!(config_folder %in% list.files())){
+	if (!dir.exists(config_folder)){
     	stop('Config folder does not exist')
 }
 }
