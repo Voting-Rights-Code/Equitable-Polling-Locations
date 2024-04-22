@@ -269,11 +269,10 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str) 
         this_df = combined_df[pd.isnull(combined_df.distance_m)]
         missing_sources = set(this_df.id_orig)
         missing_dests = set(this_df.id_dest)
-        if len(missing_dests) < len(missing_sources):
+        if len(missing_dests) > 0:
             logging.warning(f'{len(missing_dests)} missing dests in driving distances: {missing_dests}')
-        else:
+        if len(missing_sources) > 0:
             logging.warning(f'{len(missing_sources)} missing orig in driving distances: {missing_sources}')
-        this_df.to_csv('../../missing_driving_distances.csv', index=False)
         raise ValueError(f'Driving Distance File ({driving_distance_file_path}) '
                          'does not contain driving distances for all id_orig/id_dest pairs.')
 
