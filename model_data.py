@@ -12,8 +12,6 @@ from pathlib import Path
 from haversine import haversine
 import geopandas as gpd
 from model_config import PollingModelConfig
-import logging # kill this dead
-import sys # ktd
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
@@ -230,7 +228,7 @@ def build_source(location):
     return
 
 
-def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str) -> pd.DataFrame:
+def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str, log: bool=False) -> pd.DataFrame:
     '''
     Given a dataframe with origin and destination ids, update the distance_m column
     with driving distances in the given driving distance file. If distance_m exists in df, it
@@ -242,6 +240,7 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str) 
                                 origin/destination pair. Each line will be of the form
                                 id_orig, id_dest, distance_m. This file must contain a distance
                                 for every possible origin/destination pair.
+    log: boolean - True if verbose
 
     Raises
     ValueError - if anything goes wrong (missing file, bad format, missing data)
@@ -250,9 +249,9 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str) 
     The original dataframe with the distance_m column populated with the driving distances.
 
     '''
-    logging.warning(f'inserting driving distances {driving_distance_file_path}')
+    if log:
+        print(f'inserting driving distances {driving_distance_file_path}')
     if os.path.exists(driving_distance_file_path):
-        #warnings.warn(f'{file_name} found. Last modified {os.path.getmtime(LOCATION_SOURCE_FILE)}.')
         driving_distance = pd.read_csv(driving_distance_file_path)
     else:
         raise ValueError(f'Driving Distance File ({driving_distance_file_path}) not found.')
@@ -265,14 +264,21 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str) 
 
     combined_df = pd.merge(df, driving_distance, on=['id_orig', 'id_dest'], how='left')
 
+    # raise error if there are any missing distances
     if len(combined_df[pd.isnull(combined_df.distance_m)]) > 0:
-        this_df = combined_df[pd.isnull(combined_df.distance_m)]
-        missing_sources = set(this_df.id_orig)
-        missing_dests = set(this_df.id_dest)
-        if len(missing_dests) > 0:
-            logging.warning(f'{len(missing_dests)} missing dests in driving distances: {missing_dests}')
-        if len(missing_sources) > 0:
-            logging.warning(f'{len(missing_sources)} missing orig in driving distances: {missing_sources}')
+        if log:
+            # indicate destinations and origins that are missing driving distances
+            all_orig = set(combined_df.id_orig)
+            all_dest = set(combined_df.id_dest)
+            notna_df = combined_df[pd.notna(combined_df.distance_m)]
+            notna_orig = set(notna_df.id_orig)
+            notna_dest = set(notna_df.id_dest)
+            missing_sources = all_orig - notna_orig
+            missing_dests = all_dest - notna_dest
+            if len(missing_dests) > 0:
+                print(f'{len(missing_dests)} missing dests in driving distances: {missing_dests}')
+            if len(missing_sources) > 0:
+                print(f'{len(missing_sources)} missing orig in driving distances: {missing_sources}')
         raise ValueError(f'Driving Distance File ({driving_distance_file_path}) '
                          'does not contain driving distances for all id_orig/id_dest pairs.')
 
@@ -285,7 +291,7 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str) 
 #The call for alpha should only take the original polling locations.#########
 #########
 
-def clean_data(config: PollingModelConfig, for_alpha: bool):
+def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
     location = config.location
     year_list = config.year
     driving = config.driving
@@ -351,7 +357,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool):
     if driving:
         driving_file_name = location + '_driving_distances.csv'
         DRIVING_DISTANCES_FILE = os.path.join(DATASETS_DIR, 'driving', location, driving_file_name)
-        df = insert_driving_distances(df, DRIVING_DISTANCES_FILE)
+        df = insert_driving_distances(df, DRIVING_DISTANCES_FILE, log)
 
     #create other useful columns
     df['Weighted_dist'] = df['population'] * df['distance_m']

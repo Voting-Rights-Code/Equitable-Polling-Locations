@@ -85,6 +85,7 @@ First activate the environment if not done so already:
         * NUM = number of cores to use for simultaneous runs (recommend <=4 for most laptops)
         * LOG_FILE = Where to put log file. Must exist, or will not run
         * path to config file accepts wild cards to set of sequential runs
+        * For extra logging include the flag -vv
         * **Examples**
             * See ```python ./model_run_cli.py -h```
             * To run all expanded configs, parallel processing 4 at a time, and write log files out to the logs
