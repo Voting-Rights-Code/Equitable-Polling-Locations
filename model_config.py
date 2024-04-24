@@ -51,8 +51,6 @@ class PollingModelConfig:
 
     log_file_path: str = None
     ''' If specified, the location of the file to write logs to '''
-    name: str = ''
-    ''' Optional user-specified identifier'''
 
     def __post_init__(self):
         if not self.result_folder:

@@ -57,7 +57,7 @@ def run_config(config: PollingModelConfig, log: bool=False, verbose=False):
     # pylint: disable-next=line-too-long
     if verbose:
         print(f'Starting config: {config.config_file_path} -> Output dir: {config.result_folder}')
-    model_run.run_on_config(config, log, model_name=config.name)
+    model_run.run_on_config(config, log)
     if verbose:
         print(f'Finished config: {config.config_file_path}')
 
