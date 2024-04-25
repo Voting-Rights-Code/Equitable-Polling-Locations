@@ -39,50 +39,7 @@ combine_results<- function(config_folder, result_type, analysis_type = 'placemen
 	}
 }
 
-<<<<<<< HEAD
-##### Code for when one config file contains multiple locations and year data in i (E.G. Engage_VA analysis)#####
-combine_results_multi_county_historical <- function(config_folder, result_type){
-	#combine all the data of a certain type 
-	#(ede, precinct, residence, result)
-	#from indicated config_folder with multiple locations
-	#and year encoded in the name and output a df
-	#config_folder, result_type: string
-	#returns: data frame
 
-	#select which results we want
-	result_folder_list <-sapply(location, function(x){paste(x, 'results/', sep = '_')})
-	files <- lapply(result_folder_list, list.files)
-	files <- sapply(location, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
-	file_path <- mapply(function(folder, file){paste0(folder, file)}, result_folder_list, files)
-	df_list <- lapply(file_path, fread)
-
-	#pull the historical year from the file names
-	years <- paste0('20', str_extract(files, '(?<=20)[0-9]*'))
-	descriptor <- mapply(function(x,y){paste(x, y, sep='_')}, county, years)
-	
-	#descriptor is county_name_year
-	mapply(function(x, y){x[ , descriptor:= y]}, df_list, descriptor)
-	
-	#Change id_dest and id_orig to strings as needed
-	if ('id_dest' %in% names(df_list[[1]])){
-		sapply(df_list, function(x){x[ , id_dest:= as.character(id_dest)]})}
-	if ('id_orig' %in% names(df_list[[1]])){
-		sapply(df_list, function(x){x[ , id_orig:= as.character(id_orig)]})}
-	
-	#combine into one df
-	big_df <- do.call(rbind, df_list)
-
-	return(big_df)
-}
-
-##### Code for when there is only one location in the config folder, and config folder starts with that string (e.g. FFA analysis) ######
-combine_results_placement <-function(config_folder, result_type){
-	#combine all the data of a certain type 
-	#(ede, precinct, residence, result)
-	#from indicated config_folder and output a df
-	#config_folder, result_type: string
-	#returns: data frame
-=======
 #####Formatting notes:
 	# Historical analysis
 	   # One config file contains multiple locations or multiple years
@@ -95,7 +52,6 @@ combine_results_placement <-function(config_folder, result_type){
 	   # (E.g. FFA analysis)
 	   # N.B. Number of polls must be in the config file name for this to work, 
 		 # it must be the ONLY numbers in the file name
->>>>>>> feature/CLC_analysis
 
 combine_results<- function(location, config_folder, result_type, analysis_type = 'placement'){
 	#determined what type of analysis is to be done, and call the appropriate function
@@ -125,18 +81,8 @@ combine_results<- function(location, config_folder, result_type, analysis_type =
 	#read data
 	df_list <- lapply(file_path, fread)
 
-<<<<<<< HEAD
-	#label with names and levels
-	config_names_long <- lapply(files, function(x){gsub(paste0('.*', county_config_,"\\s*|.csv*"), "", x)})	
-	config_names <- lapply(config_names_long, function(x){gsub(paste0('_',result_type), "", x)})
-	names(df_list) <- config_names
-
-	#label with names and levels
-	mapply(function(x, y){x[ , descriptor:= y]}, df_list, names(df_list))
-=======
 	#add appropriate descriptor
 	mapply(function(x, y){x[ , descriptor:= y]}, df_list, descriptor)
->>>>>>> feature/CLC_analysis
 	
 	#Change id_dest and id_orig to strings as needed
 	if ('id_dest' %in% names(df_list[[1]])){
@@ -150,20 +96,6 @@ combine_results<- function(location, config_folder, result_type, analysis_type =
 	return(big_df)
 }
 
-<<<<<<< HEAD
-read_result_data<- function(config_folder, analysis_type){
-	#read in and format all the results data assocaited to a 
-	#given config folder.
-	#config_folder: string
-	#analysis_type: string (hisorical, placement)
-	#returns: list(ede_df, precinct_df, residence_df, result_df)
-	
-	#combine all files with a descriptor column attached
-	ede_df<- combine_results(config_folder, 'edes', analysis_type)
-	precinct_df<- combine_results(config_folder, 'precinct_distances', analysis_type)
-	residence_df<- combine_results(config_folder, 'residence_distances', analysis_type)
-	result_df<- combine_results(config_folder, 'result', analysis_type)
-=======
 read_result_data<- function(location, config_folder, analysis_type){
 	#read in and format all the results data assocaited to a 
 	#given config folder.
@@ -176,7 +108,6 @@ read_result_data<- function(location, config_folder, analysis_type){
 	precinct_df<- combine_results(location, config_folder, 'precinct_distances', analysis_type)
 	residence_df<- combine_results(location, config_folder, 'residence_distances', analysis_type)
 	result_df<- combine_results(location, config_folder, 'result', analysis_type)
->>>>>>> feature/CLC_analysis
 
 	#label descriptors with polls and residences
 	num_polls <- precinct_df[ , .(num_polls = .N/6), by = descriptor]
@@ -191,14 +122,6 @@ read_result_data<- function(location, config_folder, analysis_type){
 	return(list(ede_df, precinct_df, residence_df, result_df))
 }
 
-<<<<<<< HEAD
-check_run_validity <- function(combined_df){
-	#Input: A pair of result_dfs (each corresponding to a config folder) that should have the same number of matched residences
-	#Check that they do both within and across data frames
-	#Else return an error
-	unique_num_residences <- length(unique(combined_df$num_residences))
-=======
->>>>>>> feature/CLC_analysis
 
 #######
 #dictionary for labels
@@ -241,82 +164,12 @@ plot_poll_edes<-function(ede_df){
 	ggsave('demographic_edes.png')
 }
 
-<<<<<<< HEAD
-plot_election_edes <- function(orig_ede, suffix = ''){	
-	#makes two plots, one showing the y_ede differences between the actual positioning and an equivalent optimized run; the other doing the same but with average distances
 
-	#set graph order
-	descriptor_order <- unique(orig_ede$descriptor)
-
-	#select y axis bounds
-	all_y_values = c(c(orig_ede$avg_dist), c(orig_ede$y_EDE))
-	y_min = min(all_y_values)
-	y_max = max(all_y_values)
-
-	#set point size
-	#does data contain scaling data
-	scale_bool = 'pct_demo_population' %in% names(orig_ede)
-	
-	#is this driving distance data
-	if (grepl('driving', config_folder)){
-		ylabel = 'Equity weighted driving distance (m)'
-		title_str = "driving distance by demographic and optimization run"
-	} else {
-		ylabel = 'Equity weighted distance (m)'
-		title_str = "distance by demographic and optimization run"
-	}
-	#plot with y_EDE
-	y_EDE = ggplot(orig_ede, aes(x = descriptor, y = y_EDE, 
-		group = demographic, color = demographic)) 
-	if (scale_bool){
-		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) +
-			labs(x = 'Optimization run', y = ylabel, color = 'Demographic', size = 'Percent Total Population')
-	} else{
-		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order)),size = 5 )+ 
-			labs(x = 'Optimization run', y = ylabel, color = 'Demographic')
-	}
-	y_EDE = y_EDE +	ylim(y_min, y_max) + ggtitle(paste('Equity weighted', title_str))
-		scale_color_discrete(labels = demographic_legend_dict)
-
-	name = paste('orig', suffix, 'y_EDE.png', sep = '_')
-	ggsave(name, y_EDE)
-	
-	#plot with avg_dist
-	avg = ggplot(orig_ede, aes(x = descriptor, y = avg_dist, 
-		group = demographic, color = demographic)) 
-if (scale_bool){
-		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) + 
-			labs(x = 'Optimization run', y = ylabel, color = 'Demographic', size = 'Percent Total Population')
-	} else{
-		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order) ),size = 5) + 
-			labs(x = 'Optimization run', y = ylabel, color = 'Demographic')
-	}
-	avg = avg + ylim(y_min, y_max) + ggtitle(paste('Average', title_str)) + 
-		scale_color_discrete(labels = demographic_legend_dict)
-	name = paste('orig', suffix, 'avg.png', sep = '_')
-	ggsave(name, avg)
-}
-
-ede_with_pop<- function(config_df_list){
-	#plot the originals graphs but with po
-	demo_pop <- config_df_list[[2]][ , .(total_population = sum(demo_pop)), by  = c('descriptor', 'demographic')]
-	total_pop <- demo_pop[demographic == 'population', c('descriptor', 'total_population')]
-	demo_pop <- merge(demo_pop, total_pop, by = 'descriptor')
-	setnames(demo_pop, c('total_population.x', 'total_population.y'), c('total_demo_population', 'total_population'))
-	demo_pop[ , pct_demo_population := total_demo_population/ total_population]
-	edes_with_pop <- merge(config_df_list[[1]], demo_pop, by = c('descriptor', 'demographic'))
-	return(edes_with_pop)
-}
-
-plot_original_optimized <- function(config_ede, orig_ede){	
-	#makes two plots, one showing the y_ede differences between the actual positioning and an equivalent optimized run; the other doing the same but with average distances
-=======
 #makes two plots, one showing the y_ede the other avg distance
 #showing how these variables change across the included runs
 #Note: This can produce a graph very similar to the one above,
 #but the formatting of this one is better for historical analysis,
 #while the formatting of the previous is better for many polls
->>>>>>> feature/CLC_analysis
 
 #ACCOMODATES DRIVING DISTANCES
 
@@ -396,11 +249,7 @@ plot_original_optimized <- function(config_ede, orig_ede, suffix = ''){
 	orig_num_polls <- unique(orig_ede$num_polls)
 	optimized_run_dfs <- config_ede[num_polls %in% orig_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
-<<<<<<< HEAD
-	plot_election_edes(orig_and_optimal, suffix = 'and_optimal')
-=======
 	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix))
->>>>>>> feature/CLC_analysis
 }
 
 #like plot_poll_edes, but plots just the y_edes for the

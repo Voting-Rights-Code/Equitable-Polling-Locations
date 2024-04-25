@@ -19,8 +19,8 @@ source('result analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-location = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
-config_folder = 'Engage_VA_2024_configs'
+LOCATION = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
+CONFIG_FOLDER = 'Engage_VA_2024_configs'
 
 
 #######
@@ -38,7 +38,7 @@ check_location_valid(LOCATION, CONFIG_FOLDER)
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
-config_df_list <- read_result_data(config_folder, 'historical')
+config_df_list <- read_result_data(CONFIG_FOLDER, 'historical')
 #config_ede_df<- config_df_list[[1]]
 #config_precinct_df<- config_df_list[[2]]
 #config_residence_df<- config_df_list[[3]]
@@ -56,13 +56,13 @@ res_dist_list = list.files(result_folder)[grepl('residence_distances', list.file
 res_dist_list = res_dist_list[grepl(CONFIG_FOLDER, res_dist_list)]
 
 #get avg distance bounds for maps
-color_bounds <- distance_bounds(config_folder)
+color_bounds <- distance_bounds(CONFIG_FOLDER)
 
 
 #######
 #Plot data
 #######
-plot_folder = paste0('result analysis/', config_folder)
+plot_folder = paste0('result analysis/', CONFIG_FOLDER)
 if (file.exists(file.path(here(), plot_folder))){
     setwd(file.path(here(), plot_folder))    
 } else{
@@ -86,14 +86,14 @@ plot_election_edes(config_df_list[[1]], suffix ='')
 
 #Choosing not to do cartograms because of convergence difficulties
 
-mapply(function(x,y, z){make_bg_maps(CONFIG_FOLDER, x, 'map', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
+mapply(function(x,y, z){make_bg_maps(CONFIG_FOLDER, x, 'map', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
 
 #mapply(function(x,y, z){make_bg_maps(x, 'cartogram', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
 
-mapply(function(x,y, z){make_demo_dist_map(CONFIG_FOLDER, x, 'white', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
+mapply(function(x,y, z){make_demo_dist_map(CONFIG_FOLDER, x, 'white', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
 
-mapply(function(x,y, z){make_demo_dist_map(CONFIG_FOLDER, x, 'black', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
+mapply(function(x,y, z){make_demo_dist_map(CONFIG_FOLDER, x, 'black', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
 
-mapply(function(x,y, z){make_demo_dist_map(CONFIG_FOLDER, x, 'population', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, location)
+mapply(function(x,y, z){make_demo_dist_map(CONFIG_FOLDER, x, 'population', result_folder_name = y, this_location = z)}, res_dist_list, result_folder, LOCATION)
 
 

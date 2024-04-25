@@ -133,6 +133,7 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 	}
 	map_folder <- 'result analysis/map work'
 	#load if it exists, else make
+	print(map_name)
 	if (file.exists(file.path(here(), map_folder, map_name))){
 		map <- st_read(file.path(here(), map_folder, map_name))
 		#name resetting needed because of st_write truncating names
@@ -168,11 +169,7 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 	return(map)
 }
 
-<<<<<<< HEAD
-make_bg_maps <-function(file_to_map, map_type, result_folder_name = result_folder, this_location = location, demo_str = 'population'){
-=======
-make_bg_maps <-function(config_folder, file_to_map, map_type, result_folder_name = result_folder, this_location = location, demo_str = 'population'){
->>>>>>> feature/CLC_analysis
+make_bg_maps <-function(config_folder, file_to_map, map_type, result_folder_name = result_folder, this_location = LOCATION, demo_str = 'population'){
 	#read in a residence_distance file from the correct config_folder, combine this and use it to color the map by distance to matched location, for the indicated demographic
 	#If the map type is "map", then also plot the polling locations
 
@@ -208,13 +205,10 @@ make_bg_maps <-function(config_folder, file_to_map, map_type, result_folder_name
 		title_str = 'Average distance to poll (m)'
 		fill_str = 'Avg straight line distance (m)'
 	}
-<<<<<<< HEAD
-=======
 
 	county = gsub('.{3}$','',this_location)
 	numeric_label = str_extract(file_to_map, '[0-9]+')
 	descriptor = paste(county, numeric_label, sep ='_')
->>>>>>> feature/CLC_analysis
 	plotted <- ggplot() +
 		geom_sf(data = demo_dist_shape, aes(fill = avg_dist)) + 
 		scale_fill_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = fill_str) 
@@ -225,11 +219,7 @@ make_bg_maps <-function(config_folder, file_to_map, map_type, result_folder_name
 	} else{ 
 		plotted = plotted + theme(axis.text.x=element_blank(), axis.text.y=element_blank(), axis.ticks = element_blank())
 	}
-<<<<<<< HEAD
-	plotted = plotted + ggtitle(title_str, paste('Block group', map_type , 'of', gsub('_', ' ', this_location) ))
-=======
 	plotted = plotted + ggtitle(title_str, paste('Block group', map_type , 'of', gsub('_', ' ', descriptor) ))
->>>>>>> feature/CLC_analysis
 
 	if (grepl('driving', config_folder)){
 	plotted <- plotted #+ labs(fill = 'Avg driving distance (m)')
@@ -243,11 +233,7 @@ make_bg_maps <-function(config_folder, file_to_map, map_type, result_folder_name
 	ggsave(paste0(here(), '/', plot_folder, '/',map_name, '_',descriptor, '_','polls.png'), plotted)
 	}
 
-<<<<<<< HEAD
-make_demo_dist_map <-function(file_to_map, demo_str, result_folder_name = result_folder, this_location = location){
-=======
-make_demo_dist_map <-function(config_folder, file_to_map, demo_str, result_folder_name = result_folder, this_location = location){
->>>>>>> feature/CLC_analysis
+make_demo_dist_map <-function(config_folder, file_to_map, demo_str, result_folder_name = result_folder, this_location = LOCATION){
 
 	#read in block level data and aggregate to block group level
 	res_dist_df <- process_residence(file_to_map, demo_str, result_folder_name)
@@ -263,22 +249,6 @@ make_demo_dist_map <-function(config_folder, file_to_map, demo_str, result_folde
 	demo_dist_shape<- merge(map_sf, res_dist_df, all = T)
 
 	#plot map with a point at the centroid, colored by distance, sized by size
-<<<<<<< HEAD
-	if (grepl('driving', config_folder)){
-		title_str = 'average driving distance to poll (m)'
-		color_str = 'Avg driving distance (m)'
-	} else{
-		title_str = 'average distance to poll (m)'
-		color_str = 'Avg straight line distance (m)'
-	}
-	plotted <- ggplot() +
-		geom_sf(data = demo_dist_shape) +  
-		geom_point(data = demo_dist_shape, aes(x = INTPTLON20, y = INTPTLAT20, size =demo_pop, color = avg_dist)) + 
-		scale_color_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = color_str) + 
-		labs(size = paste(demographic_legend_dict[demo_str], 'population') ) + 
-		xlab('') + ylab('') + 
-		ggtitle(paste(demographic_legend_dict[demo_str], title_str), paste('Block groups in', gsub('_', ' ', this_location)))
-=======
 	#set names
 	if (grepl('driving', config_folder)){
 		title_str = 'population average driving distance to poll (m)'
@@ -302,7 +272,6 @@ make_demo_dist_map <-function(config_folder, file_to_map, demo_str, result_folde
 		labs(size = paste(demographic_legend_dict[demo_str], 'population') ) + 
 		xlab('') + ylab('') + scale_size(limits= c(0, max_pop)) + 
 		ggtitle(paste(demographic_legend_dict[demo_str], title_str), paste('Block groups in', gsub('_', ' ', descriptor)))
->>>>>>> feature/CLC_analysis
 
 	#write to file
 	descriptor = gsub(".*configs.(.*)_res.*", "\\1", file_to_map)
