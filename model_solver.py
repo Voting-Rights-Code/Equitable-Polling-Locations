@@ -33,7 +33,7 @@ def solve_model(model, time_limit, log: bool=False, log_file_path=None):
 
     return results
 
-def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, config: PollingModelConfig, log: bool=False):
+def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, penalized_selections, config: PollingModelConfig, log: bool=False):
     
     #1.  start a log and run penalty optimization algorithm
     penalty_log = open(get_log_path(config,'penalty'), 'a')
