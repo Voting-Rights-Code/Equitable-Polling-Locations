@@ -17,6 +17,8 @@ source('result analysis/graph_functions.R')
 LOCATION = 'Gwinnett_GA'
 CONFIG_FOLDER = 'Gwinnett_GA_no_bg_school_fire_configs'
 
+original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
+CONFIG_FOLDER = original_locations
 #######
 #Check that location and folders valid
 #######
@@ -54,4 +56,3 @@ if (!file.exists(file.path(here(), plot_folder))){
 #sapply(res_dist_list, function(x)make_bg_maps(x, 'cartogram'))
 sapply(res_dist_list, function(x)make_bg_maps(CONFIG_FOLDER, x, 'map'))
 sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'black'))
-

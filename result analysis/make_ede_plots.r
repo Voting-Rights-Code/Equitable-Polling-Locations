@@ -27,9 +27,6 @@ FFA_poll_number  = 20 #the optimal number of polls that FFA is suggesting for th
 #######
 
 original_locations = paste(location, 'original', 'configs', sep = '_')
-#some values for graph labeling
-county = gsub('.{3}$','',location)
-county_config_ = paste0(county, '_', 'config', '_')
 
 #######
 #Check that location and folders valid
