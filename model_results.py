@@ -136,3 +136,5 @@ def compute_kp_score(df, beta, *, alpha=None, population_column_name='population
     funky_sum = sum(x * math.exp(-kappa*y) for x, y in zip(df['population'], df['distance_m']))
     tot_pop = distance_df.population.sum()
     return -math.log(funky_sum/tot_pop)/kappa
+
+    
