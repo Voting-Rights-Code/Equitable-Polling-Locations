@@ -42,7 +42,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
         build_source(config.location)
 
     #get main data frame
-    dist_df = clean_data(config, False, log)
+    dist_df = clean_data(config, False)
 
     #get alpha 
     alpha_df = clean_data(config, True, log)
@@ -54,10 +54,6 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
         print(f'model built for {run_prefix}.')
 
     #solve model
-    #ea_model.pprint(filename = 'ea_model.txt')
-    
-    #ea_model.pprint(filename = 'ea_model.txt')
-    
     solve_model(ea_model, config.time_limit, log=log, log_file_path=config.log_file_path)
     if log:
         print(f'model solved for {run_prefix}.')
