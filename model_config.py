@@ -49,6 +49,9 @@ class PollingModelConfig:
     log_file_path: str = None
     ''' If specified, the location of the file to write logs to '''
 
+    driving: bool = False
+    ''' Driving distances used if True and distance file exists in correct location '''
+    
     def __post_init__(self):
         if not self.result_folder:
             self.result_folder = f'{self.location}_results'

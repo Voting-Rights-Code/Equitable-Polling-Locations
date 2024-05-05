@@ -1,5 +1,5 @@
 #Constants for the optimization function
-location: Norfolk_City_VA
+location: Loudon_County_VA
 year: 
   - '2024'
 bad_types: 
@@ -13,4 +13,4 @@ precincts_open: null
 max_min_mult: 5 #scalar >= 1
 maxpctnew: 0 # in interval [0,1]
 minpctold: 1 # in interval [0,1]
-driving_distance_file_path: datasets/driving/VA/Norfolk_City/Norfolk_City_VA_driving_distances.csv
+driving: True # bool (default = False)

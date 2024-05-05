@@ -35,7 +35,6 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
     run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
     
-    #check if source data avaible
     source_file_name = config.location + '.csv'
     source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
     if not os.path.exists(source_path):
@@ -46,7 +45,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     dist_df = clean_data(config, False)
 
     #get alpha 
-    alpha_df = clean_data(config, True)
+    alpha_df = clean_data(config, True, log)
     alpha  = alpha_min(alpha_df)
 
     #build model
