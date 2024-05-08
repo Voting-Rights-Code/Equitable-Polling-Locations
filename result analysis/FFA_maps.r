@@ -15,7 +15,7 @@ source('result analysis/graph_functions.R')
 #Location must be part of config folder string
 
 LOCATION = 'Gwinnett_GA'
-CONFIG_FOLDER = 'Gwinnett_GA_no_bg_school_fire_configs'
+CONFIG_FOLDER = 'Gwinnett_GA_no_bg_eday_configs'
 
 original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
 CONFIG_FOLDER = original_locations

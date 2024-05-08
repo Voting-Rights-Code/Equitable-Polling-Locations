@@ -135,17 +135,6 @@ demographic_legend_dict <- c(
 	'native' = 'First Nations',
 	'population' = 'Total')
 
-#######
-#dictionary for labels
-#######
-
-demographic_legend_dict <- c(
-	'asian' = 'Asian (not PI)', 
-	'black' = 'African American', 
-	'white' = 'White', 
-	'hispanic' = 'Latine',
-	'native' = 'First Nations',
-	'population' = 'Total Population')
 
 #######
 #functions to make plots
@@ -173,7 +162,7 @@ plot_poll_edes<-function(ede_df){
 
 #ACCOMODATES DRIVING DISTANCES
 
-plot_historic_edes <- function(orig_ede, suffix = ''){	
+plot_historic_edes <- function(orig_ede, suffix = '', config_folder){	
 	
 	#set x axis label order
 	descriptor_order <- unique(orig_ede$descriptor)
@@ -244,12 +233,12 @@ ede_with_pop<- function(config_df_list){
 #polls (via plot_historical_edes)
 
 #ACCOMODATES DRIVING DISTANCES
-plot_original_optimized <- function(config_ede, orig_ede, suffix = ''){	
+plot_original_optimized <- function(config_ede, orig_ede, suffix = '', config_folder = CONFIG_FOLDER){	
 	#select the relevant optimized runs
 	orig_num_polls <- unique(orig_ede$num_polls)
 	optimized_run_dfs <- config_ede[num_polls %in% orig_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
-	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix))
+	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), config_folder)
 }
 
 #like plot_poll_edes, but plots just the y_edes for the
