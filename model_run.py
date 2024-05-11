@@ -47,7 +47,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     dist_df = clean_data(config, False)
 
     #get alpha 
-    alpha_df = clean_data(config, True)
+    alpha_df = clean_data(config, True, log)
     alpha  = alpha_min(alpha_df)
 
     #build model
