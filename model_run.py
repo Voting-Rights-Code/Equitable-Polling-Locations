@@ -35,7 +35,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     '''
 
     config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
-    run_prefix = f'{config.location}_configs.{config_file_basename}'
+    run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
 
     #check if source data avaible
     source_file_name = config.location + '.csv'
