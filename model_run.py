@@ -13,7 +13,6 @@ import sys
 import warnings
 
 from model_config import PollingModelConfig
-from time import time
 
 from model_data import (build_source, clean_data, alpha_min)
 from model_factory import polling_model_factory
@@ -22,7 +21,7 @@ from model_results import (
     incorporate_result,
     demographic_domain_summary,
     demographic_summary,
-    write_results
+    write_results,
 )
 from model_penalties import incorporate_penalties
 
@@ -47,7 +46,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     #get main data frame
     dist_df = clean_data(config, False)
 
-    #get alpha
+    #get alpha 
     alpha_df = clean_data(config, True)
     alpha  = alpha_min(alpha_df)
 

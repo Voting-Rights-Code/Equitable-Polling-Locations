@@ -87,9 +87,6 @@ def main(args: argparse.Namespace):
     # If any level of verbosity is set, the display SCIP logs
     log: bool = args.verbose > 0
 
-    for i, c in enumerate(configs):
-        c.name = f'Model {i}'
-    
     if args.concurrent > 1:
         print(f'Running concurrent with a pool size of {args.concurrent} against {total_files} config file(s)')
         with Pool(args.concurrent) as pool:
