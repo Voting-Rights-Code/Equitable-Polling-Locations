@@ -81,21 +81,22 @@ First activate the environment if not done so already:
 ```conda activate equitable-polls```
 
 * In the directory of the Equitable-Polling-Locations git repo:
-    * python ./model_run_cli.py -c NUM -l LOG_FILE ./path/to/config/file.yaml
+    * python ./model_run_cli.py -c NUM -l LOG_DIR ./path/to/config/file.yaml
         * NUM = number of cores to use for simultaneous runs (recommend <=4 for most laptops)
-        * LOG_FILE = Where to put log file. Must exist, or will not run
+        * LOG_DIR = Where to put log files. The directory must exist, or will not run
         * path to config file accepts wild cards to set of sequential runs
+        * For extra logging include the flag -vv
         * **Examples**
             * See ```python ./model_run_cli.py -h```
             * To run all expanded configs, parallel processing 4 at a time, and write log files out to the logs
-    directory:  
+    directory:
     ```python ./model_run_cli.py -c4 -l logs ./Gwinnett_GA_configs/Gwinnett_config_expanded_*.yaml```
             * To run all full configs run one at a time, extra logging printed to the console, and write log files out to the logs directory:
                 ```python ./model_run_cli.py -vv -l logs ./Gwinnett_GA_configs/Gwinnett_config_full_*.yaml```
             * To run only the full_11 and write log files out to the logs directory:
         ```python ./model_run_cli.py -l logs ./Gwinnett_GA_configs/Gwinnett_config_full_11.yaml```
         * NOTE: BEWARE OF CAPITALIZATION. Both ./Gwinnett_GA_configs/Gwinnett* and ./Gwinnett_Ga_configs/Gwinnett* (note capitalization) will run on Windows. However, due to string replacement work in other parts of the programs, the former is preferred.
-  
+
 
 From Google Colab:
 * For example, follow the the instructions in [this file](./Colab_runs/colab_Gwinnett_expanded_multi_11_12_13_14_15.ipynb) (To be accessed in the directory of the Equitable-Polling-Locations git repo)
@@ -179,6 +180,16 @@ The columns of this data set should be named and formatted as
 | | If potential location, has a 'location type' category and the word 'Potential' (case sensitive) | 'Community Center - Potential' |
 | Lat, Long | Comma separated concatenation of latitude and longitude (can be read off of google maps by right clicking on the location marker for the address.) | '33.964717796407434, -83.85827288222517' |
 
+### **datasets/driving/County_ST/County_ST_driving_distances.csv**:
+OPTIONAL file for using driving distances (that have been calculated externally) in the optimization. This file will only be accessed if the optional parameter 'driving' is set to True.
+Example file name: datasets/driving/Gwinnett_GA/Gwinnett_GA_driving_distances.csv
+The columns are as follows:
+|Column Name | Definition | Example |
+| ----- | ----- | ----- |
+| id_orig | Census block id that matches the 'FIPSCODEBLOCKNUM' portion of the GEOID column from the file datasets/census/tiger/County_ST/tl_YYYY_FIPS_tabblockYY.shp file | 131510703153004 |
+| id_dest | Name of potential polling location, as in the Location column of the file datasets/polling/County_ST/County_ST_locations_only.csv. | 'EV_2022_2020' or 'General_2020' or 'Primary_2022_2020_2018' or 'DropBox_2022' |
+| distance_m | Driving distance from id_orig to id_dest in meters | 10040.72 |
+
 ### **CONFIG_FOLDER/County_config_DESCRIPTOR.yaml**
 These are the config files for the various runs.
 
@@ -188,7 +199,7 @@ Recommended convention: Each config folder should only have one parameter changi
   * Mandatory arguments
     * location: County_ST. This variable is used throughout to name files
     * year: List of years one wants to consider actual polling locations for. E.g. ['2022', '2020']
-    * bad_types: List of location types not to be considered in this model. 
+    * bad_types: List of location types not to be considered in this model.
         * E.g. ['Election Day Loc - Potential', 'bg_centroid' ]
         * Must be labels already existing in the data
     * beta: In [-2, 0]. Aversion to inequality. If 0, this computes the mean distance. The further away from 0, the greater the aversion to inequality.
@@ -201,6 +212,37 @@ Recommended convention: Each config folder should only have one parameter changi
     * maxpctnew = In [0,1]. The percent of new locations allowed to be matched. Default = 1
     * minpctold = In [0,1]. The percent of existing locations allowed to be matched. Default = 0
     * penalized_sites: List of potential polling locations (subset of those considered in run) that are less desireable. A site in this list should be selected only if it improves access by x meters, where x is calculated according to the problem data. (See https://doi.org/10.48550/arXiv.2401.15452 for more information.) This option generates three additional log files: two for additional calls to the optimization solver ("...model2.log", "...model3.log") third ("...penalty.log") providing statistics related to the penalty heuristic.
+    * driving = In [True,False]. If True, then driving distances (versus straight-line/Haversine distances) are used. This option requires driving distances in the datasets folder as described above. Default = False
+
+# Logging
+
+## Working with code run from the command line interface
+
+Currently the logging system in this project is a bit overly simplistic - they are print statements that are only run if the boolean variable "log" passed around is set to ```True```.  The logging used in the project is intended to work from the command line as well as from instances of Jupyter notebooks.  Processes may be run concurrently so simply writing to the screen or a single log file will not work since one process may print to the screen at the same time as another. As such, all screen prints are suppressed unless multiple concurrency is disabled AND verbose mode is specified (```-c0 -v``` on the command line).
+
+When running from the command line, model_run.py will be called from model_run_cli.py.  model_run_cli.py will parse all the command line arguments and call the function ```run_on_config``` found in model_run.py using multiple concurrent processes as requested by the user based on the concurrency option ```-c```.  Each call concurrent to run_on_config will contain individual instances of ```PollingModelConfig``` from model_config.py which is a simple container class to pass all the configuration needed to run pyomo/SCIP.
+
+When multiple concurrency is selected, as discussed further in the "To run" section of this document, logs will be written to the log directory specified by the user when run from the command line interface instead of the screen, typically the directory ```./logs``` instead of the screen.
+
+PollingModelConfig will be setup with all the information needed to run a model, including where to write logs to in the variable ```log_file_path```, which is a string to the specific file that should be written (appended) to. The value of  ```log_file_path``` from PollingModelConfig is what is passed to pyomo so that it will write its log output to the correct location.   The individual log files will be named after the config file being run prefixed with a time stamp.  e.g.
+```./logs/20231207151550_Gwinnett_config_original_2020.yaml.log```.
+
+
+### Using logs to debug
+
+Until the logging system is updated to something more robust, any additional logging needed should be done with print statements that respect the ```logging``` boolean variable for use when concurrency is set to single threaded . Alternatively the file path ```log_file_path``` specified in the PollingModelConfig instance can be appended to.
+
+If output from these log statements are needed then it is suggested that the command line be run in single concurrency mode with verbosity set to maximum e.g.:
+
+```
+python ./model_run_cli.py -c1 -vv -l logs ./Gwinnett_GA_configs/Gwinnett_config_expanded_*.yaml
+```
+
+When running concurrently, logs can be followed from the log directory in realtime using something like the following in Linux/MacOS:
+
+```
+tail -f ./logs/20231207151550_Gwinnett_config_original_2020.yaml.log
+```
 
 # Intermediate dataset
 
@@ -301,3 +343,4 @@ If you use the Equitable-Polling-Locations code base in your work, please cite t
 1. The github repository using the "Cite this repository" dropdown menu
 
 2. Horton, D., Logan, T., Murrell, J., Speakman, E. & Skipper, D. (2024). *A Scalable Approach to Equitable Facility Location.*  https://doi.org/10.48550/arXiv.2401.15452
+

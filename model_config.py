@@ -6,7 +6,7 @@
 
 ''' Utils for configuring models '''
 from typing import List
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import yaml
 
 @dataclass
@@ -17,16 +17,13 @@ class PollingModelConfig:
     '''Name of the county or city of interest'''
     year: List[str]
     '''list of years to be studied'''
+    bad_types: List[str]
+    '''list of location types not to be considered in this model'''
     beta: float
     '''level of inequality aversion: [-10,0], where 0 indicates indifference, and thus uses the
     mean. -2 isa good number '''
     time_limit: int
     '''How long the solver should try to find a solution'''
-    bad_types: List[str] = field(default_factory=list)
-    '''list of location types not to be considered in this model'''
-    penalized_sites: List[str] = field(default_factory=list)
-    '''A list of locations for which the preference is to only place a polling location there
-    if absolutely necessary for coverage, e.g. fire stations.'''
     precincts_open: int = None
     '''The total number of precincts to be used this year. If no
     user input is given, this is calculated to be the number of
@@ -52,6 +49,9 @@ class PollingModelConfig:
     log_file_path: str = None
     ''' If specified, the location of the file to write logs to '''
 
+    driving: bool = False
+    ''' Driving distances used if True and distance file exists in correct location '''
+    
     def __post_init__(self):
         if not self.result_folder:
             self.result_folder = f'{self.location}_results'

@@ -29,7 +29,9 @@ def incorporate_result(dist_df, model):
     #if no matches, raise error
     if all(result_df['matching'].isnull()):
         raise ValueError('The model has no matched precincts')
-    result_df = result_df.loc[result_df['matching'] ==1]
+    if any(result_df['matching'].isnull()):
+        raise ValueError('The model has some unmatched precincts')
+    result_df = result_df.loc[round(result_df['matching']).astype(int) ==1]
     return(result_df)
 
 @timer
@@ -40,7 +42,7 @@ def demographic_domain_summary(result_df, domain):
 
     if domain not in ['id_dest', 'id_orig']:
         raise ValueError('domain much be in [id_dest, id_orig]')
-    #Transform to get distance and population by demographic, destination pairs
+    #Transform to get distance and population by demographic, destination pairs for each origin
     demographic_all = pd.melt(result_df[[domain, 'distance_m', 'population','white', 'black', 'native', 'asian', 'hispanic']], id_vars = [domain, 'distance_m'], value_vars = ['population','white', 'black', 'native', 'asian', 'hispanic'], var_name = 'demographic', value_name = 'demo_pop')
 
     #create a weighted distance column for people of each demographic
@@ -52,7 +54,7 @@ def demographic_domain_summary(result_df, domain):
     #calculate the total distance traveled by each demographic group
     demographic_dist = demographic_all[[domain, 'demographic', 'weighted_dist']].groupby([domain, 'demographic']).agg('sum')
 
-    #merge the datasets
+    #merge the demographic_pop and demographic_dist
     demographic_prec = pd.concat([demographic_dist, demographic_pop], axis = 1)
 
     #calculate the average distance
@@ -118,21 +120,3 @@ def write_results(result_folder, run_prefix, result_df, demographic_prec, demogr
     demographic_res.to_csv(os.path.join(result_folder, residence_summary), index = True)
     demographic_ede.to_csv(os.path.join(result_folder, y_ede_summary), index = True)
     return
-
-
-def _compute_kp_alpha(df):
-    import numpy as np
-    num = sum(x*y for x, y in zip(df['population'], df['distance_m']))
-    den = sum(x*y*y for x, y in zip(df['population'], df['distance_m']))
-    return num/den
-
-def compute_kp_score(df, beta, *, alpha=None, population_column_name='population', distance_column_name='distance_m'):
-    distance_df = df[[population_column_name, distance_column_name]].copy()
-    distance_df.columns = ['population', 'distance_m']
-    if beta == 0:
-        return (df.population*df.distance_m).sum()/df.population.sum()
-    alpha = _compute_kp_alpha(distance_df) if not alpha else alpha
-    kappa = alpha * beta
-    funky_sum = sum(x * math.exp(-kappa*y) for x, y in zip(df['population'], df['distance_m']))
-    tot_pop = distance_df.population.sum()
-    return -math.log(funky_sum/tot_pop)/kappa

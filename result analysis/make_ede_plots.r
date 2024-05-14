@@ -1,3 +1,5 @@
+library(here)
+
 #######
 #Change directory
 #######
@@ -25,9 +27,6 @@ FFA_poll_number  = 20 #the optimal number of polls that FFA is suggesting for th
 #######
 
 original_locations = paste(location, 'original', 'configs', sep = '_')
-#some values for graph labeling
-county = sub('_.*','',location)
-county_config_ = paste0(county, '_', 'config', '_')
 
 #######
 #Check that location and folders valid
@@ -42,13 +41,13 @@ check_config_folder_valid(config_folder)
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
-config_df_list <- read_result_data(config_folder)
+config_df_list <- read_result_data(config_folder, 'placement')
 #config_ede_df<- config_df_list[[1]]
 #config_precinct_df<- config_df_list[[2]]
 #config_residence_df<- config_df_list[[3]]
 #config_result_df<- config_df_list[[4]]
 
-orig_df_list <- read_result_data(original_locations)
+orig_df_list <- read_result_data(original_locations, 'placement')
 #defined as above
 
 #######
@@ -56,7 +55,7 @@ orig_df_list <- read_result_data(original_locations)
 #######
 
 #This will return and descriptor case of inconsistency
-bad_runs <- check_run_validity(config_df_list[[4]], orig_df_list[[4]])
+bad_runs <- check_run_validity(rbind(config_df_list[[4]], orig_df_list[[4]]))
 
 #remove any bad runs from the data
 config_df_list <- lapply(config_df_list, function(x){x[!(descriptor %in% bad_runs), ]})
