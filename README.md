@@ -104,7 +104,7 @@ From Google Colab:
 There are six files needed to run this program. The current Repo contains these files for Gwinnett County, GA.
 
 * There are 4 files from the census needed for each county:
-    1.  block level P3 data for a county (racial breakdown of voting age population)
+    1. block level P3 data for a county (racial breakdown of voting age population)
     1. block level P4 data for a county (ethnicity breakdown of voting age population)
     1. block shape files
     1. block group shape files
@@ -211,6 +211,7 @@ Recommended convention: Each config folder should only have one parameter changi
     * max_min_mult: >= 1. A scalar to limit the search radius to match polling locations. If this is too small, the optimizer may not find a solution. Default: 1
     * maxpctnew = In [0,1]. The percent of new locations allowed to be matched. Default = 1
     * minpctold = In [0,1]. The percent of existing locations allowed to be matched. Default = 0
+    * penalized_sites: List of potential polling locations (subset of those considered in run) that are less desireable. A site in this list should be selected only if it improves access by x meters, where x is calculated according to the problem data. (See https://doi.org/10.48550/arXiv.2401.15452 for more information.) This option generates three additional log files: two for additional calls to the optimization solver ("...model2.log", "...model3.log") third ("...penalty.log") providing statistics related to the penalty heuristic.
     * driving = In [True,False]. If True, then driving distances (versus straight-line/Haversine distances) are used. This option requires driving distances in the datasets folder as described above. Default = False
 
 # Logging

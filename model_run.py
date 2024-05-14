@@ -9,6 +9,7 @@ Gwinnett_GA_configs/Gwinnett_config_full_11.py
 '''
 
 import os
+import sys
 import warnings
 
 from model_config import PollingModelConfig
@@ -22,6 +23,7 @@ from model_results import (
     demographic_summary,
     write_results,
 )
+from model_penalties import incorporate_penalties
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
@@ -33,8 +35,8 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
 
     config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
     run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
-    run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
-    
+
+    #check if source data avaible
     source_file_name = config.location + '.csv'
     source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
     if not os.path.exists(source_path):
@@ -61,6 +63,9 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     #incorporate result into main dataframe
     result_df = incorporate_result(dist_df, ea_model)
 
+    #incorporate site penalties as appropriate
+    result_df = incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, config, log)
+
     #calculate the new alpha given this assignment
     alpha_new = alpha_min(result_df)
 
@@ -85,3 +90,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     )
 
     return result_folder
+
+
+
+
