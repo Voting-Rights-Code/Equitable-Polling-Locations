@@ -180,11 +180,6 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
         precincts_open = old_polls
     else:
         precincts_open = config.precincts_open
-    #The number of precincts to open might need to be reduced when
-    #excluding penalized sites (penalty Model 2) to avoid infeasible model
-    if exclude_penalized_sites:
-        num_dests = len(set(dist_df['id_dest']) - set(config.penalized_sites))
-        precincts_open = min(precincts_open, num_dests)
 
     ####define constants####
     #total population
