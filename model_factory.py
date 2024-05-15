@@ -157,6 +157,27 @@ def build_precinct_open_rule():
         return(model.matching[res,prec]<= model.open[prec])
     return precinct_open_rule
 
+def build_exclude_sites_rule():
+    '''exclude these sites from being selected'''
+    def exclude_sites_rule(
+        model: pyo.ConcreteModel,
+        precinct
+    ) -> bool:
+        return (model.open[precinct] == 0)
+    return exclude_sites_rule
+
+def build_penalty_rule(alpha: float, beta: float, site_penalty: float):
+    '''set the penalty factor'''
+    def penalty_rule(model: pyo.ConcreteModel) -> bool:
+        return (model.penalty == -alpha * beta * sum(model.open[s]*site_penalty for s in model.penalized_sites))
+    return penalty_rule
+
+def build_penalty_approximation_rule():
+    '''set the penalty factor'''
+    def penalty_approximation_rule(model: pyo.ConcreteModel, linearization_point: float) -> bool:
+        return (model.penalty_exp >= math.exp(linearization_point)*(1+model.penalty-linearization_point))
+    return penalty_approximation_rule
+
 #@timer
 def build_capacity_rule(
         config: PollingModelConfig,
