@@ -164,10 +164,17 @@ def compute_kp_factor(config: PollingModelConfig, alpha: float, dist_df):
     return math.e**(-config.beta * alpha * dist_df['distance_m'])
 
 @timer
-def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> PollingModel:
+def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
+                          exclude_penalized_sites: bool=False,
+                          site_penalty: float=0,
+                          kp_penalty_parameter: float=0) -> PollingModel:
     '''
         Returns the polling location pyomo model.
     '''
+
+    if site_penalty and not kp_penalty_parameter:
+        raise ValueError(f'kp_penalty_parameter must be positive if site_penalty is positive ({site_penalty=}')
+        
     #define max_min parameter needed for certain calculations
     global_max_min_dist = get_max_min_dist(dist_df)
     max_min = config.max_min_mult* global_max_min_dist
@@ -189,7 +196,6 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     ####define constants####
     #total population
     total_pop = dist_df.groupby('id_orig')['population'].agg('unique').str[0].sum()
-    
     ####set model to be concrete####
     model = pyo.ConcreteModel()
 
@@ -200,6 +206,8 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     model.residences = pyo.Set(initialize = list(set(dist_df['id_orig'])))
     #residence, precint pairs
     model.pairs = model.residences * model.precincts
+    #penalized sites
+    model.penalized_sites = pyo.Set(initialize=config.penalized_sites)
 
     ####define model parameters####
     #Populations of residences
@@ -209,13 +217,13 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     model.distance = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'distance_m']].set_index(['id_orig', 'id_dest']))
     #population weighted distances
     model.weighted_dist = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'Weighted_dist']].set_index(['id_orig', 'id_dest']))
-    
-    #KP factor 
+
+    #KP factor
     dist_df['KP_factor'] = compute_kp_factor(config, alpha, dist_df)
+    # math.e**(-config.beta*alpha*dist_df['distance_m'])
     max_KP_factor = dist_df.groupby('id_orig')['KP_factor'].agg('max').max()
     if max_KP_factor > 9e19:
         warnings.warn(f'Max KP_factor is {max_KP_factor}. SCIP can only handle values up to {1e20}. Consider a less negative value of beta.')
-        breakpoint()
     model.KP_factor = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'KP_factor']].set_index(['id_orig', 'id_dest']))
     #new location marker
     dist_df['new_location'] = 0
@@ -227,6 +235,10 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     model.matching = pyo.Var(model.pairs, domain=pyo.Binary )
     model.open = pyo.Var(model.precincts, domain=pyo.Binary )
 
+    if site_penalty:
+        model.penalty_exp = pyo.Var(domain=pyo.NonNegativeReals)
+        model.penalty = pyo.Var(domain=pyo.NonNegativeReals)
+    
     ####define parameter dependent indices####
     #residences in precint radius
     model.within_residence_radius = pyo.Set(model.residences, initialize = {res:[prec for prec in model.precincts if model.distance[(res,prec)] <= max_min] for res in model.residences})
@@ -234,16 +246,29 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
     model.within_precinct_radius = pyo.Set(model.precincts, initialize = {prec:[res for res in model.residences if model.distance[(res,prec)] <= max_min] for prec in model.precincts})
 
     # Set the objective function
-    obj_rule = build_objective_rule(config,                 total_pop)
+    obj_rule = build_objective_rule(config, total_pop, alpha, site_penalty=site_penalty, kp_penalty_parameter=kp_penalty_parameter)
     model.obj = pyo.Objective(rule=obj_rule, sense=pyo.minimize)
 
     #### Define Constraints
     open_rule = build_open_rule(precincts_open)
     model.open_constraint = pyo.Constraint(rule=open_rule)
 
+    if site_penalty:
+        penalty_rule = build_penalty_rule(alpha, config.beta, site_penalty)
+        model.penalty_constraint = pyo.Constraint(rule=penalty_rule)
+
+        linearization_points = [-alpha*config.beta*i*site_penalty for i in range(len(config.penalized_sites)+1)]
+        penalty_approximation_rule = build_penalty_approximation_rule()
+        model.penalty_approximation_constraint = pyo.Constraint(linearization_points, rule=penalty_approximation_rule)
+        
     #percent of new precincts not to exceed maxpctnew
     max_new_rule = build_max_new_rule(config, precincts_open)
     model.max_new_constraint = pyo.Constraint(rule=max_new_rule)
+
+    #optionally exclude penalized sites
+    if exclude_penalized_sites:
+        exclude_sites_rule = build_exclude_sites_rule()
+        model.exclude_sites_constraint = pyo.Constraint(model.penalized_sites, rule=exclude_sites_rule)
 
     #percent of established precincts not to dip below minpctold
     min_old_rule = build_min_old_rule(config, old_polls)
@@ -264,7 +289,9 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig) -> Polling
         total_pop=total_pop,
         precincts_open=precincts_open,
     )
+
     model.capacity_constraint = pyo.Constraint(model.precincts, rule=capacity_rule)
 
     #model.obj.pprint()
     return model
+
