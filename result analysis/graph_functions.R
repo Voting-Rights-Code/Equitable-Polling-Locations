@@ -236,9 +236,15 @@ ede_with_pop<- function(config_df_list){
 plot_original_optimized <- function(config_ede, orig_ede, suffix = '', config_folder = CONFIG_FOLDER){	
 	#select the relevant optimized runs
 	orig_num_polls <- unique(orig_ede$num_polls)
-	optimized_run_dfs <- config_ede[num_polls %in% orig_num_polls]
+	config_num_polls <- unique(config_ede$num_polls)
+	optimization_num_polls<- max(intersect(orig_num_polls, config_num_polls))
+	optimized_run_dfs <- config_ede[num_polls == optimization_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
+<<<<<<< HEAD
 	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), config_folder)
+=======
+	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), config_folder )
+>>>>>>> main
 }
 
 #like plot_poll_edes, but plots just the y_edes for the
@@ -298,8 +304,7 @@ plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_n
 	#avg_distance
 	ggplot(res_pop_orig_and_ideal, aes(x = avg_dist, fill = descriptor)) + 
 		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
-		labs(x = 'Average distance traveled to poll (m)', y = 'Number of people') +
-		scale_fill_manual(values=c("red", "blue", "green"), name = "Optimization run ")
+		labs(x = 'Average distance traveled to poll (m)', y = 'Number of people', fill = 'Optimization Run') 
 		ggsave('avg_dist_distribution_hist.png')
 
 }

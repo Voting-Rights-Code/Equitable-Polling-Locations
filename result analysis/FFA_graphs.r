@@ -20,11 +20,11 @@ source('result analysis/graph_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'Gwinnett_GA'
-CONFIG_FOLDER = 'Gwinnett_GA_no_bg_school_fire_configs'
+LOCATION = 'DeKalb_GA'
+CONFIG_FOLDER = 'DeKalb_GA_no_bg_school_configs'
 
 #Run-type specific constants
-IDEAL_POLL_NUMBER  = 22 #the optimal number of polls desired for this county
+IDEAL_POLL_NUMBER  = 19 #the optimal number of polls desired for this county
 
 #######
 #Location of original location results

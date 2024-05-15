@@ -7,12 +7,13 @@ from model_config import PollingModelConfig
 import model_data
 import model_factory
 import model_solver
+import pyomo.environ as pyo
+import math
 
 
 #TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTS_DIR = 'tests'
 TESTING_CONFIG_EXPANDED = os.path.join(TESTS_DIR, 'testing_config_expanded.yaml')
-
 
 CONFIG = PollingModelConfig.load_config(TESTING_CONFIG_EXPANDED)
 print(f'config -> {CONFIG}')
@@ -82,3 +83,36 @@ def test_capacity():
     dest_pop_df = result_df[['id_dest', 'population']].groupby('id_dest').agg('sum')
     assert all(dest_pop_df.population <=(CONFIG.capacity*TOTAL_POP/CONFIG.precincts_open))
 
+# Test the intermediate dataframe with driving distances
+DRIVING_TESTING_CONFIG = os.path.join(TESTS_DIR, 'testing_config_driving.yaml')
+DRIVING_CONFIG = PollingModelConfig.load_config(DRIVING_TESTING_CONFIG)
+DRIVING_DIST_DF = model_data.clean_data(DRIVING_CONFIG, False)
+
+# The test driving distances are exactly twice the haversine test distances
+def test_driving_distances():
+    assert DRIVING_DIST_DF['distance_m'].sum() == 2*DIST_DF['distance_m'].sum()
+    # Test for penalty functionality
+OBJ = pyo.value(MODEL.obj)
+KP = -1/(CONFIG.beta*ALPHA)*math.log(OBJ)
+TESTING_CONFIG_PENALTY = os.path.join(TESTS_DIR, 'testing_config_penalty.yaml')
+PENALTY_CONFIG = PollingModelConfig.load_config(TESTING_CONFIG_PENALTY)
+EX_MODEL = model_factory.polling_model_factory(DIST_DF, ALPHA, PENALTY_CONFIG, exclude_penalized_sites=True)
+model_solver.solve_model(EX_MODEL, PENALTY_CONFIG.time_limit)
+EX_OBJ = pyo.value(EX_MODEL.obj)
+EX_KP = -1/(CONFIG.beta*ALPHA)*math.log(EX_OBJ) # same beta and alpha for both configs
+
+def test_exclude_penalized():
+    EX_OPEN_PRECINCTS = {key for key in EX_MODEL.open if EX_MODEL.open[key].value ==1}   
+    assert len(EX_OPEN_PRECINCTS - set(PENALTY_CONFIG.penalized_sites))==3
+
+def test_penalized_model():
+    penalty = (EX_KP - KP) / len(OPEN_PRECINCTS)
+    PEN_MODEL = model_factory.polling_model_factory(DIST_DF, ALPHA, PENALTY_CONFIG,
+                                                    exclude_penalized_sites=False,
+                                                    site_penalty=penalty,
+                                                    kp_penalty_parameter=KP)
+    model_solver.solve_model(PEN_MODEL, PENALTY_CONFIG.time_limit)
+    PEN_OPEN_PRECINCTS = {key for key in PEN_MODEL.open if PEN_MODEL.open[key].value ==1} 
+    PEN_OBJ = pyo.value(PEN_MODEL.obj)
+    PEN_KP = -1/(CONFIG.beta*ALPHA)*math.log(PEN_OBJ) - penalty
+    assert (PEN_KP > KP)

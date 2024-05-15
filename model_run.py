@@ -20,8 +20,9 @@ from model_results import (
     incorporate_result,
     demographic_domain_summary,
     demographic_summary,
-    write_results,
+    write_results
 )
+from model_penalties import incorporate_penalties
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
@@ -33,9 +34,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
 
     config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
     run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
-    run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
     
-    #check if source data avaible
     source_file_name = config.location + '.csv'
     source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
     if not os.path.exists(source_path):
@@ -46,7 +45,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     dist_df = clean_data(config, False)
 
     #get alpha 
-    alpha_df = clean_data(config, True)
+    alpha_df = clean_data(config, True, log)
     alpha  = alpha_min(alpha_df)
 
     #build model
@@ -56,11 +55,12 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
 
     #solve model
     solve_model(ea_model, config.time_limit, log=log, log_file_path=config.log_file_path)
-    if log:
-        print(f'model solved for {run_prefix}.')
 
     #incorporate result into main dataframe
     result_df = incorporate_result(dist_df, ea_model)
+
+    #incorporate site penalties as appropriate
+    result_df = incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, config, log)
 
     #calculate the new alpha given this assignment
     alpha_new = alpha_min(result_df)
@@ -86,3 +86,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     )
 
     return result_folder
+
+
+
+
