@@ -29,15 +29,7 @@ check_config_folder_valid <- function(config_folder){
 #Functions to read in results
 #Two types to analysis: historical (see CLC work); placement (see FFA work)
 ######
-combine_results<- function(config_folder, result_type, analysis_type = 'placement'){
-	if (analysis_type == 'historical'){
-		return(combine_results_multi_county_historical(config_folder, result_type))}
-	else if (analysis_type == 'placement'){
-		return(combine_results_placement(config_folder, result_type))}
-	else{
-		stop("Incorrect analysis_type provided")
-	}
-}
+
 
 
 #####Formatting notes:
@@ -240,11 +232,8 @@ plot_original_optimized <- function(config_ede, orig_ede, suffix = '', config_fo
 	optimization_num_polls<- max(intersect(orig_num_polls, config_num_polls))
 	optimized_run_dfs <- config_ede[num_polls == optimization_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
-<<<<<<< HEAD
 	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), config_folder)
-=======
-	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), config_folder )
->>>>>>> main
+
 }
 
 #like plot_poll_edes, but plots just the y_edes for the
