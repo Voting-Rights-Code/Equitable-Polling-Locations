@@ -59,22 +59,37 @@ def build_objective_rule(
         #residence_precinct_pairs: list,
         #dist_df: pd.DataFrame,
         total_pop: int,
+        alpha: float,
+        *,
+        site_penalty: float=0,
+        kp_penalty_parameter: float=0, 
     ):
     '''The function to be minimized:
     Variables: model.matching, indexed by reisidence precinct pairs'''
-    def obj_rule_0(model):
-        #take average populated weighted distance
-        average_weighted_distances = sum(model.matching[pair]* model.weighted_dist[pair] for pair in model.pairs)/total_pop
-        return (average_weighted_distances)
-    def obj_rule_not_0(model):
-        #take average by kp factor weight
-        #pair[0] = residence
-        average_weighted_distances = sum(model.population[pair[0]]* model.matching[pair]* model.KP_factor[pair] for pair in model.pairs)/total_pop
-        return (average_weighted_distances)
-    if config.beta == 0:
-        return obj_rule_0
-    if config.beta != 0:
-        return obj_rule_not_0
+    if site_penalty:
+        def obj_rule_0(model):
+            average_weighted_distances = (sum(model.matching[pair]* model.weighted_dist[pair] for pair in model.pairs)/total_pop
+                                          + sum(model.open[site]*site_penalty for site in model.penalized_sites))
+            return (average_weighted_distances)
+
+        def obj_rule_not_0(model):
+            average_weighted_distances = ((sum(model.population[pair[0]]* model.matching[pair]* model.KP_factor[pair]
+                                              for pair in model.pairs)/total_pop)
+                                          + math.exp(-config.beta*alpha*kp_penalty_parameter)*(model.penalty_exp-1))
+            return (average_weighted_distances)
+    else:
+        def obj_rule_0(model):
+            #take average populated weighted distance
+            average_weighted_distances = sum(model.matching[pair]* model.weighted_dist[pair] for pair in model.pairs)/total_pop
+            return (average_weighted_distances)
+        def obj_rule_not_0(model):
+            #take average by kp factor weight
+            #pair[0] = residence
+            average_weighted_distances = sum(model.population[pair[0]]* model.matching[pair]* model.KP_factor[pair] for pair in model.pairs)/total_pop
+            return (average_weighted_distances)
+
+    return obj_rule_not_0 if config.beta else obj_rule_0
+
 
 #@timer
 def build_open_rule(
