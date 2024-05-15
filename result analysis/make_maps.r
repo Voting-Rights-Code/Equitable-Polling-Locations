@@ -17,6 +17,10 @@ source('result analysis/graph_functions.R')
 location = 'DeKalb_GA'
 config_folder ='DeKalb_GA_original_configs'
 
+#some values for graph labeling
+county = gsub('.{3}$','',location)
+county_config_ = paste0(county, '_', 'config', '_')
+
 #######
 #Check that location and folders valid
 #######
