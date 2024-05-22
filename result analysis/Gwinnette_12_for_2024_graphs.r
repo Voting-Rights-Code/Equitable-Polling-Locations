@@ -90,32 +90,6 @@ pop_scaled_edes <- ede_with_pop(config_df_list)
 plot_historic_edes(CONFIG_FOLDER, pop_scaled_edes, suffix = 'pop_scaled')
 
 
-descriptor_order <- unique(pop_scaled_edes$descriptor)
-
-all_y_values = c(c(pop_scaled_edes$avg_dist), c(pop_scaled_edes$y_EDE))
-y_min = min(all_y_values)
-y_max = max(all_y_values)
-
-
-y_EDE = ggplot(pop_scaled_edes, aes(x = descriptor, y = y_EDE, 
-		group = demographic, color = demographic)) +
-		geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) +
-			labs(x = 'Optimization run', y = y_EDE_label, color = 'Demographic', size = 'Percent Total Population') + ylim(y_min, y_max) +
-            ggtitle(paste('Equity weighted', title_str)) +
-		scale_color_discrete(labels = demographic_legend_dict)
-
-	name = paste('compare_runs', 'y_EDE.png', sep = '_')
-	ggsave(name, y_EDE)
-
-avg = ggplot(pop_scaled_edes, aes(x = descriptor, y = avg_dist, 
-		group = demographic, color = demographic)) +
-        geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) + 
-			labs(x = 'Optimization run', y = y_avg_label, color = 'Demographic', size = 'Percent Total Population') + 
-	     ylim(y_min, y_max) + ggtitle(paste('Average', title_str)) + 
-		scale_color_discrete(labels = demographic_legend_dict)
-	name = paste('compare_runs', 'avg.png', sep = '_')
-	ggsave(name, avg)
-
 #Histogram of the original distributions and that for the desired number of polls
 #plot_orig_ideal_hist(orig_df_list[[3]], config_df_list[[3]], IDEAL_POLL_NUMBER)
 #ggplot(config_df_list[[3]], aes(x = avg_dist, fill = descriptor)) + 

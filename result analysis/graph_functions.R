@@ -154,7 +154,7 @@ plot_poll_edes<-function(ede_df){
 
 #ACCOMODATES DRIVING DISTANCES
 
-plot_historic_edes <- function(orig_ede, suffix = '', config_folder){	
+plot_historic_edes <- function(config_folder, orig_ede, suffix = ''){	
 	
 	#set x axis label order
 	descriptor_order <- unique(orig_ede$descriptor)
