@@ -20,25 +20,26 @@ source('result analysis/graph_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'DeKalb_GA'
-CONFIG_FOLDER = 'DeKalb_GA_no_bg_school_configs'
+LOCATION = 'Loudon_County_VA'
+CONFIG_FOLDER = 'Loudon_County_VA_potential_configs'
 
 #Run-type specific constants
-IDEAL_POLL_NUMBER  = 19 #the optimal number of polls desired for this county
+IDEAL_POLL_NUMBER  = 8 #the optimal number of polls desired for this county
 
 #######
 #Location of original location results
 #and other related constants
 #######
 
-original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
+#original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
+original_locations = 'Engage_VA_2024_configs'
 
 #######
 #Check that location and folders valid
 #this also ensures that you are in the right folder to read data
 #######
 
-#Does the config folder exist?
+#Does the config folder 
 check_config_folder_valid(CONFIG_FOLDER)
 #Does the config folder contain files associated to the location
 check_location_valid(LOCATION, CONFIG_FOLDER)
@@ -89,5 +90,5 @@ plot_precinct_persistence(config_df_list[[2]])
 plot_boxplots(config_df_list[[3]])
 
 #Histogram of the original distributions and that for the desired number of polls
-plot_orig_ideal_hist(orig_df_list[[3]], config_df_list[[3]], IDEAL_POLL_NUMBER)
+#plot_orig_ideal_hist(orig_df_list[[3]], config_df_list[[3]], IDEAL_POLL_NUMBER)
 
