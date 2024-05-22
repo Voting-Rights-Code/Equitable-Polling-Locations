@@ -55,7 +55,7 @@ config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'historical')
 #config_residence_df<- config_df_list[[3]]
 #config_result_df<- config_df_list[[4]]
 
-descriptor_list = c('all', 'fire', 'church', 'none', 'penalty')
+descriptor_list = c('Fire Stations', 'Neither', 'Churches', 'Both', 'Penalty')
 define_descriptor <- function(df, list){
     descriptor_col = rep(list, each = nrow(df)/length(list))
     df[ , descriptor:= descriptor_col]
@@ -80,14 +80,16 @@ if (file.exists(file.path(here(), plot_folder))){
 
 #Add percent population to data ede data for graph scaling for all general config folder and orig
 pop_scaled_edes <- ede_with_pop(config_df_list)
-pop_scaled_edes_orig <- ede_with_pop(orig_df_list)
+#pop_scaled_edes_orig <- ede_with_pop(orig_df_list)
 
 #Plot the edes for all runs in config_folder by demographic and population only
 #plot_poll_edes(config_df_list[[1]])
 #plot_population_edes(config_df_list[[1]])
 
 #Plot the edes for all runs in original_location and equivalent optimization runs by demographic
-#plot_historic_edes(CONFIG_FOLDER, pop_scaled_edes, suffix = 'pop_scaled')
+plot_historic_edes(CONFIG_FOLDER, pop_scaled_edes, suffix = 'pop_scaled')
+
+
 descriptor_order <- unique(pop_scaled_edes$descriptor)
 
 all_y_values = c(c(pop_scaled_edes$avg_dist), c(pop_scaled_edes$y_EDE))
