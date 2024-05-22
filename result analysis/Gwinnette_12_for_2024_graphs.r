@@ -81,6 +81,7 @@ if (file.exists(file.path(here(), plot_folder))){
 #Add percent population to data ede data for graph scaling for all general config folder and orig
 pop_scaled_edes <- ede_with_pop(config_df_list)
 #pop_scaled_edes_orig <- ede_with_pop(orig_df_list)
+#pop_scaled_edes_orig <- ede_with_pop(orig_df_list)
 
 #Plot the edes for all runs in config_folder by demographic and population only
 #plot_poll_edes(config_df_list[[1]])
