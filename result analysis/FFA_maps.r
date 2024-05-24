@@ -14,8 +14,8 @@ source('result analysis/graph_functions.R')
 #######
 #Location must be part of config folder string
 
-LOCATION = 'Loudon_County_VA'
-CONFIG_FOLDER = 'Loudon_County_VA_potential_configs'
+LOCATION = 'Fairfax_County_VA'
+CONFIG_FOLDER = 'Fairfax_County_VA_potential_configs'
 
 #original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
 #CONFIG_FOLDER = original_locations
