@@ -49,19 +49,22 @@ check_location_valid(LOCATION, CONFIG_FOLDER)
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
-config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'historical')
+config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'other')
 #config_ede_df<- config_df_list[[1]]
 #config_precinct_df<- config_df_list[[2]]
 #config_residence_df<- config_df_list[[3]]
 #config_result_df<- config_df_list[[4]]
 
-descriptor_list = c('Fire Stations', 'Neither', 'Churches', 'Both', 'Penalty')
-define_descriptor <- function(df, list){
-    descriptor_col = rep(list, each = nrow(df)/length(list))
-    df[ , descriptor:= descriptor_col]
+change_descriptors <- function(df){
+    df <- df[descriptor == "no_bg_school_penalty_fire_church", descriptor := "Penalty"
+            ][descriptor == "no_bg_school", descriptor := "Both"
+            ][descriptor == "no_bg_school_church", descriptor := "Fire Stations"
+            ][descriptor == "no_bg_school_fire", descriptor := "Churches"
+            ][descriptor == "no_bg_school_fire_church", descriptor := "Neither"
+            ]
 return(df)
 }
-config_df_list = lapply(config_df_list, function(x){define_descriptor(x, descriptor_list)})
+config_df_list = lapply(config_df_list, change_descriptors)
 
 
 #orig_df_list <- read_result_data(LOCATION, original_locations, 'historical')
