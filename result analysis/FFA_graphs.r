@@ -20,11 +20,11 @@ source('result analysis/graph_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'Loudon_County_VA'
-CONFIG_FOLDER = 'Loudon_County_VA_potential_configs'
+LOCATION = 'Fairfax_County_VA'
+CONFIG_FOLDER = 'Fairfax_County_VA_potential_configs'
 
 #Run-type specific constants
-IDEAL_POLL_NUMBER  = 8 #the optimal number of polls desired for this county
+IDEAL_POLL_NUMBER  = 24 #the optimal number of polls desired for this county
 
 #######
 #Location of original location results
@@ -90,5 +90,5 @@ plot_precinct_persistence(config_df_list[[2]])
 plot_boxplots(config_df_list[[3]])
 
 #Histogram of the original distributions and that for the desired number of polls
-#plot_orig_ideal_hist(orig_df_list[[3]], config_df_list[[3]], IDEAL_POLL_NUMBER)
+plot_orig_ideal_hist(orig_df_list[[3]], config_df_list[[3]], IDEAL_POLL_NUMBER)
 
