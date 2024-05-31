@@ -66,10 +66,17 @@ def pull_ptable_data(geo, pnum, state_fips, county_code, api_key):
     r = requests.get(
         f"https://api.census.gov/data/2020/dec/pl?get=group({pnum})&for={geo}:*&in=state:{state_fips}&in=county:{county_code}&in=tract:*&key={api_key}"
     )
-    data = pd.DataFrame(r.json())
+    data = pd.DataFrame(r.json()) 
     headers = data.iloc[0].values
-    data.columns = headers
     metadata = pull_metadata(f"https://api.census.gov/data/2020/dec/pl/groups/{pnum}")
+    headers2 = [metadata.loc[name] for name in headers]
+    headers_all = list(tuple(zip(headers, headers2)))
+    data.columns = headers_all
+    data.drop(index=0, axis=0, inplace=True)
+    #data = pd.DataFrame(r.json())
+    #headers = data.iloc[0].values
+    #data.columns = headers
+    #metadata = pull_metadata(f"https://api.census.gov/data/2020/dec/pl/groups/{pnum}")
     return data, metadata
 
 
