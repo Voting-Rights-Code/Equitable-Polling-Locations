@@ -20,8 +20,8 @@ source('result analysis/graph_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'Richmond_city_VA'
-CONFIG_FOLDER = 'Richmond_city_VA_potential_configs'
+LOCATION = 'Norfolk_City_VA'
+CONFIG_FOLDER = 'Norfolk_City_VA_potential_configs'
 
 #Run-type specific constants
 IDEAL_POLL_NUMBER  = 6 #the optimal number of polls desired for this county
