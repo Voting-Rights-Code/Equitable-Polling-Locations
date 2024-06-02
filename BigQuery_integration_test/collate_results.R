@@ -1,4 +1,4 @@
-#setwd("BigQuery_integration_test")
+setwd("BigQuery_integration_test")
 
 ## ==== Define functions ====
 
@@ -60,6 +60,7 @@ years <- c(2014, 2016, 2018, 2020, 2022)
 
 files <- c("result", "edes", "precinct_distances", "residence_distances")
 names(files) <- files
+out_dir <- paste0(result_dir, "_collated_v2")
 
 York_collated <- lapply(files, function(file){
   collated <- collate_years(
@@ -71,8 +72,13 @@ York_collated <- lapply(files, function(file){
     years = years
   )
 })
+if(!dir.exists(out_dir)) dir.create(out_dir)
 lapply(files, function(file){
-  write.csv(York_collated[[file]], file = paste0(result_dir, "_collated_2/", file, ".csv"))
+  write.csv(
+    York_collated[[file]], 
+    file = paste0(our_dir, "/", file, ".csv"),
+    row.names = FALSE
+  )
 })
 
 # ---- Berkeley ----
@@ -85,8 +91,9 @@ years <- c(2014, 2016, 2018, 2020, 2022)
 
 files <- c("result", "edes", "precinct_distances", "residence_distances")
 names(files) <- files
+out_dir <- paste0(result_dir, "_appended_v2")
 
-Berkeley_appended.df <- lapply(files, function(file){
+Berkeley_appended <- lapply(files, function(file){
   append_fields(
     config_name = config_name, 
     config_dir = config_dir, 
@@ -97,25 +104,13 @@ Berkeley_appended.df <- lapply(files, function(file){
   )
 })
 
-write.csv(
-  Berkeley_appended.df$result$Berkeley_config_original_2014, 
-  file = "Berkeley_SC_original_configs.Berkeley_config_original_2014_result.csv"
-)
-
-write.csv(
-  Berkeley_appended.df$edes$Berkeley_config_original_2014, 
-  file = "Berkeley_SC_original_configs.Berkeley_config_original_2014_edes.csv"
-)
-
-write.csv(
-  Berkeley_appended.df$precinct_distances$Berkeley_config_original_2014, 
-  file = "Berkeley_SC_original_configs.Berkeley_config_original_2014_precinct_distances.csv"
-)
-
-write.csv(
-  Berkeley_appended.df$residence_distances$Berkeley_config_original_2014, 
-  file = "Berkeley_SC_original_configs.Berkeley_config_original_2014_residence_distances.csv"
-)
-
-
-
+if(!dir.exists(out_dir)) dir.create(out_dir)
+lapply(files, function(file){
+  lapply(years, function(year){
+    write.csv(
+      Berkeley_appended[[file]][[paste0(config_name, "_", year)]], 
+      file = paste0(out_dir, "/", config_dir,".", config_name, "_", year, "_", file, ".csv"),
+      row.names = FALSE
+    )
+  })
+})
