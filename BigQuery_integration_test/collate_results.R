@@ -60,7 +60,7 @@ years <- c(2014, 2016, 2018, 2020, 2022)
 
 files <- c("result", "edes", "precinct_distances", "residence_distances")
 names(files) <- files
-out_dir <- paste0(result_dir, "_collated_v2")
+out_dir <- paste0(result_dir, "_collated")
 
 York_collated <- lapply(files, function(file){
   collated <- collate_years(
@@ -76,7 +76,7 @@ if(!dir.exists(out_dir)) dir.create(out_dir)
 lapply(files, function(file){
   write.csv(
     York_collated[[file]], 
-    file = paste0(our_dir, "/", file, ".csv"),
+    file = paste0(out_dir, "/", file, ".csv"),
     row.names = FALSE
   )
 })
@@ -91,7 +91,7 @@ years <- c(2014, 2016, 2018, 2020, 2022)
 
 files <- c("result", "edes", "precinct_distances", "residence_distances")
 names(files) <- files
-out_dir <- paste0(result_dir, "_appended_v2")
+out_dir <- paste0(result_dir, "_appended")
 
 Berkeley_appended <- lapply(files, function(file){
   append_fields(

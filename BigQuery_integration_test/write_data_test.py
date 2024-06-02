@@ -3,7 +3,6 @@ from google.cloud import bigquery
 # Construct a BigQuery client object.
 client = bigquery.Client()
 
-# TODO(developer): Set table_id to the ID of the table to create.
 table_names = [
     "edes",
     "result",
@@ -11,7 +10,7 @@ table_names = [
     "residence_distances"
 ]
 project_dataset = "voting-rights-storage-test.polling"
-csv_stem = "Berkeley_SC_Results_appended/Berkeley_SC_original_configs.Berkeley_config_original_2014"
+csv_stem = "Berkeley_SC_results_appended/Berkeley_SC_original_configs.Berkeley_config_original_2014"
 
 # TODO: Check whether a given run name already exists
 
