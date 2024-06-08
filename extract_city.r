@@ -31,19 +31,22 @@ city_shape <- st_transform(city_shape, CRS_PROJECTION)
 plot(st_geometry(city_shape))
 plot(county_blocks, add = T)
 
-######compute intersection and overlap######
+######compute intersection and containment######
 sf_use_s2(FALSE) # make data planar. Otherwise the following line throws an error
 
-#get indices constained in each connected component of city shape
+#get blocks intersecting each connected component of city shape
 block_indices <- st_intersects(city_shape, county_blocks, sparse = T)
 #get unique list of block indices from all connected compoents
 all_block_indices <- Reduce(union, block_indices)
+city_blocks <- county_blocks[all_block_indices, ]
 
+#get blocks contained in each connected component of city shape
 contained_indices<-st_contains(city_shape, county_blocks, sparse = T)
 all_contained_indices <- Reduce(union, contained_indices)
 contained_blocks <- county_blocks[all_contained_indices, ]
+
+
 #get dataframe of city_blocks intersecting the city limits and write to file
-city_blocks <- county_blocks[all_block_indices, ]
 st_write(city_blocks, paste0(TIGER_FOLDER, '/', LOCATION, '/',  BLOCK_GEOMETRY_FILES, '.shp'))
 
 #####plot, just to see that city blocks is, indeed what one wants #####
