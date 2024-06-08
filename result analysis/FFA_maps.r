@@ -13,8 +13,11 @@ source('result analysis/graph_functions.R')
 #Set Constants
 #######
 #Location must be part of config folder string
-LOCATION = 'Gwinnett_GA'
-CONFIG_FOLDER = 'Gwinnett_GA_12_for_2024_configs'
+
+
+LOCATION = 'Chesterfield_County_VA'
+CONFIG_FOLDER = 'Chesterfield_County_VA_potential_configs'
+
 
 #original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
 #CONFIG_FOLDER = original_locations
@@ -56,3 +59,5 @@ if (!file.exists(file.path(here(), plot_folder))){
 sapply(res_dist_list, function(x)make_bg_maps(CONFIG_FOLDER, x, 'map'))
 sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'black'))
 sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'white'))
+#sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'hispanic'))
+
