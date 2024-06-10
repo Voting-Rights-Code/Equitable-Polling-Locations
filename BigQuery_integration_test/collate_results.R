@@ -3,7 +3,7 @@ library(yaml)
 
 ## ==== Define functions ====
 
-append_fields <- function(config_names, locations, result_dir, config_set, filetype){
+append_fields <- function(config_names, locations, result_dir, config_set, out_type){
   data.list <- mapply(
     function(config_name, location){
       
@@ -14,7 +14,7 @@ append_fields <- function(config_names, locations, result_dir, config_set, filet
         ".",
         config_name,
         "_",
-        filetype,
+        out_type,
         ".csv"
       )
       
@@ -36,13 +36,13 @@ append_fields <- function(config_names, locations, result_dir, config_set, filet
   return(data.list)
 }
 
-collate_outs <- function(config_names, locations, result_dir, config_set, filetype){
+collate_outs <- function(config_names, locations, result_dir, config_set, out_type){
   data.list <- append_fields(
     config_names = config_names, 
     locations = locations, 
     result_dir = result_dir, 
     config_set = config_set,
-    filetype = filetype
+    out_type = out_type
   )
   
   data.df <- do.call(rbind, data.list)
@@ -123,24 +123,25 @@ locations <- simplify2array(configs.df$location)
 config_names <- simplify2array(configs.df$config_name)
 
 # --- Collate output files ---
-filetypes <- c("result", "edes", "precinct_distances", "residence_distances")
-names(filetypes) <- filetypes
-outs.df <- lapply(filetypes, function(filetype){
+out_types <- c("result", "edes", "precinct_distances", "residence_distances")
+names(out_types) <- out_types
+outs.df <- lapply(out_types, function(out_type){
   collated <- collate_outs(
     config_names = config_names, 
     locations = locations, 
     result_dir = result_dir, 
     config_set = config_set,
-    filetype = filetype
+    out_type = out_type
   )
 })
+outs.df$result$X <- NULL
 
 # --- Write to CSV ---
 if(!dir.exists(out_dir)) dir.create(out_dir)
-lapply(filetypes, function(filetype){
+lapply(out_types, function(out_type){
   write.csv(
-    outs.df[[filetype]], 
-    file = paste0(out_dir, "/", config_set, "_", filetype, ".csv"),
+    outs.df[[out_type]], 
+    file = paste0(out_dir, "/", config_set, "_", out_type, ".csv"),
     row.names = FALSE
     
   )
@@ -151,7 +152,7 @@ configs_literal.df$year <- literalize_list(configs_literal.df$year, is.char = FA
 configs_literal.df$bad_types <- literalize_list(configs_literal.df$bad_types, is.char = TRUE)
 write.csv(
   configs_literal.df, 
-  file = paste0(out_dir, "/", config_set, "_yaml.csv"),
+  file = paste0(out_dir, "/", config_set, "_configs.csv"),
   row.names = FALSE
 )
 

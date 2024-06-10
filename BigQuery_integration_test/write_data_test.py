@@ -3,20 +3,24 @@ from google.cloud import bigquery
 # Construct a BigQuery client object.
 client = bigquery.Client()
 
-table_names = [
+out_types= [
+    "configs",
     "edes",
     "result",
-    "precinct_distances",
-    "residence_distances"
+    "precinct_distances"
+    #"residence_distances", # residence distance table has bad NA values for now
 ]
-project_dataset = "voting-rights-storage-test.polling"
-csv_stem = "Berkeley_SC_results_appended/Berkeley_SC_original_configs.Berkeley_config_original_2014"
+config_set = "York_SC_original_configs"
+in_dir = config_set + "_collated"
 
+
+# Don't change this, it's the server-side name
+project_dataset = "voting-rights-storage-test.polling"
 # TODO: Check whether a given run name already exists
 
-for table_name in table_names:
-    table_id = project_dataset + "." + table_name
-    file_path = csv_stem + "_" + table_name + ".csv"
+for out_type in out_types:
+    table_id = project_dataset + "." + out_type
+    file_path = in_dir + "/" + config_set + "_" + out_type + ".csv"
 
     job_config = bigquery.LoadJobConfig(
         source_format=bigquery.SourceFormat.CSV, 
