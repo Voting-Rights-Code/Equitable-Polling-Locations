@@ -1,46 +1,48 @@
-setwd("BigQuery_integration_test")
+#setwd("BigQuery_integration_test")
+library(yaml)
 
 ## ==== Define functions ====
 
-append_fields <- function(config_name, config_dir, result_dir, location, file, years){
-  data.list <- lapply(
-    years, function(year){
+append_fields <- function(config_names, locations, result_dir, config_set, filetype){
+  data.list <- mapply(
+    function(config_name, location){
       
       dir <- paste0(
-        "../",
         result_dir,
         "/",
-        config_dir,
+        config_set,
         ".",
         config_name,
         "_",
-        year,
-        "_",
-        file,
+        filetype,
         ".csv"
       )
       
+      # Read in the data, and add a "config_name" field that will vary within the output
       data <- read.csv(dir)
-      data$config <- paste0(config_name, "_", year)
+      data$config_name <- config_name
+      
+      # Append location and config_set variables that will remain constant within the output
       data$location <- location
+      data$config_set <- config_set
       
       return(data)
-    }
+    },
+    config_name = config_names, location = locations, SIMPLIFY = FALSE
   )
   
-  names(data.list) <- paste0(config_name, "_", years)
+  names(data.list) <- config_names
   
   return(data.list)
 }
 
-collate_years <- function(config_name, config_dir, result_dir, location, file, years){
+collate_outs <- function(config_names, locations, result_dir, config_set, filetype){
   data.list <- append_fields(
-    config_name = config_name, 
-    config_dir = config_dir, 
+    config_names = config_names, 
+    locations = locations, 
     result_dir = result_dir, 
-    location = location, 
-    file = "edes", 
-    years = years
+    config_set = config_set,
+    filetype = filetype
   )
   
   data.df <- do.call(rbind, data.list)
@@ -48,69 +50,108 @@ collate_years <- function(config_name, config_dir, result_dir, location, file, y
   return(data.df)
 }
 
+collate_configs <- function(config_set, config_dir){
+  # Read in all YAML files found in the directory config_dir
+  all_files <- list.files(config_dir)
+  yaml_files <- grep(".yaml", all_files, fixed = TRUE, value = TRUE)
+  if(length(yaml_files) == 0) stop("No YAML files found")
+  yaml_filepaths <- paste0(config_dir, "/", yaml_files)
+  yaml.list <- lapply(yaml_filepaths, read_yaml)
+  
+  # Combine into an array
+  yaml.array <- do.call(rbind, yaml.list)
+  yaml.df <- data.frame(yaml.array)
+  
+  # Convert non-list columns to atomics
+  atomic_col_names <- c("location", "beta", "time_limit", "capacity", "precincts_open",
+                        "max_min_mult", "maxpctnew", "minpctold")
+  yaml.df[, atomic_col_names] <- lapply(yaml.df[, atomic_col_names], simplify2array)
+  null_list_names <- atomic_col_names[sapply(yaml.df[, atomic_col_names], is.list)]
+  if(length(null_list_names) > 0) yaml.df[, null_list_names] <- NA
+  
+  # Add config name and config set columns
+  yaml.df$config_name <- gsub(".yaml", "", yaml_files, fixed = TRUE)
+  yaml.df$config_set <- config_set
+  
+  # Add placeholder columns
+  yaml.df$commit_hash <- NA
+  yaml.df$run_time <- NA
+  
+  # Return
+  return(yaml.df)
+}
+
+literalize_list <- function(col, is.char = TRUE){
+  rec <- sapply(col, function(onerow){
+    atomic <- onerow
+    if(is.char) atomic <- paste0("'", onerow, "'")
+    inner <- paste(atomic, collapse = ", ")
+    outer <- paste0("[", inner, "]")
+    
+    return(outer)
+  })
+  
+  return(rec)
+}
+
+
+## ==== Test ====
+# 'Incomplete final line' warning are expected below and seem ignorablew
+
+# --- Tests ---
+# Read in York and Berkeley configs
+york_configs.df <- collate_configs(config_set = "York_SC_original_configs", config_dir = "../York_SC_original_configs")
+berkeley_configs.df <- collate_configs(config_set = "Berkeley_SC_original_configs", config_dir = "../Berkeley_SC_original_configs")
+
+# Read in Dekalb configs to validate that we can handle with an array of years per config
+dekalb_test_configs.df <- collate_configs(config_set = "Dekalb_GA_no_bg_school_configs", config_dir = "../Dekalb_GA_no_bg_school_configs")
+
+
 ## ==== Run ====
 
-# ---- York ----
-config_name <- "York_config_original"
-config_dir <- "York_SC_original_configs"
-result_dir <- "York_SC_results"
-location <- "York_SC"
+# --- Set parameters ----
+# Set directories
+config_set <- "York_SC_original_configs"
+config_dir <- "../York_SC_original_configs"
+result_dir <- "../York_SC_results"
+out_dir <- paste0(config_set, "_collated")
 
-years <- c(2014, 2016, 2018, 2020, 2022)
+# --- Read in and collate YAML file ----
+# Collate config files, and get info from them
+configs.df <- collate_configs(config_set = config_set, config_dir = config_dir)
+locations <- simplify2array(configs.df$location)
+config_names <- simplify2array(configs.df$config_name)
 
-files <- c("result", "edes", "precinct_distances", "residence_distances")
-names(files) <- files
-out_dir <- paste0(result_dir, "_collated")
-
-York_collated <- lapply(files, function(file){
-  collated <- collate_years(
-    config_name = config_name, 
-    config_dir = config_dir, 
+# --- Collate output files ---
+filetypes <- c("result", "edes", "precinct_distances", "residence_distances")
+names(filetypes) <- filetypes
+outs.df <- lapply(filetypes, function(filetype){
+  collated <- collate_outs(
+    config_names = config_names, 
+    locations = locations, 
     result_dir = result_dir, 
-    location = location, 
-    file = file, 
-    years = years
+    config_set = config_set,
+    filetype = filetype
   )
 })
+
+# --- Write to CSV ---
 if(!dir.exists(out_dir)) dir.create(out_dir)
-lapply(files, function(file){
+lapply(filetypes, function(filetype){
   write.csv(
-    York_collated[[file]], 
-    file = paste0(out_dir, "/", file, ".csv"),
+    outs.df[[filetype]], 
+    file = paste0(out_dir, "/", config_set, "_", filetype, ".csv"),
     row.names = FALSE
+    
   )
 })
 
-# ---- Berkeley ----
-config_name <- "Berkeley_config_original"
-config_dir <- "Berkeley_SC_original_configs"
-result_dir <- "Berkeley_SC_results"
-location <- "Berkeley_SC"
+configs_literal.df <- configs.df
+configs_literal.df$year <- literalize_list(configs_literal.df$year, is.char = FALSE)
+configs_literal.df$bad_types <- literalize_list(configs_literal.df$bad_types, is.char = TRUE)
+write.csv(
+  configs_literal.df, 
+  file = paste0(out_dir, "/", config_set, "_yaml.csv"),
+  row.names = FALSE
+)
 
-years <- c(2014, 2016, 2018, 2020, 2022)
-
-files <- c("result", "edes", "precinct_distances", "residence_distances")
-names(files) <- files
-out_dir <- paste0(result_dir, "_appended")
-
-Berkeley_appended <- lapply(files, function(file){
-  append_fields(
-    config_name = config_name, 
-    config_dir = config_dir, 
-    result_dir = result_dir, 
-    location = location, 
-    file = file, 
-    years = years
-  )
-})
-
-if(!dir.exists(out_dir)) dir.create(out_dir)
-lapply(files, function(file){
-  lapply(years, function(year){
-    write.csv(
-      Berkeley_appended[[file]][[paste0(config_name, "_", year)]], 
-      file = paste0(out_dir, "/", config_dir,".", config_name, "_", year, "_", file, ".csv"),
-      row.names = FALSE
-    )
-  })
-})
