@@ -12,6 +12,12 @@ REDISTRICTING_FOLDER = 'datasets/census/redistricting'
 DEMO_BG_FOLDER = 'block group demographics'
 CRS_PROJECTION = 4326
 
+BLOCK_GEOMETRY_FILES = 'tl_2020_55025_tabblock20'
+BG_GEOMETRY_FILES = 'tl_2020_55025_bg20'
+P3 = 'DECENNIALPL2020.P3-Data.csv'
+P4 = 'DECENNIALPL2020.P4-Data.csv'
+
+
 #runtime
 LOCATION_BASE= 'Madison_City_of_WI'
 LOCATION_SUP = paste('Intersecting', LOCATION_BASE, sep = '_')
@@ -19,10 +25,7 @@ LOCATION_SUB = paste('Contained_in', LOCATION_BASE, sep = '_')
 CITY_LIMIT_FOLDER = LOCATION_BASE
 CONTAINING_COUNTY = 'Dane_County_WI'
 CITY_LIMIT_FILE = 'City_Limit'
-BLOCK_GEOMETRY_FILES = 'tl_2020_55025_tabblock20'
-BG_GEOMETRY_FILES = 'tl_2020_55025_bg20'
-P3 = 'DECENNIALPL2020.P3-Data.csv'
-P4 = 'DECENNIALPL2020.P4-Data.csv'
+
 
 ######Functions#######
 
@@ -95,6 +98,10 @@ subset_and_write_demo_data <- function(city_shape_data, demo_type, location, bg_
         county_demo_folder = paste0(REDISTRICTING_FOLDER, '/', CONTAINING_COUNTY)
         city_demo_folder = paste0(REDISTRICTING_FOLDER, '/', location)
     }
+    #get header rows. We will append these later
+    headers <- fread(paste0(county_demo_folder, '/', demo_type), nrow = 2)
+
+    #read in county data
     county_demo <- fread(paste0(county_demo_folder, '/', demo_type), skip = 1, header = T)
     
     #reformat Geography column for merging
@@ -110,8 +117,12 @@ subset_and_write_demo_data <- function(city_shape_data, demo_type, location, bg_
     if (!file.exists(file.path(here(), city_demo_folder))){
         dir.create(file.path(here(), city_demo_folder))
     }
-    browser()
-    fwrite(city_demo, paste0(city_demo_folder, '/', demo_type))
+
+    #replace the names and add header rows before writing
+    names(city_demo) <- names(headers)
+    city_demo <- rbind(headers, city_demo)
+    #browser() 
+    fwrite(city_demo, paste0(city_demo_folder, '/', demo_type), append = FALSE, col.names = FALSE)
 }
 
 
