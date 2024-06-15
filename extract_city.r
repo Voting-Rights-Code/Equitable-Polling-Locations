@@ -3,6 +3,7 @@ library(sf)
 library(here)
 library(ggplot2)
 
+
 setwd(here())
 
 ########Set constants######## 
@@ -60,7 +61,10 @@ get_shapes_for_city <- function(city_shape_data, county_shape_data, intersection
 crop_to_city_lines <- function(city_shape_data, county_shape_data){
     #crop shapes
     cropped_shapes <- st_intersection(city_shape_data, county_shape_data)
-    
+
+    #in case of multiple connected components make each component unique
+    cropped_shapes$GEOID20 <- gsub('X','',make.names(cropped_shapes$GEOID20, unique = TRUE))
+
     #create interior point for cropped shapes
     interior_pt <- st_point_on_surface(cropped_shapes)
     #calculate a new INTPTLAT20/INTPTLON20 column 
@@ -73,7 +77,7 @@ crop_to_city_lines <- function(city_shape_data, county_shape_data){
     interior_pt$geometry <- NULL
 
     #Join the data and remove columns created by intersection
-    df <- merge(df_shape, interior_pt, by = 'GEOID20', how = outer)
+    df <- merge(df_shape, interior_pt, by = 'GEOID20', how = left)
     extra_columns <- c("OBJECTID", "SHAPESTAre", "SHAPESTLen")
     df <- df[ , !(names(df) %in% extra_columns)]
     return(df)
@@ -85,8 +89,9 @@ write_to_file <- function(shape_data, location_folder, file_name){
     if (!file.exists(file.path(here(), shape_folder))){
         dir.create(file.path(here(), shape_folder))
     }
+
     #write to file
-    st_write(cropped_blocks, paste0(shape_folder, '/',  file_name, '.shp'))
+    st_write(shape_data, paste0(shape_folder, '/',  file_name, '.shp'), append = FALSE)
 }
 
 subset_and_write_demo_data <- function(city_shape_data, demo_type, location, bg_flag){
@@ -104,15 +109,19 @@ subset_and_write_demo_data <- function(city_shape_data, demo_type, location, bg_
     #read in county data
     county_demo <- fread(paste0(county_demo_folder, '/', demo_type), skip = 1, header = T)
     
-    #reformat Geography column for merging
-    county_demo = county_demo[ , Geography := sub(".*US", '', Geography)]
+    #extract prefix from Geography column for merging
+    prefix = sub('(US).*', '\\1',county_demo$Geography[1])
 
-    #get ids from city shape data
-    city_ids <- city_shape_data[ , 'GEOID20', drop = FALSE]
-    city_ids$geometry <- NULL
+    #get unique elements of city_shape data
+    city_ids <- data.table(GEOID20 = city_shape_data$GEOID20)
+
+    #reformat ids for merging
+    city_ids[ , GEOID20:= paste0(prefix, city_ids$GEOID20)  #add prefix in
+            ][ , GEOID20DUP := gsub('\\..*', '', GEOID20)] #remove suffix for merge
     
     #merge
-    city_demo <- merge(city_ids, county_demo, by.x = 'GEOID20', by.y = 'Geography', how = 'inner' )
+    city_demo <- merge(city_ids, county_demo, by.x = 'GEOID20DUP', by.y = 'Geography', how = 'left' )
+    city_demo$GEOID20DUP <- NULL
     #write to file, check if it exists first
     if (!file.exists(file.path(here(), city_demo_folder))){
         dir.create(file.path(here(), city_demo_folder))
@@ -121,7 +130,6 @@ subset_and_write_demo_data <- function(city_shape_data, demo_type, location, bg_
     #replace the names and add header rows before writing
     names(city_demo) <- names(headers)
     city_demo <- rbind(headers, city_demo)
-    #browser() 
     fwrite(city_demo, paste0(city_demo_folder, '/', demo_type), append = FALSE, col.names = FALSE)
 }
 
@@ -158,16 +166,20 @@ ggsave(paste0(TIGER_FOLDER, '/', CONTAINING_COUNTY, '/', CITY_LIMIT_FOLDER, '/',
 ########crop intersecting blocks and assign new interior points #########
 cropped_blocks <- crop_to_city_lines(city_shape, intersecting_blocks)
 cropped_bgs <- crop_to_city_lines(city_shape, intersecting_bgs)
+    #THIS IS A MANUAL CLUDGE TO AVOID A SPECIFIC ERROR.
+    cropped_bgs$geometry_type <- st_geometry_type(cropped_bgs$geometry, by_geometry = T)
+    cropped_bgs <- cropped_bgs[cropped_bgs$geometry_type != 'GEOMETRYCOLLECTION', ]
+    cropped_bgs$geometry_type <- NULL
 
 contained_blocks <- crop_to_city_lines(city_shape, contained_blocks)
 contained_bgs <- crop_to_city_lines(city_shape, contained_bgs)
 
 ########write shape data to file #########
-#write_to_file(cropped_blocks, LOCATION_SUP, BLOCK_GEOMETRY_FILES)
-#write_to_file(contained_blocks, LOCATION_SUB, BLOCK_GEOMETRY_FILES)
+write_to_file(cropped_blocks, LOCATION_SUP, BLOCK_GEOMETRY_FILES)
+write_to_file(contained_blocks, LOCATION_SUB, BLOCK_GEOMETRY_FILES)
 
-#write_to_file(cropped_bgs, LOCATION_SUP, BG_GEOMETRY_FILES)
-#write_to_file(contained_bgs, LOCATION_SUB, BG_GEOMETRY_FILES)
+write_to_file(cropped_bgs, LOCATION_SUP, BG_GEOMETRY_FILES)
+write_to_file(contained_bgs, LOCATION_SUB, BG_GEOMETRY_FILES)
 
 ########write demo data to file #########
 #blocks
@@ -178,9 +190,9 @@ subset_and_write_demo_data(contained_blocks, P3, LOCATION_SUB, FALSE)
 subset_and_write_demo_data(contained_blocks, P4, LOCATION_SUB, FALSE)
 
 #block groups
-subset_and_write_demo_data(cropped_bgs, P3, LOCATION_SUP,TRUE)
+subset_and_write_demo_data(cropped_bgs, P3, LOCATION_SUP, TRUE)
 subset_and_write_demo_data(cropped_bgs, P4, LOCATION_SUP, TRUE)
 
 subset_and_write_demo_data(contained_bgs, P3, LOCATION_SUB, TRUE)
-subset_and_write_demo_data(contained_bgs, P4, LOCATION_SUP, TRUE)
+subset_and_write_demo_data(contained_bgs, P4, LOCATION_SUB, TRUE)
 
