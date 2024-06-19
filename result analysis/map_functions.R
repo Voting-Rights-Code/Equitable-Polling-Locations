@@ -128,8 +128,10 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 		map_name<- paste0(location, "_", map_type, '_', demographic, '.shp')
 	} else if (map_type == 'map'){
 		map_name<- paste0(location, "_", map_type, '.shp')
+	} else if (map_type == 'boundries'){
+		map_name<- paste0(location, "_", map_type, '.shp')
 	} else{
-		stop('map_type must be either map or cartogram')
+		stop('map_type must be either map, boundries or cartogram')
 	}
 	map_folder <- 'result analysis/map work'
 	#load if it exists, else make
@@ -140,20 +142,28 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 		names(map) <- c("GEOID20", "AREA20", "INTPTLAT20", "INTPTLON20", "Geographic Area Name", "population", "white", "black", "native", "asian", "pacific_islander", "other", "multiple_races", "hispanic", "non-hispanic", "geometry")
 	} else {
 		#block group demographics
+		if (map_type == 'boundries') {
+		bg_demo <- process_demographics(paste0(here(), '/datasets/census/redistricting/','Contained_in_', location, "/block group demographics"))
+		} else {
 		bg_demo <- process_demographics(paste0(here(), '/datasets/census/redistricting/', location, "/block group demographics"))
-
+		}
 		#get shape file
 		#Block group shape files
+		if (map_type == 'boundries') {
+		bg_shape_file <- list.files(paste0(here(), '/datasets/census/tiger/','Intersecting_', location ), pattern = 'bg20.shp$')
+		#get map data
+		map_bg_dt <- process_maps(paste0(here(), '/datasets/census/tiger/', 'Intersecting_', location, '/', bg_shape_file))
+		} else {
 		bg_shape_file <- list.files(paste0(here(), '/datasets/census/tiger/', location ), pattern = 'bg20.shp$')
 		#get map data
 		map_bg_dt <- process_maps(paste0(here(), '/datasets/census/tiger/', location, '/', bg_shape_file))
-
+		}
 		#merge the bg shape dt with the bg demo dt
 		bg_demo_shape <- merge(map_bg_dt, bg_demo, by.x = c('GEOID20'), by.y = c('Geography'))
 		#make it an sf object for mapping
 		bg_demo_sf <- st_as_sf(bg_demo_shape)
 		#assign it a projection
-		if (map_type == 'map'){ 
+		if (map_type == 'map'|'boundries'){ 
 			projection = 4326 #must use this projection if you want to add points to map
 		} else {
 			projection = 3857 #correct projection for merc
@@ -188,6 +198,13 @@ make_bg_maps <-function(config_folder, file_to_map, map_type, result_folder_name
 		ev_df_name <-sub('residence_distances', 'result', file_to_map)
 		result_df <- fread(paste0(here(), '/',result_folder_name, '/', ev_df_name))
 		ev_locs <- result_df[ , .(long = unique(dest_lon), lat = unique(dest_lat), type = unique(dest_type)), by = id_dest]
+	}else if (map_type == 'boundries'){
+		map_demo = make_or_load_maps(this_location, 'boundries')
+		map_name = paste('distance', map_type, sep = '_')
+		#in this case, also put in the precincts
+		ev_df_name <-sub('residence_distances', 'result', file_to_map)
+		result_df <- fread(paste0(here(), '/',result_folder_name, '/', ev_df_name))
+		ev_locs <- result_df[ , .(long = unique(dest_lon), lat = unique(dest_lat), type = unique(dest_type)), by = id_dest]	
 	} else {
 		stop('map_type must be either map or cartogram')
 	}
