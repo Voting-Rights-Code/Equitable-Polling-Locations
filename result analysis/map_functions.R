@@ -143,16 +143,22 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 	} else {
 		#block group demographics
 		if (map_type == 'boundries') {
-		bg_demo <- process_demographics(paste0(here(), '/datasets/census/redistricting/','Contained_in_', location, "/block group demographics"))
+		block_demo <- process_demographics(paste0(here(), '/datasets/census/redistricting/', location))
+		demo_names <- names(block_demo)[sapply(block_demo,is.integer) ==TRUE]		
+		block_demo <- process_demographics(paste0(here(), '/datasets/census/redistricting/', location))
+		bg_demo <- block_demo[ , Geography := gsub('.{3}$', '', Geography)
+							][ ,`Geographic Area Name` := gsub('^.{12}', '',`Geographic Area Name` )
+							][ , lapply(.SD, sum), by = c('Geography','Geographic Area Name'), .SDcols = demo_names]
+		browser()
 		} else {
 		bg_demo <- process_demographics(paste0(here(), '/datasets/census/redistricting/', location, "/block group demographics"))
 		}
 		#get shape file
 		#Block group shape files
 		if (map_type == 'boundries') {
-		bg_shape_file <- list.files(paste0(here(), '/datasets/census/tiger/','Intersecting_', location ), pattern = 'bg20.shp$')
+		bg_shape_file <- list.files(paste0(here(), '/datasets/census/tiger/',gsub('Contained_in', 'Intersecting', location) ), pattern = 'bg20.shp$')
 		#get map data
-		map_bg_dt <- process_maps(paste0(here(), '/datasets/census/tiger/', 'Intersecting_', location, '/', bg_shape_file))
+		map_bg_dt <- process_maps(paste0(here(), '/datasets/census/tiger/', gsub('Contained_in', 'Intersecting', location) , '/', bg_shape_file))
 		} else {
 		bg_shape_file <- list.files(paste0(here(), '/datasets/census/tiger/', location ), pattern = 'bg20.shp$')
 		#get map data
@@ -163,7 +169,7 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 		#make it an sf object for mapping
 		bg_demo_sf <- st_as_sf(bg_demo_shape)
 		#assign it a projection
-		if (map_type == 'map'|'boundries'){ 
+		if (map_type %in% c('map','boundries')){ 
 			projection = 4326 #must use this projection if you want to add points to map
 		} else {
 			projection = 3857 #correct projection for merc
@@ -206,7 +212,7 @@ make_bg_maps <-function(config_folder, file_to_map, map_type, result_folder_name
 		result_df <- fread(paste0(here(), '/',result_folder_name, '/', ev_df_name))
 		ev_locs <- result_df[ , .(long = unique(dest_lon), lat = unique(dest_lat), type = unique(dest_type)), by = id_dest]	
 	} else {
-		stop('map_type must be either map or cartogram')
+		stop('map_type must be either map, cartogram or boundries')
 	}
 
 	#combine with res_dist_demo with map
@@ -250,12 +256,12 @@ make_bg_maps <-function(config_folder, file_to_map, map_type, result_folder_name
 	ggsave(paste0(here(), '/', plot_folder, '/',map_name, '_',descriptor, '_','polls.png'), plotted)
 	}
 
-make_demo_dist_map <-function(config_folder, file_to_map, demo_str, result_folder_name = result_folder, this_location = LOCATION){
+make_demo_dist_map <-function(config_folder, file_to_map, demo_str, result_folder_name = result_folder, this_location = LOCATION, map_type = 'map'){
 
 	#read in block level data and aggregate to block group level
 	res_dist_df <- process_residence(file_to_map, demo_str, result_folder_name)
 	#get map
-	map_demo <- make_or_load_maps(this_location, 'map')
+	map_demo <- make_or_load_maps(this_location, map_type)
 	geom_cols <- c('GEOID20', 'INTPTLON20', 'INTPTLAT20', 'geometry')
 	map_sf <- map_demo[, geom_cols]
 	#change lat/lon to numeric
