@@ -4,7 +4,7 @@ source gcloud_env/bin/activate
 gcloud_env/bin/pip install google-cloud-bigquery
 gcloud_env/bin/pip install pandas
 gcloud_env/bin/pip install ast
-gcloud_env/bin/pip install pyarrow
+gcloud_env/bin/pip install arrow
 
 
 
