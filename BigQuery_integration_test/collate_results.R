@@ -44,9 +44,12 @@ collate_outs <- function(config_names, locations, result_dir, config_set, out_ty
     config_set = config_set,
     out_type = out_type
   )
-  
   data.df <- do.call(rbind, data.list)
   rownames(data.df) <- NULL
+  
+  # Replace "." (not allowed) with "_" in column names
+  names(data.df) <- gsub(".", "_", names(data.df), fixed = TRUE)
+  
   return(data.df)
 }
 
@@ -135,6 +138,7 @@ outs.df <- lapply(out_types, function(out_type){
   )
 })
 outs.df$result$X <- NULL
+outs.df$result$county <- NULL
 
 # --- Write to CSV ---
 if(!dir.exists(out_dir)) dir.create(out_dir)
