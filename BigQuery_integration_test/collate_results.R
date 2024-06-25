@@ -1,6 +1,18 @@
 #setwd("BigQuery_integration_test")
 library(yaml)
 
+## ==== Set key parameters and run ====
+
+config_folders_rec <- read.csv("filemaps.csv")
+
+mapply(
+  collate_runs,
+  config_set = config_folders_rec$config_set,
+  config_dir = config_folders_rec$config_dir,
+  result_dir = config_folders_rec$result_dir,
+  out_dir = config_folders_rec$out_dir
+)
+
 ## ==== Define functions ====
 
 append_fields <- function(config_names, locations, result_dir, config_set, out_type){
@@ -19,12 +31,14 @@ append_fields <- function(config_names, locations, result_dir, config_set, out_t
       )
       
       # Read in the data, and add a "config_name" field that will vary within the output
-      data <- read.csv(dir)
-      data$config_name <- config_name
-      
-      # Append location and config_set variables that will remain constant within the output
-      data$location <- location
-      data$config_set <- config_set
+      if(file.exists(dir)){
+        data <- read.csv(dir)
+        data$config_name <- config_name
+        
+        # Append location and config_set variables that will remain constant within the output
+        data$location <- location
+        data$config_set <- config_set
+      } else data <- NULL
       
       return(data)
     },
@@ -97,11 +111,54 @@ literalize_list <- function(col, is.char = TRUE){
   return(rec)
 }
 
+## ==== Run ====
 
+collate_runs <- function(config_set, config_dir, result_dir, out_dir){
+    # --- Read in and collate YAML file ----
+    # Collate config files, and get info from them
+    configs.df <- collate_configs(config_set = config_set, config_dir = config_dir)
+    locations <- simplify2array(configs.df$location)
+    config_names <- simplify2array(configs.df$config_name)
+    
+    # --- Collate output files ---
+    out_types <- c("result", "edes", "precinct_distances", "residence_distances")
+    names(out_types) <- out_types
+    outs.df <- lapply(out_types, function(out_type){
+      collated <- collate_outs(
+        config_names = config_names, 
+        locations = locations, 
+        result_dir = result_dir, 
+        config_set = config_set,
+        out_type = out_type
+      )
+    })
+    outs.df$result$X <- NULL
+    outs.df$result$county <- NULL
+    
+    # --- Write to CSV ---
+    if(!dir.exists(out_dir)) dir.create(out_dir)
+    lapply(out_types, function(out_type){
+      write.csv(
+        outs.df[[out_type]], 
+        file = paste0(out_dir, "/", config_set, "_", out_type, ".csv"),
+        row.names = FALSE
+        
+      )
+    })
+    
+    configs_literal.df <- configs.df
+    configs_literal.df$year <- literalize_list(configs_literal.df$year, is.char = FALSE)
+    configs_literal.df$bad_types <- literalize_list(configs_literal.df$bad_types, is.char = TRUE)
+    write.csv(
+      configs_literal.df, 
+      file = paste0(out_dir, "/", config_set, "_configs.csv"),
+      row.names = FALSE
+    )
+}
+  
+  
 ## ==== Test ====
-# 'Incomplete final line' warning are expected below and seem ignorablew
-
-# --- Tests ---
+# --- Tests of low-level functions ---
 # Read in York and Berkeley configs
 york_configs.df <- collate_configs(config_set = "York_SC_original_configs", config_dir = "../York_SC_original_configs")
 berkeley_configs.df <- collate_configs(config_set = "Berkeley_SC_original_configs", config_dir = "../Berkeley_SC_original_configs")
@@ -109,54 +166,18 @@ berkeley_configs.df <- collate_configs(config_set = "Berkeley_SC_original_config
 # Read in Dekalb configs to validate that we can handle with an array of years per config
 dekalb_test_configs.df <- collate_configs(config_set = "Dekalb_GA_no_bg_school_configs", config_dir = "../Dekalb_GA_no_bg_school_configs")
 
-
-## ==== Run ====
-
-# --- Set parameters ----
+# --- Test run of collate_run ---
 # Set directories
-config_set <- "York_SC_original_configs"
-config_dir <- "../York_SC_original_configs"
-result_dir <- "../York_SC_results"
-out_dir <- paste0(config_set, "_collated")
-
-# --- Read in and collate YAML file ----
-# Collate config files, and get info from them
-configs.df <- collate_configs(config_set = config_set, config_dir = config_dir)
-locations <- simplify2array(configs.df$location)
-config_names <- simplify2array(configs.df$config_name)
-
-# --- Collate output files ---
-out_types <- c("result", "edes", "precinct_distances", "residence_distances")
-names(out_types) <- out_types
-outs.df <- lapply(out_types, function(out_type){
-  collated <- collate_outs(
-    config_names = config_names, 
-    locations = locations, 
-    result_dir = result_dir, 
-    config_set = config_set,
-    out_type = out_type
-  )
-})
-outs.df$result$X <- NULL
-outs.df$result$county <- NULL
-
-# --- Write to CSV ---
-if(!dir.exists(out_dir)) dir.create(out_dir)
-lapply(out_types, function(out_type){
-  write.csv(
-    outs.df[[out_type]], 
-    file = paste0(out_dir, "/", config_set, "_", out_type, ".csv"),
-    row.names = FALSE
-    
-  )
-})
-
-configs_literal.df <- configs.df
-configs_literal.df$year <- literalize_list(configs_literal.df$year, is.char = FALSE)
-configs_literal.df$bad_types <- literalize_list(configs_literal.df$bad_types, is.char = TRUE)
-write.csv(
-  configs_literal.df, 
-  file = paste0(out_dir, "/", config_set, "_configs.csv"),
-  row.names = FALSE
+collate_runs(
+  config_set = "Cobb_GA_no_bg_school_configs",
+  config_dir = "../Cobb_GA_no_bg_school_configs",
+  result_dir = "../Cobb_GA_results",
+  out_dir = "Cobb_GA_no_bg_school_configs_collated"
 )
 
+collate_runs(
+  config_set = "Engage_VA_2024_configs",
+  config_dir = "../Engage_VA_2024_configs",
+  result_dir = "../Fairfax_County_VA_results",
+  out_dir = "Engage_VA_2024_configs_collated"
+)
