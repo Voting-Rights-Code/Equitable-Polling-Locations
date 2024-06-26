@@ -106,11 +106,11 @@ plot_historic_edes(CONFIG_FOLDER, pop_scaled_edes, suffix = 'pop_scaled')
 plot_precinct_persistence(config_df_list[[2]])
 
 ####maps####
-sapply(res_dist_list, function(x)make_bg_maps(CONFIG_FOLDER, x, 'map'))
-sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'black'))
-sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'white'))
-sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'hispanic'))
-sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'asian'))
+sapply(orig_res_dist_list, function(x)make_bg_maps(CONFIG_FOLDER, x, 'map'))
+sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'black'))
+sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'white'))
+sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'hispanic'))
+sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'asian'))
 
 plot_folder = paste0('result analysis/', POTENTIAL_CONFIG_FOLDER)
 if (file.exists(file.path(here(), plot_folder))){
@@ -129,8 +129,8 @@ plot_poll_edes(potential_config_df_list[[1]])
 plot_precinct_persistence(potential_config_df_list[[2]])
 
 ###maps####
-sapply(res_dist_list, function(x)make_bg_maps(POTENTIAL_CONFIG_FOLDER, x, 'map'))
-sapply(res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'black'))
-sapply(res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'white'))
-sapply(res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'hispanic'))
-sapply(res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'asian'))
+sapply(potential_res_dist_list, function(x)make_bg_maps(POTENTIAL_CONFIG_FOLDER, x, 'map'))
+sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'black'))
+sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'white'))
+sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'hispanic'))
+sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'asian'))
