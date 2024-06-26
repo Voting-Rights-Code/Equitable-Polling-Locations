@@ -10,7 +10,7 @@ setwd(here())
 #######
 
 source('result analysis/graph_functions.R')
-
+source('result analysis/map_functions.R')
 
 #######
 #Set Constants
@@ -23,15 +23,7 @@ source('result analysis/graph_functions.R')
 LOCATION = 'Intersecting_Madison_City_of_WI'
 CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_original_configs'
 
-#Run-type specific constants
-#IDEAL_POLL_NUMBER  = 19 #the optimal number of polls desired for this county
-
-#######
-#Location of original location results
-#and other related constants
-#######
-
-#original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
+POTENTIAL_CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_potential_configs'
 
 #######
 #Check that location and folders valid
@@ -42,6 +34,11 @@ CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_original_configs'
 check_config_folder_valid(CONFIG_FOLDER)
 #Does the config folder contain files associated to the location
 check_location_valid(LOCATION, CONFIG_FOLDER)
+
+#Does the config folder exist?
+check_config_folder_valid(POTENTIAL_CONFIG_FOLDER)
+#Does the config folder contain files associated to the location
+check_location_valid(LOCATION, POTENTIAL_CONFIG_FOLDER)
 
 
 #######
@@ -55,22 +52,67 @@ config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'other')
 #config_residence_df<- config_df_list[[3]]
 #config_result_df<- config_df_list[[4]]
 
+potential_config_df_list <- read_result_data(LOCATION, POTENTIAL_CONFIG_FOLDER, 'placement')
+
+#change descriptors
 change_descriptors <- function(df){
     df <- df[descriptor == "original_all_2024", descriptor := "All locations"
             ][descriptor == "original_walkin_2024", descriptor := "Walk ins"
             ]
 return(df)
 }
+
 config_df_list = lapply(config_df_list, change_descriptors)
 
+#change num_polls
+potential_config_df_list <- lapply(potential_config_df_list, function(x) {x[ , num_polls:= as.numeric(gsub('change_', '', descriptor))]})
 
-#orig_df_list <- read_result_data(LOCATION, original_locations, 'historical')
-#defined as above
+#########
+#Set up maps and cartograms
+#########
+#set result folder
+result_folder = paste(LOCATION, 'results', sep = '_')
+
+#get all file names the result_folder with the strings config_folder and 'residence_distances'
+res_dist_list = list.files(result_folder)[grepl('residence_distances', list.files(result_folder))]
+orig_res_dist_list = res_dist_list[grepl(CONFIG_FOLDER, res_dist_list)]
+potential_res_dist_list = res_dist_list[grepl(POTENTIAL_CONFIG_FOLDER, res_dist_list)]
+
+#get avg distance bounds for map coloring
+orig_color_bounds <- distance_bounds(LOCATION, CONFIG_FOLDER)
+potential_color_bounds <- distance_bounds(LOCATION, POTENTIAL_CONFIG_FOLDER)
+global_min <- min(orig_color_bounds[[1]], potential_color_bounds[[1]])
+global_max <- max(orig_color_bounds[[2]], potential_color_bounds[[2]])
+color_bounds <- list(global_min, global_max)
 
 #######
 #Plot data
 #######
 plot_folder = paste0('result analysis/', CONFIG_FOLDER)
+if (file.exists(file.path(here(), plot_folder))){
+    setwd(file.path(here(), plot_folder))
+} else{
+    dir.create(file.path(here(), plot_folder))
+    setwd(file.path(here(), plot_folder))
+}
+
+###graphs####
+
+#Add percent population to data ede data for graph scaling for all general config folder and orig
+pop_scaled_edes <- ede_with_pop(config_df_list)
+#Plot the edes for all runs in original_location and equivalent optimization runs by demographic
+plot_historic_edes(CONFIG_FOLDER, pop_scaled_edes, suffix = 'pop_scaled')
+
+plot_precinct_persistence(config_df_list[[2]])
+
+####maps####
+sapply(res_dist_list, function(x)make_bg_maps(CONFIG_FOLDER, x, 'map'))
+sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'black'))
+sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'white'))
+sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'hispanic'))
+sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'asian'))
+
+plot_folder = paste0('result analysis/', POTENTIAL_CONFIG_FOLDER)
 if (file.exists(file.path(here(), plot_folder))){
     setwd(file.path(here(), plot_folder))    
 } else{
@@ -78,22 +120,17 @@ if (file.exists(file.path(here(), plot_folder))){
     setwd(file.path(here(), plot_folder))
 }
 
-#Add percent population to data ede data for graph scaling for all general config folder and orig
-pop_scaled_edes <- ede_with_pop(config_df_list)
-#pop_scaled_edes_orig <- ede_with_pop(orig_df_list)
-#pop_scaled_edes_orig <- ede_with_pop(orig_df_list)
+###graphs####
 
 #Plot the edes for all runs in config_folder by demographic and population only
-#plot_poll_edes(config_df_list[[1]])
-#plot_population_edes(config_df_list[[1]])
+plot_poll_edes(potential_config_df_list[[1]])
 
-#Plot the edes for all runs in original_location and equivalent optimization runs by demographic
-plot_historic_edes(CONFIG_FOLDER, pop_scaled_edes, suffix = 'pop_scaled')
+#Plot which precincts are used for each number of polls
+plot_precinct_persistence(potential_config_df_list[[2]])
 
-
-#Histogram of the original distributions and that for the desired number of polls
-#plot_orig_ideal_hist(orig_df_list[[3]], config_df_list[[3]], IDEAL_POLL_NUMBER)
-#ggplot(config_df_list[[3]], aes(x = avg_dist, fill = descriptor)) + 
-#		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
-#		labs(x = 'Average distance traveled to poll (m)', y = 'Number of people', fill = 'Optimization Run') 
-#		ggsave('avg_dist_distribution_hist.png')
+###maps####
+sapply(res_dist_list, function(x)make_bg_maps(POTENTIAL_CONFIG_FOLDER, x, 'map'))
+sapply(res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'black'))
+sapply(res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'white'))
+sapply(res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'hispanic'))
+sapply(res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'asian'))

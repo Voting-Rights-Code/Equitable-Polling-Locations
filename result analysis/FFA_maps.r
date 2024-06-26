@@ -17,8 +17,8 @@ source('result analysis/graph_functions.R')
 #Location must be part of config folder string
 
 
-LOCATION = 'Intersecting_Madison_City_of_WI'
-CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_original_configs'
+LOCATION = 'Contained_in_Madison_City_of_WI'
+CONFIG_FOLDER = 'Contained_in_Madison_City_of_WI_potential_configs'
 
 
 #original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
@@ -62,4 +62,5 @@ sapply(res_dist_list, function(x)make_bg_maps(CONFIG_FOLDER, x, 'map'))
 sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'black'))
 sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'white'))
 sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'hispanic'))
+sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'asian'))
 
