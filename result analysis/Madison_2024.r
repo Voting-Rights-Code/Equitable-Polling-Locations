@@ -20,10 +20,11 @@ source('result analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'Intersecting_Madison_City_of_WI'
-CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_original_configs'
+LOCATION = 'Contained_in_Madison_City_of_WI'
+CONFIG_FOLDER = 'Contained_in_Madison_City_of_WI_original_configs'
 
-POTENTIAL_CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_potential_configs'
+POTENTIAL_CONFIG_FOLDER = 'Contained_in_Madison_City_of_WI_potential_configs'
+
 
 #######
 #Check that location and folders valid
@@ -52,7 +53,7 @@ config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'other')
 #config_residence_df<- config_df_list[[3]]
 #config_result_df<- config_df_list[[4]]
 
-potential_config_df_list <- read_result_data(LOCATION, POTENTIAL_CONFIG_FOLDER, 'placement')
+potential_config_df_list <- read_result_data(LOCATION, POTENTIAL_CONFIG_FOLDER, 'other')
 
 #change descriptors
 change_descriptors <- function(df){
@@ -106,11 +107,20 @@ plot_historic_edes(CONFIG_FOLDER, pop_scaled_edes, suffix = 'pop_scaled')
 plot_precinct_persistence(config_df_list[[2]])
 
 ####maps####
+sapply(orig_res_dist_list, function(x)make_bg_maps(CONFIG_FOLDER, x, 'boundries'))
+sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'black', map_type = 'boundries'))
+sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'white', map_type = 'boundries'))
+sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'hispanic', map_type = 'boundries'))
+sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'asian', map_type = 'boundries'))
+sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'population', map_type = 'boundries'))
+
 sapply(orig_res_dist_list, function(x)make_bg_maps(CONFIG_FOLDER, x, 'map'))
-sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'black'))
-sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'white'))
-sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'hispanic'))
-sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'asian'))
+#sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'black', map_type = 'map'))
+#sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'white', map_type = 'map'))
+#sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'hispanic', map_type = 'map'))
+#sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'asian', map_type = 'map'))
+#sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'population', map_type = 'map'))
+
 
 plot_folder = paste0('result analysis/', POTENTIAL_CONFIG_FOLDER)
 if (file.exists(file.path(here(), plot_folder))){
@@ -129,8 +139,16 @@ plot_poll_edes(potential_config_df_list[[1]])
 plot_precinct_persistence(potential_config_df_list[[2]])
 
 ###maps####
-sapply(potential_res_dist_list, function(x)make_bg_maps(POTENTIAL_CONFIG_FOLDER, x, 'map'))
-sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'black'))
-sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'white'))
-sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'hispanic'))
-sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'asian'))
+sapply(potential_res_dist_list, function(x)make_bg_maps(POTENTIAL_CONFIG_FOLDER, x, 'boundries'))
+sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'black', map_type = 'boundries'))
+sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'white', map_type = 'boundries'))
+sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'hispanic', map_type = 'boundries'))
+sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'asian', map_type = 'boundries'))
+
+#sapply(orig_res_dist_list, function(x)make_bg_maps(POTENTIAL_CONFIG_FOLDER, x, 'map'))
+#sapply(orig_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'black', map_type = 'map'))
+#sapply(orig_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'white', map_type = 'map'))
+#sapply(orig_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'hispanic', map_type = 'map'))
+#sapply(orig_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'asian', map_type = 'map'))
+#sapply(orig_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'population', map_type = 'map'))
+

@@ -149,20 +149,19 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 		bg_demo <- block_demo[ , Geography := gsub('.{3}$', '', Geography)
 							][ ,`Geographic Area Name` := gsub('^.{12}', '',`Geographic Area Name` )
 							][ , lapply(.SD, sum), by = c('Geography','Geographic Area Name'), .SDcols = demo_names]
-		browser()
 		} else {
 		bg_demo <- process_demographics(paste0(here(), '/datasets/census/redistricting/', location, "/block group demographics"))
 		}
 		#get shape file
 		#Block group shape files
 		if (map_type == 'boundries') {
-		bg_shape_file <- list.files(paste0(here(), '/datasets/census/tiger/',gsub('Contained_in', 'Intersecting', location) ), pattern = 'bg20.shp$')
-		#get map data
-		map_bg_dt <- process_maps(paste0(here(), '/datasets/census/tiger/', gsub('Contained_in', 'Intersecting', location) , '/', bg_shape_file))
+			bg_shape_file <- list.files(paste0(here(), '/datasets/census/tiger/',gsub('Contained_in', 'Intersecting', location) ), pattern = 'bg20.shp$')
+			#get map data
+			map_bg_dt <- process_maps(paste0(here(), '/datasets/census/tiger/', gsub('Contained_in', 'Intersecting', location) , '/', bg_shape_file))
 		} else {
-		bg_shape_file <- list.files(paste0(here(), '/datasets/census/tiger/', location ), pattern = 'bg20.shp$')
-		#get map data
-		map_bg_dt <- process_maps(paste0(here(), '/datasets/census/tiger/', location, '/', bg_shape_file))
+			bg_shape_file <- list.files(paste0(here(), '/datasets/census/tiger/', location ), pattern = 'bg20.shp$')
+			#get map data
+			map_bg_dt <- process_maps(paste0(here(), '/datasets/census/tiger/', location, '/', bg_shape_file))
 		}
 		#merge the bg shape dt with the bg demo dt
 		bg_demo_shape <- merge(map_bg_dt, bg_demo, by.x = c('GEOID20'), by.y = c('Geography'))
@@ -195,22 +194,15 @@ make_bg_maps <-function(config_folder, file_to_map, map_type, result_folder_name
 	#extract demographics from map
 	#must do this way because map is an sf object, not a data.table
 	if (map_type == 'cartogram'){
-		map_demo = make_or_load_maps(this_location, 'cartogram', demo_str)
+		map_demo = make_or_load_maps(this_location, map_type, demo_str)
 		map_name = paste('distance', demo_str, map_type, sep = '_')
-	}else if (map_type == 'map'){
-		map_demo = make_or_load_maps(this_location, 'map')
+	}else if (map_type %in% c('map', 'boundries')) { #map_type !=cartogram
+		map_demo = make_or_load_maps(this_location, map_type)
 		map_name = paste('distance', map_type, sep = '_')
 		#in this case, also put in the precincts
 		ev_df_name <-sub('residence_distances', 'result', file_to_map)
 		result_df <- fread(paste0(here(), '/',result_folder_name, '/', ev_df_name))
 		ev_locs <- result_df[ , .(long = unique(dest_lon), lat = unique(dest_lat), type = unique(dest_type)), by = id_dest]
-	}else if (map_type == 'boundries'){
-		map_demo = make_or_load_maps(this_location, 'boundries')
-		map_name = paste('distance', map_type, sep = '_')
-		#in this case, also put in the precincts
-		ev_df_name <-sub('residence_distances', 'result', file_to_map)
-		result_df <- fread(paste0(here(), '/',result_folder_name, '/', ev_df_name))
-		ev_locs <- result_df[ , .(long = unique(dest_lon), lat = unique(dest_lat), type = unique(dest_type)), by = id_dest]	
 	} else {
 		stop('map_type must be either map, cartogram or boundries')
 	}
@@ -235,7 +227,7 @@ make_bg_maps <-function(config_folder, file_to_map, map_type, result_folder_name
 	plotted <- ggplot() +
 		geom_sf(data = demo_dist_shape, aes(fill = avg_dist)) + 
 		scale_fill_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = fill_str) 
-	if (map_type == 'map'){
+	if (map_type != 'cartogram'){
 		plotted = plotted + 
 		geom_point(data = ev_locs, aes(x = long, y = lat, color = type))+ 
 		scale_color_manual(breaks = c('polling', 'potential', 'bg_centroid'), values = c('red', 'black', 'dimgrey'), name = 'Poll Type') +  xlab('') + ylab('') 
