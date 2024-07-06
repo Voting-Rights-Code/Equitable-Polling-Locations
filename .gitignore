@@ -163,6 +163,9 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+# API key for census
+.census_key.py
+
 # Misc
 logs
 .DS_Store

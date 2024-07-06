@@ -7,6 +7,66 @@ import pandas as pd
 from pathlib import Path
 
 
+STATE_LOOKUP = {
+    'AK': 'Alaska',
+    'AL': 'Alabama',
+    'AR': 'Arkansas',
+    'AS': 'American Samoa',
+    'AZ': 'Arizona',
+    'CA': 'California',
+    'CO': 'Colorado',
+    'CT': 'Connecticut',
+    'DC': 'District of Columbia',
+    'DE': 'Delaware',
+    'FL': 'Florida',
+    'GA': 'Georgia',
+    'GU': 'Guam',
+    'HI': 'Hawaii',
+    'IA': 'Iowa',
+    'ID': 'Idaho',
+    'IL': 'Illinois',
+    'IN': 'Indiana',
+    'KS': 'Kansas',
+    'KY': 'Kentucky',
+    'LA': 'Louisiana',
+    'MA': 'Massachusetts',
+    'MD': 'Maryland',
+    'ME': 'Maine',
+    'MI': 'Michigan',
+    'MN': 'Minnesota',
+    'MO': 'Missouri',
+    'MP': 'Northern Mariana Islands',
+    'MS': 'Mississippi',
+    'MT': 'Montana',
+    'NA': 'National',
+    'NC': 'North Carolina',
+    'ND': 'North Dakota',
+    'NE': 'Nebraska',
+    'NH': 'New Hampshire',
+    'NJ': 'New Jersey',
+    'NM': 'New Mexico',
+    'NV': 'Nevada',
+    'NY': 'New York',
+    'OH': 'Ohio',
+    'OK': 'Oklahoma',
+    'OR': 'Oregon',
+    'PA': 'Pennsylvania',
+    'PR': 'Puerto Rico',
+    'RI': 'Rhode Island',
+    'SC': 'South Carolina',
+    'SD': 'South Dakota',
+    'TN': 'Tennessee',
+    'TX': 'Texas',
+    'UT': 'Utah',
+    'VA': 'Virginia',
+    'VI': 'Virgin Islands',
+    'VT': 'Vermont',
+    'WA': 'Washington',
+    'WI': 'Wisconsin',
+    'WV': 'West Virginia',
+    'WY': 'Wyoming'
+}
+
 def get_all_states_fips_codes(api_key):
     """
     Get the fips codes for all 50 states
@@ -66,17 +126,17 @@ def pull_ptable_data(geo, pnum, state_fips, county_code, api_key):
     r = requests.get(
         f"https://api.census.gov/data/2020/dec/pl?get=group({pnum})&for={geo}:*&in=state:{state_fips}&in=county:{county_code}&in=tract:*&key={api_key}"
     )
-    data = pd.DataFrame(r.json()) 
+    '''data = pd.DataFrame(r.json()) 
     headers = data.iloc[0].values
     metadata = pull_metadata(f"https://api.census.gov/data/2020/dec/pl/groups/{pnum}")
     headers2 = [metadata.loc[name] for name in headers]
     headers_all = list(tuple(zip(headers, headers2)))
     data.columns = headers_all
-    data.drop(index=0, axis=0, inplace=True)
-    #data = pd.DataFrame(r.json())
-    #headers = data.iloc[0].values
-    #data.columns = headers
-    #metadata = pull_metadata(f"https://api.census.gov/data/2020/dec/pl/groups/{pnum}")
+    data.drop(index=0, axis=0, inplace=True)'''
+    data = pd.DataFrame(r.json())
+    headers = data.iloc[0].values
+    data.columns = headers
+    metadata = pull_metadata(f"https://api.census.gov/data/2020/dec/pl/groups/{pnum}")
     return data, metadata
 
 
@@ -84,7 +144,7 @@ def save_pdata(df, county, state, geo, pnum, meta=False, base_path = "./datasets
     """
     Save off the census redistricting table data and metadata
     """
-    fname = Path(base_path).joinpath(f"{county}_{state}/")
+    fname = Path(base_path).joinpath(f"{county.replace(' ','_')}_{state}/")
     if geo=="block":
         fname = fname
     elif geo=="block group":
@@ -125,28 +185,31 @@ def unzip_file(fpath, outdir):
     )
 
 
-def pull_tiger_file(state, fips, county, county_code, geo):
+def pull_tiger_file(statecode, fips, county, county_code, geo, state_lookup = STATE_LOOKUP):
     """
     Pull and save tiger shapefile
     """
+    state = state_lookup.get(statecode)
     if geo == 'block':
         geo = "tabblock20"
     elif geo == 'block group':
         geo = "bg20"
     base_url = f"https://www2.census.gov/geo/tiger/TIGER2020PL/STATE/{fips}_{state.upper()}/{fips}{county_code}/tl_2020_{fips}{county_code}_{geo}.zip"
-    output_directory = Path(f"./datasets/census/tiger/{county}_{state}/")
+    output_directory = Path(f"./datasets/census/tiger/{county.replace(' ','_')}_{statecode}/")
     fname = download_file(base_url, output_directory)
     unzip_file(fname, output_directory)
     return base_url, output_directory
 
 
-def pull_census_data(state, county, APIKEY):
+def pull_census_data(statecode, county, APIKEY, state_lookup=STATE_LOOKUP):
     """
-    Given a state (full name, must be capitalized properly. i.e., "New York", not "NY" or "new york"),
+    Given a statecode (i.e. MD or NY),
     and county (full name, must be capitalized properly),
     pull P3 and P4 data and tiger files
 
     """
+
+    state = state_lookup.get(statecode)
     states_fips = get_all_states_fips_codes(APIKEY)  # get all fips codes for all states
     fipscode = states_fips[state]
 
@@ -163,12 +226,12 @@ def pull_census_data(state, county, APIKEY):
             data, metadata = pull_ptable_data(geo, pnum, fipscode, countycode, APIKEY)
 
             # save off dataframe and metadata
-            save_pdata(data, county, state, geo, pnum)
-            save_pdata(metadata, county, state, geo, pnum, meta=True)
+            save_pdata(data, county, statecode, geo, pnum)
+            save_pdata(metadata, county, statecode, geo, pnum, meta=True)
 
         # pull tiger files
         print(f"Now pulling tiger data for {geo} geography")
-        url, out = pull_tiger_file(state, fipscode, county, countycode, geo)
+        url, out = pull_tiger_file(statecode, fipscode, county, countycode, geo)
 
     return "Success"
 

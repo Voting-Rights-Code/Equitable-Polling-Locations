@@ -1,3 +1,4 @@
+library(here)
 #######
 #Change directory
 #######
@@ -15,8 +16,8 @@ source('result analysis/graph_functions.R')
 #Location must be part of config folder string
 
 
-LOCATION = 'Chesterfield_County_VA'
-CONFIG_FOLDER = 'Chesterfield_County_VA_potential_configs'
+LOCATION = 'Henrico_County_VA'
+CONFIG_FOLDER = 'Henrico_County_VA_potential_configs'
 
 
 #original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
