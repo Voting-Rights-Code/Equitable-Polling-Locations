@@ -18,9 +18,8 @@ class PollingModelConfig:
 
     location: str
     '''Name of the county or city of interest'''
-    year: List[int]
+    year: List[str]
     '''list of years to be studied'''
-    # NB: changed from STR to INT; check if there was a reason this was str
     bad_types: List[str]
     '''list of location types not to be considered in this model'''
     beta: float
@@ -73,10 +72,6 @@ class PollingModelConfig:
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
             config = yaml.safe_load(yaml_file)
-            print(config['year'])
-            print(type(config['year']))
-            print(type(config['year'][0]))
-
             result = PollingModelConfig(**config)
             result.config_file_path = config_yaml_path
 
