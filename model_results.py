@@ -11,11 +11,15 @@ import os
 import math
 from utils import timer
 
+from google.cloud import bigquery
+from google.cloud import bigquery_storage
+import arrow
+
 @timer
 def incorporate_result(dist_df, model):
     '''Input: dist_df--the main data frame containing the data for model
               model -- the solved model
-              model.matching -- pyo boolean variable for when a residence is matched to a precinct (res, prec):bool
+              model.matchingf -- pyo boolean variable for when a residence is matched to a precinct (res, prec):bool
     output: dataframe containing only the matched residences and precincts'''
 
     #turn matched solution into df
@@ -105,8 +109,8 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
     return demographic_summary
 
 @timer
-def write_results(result_folder, run_prefix, result_df, demographic_prec, demographic_res, demographic_ede):
-    '''Write result, demographic_prec, demographic_res and demographic_ede to file'''
+def write_results_csv(result_folder, run_prefix, result_df, demographic_prec, demographic_res, demographic_ede):
+    '''Write result, demographic_prec, demographic_res and demographic_ede to local CSV file'''
 
     #check if the directory exists
     if not os.path.exists(result_folder):
@@ -119,4 +123,103 @@ def write_results(result_folder, run_prefix, result_df, demographic_prec, demogr
     demographic_prec.to_csv(os.path.join(result_folder, precinct_summary), index = True)
     demographic_res.to_csv(os.path.join(result_folder, residence_summary), index = True)
     demographic_ede.to_csv(os.path.join(result_folder, y_ede_summary), index = True)
+
+    return
+
+
+def write_results_bigquery(config, result_df, demographic_prec, demographic_res, demographic_ede, overwrite = False):
+    '''Write result, demographic_prec, demographic_res and demographic_ede to BigQuery SQL tables'''
+
+    # ==== Construct a BigQuery client object ====
+    client = bigquery.Client()
+
+
+    # ==== Define parameters that should usually be fixed ====
+
+    # Don't change this, it's the server-side name
+    project = "voting-rights-storage-test"
+    dataset = "polling"
+    project_dataset = project + "." + dataset
+
+
+    # ==== Create dict of outputs and related name ====
+
+    config_df = config.df()
+
+    source_data = {
+        "configs": config_df,
+        "edes": demographic_ede,
+        "result": result_df,
+        "precinct_distances": demographic_prec,
+        "residence_distances": demographic_res
+    } 
+
+    out_types = source_data.keys()
+
+
+    # ==== Check for existing data ====
+    # ---- TO DO: Check types of output before writing, possibly using the existing type data from the table_specs.py file ----
+    # ---- TO DO: Check primary key uniqueness for tables
+
+    # ---- Check whether any of the configs already exist ----
+    configs_series = "'" + source_data['configs']['config_name'] + "'"
+    configs_str = configs_series.str.cat(sep = ",")
+
+    query = f'''
+    SELECT config_name
+    FROM {dataset}.configs 
+    WHERE config_name IN({configs_str})
+    '''
+
+    existing_configs_df = client.query(query).to_dataframe()
+    existing_configs_yn = existing_configs_df.shape[0] > 0
+
+    configs_dup_series = "'" + existing_configs_df['config_name'] + "'"
+    configs_dup_str = configs_dup_series.str.cat(sep = ", ")
+
+
+    # ==== Write data, if it should be written ====
+
+    # --- If overwrite == False and a config with the given name exists, warning message ----
+    if((existing_configs_yn == True) & (overwrite == False)):
+        print(f"Config(s) [{configs_dup_str}] already exist; failing since overwrite == False")
+        return
+
+    # ---- If overwrite == True or no config exists ----
+    # drop rows if necessary
+    if((existing_configs_yn == True) & (overwrite == True)):
+       for out_type in out_types:
+            dml_statement = f'''
+            DELETE FROM {dataset}.{out_type} WHERE config_name IN({configs_dup_str})
+            '''
+            job = client.query(dml_statement)
+            # TODO: Running these jobs in serial right now, which is inefficient; need to monitor progress for all simultaneously
+            # TODO: Check for error handling if these jobs fails
+            job.result()
+    
+       print(f"Config(s) [{configs_dup_str}] already exist; dropping since overwrite == True")
+
+    # ==== Write data ====
+
+    for out_type in out_types:
+
+        table_id = project_dataset + "." + out_type
+
+        # ---- Upload ----
+        job = client.load_table_from_dataframe(
+            source_data[out_type], 
+            table_id
+        )
+
+        # TO DO: Running these jobs in serial right now, which is inefficient; need to monitor progress for all simultaneously
+        # TO DO: Drop new rows (revert) if not all tables update successfully
+        job.result()  # Waits for the job to complete.
+
+        table = client.get_table(table_id)  # Make an API request.
+        print(
+            "Loaded {} rows and {} columns to {}".format(
+                table.num_rows, len(table.schema), table_id
+            )
+        )
+
     return

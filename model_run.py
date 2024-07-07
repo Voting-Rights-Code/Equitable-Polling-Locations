@@ -76,7 +76,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
 
     result_folder = config.result_folder
 
-    write_results(
+    write_results_csv(
         result_folder,
         run_prefix,
         result_df,
@@ -84,5 +84,14 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
         demographic_res,
         demographic_ede,
     )
+
+    # write_results_bigquery(
+    #     result_folder,
+    #     run_prefix,
+    #     result_df,
+    #     demographic_prec,
+    #     demographic_res,
+    #     demographic_ede,
+    # )
 
     return result_folder

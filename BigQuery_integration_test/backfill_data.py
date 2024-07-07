@@ -4,8 +4,6 @@ import pandas as pd
 from ast import literal_eval # Converting CSV strings to lists
 import arrow
 
-# Construct a BigQuery client object.
-client = bigquery.Client()
 
 
 # ==== Define parameters to change run-by-run ====
@@ -21,12 +19,16 @@ filemaps = pd.read_csv('filemaps.csv')
 # ==== Define function ====
 
 def backfill_data(config_set, in_dir, overwrite = False):
+
+    # ==== Construct a BigQuery client object ====
+    client = bigquery.Client()
+
     # ==== Define parameters that should usually be fixed ====
 
     # Don't change this, it's the server-side name
     project = "voting-rights-storage-test"
     dataset = "polling"
-    project_dataset = project + dataset
+    project_dataset = project + "." + dataset
     out_types= [
         "configs",
         "edes",
@@ -132,4 +134,4 @@ backfill_data(config_set = config_set, in_dir = in_dir, overwrite = overwrite)
 
 for i,j in zip(filemaps.config_set, filemaps.out_dir):
 #   backfill_data(config_set = i, in_dir = j, overwrite = overwrite)
-   print(f"Backfilled data for config set {i}")   
+    print(f"Backfilled data for config set {i}")   

@@ -24,7 +24,7 @@ job_configs = {
            bigquery.SchemaField("run_time", bigquery.enums.SqlTypeNames.TIMESTAMP, "NULLABLE")
 
         ],
-        clustering_fields = ['config_set', 'config_name', 'location']
+        clustering_fields = ['config_set', 'config_name']
     ),
     "edes": bigquery.LoadJobConfig(
         schema=[
@@ -36,10 +36,9 @@ job_configs = {
                bigquery.SchemaField("avg_KP_weight", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
                bigquery.SchemaField("y_EDE", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
                bigquery.SchemaField("config_name", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
-               bigquery.SchemaField("location", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
                bigquery.SchemaField("config_set", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
             ],
-        clustering_fields = ['config_set', 'config_name', 'location']
+        clustering_fields = ['config_set', 'config_name']
     ),
     "result": bigquery.LoadJobConfig(
         schema=[
@@ -68,10 +67,9 @@ job_configs = {
            bigquery.SchemaField("new_location", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
            bigquery.SchemaField("matching", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
            bigquery.SchemaField("config_name", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
-           bigquery.SchemaField("location", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
            bigquery.SchemaField("config_set", bigquery.enums.SqlTypeNames.STRING, "REQUIRED")
         ],
-        clustering_fields = ['config_set', 'config_name', 'location']
+        clustering_fields = ['config_set', 'config_name']
     ),
     "precinct_distances": bigquery.LoadJobConfig(
         schema=[
@@ -80,10 +78,9 @@ job_configs = {
            bigquery.SchemaField("demo_pop", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
            bigquery.SchemaField("avg_dist", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
            bigquery.SchemaField("config_name", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
-           bigquery.SchemaField("location", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
            bigquery.SchemaField("config_set", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
         ],
-        clustering_fields = ['config_set', 'config_name', 'location']
+        clustering_fields = ['config_set', 'config_name']
     ),
     "residence_distances": bigquery.LoadJobConfig(
         schema=[
@@ -93,9 +90,8 @@ job_configs = {
            bigquery.SchemaField("demo_pop", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
            bigquery.SchemaField("avg_dist", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
            bigquery.SchemaField("config_name", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
-           bigquery.SchemaField("location", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
            bigquery.SchemaField("config_set", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
         ],
-        clustering_fields = ['config_set', 'config_name', 'location']
+        clustering_fields = ['config_set', 'config_name']
     )
 }

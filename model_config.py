@@ -8,6 +8,9 @@
 from typing import List
 from dataclasses import dataclass
 import yaml
+import os
+import pandas as pd
+import datetime as dt
 
 @dataclass
 class PollingModelConfig:
@@ -15,8 +18,9 @@ class PollingModelConfig:
 
     location: str
     '''Name of the county or city of interest'''
-    year: List[str]
+    year: List[int]
     '''list of years to be studied'''
+    # NB: changed from STR to INT; check if there was a reason this was str
     bad_types: List[str]
     '''list of location types not to be considered in this model'''
     beta: float
@@ -40,12 +44,21 @@ class PollingModelConfig:
     capacity: float = 1.0
     '''A multiplicative factor for calculating the capacity constraint. Should be >= 1.
     Default = 1.'''
+    config_name: str = None
+    '''Unique name of config. Will fall back to name of file if none is supplied'''
+    config_set: str = None
+    '''Set of related configs that this config belongs to'''
+
+
+    commit_hash: str = None
+    '''NOT CURRENTLY IN USE. Git commit under which this code was run'''
+    run_time: dt.datetime = None
+    '''NOT CURRENTLY IN USE. Time at which model run was initiated'''
+
     result_folder: str = None
     ''' The location to write out results '''
-
     config_file_path: str = None
     ''' The path to the file that defines this config.  '''
-
     log_file_path: str = None
     ''' If specified, the location of the file to write logs to '''
 
@@ -60,7 +73,31 @@ class PollingModelConfig:
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
             config = yaml.safe_load(yaml_file)
+            print(config['year'])
+            print(type(config['year']))
+            print(type(config['year'][0]))
+
             result = PollingModelConfig(**config)
             result.config_file_path = config_yaml_path
+
+            if not result.config_name:
+                result.config_name = os.path.splitext(os.path.basename(config_yaml_path))[0]
+                print("Config name not specified, so taking from config YAML filepath; this is not recommended")
+            if not result.config_set:
+                result.config_set = os.path.basename(os.path.dirname(config_yaml_path))
+                print("Config set not specified, so taking from config YAML filepath; this is not recommended")
+
             return result
+
+
+    def df(self) -> pd.DataFrame:
+        config_dict = {}
+        for key, value in vars(self).items():
+            config_dict[key] = [value]
+        config_df = pd.DataFrame(config_dict)
+
+        col_order = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 'max_min_mult', 'maxpctnew', 'minpctold', 'config_name','config_set' ,'commit_hash','run_time']
+        config_df = config_df.loc[:, col_order]
+        return config_df
+
 
