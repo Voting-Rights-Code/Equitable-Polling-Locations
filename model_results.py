@@ -19,7 +19,7 @@ import arrow
 def incorporate_result(dist_df, model):
     '''Input: dist_df--the main data frame containing the data for model
               model -- the solved model
-              model.matchingf -- pyo boolean variable for when a residence is matched to a precinct (res, prec):bool
+              model.matching -- pyo boolean variable for when a residence is matched to a precinct (res, prec):bool
     output: dataframe containing only the matched residences and precincts'''
 
     #turn matched solution into df
