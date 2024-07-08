@@ -21,15 +21,12 @@ config_df = config.df()
 
 # # Get Output Files
 
-demographic_ede = pd.read_csv('BigQuery_integration_test/York_SC_original_configs_collated/York_SC_original_configs_edes.csv')
-demographic_prec = pd.read_csv('BigQuery_integration_test/York_SC_original_configs_collated/York_SC_original_configs_precinct_distances.csv')
-demographic_res = pd.read_csv('BigQuery_integration_test/York_SC_original_configs_collated/York_SC_original_configs_residence_distances.csv', dtype = {'id_orig':str})
-result_df = pd.read_csv('BigQuery_integration_test/York_SC_original_configs_collated/York_SC_original_configs_result.csv', dtype = {'id_orig':str})
+demographic_ede = pd.read_csv('York_SC_results/York_SC_original_configs.York_config_original_2022_edes.csv')
+demographic_prec = pd.read_csv('York_SC_results/York_SC_original_configs.York_config_original_2022_precinct_distances.csv')
+demographic_res = pd.read_csv('York_SC_results/York_SC_original_configs.York_config_original_2022_residence_distances.csv', dtype = {'id_orig':str})
+result_df = pd.read_csv('York_SC_results/York_SC_original_configs.York_config_original_2022_result.csv', dtype = {'id_orig':str}, index_col = 0)
 
-demographic_ede = demographic_ede.loc[demographic_ede['config_name'] == 'York_config_original_2022', :]
-demographic_prec = demographic_prec.loc[demographic_prec['config_name'] == 'York_config_original_2022', :]
-demographic_res = demographic_res.loc[demographic_res['config_name'] == 'York_config_original_2022', :]
-result_df = result_df.loc[result_df['config_name'] == 'York_config_original_2022', :]
+result_df = result_df.rename(columns = {"non-hispanic": "non_hispanic"})
 
 write_results_bigquery(config, result_df, demographic_prec, demographic_res, demographic_ede, overwrite = True)
 # client = bigquery.Client()

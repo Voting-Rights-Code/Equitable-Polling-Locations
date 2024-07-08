@@ -7,12 +7,13 @@ import arrow
 
 
 # ==== Define parameters to change run-by-run ====
+overwrite = True
+check_dups = True
+
 
 # ---- One-off runs ----
 config_set = "York_SC_original_configs"
 in_dir = config_set + "_collated"
-overwrite = True
-check_dups = True
 
 # ---- Big chunk of runs ----
 filemaps = pd.read_csv('filemaps.csv')
@@ -215,6 +216,7 @@ def backfill_data(config_set, in_dir, overwrite = False):
         # TO DO: Drop new rows (revert) if not all tables update successfully
         job.result()  # Waits for the job to complete.
 
+        # TO DO: Change potentially-misleading message below; fetch the number of *new* rows via a select statement
         table = client.get_table(table_id)  # Make an API request.
         print(
             "Loaded {} rows and {} columns to {}".format(

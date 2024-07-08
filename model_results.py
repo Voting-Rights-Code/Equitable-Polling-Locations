@@ -144,6 +144,7 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
 
     # ==== Create dict of outputs and related name ====
 
+
     config_df = config.df()
 
     source_data = {
@@ -156,8 +157,17 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
 
     out_types = source_data.keys()
 
+    # Cycle over out_types other than config_df, and append config_name and config_set columns to them
+    for out_type in out_types:
+        if(out_type != "configs"):
+            source_data[out_type]['config_name'] = config.config_name
+            source_data[out_type]['config_set'] = config.config_set
 
-    # ==== Check for existing data ====
+    # Drop unused 'county' field from results
+    # TODO: never create this field (we instead handle country by joining with the configs table)
+    source_data['result'] = source_data['result'].drop('county', axis = 1)
+
+    # ==== Handle duplicated data ====
     # ---- TO DO: Check types of output before writing, possibly using the existing type data from the table_specs.py file ----
     # ---- TO DO: Check primary key uniqueness for tables
 
@@ -177,15 +187,12 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
     configs_dup_series = "'" + existing_configs_df['config_name'] + "'"
     configs_dup_str = configs_dup_series.str.cat(sep = ", ")
 
-
-    # ==== Write data, if it should be written ====
-
     # --- If overwrite == False and a config with the given name exists, warning message ----
     if((existing_configs_yn == True) & (overwrite == False)):
         print(f"Config(s) [{configs_dup_str}] already exist; failing since overwrite == False")
         return
 
-    # ---- If overwrite == True or no config exists ----
+    # ---- If overwrite == True or no config exists, drop existing rows ----
     # drop rows if necessary
     if((existing_configs_yn == True) & (overwrite == True)):
        for out_type in out_types:
@@ -196,6 +203,7 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
             job.result()
     
        print(f"Config(s) [{configs_dup_str}] already exist; dropping since overwrite == True")
+
 
     # ==== Write data ====
 
@@ -211,9 +219,9 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
 
         # TO DO: Running these jobs in serial right now, which is inefficient; need to monitor progress for all simultaneously
         # TO DO: Drop new rows (revert) if not all tables update successfully
-        # TO DO: Change potentially-misleading error messages that use table size instead of rows written
         job.result()  # Waits for the job to complete.
 
+        # TO DO: Change potentially-misleading message below; fetch the number of *new* rows via a select statement
         table = client.get_table(table_id)  # Make an API request.
         print(
             "Loaded {} rows and {} columns to {}".format(
