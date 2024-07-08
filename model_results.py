@@ -193,8 +193,6 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
             DELETE FROM {dataset}.{out_type} WHERE config_name IN({configs_dup_str})
             '''
             job = client.query(dml_statement)
-            # TODO: Running these jobs in serial right now, which is inefficient; need to monitor progress for all simultaneously
-            # TODO: Check for error handling if these jobs fails
             job.result()
     
        print(f"Config(s) [{configs_dup_str}] already exist; dropping since overwrite == True")
@@ -213,6 +211,7 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
 
         # TO DO: Running these jobs in serial right now, which is inefficient; need to monitor progress for all simultaneously
         # TO DO: Drop new rows (revert) if not all tables update successfully
+        # TO DO: Change potentially-misleading error messages that use table size instead of rows written
         job.result()  # Waits for the job to complete.
 
         table = client.get_table(table_id)  # Make an API request.

@@ -11,17 +11,110 @@ import arrow
 # ---- One-off runs ----
 config_set = "York_SC_original_configs"
 in_dir = config_set + "_collated"
-overwrite = False
+overwrite = True
+check_dups = True
 
 # ---- Big chunk of runs ----
 filemaps = pd.read_csv('filemaps.csv')
 
+
+# ==== Construct a BigQuery client object and define configs ====
+client = bigquery.Client()
+
+job_configs = {
+    "configs": bigquery.LoadJobConfig(
+        schema=[
+           bigquery.SchemaField("config_name", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
+           bigquery.SchemaField("location", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
+           bigquery.SchemaField("config_set", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
+           bigquery.SchemaField("year", bigquery.enums.SqlTypeNames.STRING, "REPEATED"),
+           bigquery.SchemaField("bad_types", bigquery.enums.SqlTypeNames.STRING, "REPEATED"),
+           bigquery.SchemaField("beta", bigquery.enums.SqlTypeNames.FLOAT, "REQUIRED"),
+           bigquery.SchemaField("time_limit", bigquery.enums.SqlTypeNames.FLOAT, "REQUIRED"),
+           bigquery.SchemaField("capacity", bigquery.enums.SqlTypeNames.FLOAT, "REQUIRED"),
+           bigquery.SchemaField("precincts_open", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+           bigquery.SchemaField("max_min_mult", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+           bigquery.SchemaField("maxpctnew", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+           bigquery.SchemaField("minpctold", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+           bigquery.SchemaField("commit_hash", bigquery.enums.SqlTypeNames.STRING, "NULLABLE"),
+           bigquery.SchemaField("run_time", bigquery.enums.SqlTypeNames.TIMESTAMP, "NULLABLE")
+        ],
+        clustering_fields = ['config_set', 'config_name']
+    ),
+    "edes": bigquery.LoadJobConfig(
+        schema=[
+               bigquery.SchemaField("demographic", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
+               bigquery.SchemaField("weighted_dist", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+               bigquery.SchemaField("avg_dist", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+               bigquery.SchemaField("demo_res_obj_summand", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+               bigquery.SchemaField("demo_pop", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+               bigquery.SchemaField("avg_KP_weight", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+               bigquery.SchemaField("y_EDE", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+               bigquery.SchemaField("config_name", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
+               bigquery.SchemaField("config_set", bigquery.enums.SqlTypeNames.STRING, "REQUIRED")
+            ],
+        clustering_fields = ['config_set', 'config_name']
+    ),
+    "result": bigquery.LoadJobConfig(
+        schema=[
+           bigquery.SchemaField("id_orig", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
+           bigquery.SchemaField("id_dest", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
+           bigquery.SchemaField("distance_m", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+           bigquery.SchemaField("address", bigquery.enums.SqlTypeNames.STRING, "NULLABLE"),
+           bigquery.SchemaField("dest_lat", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+           bigquery.SchemaField("dest_lon", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+           bigquery.SchemaField("orig_lat", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+           bigquery.SchemaField("orig_lon", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+           bigquery.SchemaField("location_type", bigquery.enums.SqlTypeNames.STRING, "NULLABLE"),
+           bigquery.SchemaField("dest_type", bigquery.enums.SqlTypeNames.STRING, "NULLABLE"),
+           bigquery.SchemaField("population", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+           bigquery.SchemaField("hispanic", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+           bigquery.SchemaField("non_hispanic", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+           bigquery.SchemaField("white", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+           bigquery.SchemaField("black", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+           bigquery.SchemaField("asian", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+           bigquery.SchemaField("pacific_islander", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+           bigquery.SchemaField("other", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+           bigquery.SchemaField("multiple_races", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+           bigquery.SchemaField("other", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+           bigquery.SchemaField("Weighted_dist", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+           bigquery.SchemaField("KP_factor", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+           bigquery.SchemaField("new_location", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+           bigquery.SchemaField("matching", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+           bigquery.SchemaField("config_name", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
+           bigquery.SchemaField("config_set", bigquery.enums.SqlTypeNames.STRING, "REQUIRED")
+        ],
+        clustering_fields = ['config_set', 'config_name']
+    ),
+    "precinct_distances": bigquery.LoadJobConfig(
+        schema=[
+           bigquery.SchemaField("id_dest", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
+           bigquery.SchemaField("demographic", bigquery.enums.SqlTypeNames.STRING, "NULLABLE"),
+           bigquery.SchemaField("demo_pop", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+           bigquery.SchemaField("avg_dist", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+           bigquery.SchemaField("config_name", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
+           bigquery.SchemaField("config_set", bigquery.enums.SqlTypeNames.STRING, "REQUIRED")
+        ],
+        clustering_fields = ['config_set', 'config_name']
+    ),
+    "residence_distances": bigquery.LoadJobConfig(
+        schema=[
+           bigquery.SchemaField("id_orig", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
+           bigquery.SchemaField("demographic", bigquery.enums.SqlTypeNames.STRING, "NULLABLE"),
+           bigquery.SchemaField("weighted_dist", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+           bigquery.SchemaField("demo_pop", bigquery.enums.SqlTypeNames.INTEGER, "NULLABLE"),
+           bigquery.SchemaField("avg_dist", bigquery.enums.SqlTypeNames.FLOAT, "NULLABLE"),
+           bigquery.SchemaField("config_name", bigquery.enums.SqlTypeNames.STRING, "REQUIRED"),
+           bigquery.SchemaField("config_set", bigquery.enums.SqlTypeNames.STRING, "REQUIRED")
+        ],
+        clustering_fields = ['config_set', 'config_name']
+    )
+}
+
+
 # ==== Define function ====
 
 def backfill_data(config_set, in_dir, overwrite = False):
-
-    # ==== Construct a BigQuery client object ====
-    client = bigquery.Client()
 
     # ==== Define parameters that should usually be fixed ====
 
@@ -56,8 +149,9 @@ def backfill_data(config_set, in_dir, overwrite = False):
                for col in list_cols:
                       source_file[col] = source_file[col].apply(lambda x: x.strip("[]").replace("'", "").split(", ") if x != '[]' else list())
                # Special case for year column - list of numerics, rather than list of strings
-               source_file['year'] = source_file['year'].apply(lambda x: pd.to_numeric(x))
                source_file['run_time'] = source_file['run_time'].astype('datetime64[s]')
+        if ((out_type == "result" ) | (out_type == "residence_distances")):
+            source_file['id_orig'] = source_file['id_orig'].astype(str)
 
         source_data[out_type] = source_file
 
@@ -67,41 +161,42 @@ def backfill_data(config_set, in_dir, overwrite = False):
     # ---- TO DO: Check primary key uniqueness for tables
 
     # ---- Check whether any of the configs already exist ----
-    configs_series = "'" + source_data['configs']['config_name'] + "'"
-    configs_str = configs_series.str.cat(sep = ",")
+    if(check_dups == True):
+        configs_series = "'" + source_data['configs']['config_name'] + "'"
+        configs_str = configs_series.str.cat(sep = ",")
 
-    query = f'''
-    SELECT config_name
-    FROM {dataset}.configs 
-    WHERE config_name IN({configs_str})
-    '''
+        query = f'''
+        SELECT config_name
+        FROM {dataset}.configs 
+        WHERE config_name IN({configs_str})
+        '''
 
-    existing_configs_df = client.query(query).to_dataframe()
-    existing_configs_yn = existing_configs_df.shape[0] > 0
+        existing_configs_df = client.query(query).to_dataframe()
+        existing_configs_yn = existing_configs_df.shape[0] > 0
 
-    configs_dup_series = "'" + existing_configs_df['config_name'] + "'"
-    configs_dup_str = configs_dup_series.str.cat(sep = ", ")
+        configs_dup_series = "'" + existing_configs_df['config_name'] + "'"
+        configs_dup_str = configs_dup_series.str.cat(sep = ", ")
 
-    # ==== Check for existing data ====
+        # ==== Check for existing data ====
 
-    # --- If overwrite == False and a config with the given name exists, warning message ----
-    if((existing_configs_yn == True) & (overwrite == False)):
-        print(f"Config(s) [{configs_dup_str}] already exist; failing since overwrite == False")
-        return
+        # --- If overwrite == False and a config with the given name exists, warning message ----
+        if((existing_configs_yn == True) & (overwrite == False)):
+            print(f"Config(s) [{configs_dup_str}] already exist; failing since overwrite == False")
+            return
 
-    # ---- If overwrite == True or no config exists ----
-    # drop rows if necessary
-    if((existing_configs_yn == True) & (overwrite == True)):
-       for out_type in out_types:
-            dml_statement = f'''
-            DELETE FROM {dataset}.{out_type} WHERE config_name IN({configs_dup_str})
-            '''
-            job = client.query(dml_statement)
-            # TODO: Running these jobs in serial right now, which is inefficient; need to monitor progress for all simultaneously
-            # TODO: Check for error handling if these jobs fails
-            job.result()
-    
-       print(f"Config(s) [{configs_dup_str}] already exist; dropping since overwrite == True")
+        # ---- If overwrite == True or no config exists ----
+        # drop rows if necessary
+        if((existing_configs_yn == True) & (overwrite == True)):
+           for out_type in out_types:
+                dml_statement = f'''
+                DELETE FROM {dataset}.{out_type} WHERE config_name IN({configs_dup_str})
+                '''
+                job = client.query(dml_statement)
+                # TODO: Running these jobs in serial right now, which is inefficient; need to monitor progress for all simultaneously
+                # TODO: Check for error handling if these jobs fails
+                job.result()
+        
+           print(f"Config(s) [{configs_dup_str}] already exist; dropping since overwrite == True")
 
     # ==== Write data ====
 
@@ -112,7 +207,8 @@ def backfill_data(config_set, in_dir, overwrite = False):
         # ---- Upload ----
         job = client.load_table_from_dataframe(
             source_data[out_type], 
-            table_id
+            table_id,
+            job_config = job_configs[out_type]
         )
 
         # TO DO: Running these jobs in serial right now, which is inefficient; need to monitor progress for all simultaneously
@@ -132,6 +228,6 @@ def backfill_data(config_set, in_dir, overwrite = False):
 
 backfill_data(config_set = config_set, in_dir = in_dir, overwrite = overwrite)
 
-for i,j in zip(filemaps.config_set, filemaps.out_dir):
-#   backfill_data(config_set = i, in_dir = j, overwrite = overwrite)
-    print(f"Backfilled data for config set {i}")   
+# for i,j in zip(filemaps.config_set, filemaps.out_dir):
+#     backfill_data(config_set = i, in_dir = j, overwrite = overwrite)
+#     print(f"Backfilled data for config set {i}")   

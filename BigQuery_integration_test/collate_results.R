@@ -5,19 +5,20 @@ library(yaml)
 
 config_folders_rec <- read.csv("filemaps.csv")
 
-mapply(
-  collate_runs,
-  config_set = config_folders_rec$config_set,
-  config_dir = config_folders_rec$config_dir,
-  result_dir = config_folders_rec$result_dir,
-  out_dir = config_folders_rec$out_dir
-)
+# mapply(
+#   collate_runs,
+#   config_set = config_folders_rec$config_set,
+#   config_dir = config_folders_rec$config_dir,
+#   result_dir = config_folders_rec$result_dir,
+#   out_dir = config_folders_rec$out_dir
+# )
 
 ## ==== Define functions ====
 
-append_fields <- function(config_names, locations, result_dir, config_set, out_type){
-  data.list <- mapply(
-    function(config_name, location){
+append_fields <- function(config_names, result_dir, config_set, out_type){
+  data.list <- lapply(
+    config_names,
+    function(config_name){
       
       dir <- paste0(
         result_dir,
@@ -35,14 +36,12 @@ append_fields <- function(config_names, locations, result_dir, config_set, out_t
         data <- read.csv(dir)
         data$config_name <- config_name
         
-        # Append location and config_set variables that will remain constant within the output
-        data$location <- location
+        # Append config_set variables that will remain constant within the output
         data$config_set <- config_set
       } else data <- NULL
       
       return(data)
-    },
-    config_name = config_names, location = locations, SIMPLIFY = FALSE
+    }
   )
   
   names(data.list) <- config_names
@@ -50,10 +49,9 @@ append_fields <- function(config_names, locations, result_dir, config_set, out_t
   return(data.list)
 }
 
-collate_outs <- function(config_names, locations, result_dir, config_set, out_type){
+collate_outs <- function(config_names, result_dir, config_set, out_type){
   data.list <- append_fields(
     config_names = config_names, 
-    locations = locations, 
     result_dir = result_dir, 
     config_set = config_set,
     out_type = out_type
@@ -117,7 +115,6 @@ collate_runs <- function(config_set, config_dir, result_dir, out_dir){
     # --- Read in and collate YAML file ----
     # Collate config files, and get info from them
     configs.df <- collate_configs(config_set = config_set, config_dir = config_dir)
-    locations <- simplify2array(configs.df$location)
     config_names <- simplify2array(configs.df$config_name)
     
     # --- Collate output files ---
@@ -126,7 +123,6 @@ collate_runs <- function(config_set, config_dir, result_dir, out_dir){
     outs.df <- lapply(out_types, function(out_type){
       collated <- collate_outs(
         config_names = config_names, 
-        locations = locations, 
         result_dir = result_dir, 
         config_set = config_set,
         out_type = out_type
@@ -135,6 +131,9 @@ collate_runs <- function(config_set, config_dir, result_dir, out_dir){
     outs.df$result$X <- NULL
     outs.df$result$county <- NULL
     
+    outs.df$result$id_orig <- as.character((outs.df$result$id_orig))
+    outs.df$residence_distances$id_orig <- as.character((outs.df$residence_distances$id_orig))
+  
     # --- Write to CSV ---
     if(!dir.exists(out_dir)) dir.create(out_dir)
     lapply(out_types, function(out_type){
@@ -180,4 +179,11 @@ collate_runs(
   config_dir = "../Engage_VA_2024_configs",
   result_dir = "../Fairfax_County_VA_results",
   out_dir = "Engage_VA_2024_configs_collated"
+)
+
+collate_runs(
+  config_set = "York_SC_original_configs",
+  config_dir = "../York_SC_original_configs",
+  result_dir = "../York_SC_results",
+  out_dir = "York_SC_original_configs_collated"
 )
