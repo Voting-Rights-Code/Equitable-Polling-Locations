@@ -1,0 +1,9 @@
+services:
+  api_server:
+    image: equitable_locations
+    ports:
+      - 8000:8000
+    volumes:
+      - ./logs:/app/logs
+      - ./untracked:/app/untracked
+    restart: unless-stopped
