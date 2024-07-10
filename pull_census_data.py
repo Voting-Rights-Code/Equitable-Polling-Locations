@@ -77,7 +77,6 @@ def get_all_states_fips_codes(api_key):
     state_to_fips = pd.Series(dict(state_keys.json()[1:]))
     return state_to_fips
 
-
 def get_all_state_county_codes(state_fips, api_key):
     """
     Get all county codes for a given state
@@ -126,20 +125,14 @@ def pull_ptable_data(geography, pnum, state_fips, county_code, api_key):
     r = requests.get(
         f"https://api.census.gov/data/2020/dec/pl?get=group({pnum})&for={geo}:*&in=state:{state_fips}&in=county:{county_code}&in=tract:*&key={api_key}"
     )
-    '''data = pd.DataFrame(r.json()) 
-    headers = data.iloc[0].values
-    metadata = pull_metadata(f"https://api.census.gov/data/2020/dec/pl/groups/{pnum}")
-    headers2 = [metadata.loc[name] for name in headers]
-    headers_all = list(tuple(zip(headers, headers2)))
-    data.columns = headers_all
-    data.drop(index=0, axis=0, inplace=True)'''
     data = pd.DataFrame(r.json())
+    metadata = pull_metadata(f"https://api.census.gov/data/2020/dec/pl/groups/{pnum}")
+    
+    #reformat data to match manual download (for backwards compatibility)
     headers = data.iloc[0].values
     data.columns = headers
-    metadata = pull_metadata(f"https://api.census.gov/data/2020/dec/pl/groups/{pnum}")
     data = data.drop(['state','county','tract',geography], axis=1)
     data = data[data.columns[~data.columns.str.endswith('NA')]]
-    #data = data[data.columns.drop(list(data.filter(regex='NA')))]
     metadata_as_dict = metadata['Label'].to_dict()
     row_0 = [old_name for old_name in data.iloc[0, :]]    
     replacement = [metadata_as_dict[old_name] for old_name in row_0]  
@@ -148,11 +141,11 @@ def pull_ptable_data(geography, pnum, state_fips, county_code, api_key):
     return data, metadata
 
 
-def save_pdata(df, county, state, geo, pnum, meta=False, base_path = "./datasets/census/redistricting/"):
+def save_pdata(df, county_ST, geo, pnum, meta=False, base_path = "./datasets/census/redistricting/"):
     """
     Save off the census redistricting table data and metadata
     """
-    fname = Path(base_path).joinpath(f"{county.replace(' ','_')}_{state}/")
+    fname = Path(base_path).joinpath(f"{county_ST}/")
     if geo=="block":
         fname = fname
     elif geo=="block group":
@@ -193,17 +186,16 @@ def unzip_file(fpath, outdir):
     )
 
 
-def pull_tiger_file(statecode, fips, county, county_code, geo, state_lookup = STATE_LOOKUP):
+def pull_tiger_file(state, fips, county_ST, county_code, geo):
     """
     Pull and save tiger shapefile
     """
-    state = state_lookup.get(statecode)
     if geo == 'block':
         geo = "tabblock20"
     elif geo == 'block group':
         geo = "bg20"
     base_url = f"https://www2.census.gov/geo/tiger/TIGER2020PL/STATE/{fips}_{state.upper()}/{fips}{county_code}/tl_2020_{fips}{county_code}_{geo}.zip"
-    output_directory = Path(f"./datasets/census/tiger/{county.replace(' ','_')}_{statecode}/")
+    output_directory = Path(f"./datasets/census/tiger/{county_ST}/")
     fname = download_file(base_url, output_directory)
     unzip_file(fname, output_directory)
     return base_url, output_directory
@@ -233,12 +225,13 @@ def pull_census_data(statecode, county, APIKEY, state_lookup=STATE_LOOKUP):
             # pull data
             data, metadata = pull_ptable_data(geo, pnum, fipscode, countycode, APIKEY)
             # save off dataframe and metadata
-            save_pdata(data, county, statecode, geo, pnum)
-            save_pdata(metadata, county, statecode, geo, pnum, meta=True)
+            county_ST = county.replace(' ','_')+ '_' + statecode
+            save_pdata(data, county_ST, geo, pnum)
+            save_pdata(metadata, county_ST, geo, pnum, meta=True)
 
         # pull tiger files
         print(f"Now pulling tiger data for {geo} geography")
-        url, out = pull_tiger_file(statecode, fipscode, county, countycode, geo)
+        url, out = pull_tiger_file(state, fipscode, county_ST, countycode, geo)
 
     return "Success"
 

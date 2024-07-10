@@ -12,7 +12,7 @@ from pathlib import Path
 from haversine import haversine
 import geopandas as gpd
 from model_config import PollingModelConfig
-from authenication_files.census_key import census_key
+from authentication_files.census_key import census_key
 from pull_census_data import pull_census_data
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
@@ -61,6 +61,7 @@ def build_source(location):
             )
     else:
         raise ValueError(f'Census data from table P4 not found. Reinstall using api or manually following download instruction from README.')
+    
     #3. Census geographic data
     geography_dir = os.path.join(DATASETS_DIR, 'census', 'tiger', location)
     file_list = os.listdir(geography_dir)
@@ -75,7 +76,7 @@ def build_source(location):
     if os.path.exists(BLOCK_GROUP_SOURCE_FILE):
         blockgroup_gdf = gpd.read_file(BLOCK_GROUP_SOURCE_FILE)
     else:
-        raise ValueError(f'Census data for block group geography not found. Follow download instruction from README.')
+        raise ValueError(f'Census data for block group geography not found. Reinstall using api or manually following download instruction from README.')
 
     #######
     #Clean data
