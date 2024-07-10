@@ -119,6 +119,10 @@ def write_results(result_folder, run_prefix, result_df, demographic_prec, demogr
     demographic_prec.to_csv(os.path.join(result_folder, precinct_summary), index = True)
     demographic_res.to_csv(os.path.join(result_folder, residence_summary), index = True)
     demographic_ede.to_csv(os.path.join(result_folder, y_ede_summary), index = True)
+    result_df.to_pickle(os.path.join(result_folder, result_file.replace('.csv', '.pkl')))
+    demographic_prec.to_pickle(os.path.join(result_folder, precinct_summary.replace('.csv', '.pkl')))
+    demographic_res.to_pickle(os.path.join(result_folder, residence_summary.replace('.csv', '.pkl')))
+    demographic_ede.to_pickle(os.path.join(result_folder, y_ede_summary.replace('.csv', '.pkl')))
     return
 
 
