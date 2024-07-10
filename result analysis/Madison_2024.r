@@ -20,10 +20,10 @@ source('result analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'Contained_in_Madison_City_of_WI'
-CONFIG_FOLDER = 'Contained_in_Madison_City_of_WI_original_configs'
+LOCATION = 'Intersecting_Madison_City_of_WI'
+CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_original_driving_configs'
 
-POTENTIAL_CONFIG_FOLDER = 'Contained_in_Madison_City_of_WI_potential_configs'
+POTENTIAL_CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_potential_driving_configs'
 
 
 #######
