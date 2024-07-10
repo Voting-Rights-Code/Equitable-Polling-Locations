@@ -115,13 +115,13 @@ def pull_metadata(url):
     return metadata
 
 
-def pull_ptable_data(geo, pnum, state_fips, county_code, api_key):
+def pull_ptable_data(geography, pnum, state_fips, county_code, api_key):
     """
     Pull P3 and P4 table data and column metadata
     """
-    if geo == 'block':
+    if geography == 'block':
         geo = 'block'
-    elif geo == 'block group':
+    elif geography == 'block group':
         geo="block%20group"
     r = requests.get(
         f"https://api.census.gov/data/2020/dec/pl?get=group({pnum})&for={geo}:*&in=state:{state_fips}&in=county:{county_code}&in=tract:*&key={api_key}"
@@ -137,6 +137,14 @@ def pull_ptable_data(geo, pnum, state_fips, county_code, api_key):
     headers = data.iloc[0].values
     data.columns = headers
     metadata = pull_metadata(f"https://api.census.gov/data/2020/dec/pl/groups/{pnum}")
+    data = data.drop(['state','county','tract',geography], axis=1)
+    data = data[data.columns[~data.columns.str.endswith('NA')]]
+    #data = data[data.columns.drop(list(data.filter(regex='NA')))]
+    metadata_as_dict = metadata['Label'].to_dict()
+    row_0 = [old_name for old_name in data.iloc[0, :]]    
+    replacement = [metadata_as_dict[old_name] for old_name in row_0]  
+    data.loc[0] = replacement
+
     return data, metadata
 
 
@@ -158,7 +166,7 @@ def save_pdata(df, county, state, geo, pnum, meta=False, base_path = "./datasets
     elif meta==True:
         fname = fname.joinpath(f"DECENNIALPL2020.{pnum}-Column-Metadata.csv")
 
-    df.to_csv(fname)
+    df.to_csv(fname, index = False)
     return fname
 
 
@@ -224,7 +232,6 @@ def pull_census_data(statecode, county, APIKEY, state_lookup=STATE_LOOKUP):
             print(f"Now pulling {pnum} data for {geo} geography")
             # pull data
             data, metadata = pull_ptable_data(geo, pnum, fipscode, countycode, APIKEY)
-
             # save off dataframe and metadata
             save_pdata(data, county, statecode, geo, pnum)
             save_pdata(metadata, county, statecode, geo, pnum, meta=True)
