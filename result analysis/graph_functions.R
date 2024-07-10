@@ -29,15 +29,7 @@ check_config_folder_valid <- function(config_folder){
 #Functions to read in results
 #Two types to analysis: historical (see CLC work); placement (see FFA work)
 ######
-combine_results<- function(config_folder, result_type, analysis_type = 'placement'){
-	if (analysis_type == 'historical'){
-		return(combine_results_multi_county_historical(config_folder, result_type))}
-	else if (analysis_type == 'placement'){
-		return(combine_results_placement(config_folder, result_type))}
-	else{
-		stop("Incorrect analysis_type provided")
-	}
-}
+
 
 
 #####Formatting notes:
@@ -75,8 +67,17 @@ combine_results<- function(location, config_folder, result_type, analysis_type =
 		#pull number of polls data from the file names
 		num_polls <-  gsub('.*?([0-9]+).*', '\\1', files)
 		descriptor <- sapply(num_polls, function(x){paste('Optimized', num_polls, 'polls', sep='_')})} #number of polls
+	else if (analysis_type == 'other'){
+		result_folder <-paste(location, 'results/', sep = '_')
+		files <- list.files(result_folder)
+		files <- files[grepl(config_folder, files) &grepl(result_type, files)]
+		file_path <- paste0(result_folder, files)
+
+		extraction_instructions <- paste0("(?<=config_).*(?=_", result_type,')')
+		descriptor <- stringr::str_extract(files, extraction_instructions)
+	}
 	else{
-		stop("Incorrect analysis_type provided. Analysis type must be historical or placement")}
+		stop("Incorrect analysis_type provided. Analysis type must be historical or placement or other")}
 	
 	#read data
 	df_list <- lapply(file_path, fread)
@@ -135,17 +136,6 @@ demographic_legend_dict <- c(
 	'native' = 'First Nations',
 	'population' = 'Total')
 
-#######
-#dictionary for labels
-#######
-
-demographic_legend_dict <- c(
-	'asian' = 'Asian (not PI)', 
-	'black' = 'African American', 
-	'white' = 'White', 
-	'hispanic' = 'Latine',
-	'native' = 'First Nations',
-	'population' = 'Total Population')
 
 #######
 #functions to make plots
@@ -173,7 +163,7 @@ plot_poll_edes<-function(ede_df){
 
 #ACCOMODATES DRIVING DISTANCES
 
-plot_historic_edes <- function(orig_ede, suffix = '', config_folder){	
+plot_historic_edes <- function(config_folder, orig_ede, suffix = ''){	
 	
 	#set x axis label order
 	descriptor_order <- unique(orig_ede$descriptor)
@@ -251,7 +241,8 @@ plot_original_optimized <- function(config_ede, orig_ede, suffix = '', config_fo
 	optimization_num_polls<- max(intersect(orig_num_polls, config_num_polls))
 	optimized_run_dfs <- config_ede[num_polls == optimization_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
-	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), config_folder )
+	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), config_folder)
+
 }
 
 #like plot_poll_edes, but plots just the y_edes for the
