@@ -12,7 +12,7 @@ from pathlib import Path
 from haversine import haversine
 import geopandas as gpd
 from model_config import PollingModelConfig
-from census_key import census_key
+from authenication_files.census_key import census_key
 from pull_census_data import pull_census_data
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
