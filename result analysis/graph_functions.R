@@ -251,7 +251,7 @@ plot_original_optimized <- function(config_ede, orig_ede, suffix = '', config_fo
 	optimization_num_polls<- max(intersect(orig_num_polls, config_num_polls))
 	optimized_run_dfs <- config_ede[num_polls == optimization_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
-	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), config_folder)
+	plot_historic_edes(config_folder, orig_and_optimal, paste0('and_optimal', suffix))
 
 }
 

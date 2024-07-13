@@ -17,8 +17,13 @@ source('result analysis/graph_functions.R')
 #Location must be part of config folder string
 
 
+<<<<<<< HEAD
 LOCATION = 'Contained_in_Madison_City_of_WI'
 CONFIG_FOLDER = 'Contained_in_Madison_City_of_WI_original_configs'
+=======
+LOCATION = 'Chatham_County_GA'
+CONFIG_FOLDER = 'Chatham_County_GA_original_configs'
+>>>>>>> for_delivery/Chatham_GA
 
 
 #original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
@@ -30,7 +35,7 @@ CONFIG_FOLDER = 'Contained_in_Madison_City_of_WI_original_configs'
 #Does the config folder exist?
 check_config_folder_valid(CONFIG_FOLDER)
 #Does the config folder contain files associated to the location
-check_location_valid(LOCATION, CONFIG_FOLDER)
+#check_location_valid(LOCATION, CONFIG_FOLDER)
 
 #########
 #Set up maps and cartograms
