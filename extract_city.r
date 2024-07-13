@@ -13,18 +13,18 @@ REDISTRICTING_FOLDER = 'datasets/census/redistricting'
 DEMO_BG_FOLDER = 'block group demographics'
 CRS_PROJECTION = 4326
 
-BLOCK_GEOMETRY_FILES = 'tl_2020_55025_tabblock20'
-BG_GEOMETRY_FILES = 'tl_2020_55025_bg20'
 P3 = 'DECENNIALPL2020.P3-Data.csv'
 P4 = 'DECENNIALPL2020.P4-Data.csv'
 
 
 #runtime
-LOCATION_BASE= 'Madison_City_of_WI'
+BLOCK_GEOMETRY_FILES = 'tl_2020_13051_tabblock20'
+BG_GEOMETRY_FILES = 'tl_2020_13051_bg20'
+LOCATION_BASE= 'Savannah_City_of_GA'
 LOCATION_SUP = paste('Intersecting', LOCATION_BASE, sep = '_')
 LOCATION_SUB = paste('Contained_in', LOCATION_BASE, sep = '_')
 CITY_LIMIT_FOLDER = LOCATION_BASE
-CONTAINING_COUNTY = 'Dane_County_WI'
+CONTAINING_COUNTY = 'Chatham_County_GA'
 CITY_LIMIT_FILE = 'City_Limit'
 
 
