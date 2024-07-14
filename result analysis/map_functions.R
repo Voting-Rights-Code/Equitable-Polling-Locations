@@ -63,7 +63,6 @@ process_demographics <-function(folder_name){
     P3 = paste(folder_name, 'DECENNIALPL2020.P3-Data.csv', sep = '/')
     P3_demo <- fread(P3, skip = 1, header = T)
     P4_demo <- fread(P4, skip = 1, header = T)
-   
     #clean up data
     #select "Geography" "Geographic Area Name" and demographic columns
     P3_demo<-P3_demo[,c(1:3,5:11 )]

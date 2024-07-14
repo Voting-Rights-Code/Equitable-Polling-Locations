@@ -103,17 +103,29 @@ From Google Colab:
 # Input files
 There are six files needed to run this program. The current Repo contains these files for Gwinnett County, GA.
 
-* There are 4 files from the census needed for each county:
+* There are 4 files from the census needed for each county, These are pulled from the census the first time a county is run:
     1. block level P3 data for a county (racial breakdown of voting age population)
     1. block level P4 data for a county (ethnicity breakdown of voting age population)
     1. block shape files
     1. block group shape files
 * There is one *manually generated* file for each county
     * previous and potential polling locations for a country
-* There is one config file needed as an argument to run this file
+* There is one config file needed as an argument to run the program
 
+### **Census Data (demographics and shapefiles)**:
+The sofware requires a free census API key to run new counties. You can [apply on the cenus site](https://api.census.gov/data/key_signup.html) and be approved in seconds. 
 
-If you are interested in only running results for  Gwinnett County, no further action is needed. If you are interested in running a county for which you do not have the above data, the software will notify you that the necessary data is missing. In that case, instructions for downloading or creating these files and their formats are given here.
+    1. Create the directory authentication_documents/ 
+    2. Inside authentication_documents/ create a file called census_key.py
+    3. The file should have a single line reading: census_key = "YOUR_KEY_VALUE"
+
+If you are only running counties already in the repo you can use the empty string for your key (census_key = "") but the censu_key.py file must still exist locally.
+
+<!--
+
+If you are interested in only running results for  Gwinnett County, no further action is needed. If you are interested in running a county for which you do not have the above data, the software will notify you that the necessary data is missing. 
+
+instructions for downloading or creating these files and their formats are given here.
 
 All file paths are given relative to the git folder for Equitable-Polling-Locations
 
@@ -167,6 +179,8 @@ All file paths are given relative to the git folder for Equitable-Polling-Locati
 ### **datasets/census/tiger/County_ST/tl_YYYY_FIPS_bgYY.shp**:
 The instructions for downloading this data is identical the instructions for the blocks with the following exception:
 * Download tl_YYYY_FIPS_bgYY.zip (e.g. tl_2020_13135_bg20.zip)
+
+-->
 
 ### **datasets/polling/County_ST/County_ST_locations_only.csv**:
 This is a manually constructed .csv file that contains data for existing and potential polling locations to be optimized against
