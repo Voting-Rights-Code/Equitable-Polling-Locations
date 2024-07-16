@@ -13,7 +13,9 @@ from utils import timer
 
 from google.cloud import bigquery
 from google.cloud import bigquery_storage
+from google.api_core.exceptions import GoogleAPICallError
 import arrow
+import warnings
 
 @timer
 def incorporate_result(dist_df, model):
@@ -127,7 +129,7 @@ def write_results_csv(result_folder, run_prefix, result_df, demographic_prec, de
     return
 
 
-def write_results_bigquery(config, result_df, demographic_prec, demographic_res, demographic_ede, overwrite = False):
+def write_results_bigquery(config, result_df, demographic_prec, demographic_res, demographic_ede, overwrite = False, log = True):
     '''Write result, demographic_prec, demographic_res and demographic_ede to BigQuery SQL tables'''
 
     # ==== Construct a BigQuery client object ====
@@ -143,9 +145,17 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
 
 
     # ==== Create dict of outputs and related name ====
-
-
     config_df = config.df()
+
+    # Convert indices to columns
+    demographic_ede = demographic_ede.reset_index()
+    demographic_res = demographic_res.reset_index()
+
+    # TEMPORARY: Fix type issues
+    # TODO: change these at the source
+    #demographic_res['id_orig'] = demographic_res['id_orig'].astype('string')
+    result_df['id_orig'] = result_df['id_orig'].astype('string')
+    demographic_res['id_orig'] = demographic_res['id_orig'].astype('string')
 
     source_data = {
         "configs": config_df,
@@ -154,7 +164,6 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
         "precinct_distances": demographic_prec,
         "residence_distances": demographic_res
     } 
-
     out_types = source_data.keys()
 
     # Cycle over out_types other than config_df, and append config_name and config_set columns to them
@@ -166,6 +175,7 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
     # Drop unused 'county' field from results
     # TODO: never create this field (we instead handle country by joining with the configs table)
     source_data['result'] = source_data['result'].drop('county', axis = 1)
+
 
     # ==== Handle duplicated data ====
     # ---- TO DO: Check types of output before writing, possibly using the existing type data from the table_specs.py file ----
@@ -189,7 +199,7 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
 
     # --- If overwrite == False and a config with the given name exists, warning message ----
     if((existing_configs_yn == True) & (overwrite == False)):
-        print(f"Config(s) [{configs_dup_str}] already exist; failing since overwrite == False")
+        warnings.warn(f"Config(s) [{configs_dup_str}] already exist; failing since overwrite == False")
         return
 
     # ---- If overwrite == True or no config exists, drop existing rows ----
@@ -202,31 +212,57 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
             job = client.query(dml_statement)
             job.result()
     
-       print(f"Config(s) [{configs_dup_str}] already exist; dropping since overwrite == True")
+       warnings.warn(f"Config(s) [{configs_dup_str}] already exist; dropping since overwrite == True")
 
 
     # ==== Write data ====
-
+    write_success = {}
     for out_type in out_types:
 
         table_id = project_dataset + "." + out_type
 
         # ---- Upload ----
-        job = client.load_table_from_dataframe(
-            source_data[out_type], 
-            table_id
-        )
-
-        # TO DO: Running these jobs in serial right now, which is inefficient; need to monitor progress for all simultaneously
-        # TO DO: Drop new rows (revert) if not all tables update successfully
-        job.result()  # Waits for the job to complete.
-
-        # TO DO: Change potentially-misleading message below; fetch the number of *new* rows via a select statement
-        table = client.get_table(table_id)  # Make an API request.
-        print(
-            "Loaded {} rows and {} columns to {}".format(
-                table.num_rows, len(table.schema), table_id
+        # Try uploading
+        try:
+            job = client.load_table_from_dataframe(
+                source_data[out_type], 
+                table_id
             )
-        )
+
+            # TO DO: Running these jobs in serial right now, which is inefficient; need to monitor progress for all simultaneously
+            # TO DO: Drop new rows (revert) if not all tables update successfully
+            job.result()  # Waits for the job to complete.
+
+            if(log == True):
+                print(
+                    "Wrote {} rows to table {}".format(
+                        job.output_rows, table_id
+                    )
+                )
+
+            write_success[out_type] = True
+
+        except GoogleAPICallError:
+            warnings.warn(f'Failed to write table {table_id}')
+            write_success[out_type] = False
+            break
+
+    ## ==== Delete data if any writing failed ====
+    if False in write_success.values():
+            for out_type in write_success.keys():
+                if( write_success[out_type] == True):
+                    dml_statement = f'''
+                    DELETE FROM {dataset}.{out_type} WHERE config_name IN({configs_str})
+                    '''
+                    job = client.query(dml_statement)
+                    job.result()
+
+                    if(log == True): print(f'''
+                    Deleted rows from table {dataset}.{out_type} with config name(s) [{configs_str}] because of write failures to other tables
+                    ''')
+
 
     return
+
+
+

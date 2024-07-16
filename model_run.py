@@ -20,13 +20,14 @@ from model_results import (
     incorporate_result,
     demographic_domain_summary,
     demographic_summary,
-    write_results,
+    write_results_csv,
+    write_results
 )
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
-def run_on_config(config: PollingModelConfig, log: bool=False):
+def run_on_config(config: PollingModelConfig, log: bool=False, overwrite: bool=False):
     '''
     The entry point to exectue a pyomo/scip run.
     '''
@@ -74,10 +75,13 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     #calculate the average distances (and y_ede if beta !=0) traveled by each demographic
     demographic_ede = demographic_summary(demographic_res, result_df, config.beta, alpha_new)
 
-    result_folder = config.result_folder
+    if hasattr(config, 'result_folder'):
+            out_location = config.result_folder
+    else: 
+        out_location = config.config_set
 
     write_results_csv(
-        result_folder,
+        out_location,
         run_prefix,
         result_df,
         demographic_prec,
@@ -86,12 +90,13 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     )
 
     # write_results_bigquery(
-    #     result_folder,
-    #     run_prefix,
+    #     config,
     #     result_df,
     #     demographic_prec,
     #     demographic_res,
     #     demographic_ede,
+    #     overwrite,
+    #     log
     # )
 
-    return result_folder
+    return out_location
