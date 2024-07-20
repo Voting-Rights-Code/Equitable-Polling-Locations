@@ -2,6 +2,7 @@ from censusdis import states
 import censusdis.data as ced
 import censusdis.values as cev
 import geopandas as gpd
+import pandas as pd
 from pygris import blocks, block_groups
 
 
@@ -24,6 +25,21 @@ class CensusData:
         "P4_003N": "non-hispanic",  # Total non-hispanic #TODO remove hyphen
     }
 
+    DATA_COLUMNS_FORMAT = {
+        "GEO_ID": "string",
+        "NAME": "string",
+        "population": "int64",  # Total population
+        "white": "int64",  # White alone
+        "black": "int64",  # Black or African American alone
+        "native": "int64",  # American Indian or Alaska Native alone
+        "asian": "int64",  # Asian alone
+        "pacific_islander": "int64",  # Native Hawaiian and Other Pacific Islander alone
+        "other": "int64",  # Some other race alone
+        "multiple_races": "int64",  # Two or More Races
+        "hispanic": "int64",  # Total hispanic
+        "non-hispanic": "int64",  # Total non-hispanic #TODO remove hyphen
+    }
+
     BLOCK_SHAPE_COLS = {
         "GEOID20": "id_orig",
         "INTPTLAT20": "orig_lat",
@@ -31,10 +47,24 @@ class CensusData:
         "geometry": "geometry",
     }
 
+    BLOCK_SHAPE_COLS_FORMAT = {
+        "id_orig": "string",
+        "orig_lat": "float64",
+        "orig_lon": "float64",
+        "geometry": "geometry",
+    }
+
     BLOCK_GROUP_SHAPE_COLS = {
         "GEOID": "id_dest",
         "INTPTLAT": "dest_lat",
         "INTPTLON": "dest_lon",
+        "geometry": "geometry",
+    }
+
+    BLOCK_GROUP_SHAPE_COLS_FORMAT = {
+        "id_dest": "string",
+        "dest_lat": "float64",
+        "dest_lon": "float64",
         "geometry": "geometry",
     }
 
@@ -52,7 +82,7 @@ class CensusData:
         self.county_code, self.county_name = self._get_county_code(county=county)
 
         self.block_data = self._get_block_data()
-        self.block_data = self._get_block_group_data()
+        self.block_group_data = self._get_block_group_data()
 
         # self.cache_file = "census_cache.json"
 
@@ -112,10 +142,6 @@ class CensusData:
         df.loc[:, "GEO_ID"] = df.loc[:, "GEO_ID"].str[-15:]
         gdf_data = df.merge(df_tiger, how="left", left_on="GEO_ID", right_on="GEOID20")
 
-        # make lat/ long floats
-        gdf_data.loc[:, "INTPTLAT20"] = gdf_data.loc[:, "INTPTLAT20"].astype(float)
-        gdf_data.loc[:, "INTPTLON20"] = gdf_data.loc[:, "INTPTLON20"].astype(float)
-
         # downselect columns
         selected_columns = list(CensusData.DATA_COLUMNS.keys()) + list(CensusData.BLOCK_SHAPE_COLS.keys())
         gdf_data = gdf_data.loc[:, selected_columns]
@@ -125,7 +151,14 @@ class CensusData:
         gdf_data = gdf_data.rename(columns=CensusData.DATA_COLUMNS)
         gdf_data = gdf_data.rename(columns=CensusData.BLOCK_SHAPE_COLS)
 
-        return gdf_data
+        # find set of columns to use for renaming
+        column_dtypes = {
+            key: val
+            for key, val in {**CensusData.DATA_COLUMNS_FORMAT, **CensusData.BLOCK_SHAPE_COLS_FORMAT}.items()
+            if key in gdf_data.columns
+        }
+
+        return gdf_data.astype(dtype=column_dtypes)
 
     def _get_block_group_data(self) -> gpd.GeoDataFrame:
         # TODO: Update with new version. See https://github.com/censusdis/censusdis/issues/295
@@ -161,18 +194,21 @@ class CensusData:
         df_tiger = df_tiger.loc[:, CensusData.BLOCK_GROUP_SHAPE_COLS.keys()]
 
         gdf_data = df.merge(df_tiger, how="left", left_on="GEO_ID", right_on="GEOID")
-        # make lat/ long floats
-        gdf_data.loc[:, "INTPTLAT"] = gdf_data.loc[:, "INTPTLAT"].astype(float)
-        gdf_data.loc[:, "INTPTLON"] = gdf_data.loc[:, "INTPTLON"].astype(float)
 
         # downselect columns
         selected_columns = list(CensusData.DATA_COLUMNS.keys()) + list(CensusData.BLOCK_GROUP_SHAPE_COLS.keys())
         gdf_data = gdf_data.loc[:, selected_columns]
-        gdf_data.drop("GEOID", axis=1, inplace=True)
+        gdf_data.drop("GEO_ID", axis=1, inplace=True)
 
         # Rename columns
         gdf_data = gdf_data.rename(columns=CensusData.DATA_COLUMNS)
         gdf_data = gdf_data.rename(columns=CensusData.BLOCK_GROUP_SHAPE_COLS)
 
-        return gdf_data
+        # find set of columns to use for renaming
+        column_dtypes = {
+            key: val
+            for key, val in {**CensusData.DATA_COLUMNS_FORMAT, **CensusData.BLOCK_GROUP_SHAPE_COLS_FORMAT}.items()
+            if key in gdf_data.columns
+        }
 
+        return gdf_data.astype(dtype=column_dtypes)
