@@ -83,9 +83,6 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
         # calculate travel time (seconds) for all edges
         self.G = ox.add_edge_travel_times(self.G)
 
-        # project the graph to UTM
-        self.G_projected = ox.project_graph(self.G, to_crs=self.internal_crs)
-
         self.county_gdf = place_gdf
         self.county_polygon = place_gdf["geometry"][0]
 
@@ -98,21 +95,13 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
         # Generate an isochrone geometry object for the given location and travel_time using OSM data
         # https://github.com/gboeing/osmnx-examples/blob/main/notebooks/13-isolines-isochrones.ipynb
 
-        # convert the provided lat, lon to the internal crs
-        lon_lat = (lon, lat)
-        projected_destination, _ = ox.projection.project_geometry(
-            Point(lon_lat), crs=self.EXTERNAL_CRS, to_crs=self.internal_crs
-        )
+        ##### Coordinates not projected
+        center_node = ox.distance.nearest_nodes(self.G, lon, lat)
 
-        center_node = ox.distance.nearest_nodes(self.G_projected, projected_destination.x, projected_destination.y)
-
-        subgraph = nx.ego_graph(self.G_projected, center_node, radius=travel_time, distance="time")
+        subgraph = nx.ego_graph(self.G, center_node, radius=travel_time, distance="time")
 
         node_points = [Point((data["x"], data["y"])) for node, data in subgraph.nodes(data=True)]
         nodes_gdf = gpd.GeoDataFrame({"id": list(subgraph.nodes)}, geometry=node_points)
-
-        # set to internal CRS so buffers can be calculated in meters
-        # nodes_gdf = nodes_gdf.to_crs(self.internal_crs)
 
         nodes_gdf = nodes_gdf.set_index("id")
         edge_lines = []
@@ -121,16 +110,20 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
             t = nodes_gdf.loc[n_to].geometry
             edge_lookup = self.G.get_edge_data(n_fr, n_to)[0].get("geometry", LineString([f, t]))
             edge_lines.append(edge_lookup)
+        edge_gdf = gpd.GeoSeries(edge_lines)
+
+        ############ projected data to calculate buffers
+        # set to internal CRS so buffers can be calculated in meters
+        nodes_gdf = nodes_gdf.set_crs(self.EXTERNAL_CRS).to_crs(self.internal_crs)
+        edge_gdf = edge_gdf.set_crs(self.EXTERNAL_CRS).to_crs(self.internal_crs)
 
         n = nodes_gdf.buffer(self.isochrone_buffer_m).geometry
-        e = gpd.GeoSeries(edge_lines).buffer(self.isochrone_buffer_m).geometry
+        e = edge_gdf.buffer(self.isochrone_buffer_m).geometry
         all_gs = list(n) + list(e)
         new_iso = gpd.GeoSeries(all_gs).set_crs(self.internal_crs)
 
-        # Convert back to lat/lon coordinates for consistency
-        new_iso = new_iso.to_crs(OsmIsochroneGenerator.EXTERNAL_CRS).unary_union
-        # TODO Upgrade to union_all with geopandas >= 1.0.0
-        # new_iso = gpd.GeoSeries(all_gs).to_crs(OsmIsochroneGenerator.EXTERNAL_CRS).union_all()
+        ######### Convert back to lat/lon coordinates for consistency
+        new_iso = new_iso.to_crs(OsmIsochroneGenerator.EXTERNAL_CRS).union_all()
 
         return new_iso
 
