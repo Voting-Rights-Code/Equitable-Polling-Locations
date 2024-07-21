@@ -19,6 +19,7 @@ logzero = "^1.7.0"
 pydantic = "^2.8.2"
 censusdis = "^1.1.15"
 pygris = "^0.1.6"
+scikit-learn = "^1.5.1"
 
 [tool.poetry.scripts]
 equitable_locations = "equitable_locations.__main__:cli"

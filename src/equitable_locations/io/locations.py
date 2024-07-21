@@ -46,9 +46,7 @@ def create_destinations(county: CensusData, partner_data: Path) -> pd.DataFrame:
     df_partner_data[col] = df_partner_data[col].cat.set_categories(all_dest_type)
     df_block_groups[col] = df_block_groups[col].cat.set_categories(all_dest_type)
 
-    pd.concat([df_partner_data, df_block_groups]).dtypes
-
-    return pd.concat([df_partner_data, df_block_groups])
+    return pd.concat([df_partner_data, df_block_groups], ignore_index=True)
 
 
 def partner_data_destinations(partner_data: Path) -> pd.DataFrame:
