@@ -3,7 +3,8 @@ library(ggplot2)
 library(stringr)
 library(here)
 library(plotly)
-
+library(DBI)
+library(bigrquery)
 
 #######
 #Check that location and folders valid
@@ -122,6 +123,91 @@ read_result_data<- function(location, config_folder, analysis_type){
 	return(list(ede_df, precinct_df, residence_df, result_df))
 }
 
+construct_results_query <- function(config_name = NULL, config_set = NULL, location = NULL, table){
+  query_params <- list(config_name = config_name, config_set = config_set, location = location)
+  query_params <- query_params[!sapply(query_params, is.null)]
+  if(length(query_params) == 0) stop("No valid parameters passed to get_results_bigquery")
+  
+  query_params_str <- paste0(
+    sapply(names(query_params), function(param_name){
+      rhs_str <- paste0("(", paste0("'", query_params[[param_name]], "'", collapse = ", "), ")")
+      lhs_str <- paste0(param_name, " IN ")
+      param_str <- paste0(lhs_str, rhs_str)
+    }),
+    collapse = " AND "
+  )
+  
+  query_base_str <- paste0(
+    "SELECT *
+    FROM
+    polling.",
+    table,
+    "_extra WHERE"
+  )
+  
+  query_str <- paste(query_base_str, " ", query_params_str)
+  
+  return(query_str)
+}
+
+get_table_bigquery <- function(config_name = NULL, config_set = NULL, location = NULL, tables, analysis_type = 'placement'){
+  #read in and format one table for a given combination of parameters
+  #at least one of config_name, config_set, location, and (deprecated) config_folder
+
+  con <- dbConnect(
+    bigrquery::bigquery(),
+    project = project,
+    dataset = dataset
+  )
+  
+  out <- lapply(tables, function(table){
+    sql <- construct_results_query(config_name = config_name, config_set = config_set, location = location, table = table)
+    data <- dbGetQuery(con, sql)
+  })
+  
+  return(out)  
+}
+
+query_result_data <-  function(config_name = NULL, config_set = NULL, location = NULL, config_folder = NULL, analysis_type = "placement"){
+  #read in and format all the results data for a given combination of parameters
+  #at least one of config_name, config_set, location, and (deprecated) config_folder
+  #config_folder: string (deprecated in favor of config_set); a synonym for config_set
+  #analysis_type: string (historical, placement)
+  #returns: list(ede_df, precinct_df, residence_df, result_df), with appended "descriptor" fields
+  
+  tables <- c("edes", "result", "precinct_distances", "residence_distances")
+  if(missing(config_set) & !missing(config_folder)){
+    config_set <- config_folder
+    warning("config_folder parameter was specified; please use config_set instead")
+  }
+  
+  data <- get_table_bigquery(config_name = config_name, config_set = config_set, location = location, tables = tables)
+  names(data) <- tables
+  
+  if(analysis_type == "historical"){
+    data <- lapply(data, function(df){
+      df$descriptor <- paste(df$location, "_", df$year)
+    })
+  } else if(analysis_type == "placement"){
+    data <- lapply(data, function(df){
+      df$descriptor <- paste("Optimized_", df$precincts_open, "_polls")
+    })
+  } else{
+    stop("Incorrect analysis_type provided. Analysis type must be historical or placement")}
+  
+  #label descriptors with polls and residences
+  num_polls <- data$precinct_distances[ , .(num_polls = .N/6), by = descriptor]
+  num_residences <- data$residence_distances[ , .(num_residences = .N/6), by = descriptor]
+  nums_to_join <- merge(num_polls, num_residences, all = T)
+  
+  ede_df <- merge(data$edes, nums_to_join, all.x = T)
+  precinct_df <- merge(data$precinct_distances, nums_to_join, all.x = T)
+  residence_df <- merge(data$residence_distances, nums_to_join, all.x = T)
+  result_df <- merge(data$result, nums_to_join, all.x = T)
+  
+  return(list(ede_df, precinct_df, residence_df, result_df))
+}
+
 
 #######
 #dictionary for labels
@@ -146,6 +232,13 @@ demographic_legend_dict <- c(
 	'hispanic' = 'Latine',
 	'native' = 'First Nations',
 	'population' = 'Total Population')
+
+#######
+#constants for database queries 
+#######
+
+project <- "voting-rights-storage-test"
+dataset <- "polling"
 
 #######
 #functions to make plots
