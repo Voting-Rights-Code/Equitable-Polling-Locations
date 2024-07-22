@@ -8,6 +8,8 @@ import pandas as pd
 from shapely.geometry import LineString, Point
 from pathlib import Path
 from pyproj import CRS
+import concurrent.futures
+import os
 
 
 class BaseIsochroneGenerator:
@@ -137,9 +139,43 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
         self.county_gdf.plot(ax=ax, ec="none", alpha=0.5, zorder=-1)
         plt.show()
 
-    def get_isochrones(self, locations, travel_time=5):
+    def get_isochrones(
+        self, locations: pd.core.frame.DataFrame, lat_column: str, lon_column: str, travel_time: int = 5
+    ):
+        # https://stackoverflow.com/questions/67189283/how-to-keep-the-original-order-of-input-when-using-threadpoolexecutor
         # get an array of isochrone geometry objects for the given array of locations
-        pass
+
+        latitudes = locations[lat_column]
+        longitudes = locations[lon_column]
+        start = time.time()
+        max_workers = min(4, os.cpu_count())
+        coordinates = zip(latitudes, longitudes)
+        processes = []
+        isochrone_list = []
+        counter = 0
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, os.cpu_count())) as executor:
+            for lat, lon in coordinates:
+                processes.append(
+                    executor.submit(self.get_isochrone, **{"lat": lat, "lon": lon, "travel_time": travel_time})
+                )
+            print("Jobs submitted")
+            for index, task in enumerate(processes):
+                result = task.result()
+                if counter % 10 == 0:
+                    print(f"Count: {counter}, Time Elapsed: {time.time()-start:.2f} seconds")
+                counter += 1
+                # print(result)
+                isochrone_list.append(result)
+
+        geometry = gpd.GeoSeries(isochrone_list, index=locations.index).set_crs(self.EXTERNAL_CRS)
+
+        gdf = gpd.GeoDataFrame(locations, geometry=geometry)
+        stop = time.time()
+        print(
+            f"Isochrone Collection Time Elapsed: {stop-start:.2f} seconds with {max_workers} thread workers, travel_time={travel_time} min"
+        )
+
+        return gdf
 
     def check_coverage(self, origins, isochrones, N):
         # Check whether all origins are covered by at least N isochrone geometries
