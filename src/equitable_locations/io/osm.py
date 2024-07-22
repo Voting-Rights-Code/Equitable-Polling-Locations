@@ -12,6 +12,16 @@ import concurrent.futures
 import os
 
 
+class CoverageError(Exception):
+    """Exception raised when isochrone coverage check fails."""
+
+    def __init__(self, uncovered_locations=0, message=None):
+        if message is None:
+            message = f"{uncovered_locations} locations are not covered by the required number of isochrones"
+        self.message = message
+        super().__init__(self.message)
+
+
 class BaseIsochroneGenerator:
     # A base isochrone generator class which provides methods for saving and loading shapefiles from disk if they exist.
     EXTERNAL_CRS = CRS.from_epsg(4326)  # same as WGS 84
@@ -85,6 +95,8 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
         # calculate travel time (seconds) for all edges
         self.G = ox.add_edge_travel_times(self.G)
 
+        self.G_projected = ox.project_graph(self.G, to_crs=self.internal_crs)
+
         self.county_gdf = place_gdf
         self.county_polygon = place_gdf["geometry"][0]
 
@@ -100,7 +112,7 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
         ##### Coordinates not projected
         center_node = ox.distance.nearest_nodes(self.G, lon, lat)
 
-        subgraph = nx.ego_graph(self.G, center_node, radius=travel_time, distance="time")
+        subgraph = nx.ego_graph(self.G, center_node, radius=travel_time * 60, distance="travel_time")
 
         node_points = [Point((data["x"], data["y"])) for node, data in subgraph.nodes(data=True)]
         nodes_gdf = gpd.GeoDataFrame({"id": list(subgraph.nodes)}, geometry=node_points)
@@ -177,12 +189,58 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
 
         return gdf
 
-    def check_coverage(self, origins, isochrones, N):
+    def snap_to_road(self, origins, lat_column: str, lon_column: str):
+        origins_gs = gpd.GeoSeries(
+            gpd.points_from_xy(origins[lon_column], origins[lat_column]), index=origins.index, crs=self.EXTERNAL_CRS
+        )
+        ###################
+        # working in projected space for distances
+        origins_gs = origins_gs.to_crs(self.internal_crs)
+
+        center_nodes, distances = ox.distance.nearest_nodes(
+            self.G_projected, origins_gs.x, origins_gs.y, return_dist=True
+        )
+
+        # extract node data
+        node_points = [
+            Point((self.G_projected.nodes[node]["x"], self.G_projected.nodes[node]["y"])) for node in center_nodes
+        ]
+        nodes_gs = gpd.GeoSeries(node_points, index=origins.index, crs=self.internal_crs)
+
+        #########
+        # Return to lat/lon
+        nodes_gs = nodes_gs.to_crs(self.EXTERNAL_CRS)
+        origins_offset_gdf = gpd.GeoDataFrame(origins, geometry=nodes_gs, crs=self.EXTERNAL_CRS)
+        origins_offset_gdf["offset_m"] = distances
+        return origins_offset_gdf
+
+    def check_coverage(self, origins_df, lat_column: str, lon_column: str, snap_to_road, isochrones_gdf, N):
         # Check whether all origins are covered by at least N isochrone geometries
 
         # for a gdf with columns for latitude and longitude, compare against a list of polygons in the isochrones gdf. count how many do not fall within at least N polygons
 
-        pass
+        # put together a GeoDataFrame that can be used to do a spatial join with isochrones
+        if snap_to_road:
+            origins_gdf = gpd.GeoDataFrame(
+                origins_df,
+                geometry=gpd.points_from_xy(origins_df[lon_column], origins_df[lat_column]),
+                crs=self.EXTERNAL_CRS,
+            )
+        else:
+            origins_gdf = self.snap_to_road(origins_df, lat_column=lat_column, lon_column=lon_column)
+
+        gdf_check = origins_gdf.sjoin(isochrones_gdf, how="left", predicate="within")
+
+        print(
+            "Blocks in polling area radius",
+            gdf_check.loc[:, ["id_orig", "dest_type"]].groupby("id_orig").count().value_counts(),
+        )
+
+        grouped_df = gdf_check.loc[:, ["id_orig", "dest_type"]].groupby("id_orig").count()
+        count = len(grouped_df.query(f"`dest_type` < {N}"))
+
+        if count > 0:
+            raise CoverageError(uncovered_locations=count)
 
     def get_isochrone(self, lat, lon, travel_time: int):
         # Attempt to load the shapefile
