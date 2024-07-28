@@ -129,7 +129,7 @@ def write_results_csv(result_folder, run_prefix, result_df, demographic_prec, de
     return
 
 
-def write_results_bigquery(config, result_df, demographic_prec, demographic_res, demographic_ede, overwrite = False, log = True):
+def write_results_bigquery(config, result_df, demographic_prec, demographic_res, demographic_ede, overwrite = False, log = True, csv_backfill = False):
     '''Write result, demographic_prec, demographic_res and demographic_ede to BigQuery SQL tables'''
 
     # ==== Construct a BigQuery client object ====
@@ -139,17 +139,21 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
     # ==== Define parameters that should usually be fixed ====
 
     # Don't change this, it's the server-side name
-    project = "voting-rights-storage-test"
+    project = "equitable-polling-locations"
     dataset = "polling"
     project_dataset = project + "." + dataset
 
 
     # ==== Create dict of outputs and related name ====
-    config_df = config.df()
+    if(csv_backfill == False):
+        config_df = config.df()
+    else: 
+        config_df = config
 
     # Convert indices to columns
-    demographic_ede = demographic_ede.reset_index()
-    demographic_res = demographic_res.reset_index()
+    if(csv_backfill == False):
+        demographic_ede = demographic_ede.reset_index()
+        demographic_res = demographic_res.reset_index()
 
     # TEMPORARY: Fix type issues
     # TODO: change these at the source
@@ -166,15 +170,16 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
     } 
     out_types = source_data.keys()
 
-    # Cycle over out_types other than config_df, and append config_name and config_set columns to them
-    for out_type in out_types:
-        if(out_type != "configs"):
-            source_data[out_type]['config_name'] = config.config_name
-            source_data[out_type]['config_set'] = config.config_set
+    # Cycle over out_types other than config_df, and append config_name and config_set columns to them (excpet for backfills, which don't need this)
+    if(csv_backfill == False):
+        for out_type in out_types:
+            if(out_type != "configs"):
+                source_data[out_type]['config_name'] = config.config_name
+                source_data[out_type]['config_set'] = config.config_set
 
-    # Drop unused 'county' field from results
-    # TODO: never create this field (we instead handle country by joining with the configs table)
-    source_data['result'] = source_data['result'].drop('county', axis = 1)
+        # Drop unused 'county' field from results
+        # TODO: never create this field (we instead handle country by joining with the configs table)
+        source_data['result'] = source_data['result'].drop('county', axis = 1)
 
 
 
@@ -248,7 +253,7 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
             write_success[out_type] = False
             break
 
-    ## ==== Delete data if any writing failed ====
+    # ## ==== Delete data if any writing failed ====
     if False in write_success.values():
             for out_type in write_success.keys():
                 if( write_success[out_type] == True):

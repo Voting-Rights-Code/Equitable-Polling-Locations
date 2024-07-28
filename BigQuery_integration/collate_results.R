@@ -1,20 +1,35 @@
-#setwd("BigQuery_integration_test")
+# TODO: Fix names of configs in DeKalb_GA_no_bg_school_configs, because they are identical
+# To the ones in DeKalb_GA_noß_school_configs
+# Investigate overwrite of Engage_VA configs
+# Fix issue with Berkeley SC config - "pyarrow.lib.ArrowInvalid: Float value 1 was truncated converting to int64"
+
 library(yaml)
+
+# Set working directory to BigQuery_integration directory
+if((strsplit(getwd(), "/", fixed = TRUE)[[1]][length(strsplit(getwd(), "/", fixed = TRUE)[[1]])]) != "BigQuery_integration"){
+  setwd("BigQuery_integration")
+}
+
 
 ## ==== Set key parameters and run ====
 
 config_folders_rec <- read.csv("filemaps.csv")
 
-# mapply(
-#   collate_runs,
-#   config_set = config_folders_rec$config_set,
-#   config_dir = config_folders_rec$config_dir,
-#   result_dir = config_folders_rec$result_dir,
-#   out_dir = config_folders_rec$out_dir
-# )
+loc_changes <- list(
+  c(old = "Berkeley_SC", new = "Berkeley_County_SC"),
+  c(old = "Cobb_GA", new = "Cobb_County_GA"),
+  c(old = "Dekalb_GA", new = "Dekalb_County_GA"),
+  c(old = "Greenville_SC", new = "Greenville_County_SC"),
+  c(old = "Gwinett_GA", new = "Gwinett_County_GA"),
+  c(old = "Lexington_SC", new = "Lexington_County_SC"),
+  c(old = "Richland_SC", new = "Richland_County_SC"),
+  c(old = "York_SC", new = "York_County_SC")
+)
+
 
 ## ==== Define functions ====
 
+# Add config_name and config_Set fields to an output file
 append_fields <- function(config_names, result_dir, config_set, out_type){
   data.list <- lapply(
     config_names,
@@ -49,6 +64,8 @@ append_fields <- function(config_names, result_dir, config_set, out_type){
   return(data.list)
 }
 
+# Collate output data for one type of output (results, edes, etc)
+# Across multiple model runs
 collate_outs <- function(config_names, result_dir, config_set, out_type){
   data.list <- append_fields(
     config_names = config_names, 
@@ -65,7 +82,8 @@ collate_outs <- function(config_names, result_dir, config_set, out_type){
   return(data.df)
 }
 
-collate_configs <- function(config_set, config_dir){
+# Collate output data for multiple configs
+collate_configs <- function(config_set, config_dir, loc_changes){
   # Read in all YAML files found in the directory config_dir
   all_files <- list.files(config_dir)
   yaml_files <- grep(".yaml", all_files, fixed = TRUE, value = TRUE)
@@ -88,6 +106,15 @@ collate_configs <- function(config_set, config_dir){
   yaml.df$config_name <- gsub(".yaml", "", yaml_files, fixed = TRUE)
   yaml.df$config_set <- config_set
   
+  # Standardize capitalization on "city" to lowercase
+  yaml.df$location <- gsub("City", "city", yaml.df$location)
+  # Change naming convention for older configs
+  if(!missing(loc_changes)){
+    for(loc_change in loc_changes){
+      yaml.df$location <- gsub(loc_change["old"], loc_change["new"], yaml.df$location)
+    }
+  }
+  
   # Add placeholder columns
   yaml.df$commit_hash <- NA
   yaml.df$run_time <- NA
@@ -109,12 +136,10 @@ literalize_list <- function(col, is.char = TRUE){
   return(rec)
 }
 
-## ==== Run ====
-
-collate_runs <- function(config_set, config_dir, result_dir, out_dir){
+collate_runs <- function(config_set, config_dir, result_dir, out_dir, loc_changes){
     # --- Read in and collate YAML file ----
     # Collate config files, and get info from them
-    configs.df <- collate_configs(config_set = config_set, config_dir = config_dir)
+    configs.df <- collate_configs(config_set = config_set, config_dir = config_dir, loc_changes = loc_changes)
     config_names <- simplify2array(configs.df$config_name)
     
     # --- Collate output files ---
@@ -187,3 +212,16 @@ collate_runs(
   result_dir = "../York_SC_results",
   out_dir = "York_SC_original_configs_collated"
 )
+
+
+## ==== Run ==== 
+
+mapply(
+  collate_runs,
+  config_set = config_folders_rec$config_set,
+  config_dir = config_folders_rec$config_dir,
+  result_dir = config_folders_rec$result_dir,
+  out_dir = config_folders_rec$out_dir,
+  MoreArgs = list(loc_changes = loc_changes)
+)
+

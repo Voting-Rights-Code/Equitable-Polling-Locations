@@ -21,7 +21,7 @@ from model_results import (
     demographic_domain_summary,
     demographic_summary,
     write_results_csv,
-    write_results
+    write_results_bigquery
 )
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))

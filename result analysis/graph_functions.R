@@ -237,7 +237,7 @@ demographic_legend_dict <- c(
 #constants for database queries 
 #######
 
-project <- "voting-rights-storage-test"
+project <- "equitable-polling-locations"
 dataset <- "polling"
 
 #######

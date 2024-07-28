@@ -1,6 +1,6 @@
 from google.cloud import bigquery
 
-project = "voting-rights-storage-test"
+project = "equitable-polling-locations"
 dataset = "polling"
 tables = ["result", "edes", "precinct_distances", "residence_distances"]
 
