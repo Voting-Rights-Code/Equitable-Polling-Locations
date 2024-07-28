@@ -80,23 +80,23 @@ def run_on_config(config: PollingModelConfig, log: bool=False, overwrite: bool=F
     else: 
         out_location = config.config_set
 
-    write_results_csv(
-        out_location,
-        run_prefix,
-        result_df,
-        demographic_prec,
-        demographic_res,
-        demographic_ede,
-    )
+    #write_results_csv(
+    #    out_location,
+    #    run_prefix,
+    #    result_df,
+    #    demographic_prec,
+    #    demographic_res,
+    #    demographic_ede,
+    #)
 
-    # write_results_bigquery(
-    #     config,
-    #     result_df,
-    #     demographic_prec,
-    #     demographic_res,
-    #     demographic_ede,
-    #     overwrite,
-    #     log
-    # )
+    write_results_bigquery(
+         config,
+         result_df,
+         demographic_prec,
+         demographic_res,
+         demographic_ede,
+         overwrite,
+         log
+    )
 
     return out_location
