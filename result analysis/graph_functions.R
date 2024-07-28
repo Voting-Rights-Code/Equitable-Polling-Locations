@@ -52,11 +52,11 @@ combine_results<- function(location, config_folder, result_type, analysis_type =
 		#select which results we want (potentially from a list of folders)
 		result_folder_list <-sapply(location, function(x){paste(x, 'results/', sep = '_')})
 		files <- lapply(result_folder_list, list.files)
-		files <- sapply(location, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
-		file_path <- mapply(function(folder, file){paste0(folder, file)}, result_folder_list, files)
+		files <- lapply(location, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
+		file_path <- c(mapply(function(folder, file){paste0(folder, file)}, result_folder_list, files))
 		
 		#pull the historical year from the file names
-		years <-  gsub('.*?([0-9]+).*', '\\1', files)
+		years <-  gsub('.*?([0-9]+).*', '\\1', file_path)
 		descriptor <- mapply(function(x,y){paste(x, y, sep='_')}, location, years)} #county and year
 	else if (analysis_type == 'placement'){
 		result_folder <-paste(location, 'results/', sep = '_')
@@ -68,20 +68,19 @@ combine_results<- function(location, config_folder, result_type, analysis_type =
 		num_polls <-  gsub('.*?([0-9]+).*', '\\1', files)
 		descriptor <- sapply(num_polls, function(x){paste('Optimized', num_polls, 'polls', sep='_')})} #number of polls
 	else if (analysis_type == 'other'){
-		result_folder <-paste(location, 'results/', sep = '_')
-		files <- list.files(result_folder)
-		files <- files[grepl(config_folder, files) &grepl(result_type, files)]
-		file_path <- paste0(result_folder, files)
+		result_folder_list <-sapply(location, function(x){paste(x, 'results/', sep = '_')})
+		files <- lapply(result_folder_list, list.files)
+		files <- lapply(location, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
+		file_path <- c(mapply(function(folder, file){paste0(folder, file)}, result_folder_list, files))
 
 		extraction_instructions <- paste0("(?<=config_).*(?=_", result_type,')')
-		descriptor <- stringr::str_extract(files, extraction_instructions)
+		descriptor <- stringr::str_extract(file_path, extraction_instructions)
 	}
 	else{
 		stop("Incorrect analysis_type provided. Analysis type must be historical or placement or other")}
 	
 	#read data
 	df_list <- lapply(file_path, fread)
-
 	#add appropriate descriptor
 	mapply(function(x, y){x[ , descriptor:= y]}, df_list, descriptor)
 	
