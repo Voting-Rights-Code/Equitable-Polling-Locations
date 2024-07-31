@@ -179,7 +179,7 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
 
         # Drop unused 'county' field from results
         # TODO: never create this field (we instead handle country by joining with the configs table)
-        source_data['result'] = source_data['result'].drop('county', axis = 1)
+        #source_data['result'] = source_data['result'].drop('county', axis = 1)
 
 
 

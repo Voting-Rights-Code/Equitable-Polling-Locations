@@ -72,7 +72,7 @@ process_demographics <-function(folder_name){
     setnames(P3_demo, names(P3_demo)[3:10], c('population',
     'white','black', 'native', 'asian', 'pacific_islander',
     'other', 'multiple_races'))
-    setnames(P4_demo, names(P4_demo)[3:4], c("hispanic", 'non-hispanic'))
+    setnames(P4_demo, names(P4_demo)[3:4], c("hispanic", 'non_hispanic'))
     #merge to get all demographics
     demo = merge(P3_demo, P4_demo, by = c('Geography', 'Geographic Area Name'), all = TRUE)
     #Change geography tag to match mapping data
@@ -137,7 +137,7 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 	if (file.exists(file.path(here(), map_folder, map_name))){
 		map <- st_read(file.path(here(), map_folder, map_name))
 		#name resetting needed because of st_write truncating names
-		names(map) <- c("GEOID20", "AREA20", "INTPTLAT20", "INTPTLON20", "Geographic Area Name", "population", "white", "black", "native", "asian", "pacific_islander", "other", "multiple_races", "hispanic", "non-hispanic", "geometry")
+		names(map) <- c("GEOID20", "AREA20", "INTPTLAT20", "INTPTLON20", "Geographic Area Name", "population", "white", "black", "native", "asian", "pacific_islander", "other", "multiple_races", "hispanic", "non_hispanic", "geometry")
 	} else {
 		#block group demographics
 		bg_demo <- process_demographics(paste0(here(), '/datasets/census/redistricting/', location, "/block group demographics"))

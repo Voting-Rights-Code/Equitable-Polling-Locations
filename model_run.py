@@ -49,7 +49,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, overwrite: bool=F
     #get alpha 
     alpha_df = clean_data(config, True)
     alpha  = alpha_min(alpha_df)
-
+    
     #build model
     ea_model = polling_model_factory(dist_df, alpha, config)
     if log:
@@ -79,24 +79,24 @@ def run_on_config(config: PollingModelConfig, log: bool=False, overwrite: bool=F
             out_location = config.result_folder
     else: 
         out_location = config.config_set
+    breakpoint()
 
-    #write_results_csv(
-    #    out_location,
-    #    run_prefix,
-    #    result_df,
-    #    demographic_prec,
-    #    demographic_res,
-    #    demographic_ede,
-    #)
-
-    write_results_bigquery(
-         config,
-         result_df,
-         demographic_prec,
-         demographic_res,
-         demographic_ede,
-         overwrite,
-         log
+    write_results_csv(
+        out_location,
+        run_prefix,
+        result_df,
+        demographic_prec,
+        demographic_res,
+        demographic_ede,
     )
+    #write_results_bigquery(
+    #     config,
+    #     result_df,
+    #     demographic_prec,
+    #     demographic_res,
+    #     demographic_ede,
+    #     overwrite,
+    #     log
+    #)
 
     return out_location

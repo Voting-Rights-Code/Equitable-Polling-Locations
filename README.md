@@ -146,7 +146,7 @@ All file paths are given relative to the git folder for Equitable-Polling-Locati
 * Columns of P4 selected by the software:
     * Total population
     * Total hispanic
-    * Total non-hispanic
+    * Total non_hispanic
 ### **datasets/census/tiger/County_ST/tl_YYYY_FIPS_tabblockYY.shp**:
 [TIGER/line Shapefiles](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) is a database of shape files for the geographic categories used by the census.
 * Documentation: https://www.census.gov/programs-surveys/geography/technical-documentation/complete-technical-documentation/tiger-geo-line/2020.html
@@ -214,7 +214,7 @@ The columns of this data set are as follows:
 |id_dest | Name of the actual or potential polling location | 'Location' from County_ST_location_only.csv | 'Bethesda Senior Center' |
 | | Census block group code | GEOID20 from block group shape file | 131350501051 |
 | distance_m | distance in meters from the centroid of the block (id_orig) to id_dest | haversine distance from (orig_lat, orig_lon) to (dest_lat, dest_lon) | FLOAT |
-| county | name of county and two letter state abbreviation | location from the config file | 'Gwinnett_GA' |
+| county | name of county and two letter state abbreviation | location from the config file | 'Gwinnett_County_GA' |
 | address | If a physical polling location, street address | 'Address' from County_ST_location_only.csv  | '788 Hillcrest Rd NW, Lilburn, GA 20047'|
 | | If not a potential coordinate, name of the associated census block group |  | NA |
 | dest_lat | latitude of the address or census block group centroid of the destination | google maps or INTPTLAT20 of id_dest from block group shape file| FLOAT |
@@ -225,7 +225,7 @@ The columns of this data set are as follows:
 | dest_type | A coarser description of the id_dest that given in location type | Either 'polling' (if previous polling location), potential (if a building that is a potential polling location), 'bg_centroid' (if a census block centroid) |
 | population | total population of census block | 'P3_001N' of P3 data or 'P4_001N' of P4 data| INT |
 | hispanic | total hispanic population of census block | 'P4_002N' of P4 data| INT |
-| non-hispanic | total non-hispanic population of census block | 'P4_003N' of P4 data| INT |
+| non_hispanic | total non-hispanic population of census block | 'P4_003N' of P4 data| INT |
 | white | single race white population of census block | 'P3_003N' of P3 data | INT |
 | black | single race black population of census block | 'P3_004N' of P3 data | INT |
 | native | single race native population of census block | 'P3_005N' of P3 data | INT |
