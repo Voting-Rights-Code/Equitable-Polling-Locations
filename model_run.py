@@ -79,7 +79,6 @@ def run_on_config(config: PollingModelConfig, log: bool=False, overwrite: bool=F
             out_location = config.result_folder
     else: 
         out_location = config.config_set
-    breakpoint()
 
     write_results_csv(
         out_location,
