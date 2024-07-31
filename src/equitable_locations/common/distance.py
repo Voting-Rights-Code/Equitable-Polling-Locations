@@ -1,4 +1,5 @@
 import pandas as pd
+import geopandas as gpd
 import time
 from equitable_locations.io.osm import OsmIsochroneGenerator, CoverageError
 from typing import Union
@@ -15,21 +16,71 @@ class DistanceGenerator:
         snap_origin=True,
         drop_origins=True,
         use_minimum_time=False,
+        N_distance_minimum: int = 2,
     ):
         self.isochrone_generator = isochrone_generator
+
+        if len(times) > len(set(times)):
+            raise ValueError("Duplicate times supplied.")
         self.times = times
         self.times.sort()
+
         self.destinations = destinations.copy()
         self.origins = origins.copy()
-        self.snap_origin = snap_origin
         self.drop_origins = drop_origins
+        # minimum distance calculation parameters
+        self.snap_origin = snap_origin
         self.use_minimum_time = use_minimum_time
+        self.N_distance_minimum = N_distance_minimum
 
         if drop_origins:
             # only look at blocks with measured population
             self.origins = self.origins.loc[self.origins.loc[:, "population"] > 0, :]
 
     def calc(self):
+        # TODO: make agnostic of generator type (straight line, road distance, vs isochrone distance)
+
+        if self.use_minimum_time:
+            min_time_idx = self.find_minimum_time(
+                poll_location_type="polling", N_distance_minimum=self.N_distance_minimum
+            )
+            # make sure more than one time is used in generating distances
+            if min_time_idx == 0:
+                print(
+                    "Warning: the lowest supplied time was found to satisfy coverage requirements. Increasing the minimum time to the second smallest."
+                )
+                min_time_idx = 1
+            # end is exclusive so adding 1
+            self.times = self.times[0 : min_time_idx + 1]
+
+        # configure origin geometry
+        lat_column = "orig_lat"
+        lon_column = "orig_lon"
+        if self.snap_origin:
+            origins_gdf = self.isochrone_generator.snap_to_road(
+                self.origins, lat_column=lat_column, lon_column=lon_column
+            )
+        else:
+            origins_gdf = gpd.GeoDataFrame(
+                self.origins,
+                geometry=gpd.points_from_xy(self.origins[lon_column], self.origins[lat_column]),
+                crs=self.isochrone_generator.EXTERNAL_CRS,
+            )
+
+        # Generate all isochrones
+        isochrone_list = []
+        for time in self.times:
+            gdf = self.isochrone_generator.get_isochrones(
+                locations=self.destinations,
+                lat_column="dest_lat",
+                lon_column="dest_lon",
+                travel_time=time,
+            )
+            isochrone_list.append[gdf]
+        self.destination_isochrones = isochrone_list
+
+        gdf_full = origins_gdf.sjoin(isochrone_list[-1], how="left", predicate="within")
+
         # Perform distance calculation and generate dataframe
         # this should be the main method using configurations to set up the distance calculations
         # Return the dataframe
@@ -93,7 +144,7 @@ class DistanceGenerator:
         if min_time is None:
             raise CoverageError("No appropriate time found")
 
-        return min_time
+        return mid
 
         # # Filter the destination dataframe based on poll_location_type
         # filtered_destinations = self.destinations[self.destinations['poll_location_type'] == poll_location_type]

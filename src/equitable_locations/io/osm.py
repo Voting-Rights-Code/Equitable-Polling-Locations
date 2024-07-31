@@ -221,13 +221,13 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
 
         # put together a GeoDataFrame that can be used to do a spatial join with isochrones
         if snap_to_road:
+            origins_gdf = self.snap_to_road(origins_df, lat_column=lat_column, lon_column=lon_column)
+        else:
             origins_gdf = gpd.GeoDataFrame(
                 origins_df,
                 geometry=gpd.points_from_xy(origins_df[lon_column], origins_df[lat_column]),
                 crs=self.EXTERNAL_CRS,
             )
-        else:
-            origins_gdf = self.snap_to_road(origins_df, lat_column=lat_column, lon_column=lon_column)
 
         gdf_check = origins_gdf.sjoin(isochrones_gdf, how="left", predicate="within")
 
