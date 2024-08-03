@@ -10,6 +10,7 @@ from pathlib import Path
 from pyproj import CRS
 import concurrent.futures
 import os
+from equitable_locations import PROJECT_ROOT
 
 
 class CoverageError(Exception):
@@ -27,7 +28,7 @@ class BaseIsochroneGenerator:
     EXTERNAL_CRS = CRS.from_epsg(4326)  # same as WGS 84
 
     def __init__(self):
-        self.isochrone_dir = Path(__file__).resolve().parent / "untracked" / "isochrone_files"
+        self.isochrone_dir = PROJECT_ROOT / "untracked" / "isochrone_files"
         self.isochrone_dir.mkdir(parents=True, exist_ok=True)
 
     def save_shapefile(self, filename, shape):
