@@ -22,8 +22,7 @@ class DistanceGenerator:
 
         if len(times) > len(set(times)):
             raise ValueError("Duplicate times supplied.")
-        self.times = times
-        self.times.sort()
+        self.times = sorted(times, reverse=True)
 
         self.destinations = destinations.copy()
         self.origins = origins.copy()
@@ -39,19 +38,22 @@ class DistanceGenerator:
 
     def calc(self):
         # TODO: make agnostic of generator type (straight line, road distance, vs isochrone distance)
+        # Perform distance calculation and generate dataframe
+        # this should be the main method using configurations to set up the distance calculations
 
         if self.use_minimum_time:
-            min_time_idx = self.find_minimum_time(
+            temp_min_time_idx = self.find_minimum_time(
                 poll_location_type="polling", N_distance_minimum=self.N_distance_minimum
             )
             # make sure more than one time is used in generating distances
-            if min_time_idx == 0:
+            if temp_min_time_idx == len(self.times) - 1:
                 print(
                     "Warning: the lowest supplied time was found to satisfy coverage requirements. Increasing the minimum time to the second smallest."
                 )
-                min_time_idx = 1
-            # end is exclusive so adding 1
-            self.times = self.times[0 : min_time_idx + 1]
+                min_time_idx -= 1
+            # TODO: invert minimum time index logic
+            min_time_idx = len(self.times) - 1 - temp_min_time_idx
+            self.times = self.times[min_time_idx:]
 
         # configure origin geometry
         lat_column = "orig_lat"
@@ -67,25 +69,58 @@ class DistanceGenerator:
                 crs=self.isochrone_generator.EXTERNAL_CRS,
             )
 
+        # create a dictionary of all the isochrones for all the times
+        # the dataframe with the largest time retains all columns
+        self.generate_isochrone_dict()
+
+        # make a geodataframe with all possible combinations by merging the origins with the largest travel times
+        gdf_full = origins_gdf.sjoin(self.destination_isochrones[self.times[0]], how="left", predicate="within").drop(
+            "index_right", axis=1
+        )
+        # create a distance column and set to the largest distance
+        gdf_full.loc[:, "distance"] = self.times[0]
+
+        # For each additional time, match on point within poly and destination=destination
+        for traveltime in self.times[1:]:
+            print(traveltime)
+            working_isochrone = self.destination_isochrones[traveltime]
+            gdf_full = gdf_full.sjoin(
+                df=working_isochrone.loc[:, ["id_dest", "geometry"]],
+                how="left",
+                predicate="within",
+                on_attribute=["id_dest"],
+            )
+            # find merged columns and update distance
+            gdf_full.loc[gdf_full.loc[:, "index_right"].notna(), "distance"] = traveltime
+            # drop "index_right" to clean up
+            gdf_full.drop("index_right", axis=1, inplace=True)
+
+        # downselect to the necessary columns
+
+        # save dataframe
+
+        # Return the dataframe
+        return gdf_full
+
+    def generate_isochrone_dict(self):
         # Generate all isochrones
-        isochrone_list = []
-        for time in self.times:
+        # TODO: only generate isochrones with geometry and location ID
+        isochrone_dict = {}
+        first = True
+        for traveltime in self.times:
             gdf = self.isochrone_generator.get_isochrones(
                 locations=self.destinations,
                 lat_column="dest_lat",
                 lon_column="dest_lon",
-                travel_time=time,
+                travel_time=traveltime,
             )
-            isochrone_list.append[gdf]
-        self.destination_isochrones = isochrone_list
-
-        gdf_full = origins_gdf.sjoin(isochrone_list[-1], how="left", predicate="within")
-
-        # Perform distance calculation and generate dataframe
-        # this should be the main method using configurations to set up the distance calculations
-        # Return the dataframe
-        pass
-        # if self.use_minimum_time:
+            if first:
+                first = False
+            else:
+                # downselect columns after the first
+                gdf = gdf.loc[:, ["id_dest", "geometry"]]
+            isochrone_dict[traveltime] = gdf
+        self.destination_isochrones = isochrone_dict
 
     def save(self, filename):
         # Save the dataframe to a file with the given filename
@@ -104,20 +139,22 @@ class DistanceGenerator:
         # Implement binary search to find the minimum time from the list of times
 
         if poll_location_type is not None:
-            filtered_destinations = df_polling = self.destinations.loc[
+            filtered_destinations = self.destinations.loc[
                 self.destinations.loc[:, "dest_type"] == poll_location_type, :
             ]
         else:
             filtered_destinations = self.destinations
 
+        # TODO: flip this logic so sorting not needed here
         processing_times = self.times.copy()
         processing_times.sort()
-        low = 0
-        high = len(processing_times) - 1
+        left = 0
+        right = len(processing_times) - 1
         min_time = None
+        min_idx = None
         start = time.time()
-        while low <= high:
-            mid = (low + high) // 2
+        while left <= right:
+            mid = (left + right) // 2
             try:
                 print(f"Testing index: {mid} for {processing_times[mid]} minutes")
                 gdf = self.isochrone_generator.get_isochrones(
@@ -135,16 +172,18 @@ class DistanceGenerator:
                     N=N_distance_minimum,
                 )
                 min_time = processing_times[mid]
-                high = mid - 1
+                min_idx = mid
+                right = mid - 1
             except CoverageError:
                 print(f"CoverageError on {mid}")
-                low = mid + 1
+                left = mid + 1
             print(f"Processing index {mid} complete, Time Elapsed: {time.time()-start:.2f} seconds")
 
         if min_time is None:
             raise CoverageError("No appropriate time found")
+        print(f"Found minimum: {min_time} (index {min_idx}), Time Elapsed: {time.time()-start:.2f} seconds")
 
-        return mid
+        return min_idx
 
         # # Filter the destination dataframe based on poll_location_type
         # filtered_destinations = self.destinations[self.destinations['poll_location_type'] == poll_location_type]
