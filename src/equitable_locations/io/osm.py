@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import osmnx as ox
 import pandas as pd
-from shapely.geometry import LineString, Point
+from shapely.geometry import LineString, Point, Polygon
+from shapely import to_geojson, from_geojson
 from pathlib import Path
 from pyproj import CRS
 import concurrent.futures
@@ -31,18 +32,18 @@ class BaseIsochroneGenerator:
         self.isochrone_dir = PROJECT_ROOT / "untracked" / "isochrone_files"
         self.isochrone_dir.mkdir(parents=True, exist_ok=True)
 
-    def save_shapefile(self, filename, shape):
-        pass
-        # filepath = self.isochrone_dir / filename
-        # gdf.to_file(filepath)
+    def save_isochrone(self, filename: Path, shape):
+        filepath = self.isochrone_dir / filename
 
-    def load_shapefile(self, filename):
-        return None
-        # filepath = self.temp_dir / filename
-        # if filepath.exists():
-        #     return gpd.read_file(filepath)
-        # else:
-        #     return None
+        # To GeoJSON
+        filepath.write_text(to_geojson(shape))
+
+    def load_isochrone(self, filename: Path):
+        filepath = self.isochrone_dir / filename
+        if filepath.exists():
+            return from_geojson(filepath.read_text())
+        else:
+            return None
 
     def get_isochrones(self, locations, travel_time):
         # get an array of isochrone geometry objects for the given array of locations
@@ -63,6 +64,7 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
         state_folder = censusdata.state_name.replace(" ", "_")
         county_folder = censusdata.county_name.replace(" ", "_")
         self.isochrone_dir = self.isochrone_dir / state_folder / county_folder
+        self.isochrone_dir.mkdir(parents=True, exist_ok=True)
 
         self.place = {"county": censusdata.county_name, "state": censusdata.state_name}
         self.network_type = travel_method
@@ -106,7 +108,7 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
         self.county_gdf.plot(ax=ax, ec="none", alpha=0.6, zorder=-1)
         plt.show()
 
-    def generate_isochrone(self, lat, lon, travel_time):
+    def generate_isochrone(self, lat, lon, travel_time) -> Polygon:
         # Generate an isochrone geometry object for the given location and travel_time using OSM data
         # https://github.com/gboeing/osmnx-examples/blob/main/notebooks/13-isolines-isochrones.ipynb
 
@@ -245,13 +247,13 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
 
     def get_isochrone(self, lat, lon, travel_time: int):
         # Attempt to load the shapefile
-        filename = f"{self.travel_method}_{lat:.4f}_{lon:.4f}_{travel_time}.shp"
-        isochrone = self.load_shapefile(filename)
+        filename = f"{self.travel_method}_{lat:.4f}_{lon:.4f}_{travel_time}.geojson"
+        isochrone = self.load_isochrone(filename)
 
         # If the shapefile does not exist, generate and save the result
         if isochrone is None:
             isochrone = self.generate_isochrone(lat, lon, travel_time)
-            self.save_shapefile(filename, isochrone)
+            self.save_isochrone(filename, isochrone)
 
         return isochrone
 
