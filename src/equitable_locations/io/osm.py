@@ -32,13 +32,13 @@ class BaseIsochroneGenerator:
         self.isochrone_dir = PROJECT_ROOT / "untracked" / "isochrone_files"
         self.isochrone_dir.mkdir(parents=True, exist_ok=True)
 
-    def save_isochrone(self, filename: Path, shape):
+    def save_isochrone(self, filename: str, shape):
         filepath = self.isochrone_dir / filename
 
         # To GeoJSON
         filepath.write_text(to_geojson(shape))
 
-    def load_isochrone(self, filename: Path):
+    def load_isochrone(self, filename: str):
         filepath = self.isochrone_dir / filename
         if filepath.exists():
             return from_geojson(filepath.read_text())
@@ -250,7 +250,7 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
         filename = f"{self.travel_method}_{lat:.4f}_{lon:.4f}_{travel_time}.geojson"
         isochrone = self.load_isochrone(filename)
 
-        # If the shapefile does not exist, generate and save the result
+        # If the file does not exist, generate and save the result
         if isochrone is None:
             isochrone = self.generate_isochrone(lat, lon, travel_time)
             self.save_isochrone(filename, isochrone)

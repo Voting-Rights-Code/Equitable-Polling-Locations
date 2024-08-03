@@ -4,6 +4,8 @@ import censusdis.values as cev
 import geopandas as gpd
 import pandas as pd
 from pygris import blocks, block_groups
+from equitable_locations import PROJECT_ROOT
+from typing import Union
 
 
 class CensusData:
@@ -79,24 +81,82 @@ class CensusData:
 
         self.state_name = states.NAMES_FROM_IDS[self.state_code]
         self.state_abbreviation = states.ABBREVIATIONS_FROM_IDS[self.state_code]
+        # Configure cache locations
+        state_folder = self.state_name.replace(" ", "_")
+        # county_folder = self.county_name.replace(" ", "_")
+        self.census_data_folder = PROJECT_ROOT / "untracked" / "census_data" / str(CensusData.YEAR) / state_folder
+        self.census_data_folder.mkdir(parents=True, exist_ok=True)
+
         self.county_code, self.county_name = self._get_county_code(county=county)
 
-        self.block_data = self._get_block_data()
-        self.block_group_data = self._get_block_group_data()
+        self.block_data = self.get_block_data()
+        self.block_group_data = self.get_block_group_data()
 
         # self.cache_file = "census_cache.json"
 
+    def save_censusdata(self, filename: str, census_dataframe: Union[gpd.GeoDataFrame, pd.DataFrame]):
+        filepath = self.census_data_folder / filename
+
+        # To Feather
+        census_dataframe.to_feather(filepath)
+
+    def load_censusdata(self, filename: str, geodataframe: bool = True):
+        filepath = self.census_data_folder / filename
+        if filepath.exists() and geodataframe:
+            return gpd.read_feather(filepath)
+        elif filepath.exists():
+            return pd.read_feather(filepath)
+        else:
+            return None
+
+    def get_block_data(self) -> gpd.GeoDataFrame:
+        filename = f"{self.state_abbreviation}_{self.county_code}_block.feather"
+
+        # Attempt to load the dataframe
+        block_data = self.load_censusdata(filename)
+
+        # If the file does not exist, generate and save the result
+        if block_data is None:
+            block_data = self._get_block_data()
+            self.save_censusdata(filename, block_data)
+
+        return block_data
+
+    def get_block_group_data(self) -> gpd.GeoDataFrame:
+        filename = f"{self.state_abbreviation}_{self.county_code}_block_group.feather"
+        # Attempt to load the dataframe
+        block_group_data = self.load_censusdata(filename)
+
+        # If the file does not exist, generate and save the result
+        if block_group_data is None:
+            block_group_data = self._get_block_group_data()
+            self.save_censusdata(filename, block_group_data)
+
+        return block_group_data
+
+    def get_county_code_data(self) -> pd.DataFrame:
+        filename = f"{self.state_abbreviation}_county_code_data.feather"
+        # Attempt to load the dataframe
+        df_counties = self.load_censusdata(filename, geodataframe=False)
+
+        # If the file does not exist, generate and save the result
+        if df_counties is None:
+            df_counties = ced.download(
+                dataset="acs/acs5",
+                vintage=CensusData.YEAR,
+                download_variables=["NAME"],
+                state=self.state_code,
+                county="*",
+                api_key=self.api_key,
+            )
+            self.save_censusdata(filename, df_counties)
+
+        return df_counties
+
     def _get_county_code(self, county: str) -> tuple[str, str]:
         # lookup county codes
-        # TODO cache/pull from cache
-        df_counties = ced.download(
-            dataset="acs/acs5",
-            vintage=CensusData.YEAR,
-            download_variables=["NAME"],
-            state=self.state_code,
-            county="*",
-            api_key=self.api_key,
-        )
+        df_counties = self.get_county_code_data()
+
         county_code = df_counties.loc[df_counties["NAME"].str.contains(county), ["COUNTY", "NAME"]]
         if len(county_code) > 1:
             raise ValueError("County name search for {} returned more than one result")
@@ -158,7 +218,7 @@ class CensusData:
             if key in gdf_data.columns
         }
 
-        return gdf_data.astype(dtype=column_dtypes)
+        return gpd.GeoDataFrame(gdf_data.astype(dtype=column_dtypes))
 
     def _get_block_group_data(self) -> gpd.GeoDataFrame:
         # TODO: Update with new version. See https://github.com/censusdis/censusdis/issues/295
@@ -211,4 +271,4 @@ class CensusData:
             if key in gdf_data.columns
         }
 
-        return gdf_data.astype(dtype=column_dtypes)
+        return gpd.GeoDataFrame(gdf_data.astype(dtype=column_dtypes))
