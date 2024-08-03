@@ -6,6 +6,30 @@ from typing import Union
 
 
 class DistanceGenerator:
+    OUTPUT_COLUMNS = [
+        "id_orig",
+        "id_dest",
+        "distance",
+        "county",
+        "address",
+        "dest_lat",
+        "dest_lon",
+        "orig_lat",
+        "orig_lon",
+        "location_type",
+        "dest_type",
+        "population",
+        "hispanic",
+        "non-hispanic",
+        "white",
+        "black",
+        "native",
+        "asian",
+        "pacific_islander",
+        "other",
+        "multiple_races",
+    ]
+
     # Distance generator" class. The class should be initialized with a isochrone generator object, list of times, origins dataframe, and a destinations dataframe. The distance generator class should hav a "calc" method which generates a dataframe as output for optimization. Write "save" and "load" methods for the dataframe made with the "calc" method. Optional parameters for initialization include snap origin to road, whether to drop origins with no population, or if minimum time should be used.
     def __init__(
         self,
@@ -36,7 +60,7 @@ class DistanceGenerator:
             # only look at blocks with measured population
             self.origins = self.origins.loc[self.origins.loc[:, "population"] > 0, :]
 
-    def calc(self):
+    def calc(self) -> pd.DataFrame:
         # TODO: make agnostic of generator type (straight line, road distance, vs isochrone distance)
         # Perform distance calculation and generate dataframe
         # this should be the main method using configurations to set up the distance calculations
@@ -96,10 +120,10 @@ class DistanceGenerator:
             gdf_full.drop("index_right", axis=1, inplace=True)
 
         # downselect to the necessary columns
-
-        # save dataframe
+        gdf_full = gdf_full[self.OUTPUT_COLUMNS]
 
         # Return the dataframe
+        self.optimization_dataframe = gdf_full
         return gdf_full
 
     def generate_isochrone_dict(self):
@@ -125,10 +149,6 @@ class DistanceGenerator:
     def save(self, filename):
         # Save the dataframe to a file with the given filename
         self.optimization_dataframe.to_csv(filename, index=False)
-
-    def load(self, filename):
-        # Load the dataframe from the file with the given filename
-        return pd.read_csv(filename)
 
     def find_minimum_time(
         self,
@@ -190,9 +210,3 @@ class DistanceGenerator:
 
         # # Calculate the distances to each block group
         # distances_to_block_groups = self.calculate_distances(filtered_destinations)
-
-    def calculate_distances(self, destinations):
-        pass
-        # Calculate distances to each block group
-        # Return the distances
-        # Distance calculation - initial merge with largest time isochrones for full set. Each subsequent time, conduct a merge to update only the selected rows. If not feasible, iterate through all destinations and update dataframe

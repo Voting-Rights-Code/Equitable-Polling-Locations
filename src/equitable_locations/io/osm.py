@@ -52,13 +52,10 @@ class BaseIsochroneGenerator:
 
 # create an OSM isochrone generator class inheriting from the base isochrone generator class
 class OsmIsochroneGenerator(BaseIsochroneGenerator):
-    def __init__(
-        self, censusdata, travel_times, travel_method="drive", isochrone_buffer_m=304.8, county_buffer_m=10000
-    ):
+    def __init__(self, censusdata, travel_method="drive", isochrone_buffer_m=304.8, county_buffer_m=10000):
         super().__init__()
         self.censusdata = censusdata
         self.travel_method = travel_method
-        self.travel_times = travel_times
 
         # update base folder for isochrone data by state and county
         state_folder = censusdata.state_name.replace(" ", "_")
