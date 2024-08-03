@@ -29,7 +29,7 @@ check_config_folder_valid <- function(config_folder){
 #Read and process config files
 #######
 config_to_list <- function(config_folder, file_name){
-	#Reads yamls, apppends file name
+	#Reads yamls in config_folder, apppends file name as a field to yaml data
 	config_file <- paste(config_folder, file_name, sep = '/')
 	config_list <- read_yaml(config_file)
 	config_list <- c(config_list, file_name = sub('.yaml', '', file_name))
@@ -37,6 +37,9 @@ config_to_list <- function(config_folder, file_name){
 }
 
 read_config <- function(config_folder){
+	#returns a list of lists of all config files in config folder, 
+	#with the file name added as a field
+	
 	#first check that this is a valid folder
 	check_config_folder_valid(config_folder)
 	
@@ -49,6 +52,9 @@ read_config <- function(config_folder){
 }
 
 config_file_fields <- function(config_list){
+	#checks that a given list of config files all have the same set of fields
+	#if yes, returns the fields. Otherwise, returns an error
+
 	#fields for each config file
 	fields <- unique(lapply(config_list, names))
 	#raise error if each config file does not have the same content
@@ -58,32 +64,43 @@ config_file_fields <- function(config_list){
 	return(fields)	
 }
 
-is_field_unique <- function(config_list, field){
-	long_list <- do.call(c, config_list)
-	field_values <- long_list[names(long_list) == field]
-	if (length(unique(field_values))!=1){
-		return(FALSE)
-	} else {
-		return(TRUE)
-	}
-}
+# is_field_unique <- function(config_list, field){
+# 	long_list <- do.call(c, config_list)
+# 	field_values <- long_list[names(long_list) == field]
+# 	if (length(unique(field_values))!=1){
+# 		return(FALSE)
+# 	} else {
+# 		return(TRUE)
+# 	}
+# }
 
 collapse_fields <- function(config){
+	#In order to put the configs into a list, for each config field that is a list
+	#turn it into a pipe separated string 
 	collapsed <- lapply(config, function(x){paste(x[order(x)], collapse = '|')})
 	return(collapsed)
 }
 
 convert_configs_to_dt <- function(config_list){
+	#check if each config in the list has the same fields
 	fields <- config_file_fields(config_list)
+	#collapse lists to strings
 	collapsed_config_list <- lapply(config_list, function(x){collapse_fields(x)})
+	#make this a data.table
 	config_dt <- rbindlist(collapsed_config_list)
 	return(config_dt)
 }
 
 select_varying_fields <- function(config_dt){
+	#Each config folder should have exactly one field that varies
+	#Therefore there should be exactly two (2) fields in config_dt that are not
+	#constant: file_name, and the filed that varies in the folder
+	#return a data.table with just these two.
+
 	#determine non-unique field
-	unique_values <- sapply(config_dt, function(x){length(unique(x))})
-	varying_cols <- names(unique_values)[unique_values >1]
+	unique_values_of_fields <- sapply(config_dt, function(x){length(unique(x))})
+	varying_cols <- names(unique_values_of_fields)[unique_values_of_fields >1]
+
 	#raise error if more than 2 non-unquie fields (1 in addition to file_name)
 	if (length(varying_cols) != 2){
 		stop('Multiple fields vary across collection of config files')
@@ -94,41 +111,45 @@ select_varying_fields <- function(config_dt){
 }
 
 process_configs_dt <- function(config_folder){
-	#read files from config folder and idetify the (unique) field that changes
+	#read files from config folder, identify the (unique) field that changes
+	#add a descriptor field and return the three columns in a data.table
+
 	config_list<- read_config(config_folder)
 	config_dt <- convert_configs_to_dt(config_list)
 	varying_dt <- select_varying_fields(config_dt)
-	descriptor_field <- names(varying_dt)[names(varying_dt) != 'file_name']
-	varying_dt <- varying_dt[, descriptor_pre:= descriptor_field
-						   ][, descriptor := do.call(paste, c(.SD, sep = '_')), .SDcols = c('descriptor_pre', descriptor_field)][ , descriptor_pre:= NULL]
+	#get name of varying field
+	varying_field<- names(varying_dt)[names(varying_dt) != 'file_name']
+	#paste the name of the varying field with its value to make a descriptor column
+	varying_dt <- varying_dt[, descriptor_pre:= varying_field
+						   ][, descriptor := do.call(paste, c(.SD, sep = '_')), .SDcols = c('descriptor_pre', varying_field)][ , descriptor_pre:= NULL]
 	return(varying_dt)
 }
 
-process_configs_list <- function(config_folder){
-	#read files from config folder and idetify the (unique) field that changes
-	config_list<- read_config(config_folder)
-	fields <- config_file_fields(config_list)
-	#config_dt <- convert_configs_to_dt(config_list)
-	#field_name <- identify_varying_field(config_dt)
-	field_uniqueness <- sapply(fields, function(x){is_field_unique(config_list,x)})
-	varying_fields <- names(field_uniqueness)[!field_uniqueness]
-	if (length(varying_fields) != 2){
-		stop('Multiple fields vary across collection of config files')
-	} 
-	parameter = varying_fields[varying_fields != 'file_name']
-	long_list <- do.call(c, config_list)
-	all_parameter_values <- long_list[names(long_list) == parameter]
-	param_value_length <- sapply(all_parameter_values, length)
-	if (all(param_value_length ==1)){ #i.e. no multi element objects
-		config_list <- lapply(config_list, function(x){c(x, descriptor = paste(parameter, x[parameter], sep = '_'))})
-	} else{ #at least some of the elements are multi object
-		config_list <- lapply(config_list, function(x){c(x, descriptor = paste(parameter, paste(x[parameter], collapse = '_'), sep = '_'))})
-	}
-	long_list <- do.call(c, config_list)
-	vary_list <- long_list[names(long_list) %in% c('file_name', 'descriptor')]
-	vary_dt <- data.table(file_name = vary_list[names(vary_list)== 'file_name'], descriptor = vary_list[names(vary_list)== 'descriptor'])
-	return(vary_dt)
-}
+# process_configs_list <- function(config_folder){
+# 	#read files from config folder and idetify the (unique) field that changes
+# 	config_list<- read_config(config_folder)
+# 	fields <- config_file_fields(config_list)
+# 	#config_dt <- convert_configs_to_dt(config_list)
+# 	#field_name <- identify_varying_field(config_dt)
+# 	field_uniqueness <- sapply(fields, function(x){is_field_unique(config_list,x)})
+# 	varying_fields <- names(field_uniqueness)[!field_uniqueness]
+# 	if (length(varying_fields) != 2){
+# 		stop('Multiple fields vary across collection of config files')
+# 	} 
+# 	parameter = varying_fields[varying_fields != 'file_name']
+# 	long_list <- do.call(c, config_list)
+# 	all_parameter_values <- long_list[names(long_list) == parameter]
+# 	param_value_length <- sapply(all_parameter_values, length)
+# 	if (all(param_value_length ==1)){ #i.e. no multi element objects
+# 		config_list <- lapply(config_list, function(x){c(x, descriptor = paste(parameter, x[parameter], sep = '_'))})
+# 	} else{ #at least some of the elements are multi object
+# 		config_list <- lapply(config_list, function(x){c(x, descriptor = paste(parameter, paste(x[parameter], collapse = '_'), sep = '_'))})
+# 	}
+# 	long_list <- do.call(c, config_list)
+# 	vary_list <- long_list[names(long_list) %in% c('file_name', 'descriptor')]
+# 	vary_dt <- data.table(file_name = vary_list[names(vary_list)== 'file_name'], descriptor = vary_list[names(vary_list)== 'descriptor'])
+# 	return(vary_dt)
+# }
 
 ######
 #Functions to read in results
@@ -148,10 +169,11 @@ process_configs_list <- function(config_folder){
 	   # N.B. Number of polls must be in the config file name for this to work, 
 		 # it must be the ONLY numbers in the file name
 assign_descriptor <- function(file_path, descriptor_dt){
+	#check if the file_path corresponds to exactly one file_name 
 	if (nrow(descriptor_dt[str_detect(file_path, file_name), ])!=1){
-		stop('File path has multiple possible descriptors, or none')
+		stop('A file name in this config folder is not unique')
 	}
-
+	#select and append the unique descriptor value to the dataset
 	value <- descriptor_dt[str_detect(file_path, file_name), ]$descriptor
 	dt <- fread(file_path)
 	dt <- dt[, descriptor := value]
@@ -174,6 +196,8 @@ combine_results<- function(location, config_folder, result_type){
 	#read data, add descriptor
 	df_list <- lapply(file_path, function(x){assign_descriptor(x, vary_dt)}) 
 		
+	#TODO: Does this still need to be done after the database migration 
+	#		where the types of these fields are set to str in sql?
 	#Change id_dest and id_orig to strings as needed
 	if ('id_dest' %in% names(df_list[[1]])){
 		sapply(df_list, function(x){x[ , id_dest:= as.character(id_dest)]})}
