@@ -171,7 +171,7 @@ collate_runs <- function(config_set, config_dir, result_dir, out_dir, loc_change
     configs_literal.df <- configs.df
     configs_literal.df$year <- literalize_list(configs_literal.df$year, is.char = FALSE)
     configs_literal.df$bad_types <- literalize_list(configs_literal.df$bad_types, is.char = TRUE)
-    if(!is.null(configs_literal.df$driving_distance_file_path)) configs_literal.df$driving_distance_file_path <- as.character(configs_literal.df$driving_distance_file_path)
+    if(!is.null(configs_literal.df$driving_distance_file_path)) configs_literal.df$driving_distance_file_path <- NULL
     
     write.csv(
       configs_literal.df, 
@@ -182,6 +182,7 @@ collate_runs <- function(config_set, config_dir, result_dir, out_dir, loc_change
   
   
 ## ==== Test ====
+
 # --- Tests of low-level functions ---
 # Read in York and Berkeley configs
 york_configs.df <- collate_configs(config_set = "York_SC_original_configs", config_dir = "../York_SC_original_configs")
@@ -198,36 +199,19 @@ dekalb_test_configs.df <- collate_configs(config_set = "Dekalb_GA_no_bg_school_c
 #   result_dir = "../Cobb_GA_results",
 #   out_dir = "Cobb_GA_no_bg_school_configs_collated"
 # )
-# 
-# collate_runs(
-#   config_set = "York_SC_original_configs",
-#   config_dir = "../York_SC_original_configs",
-#   result_dir = "../York_SC_results",
-#   out_dir = "York_SC_original_configs_collated"
-# )
-
-
-collate_runs(
-  config_set = "DeKalb_GA_no_bg_school_configs",
-  config_dir = "../DeKalb_GA_no_bg_school_configs",
-  result_dir = "../DeKalb_GA_results",
-  out_dir = "DeKalb_GA_no_bg_school_collated"
-)
-
 collate_runs(
   config_set = "Engage_VA_2024_original_configs",
   config_dir = "../Engage_VA_2024_original_configs",
   result_dir = "../Engage_VA_results",
-  out_dir = "Engage_VA_original_collated"
+  out_dir = "Engage_VA_2024_original_collated"
 )
 
 collate_runs(
   config_set = "Engage_VA_2024_driving_configs",
   config_dir = "../Engage_VA_2024_driving_configs",
   result_dir = "../Engage_VA_results",
-  out_dir = "Engage_VA_2024_driving"
+  out_dir = "Engage_VA_2024_driving_collated"
 )
-
 
 
 

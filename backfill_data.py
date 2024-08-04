@@ -9,10 +9,6 @@ from model_results import write_results_bigquery
 # ==== Define parameters to change run-by-run ====
 overwrite = True
 
-# ---- One-off runs ----
-config_set = "York_SC_original_configs"
-in_dir = "BigQuery_integration/" + config_set + "_collated"
-
 # ---- Big chunk of runs ----
 filemaps = pd.read_csv('BigQuery_integration/filemaps_root.csv')
 
@@ -167,9 +163,15 @@ def backfill_data(config_set, in_dir, overwrite = False):
 # ==== Run ====
 
 # Test with one config
-#backfill_data(config_set = config_set, in_dir = in_dir, overwrite = overwrite)
+# ---- One-off runs ----
+
+config_set = "Engage_VA_2024_driving_configs"
+in_dir = "BigQuery_integration/Engage_VA_2024_driving_collated"
+
+backfill_data(config_set = config_set, in_dir = in_dir, overwrite = overwrite)
+
 
 # Backfill all configs
-for i,j in zip(filemaps.config_set, filemaps.out_dir):
-    print(f"Backfilling data for config set {i}")   
-    backfill_data(config_set = i, in_dir = j, overwrite = overwrite)
+# for i,j in zip(filemaps.config_set, filemaps.out_dir):
+#     print(f"Backfilling data for config set {i}")   
+#     backfill_data(config_set = i, in_dir = j, overwrite = overwrite)
