@@ -1,5 +1,4 @@
-# Greenville - no YAML files found 
-# Fix issue with Berkeley SC config - "pyarrow.lib.ArrowInvalid: Float value 1 was truncated converting to int64"
+# Engage VA driving configs - have different and incompatible file structure
 
 library(yaml)
 
