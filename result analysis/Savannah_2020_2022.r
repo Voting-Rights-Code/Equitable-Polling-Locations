@@ -9,7 +9,7 @@ setwd(here())
 #source functions
 #######
 
-source('result analysis/graph_functions.R')
+source('result analysis/graph_functions_2.R')
 source('result analysis/map_functions.R')
 
 #######
@@ -20,8 +20,8 @@ source('result analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'Contained_in_Savannah_City_of_GA'
-CONFIG_FOLDER = 'Contained_in_Savannah_City_of_GA_original_configs'
+LOCATION2 = 'Contained_in_Savannah_City_of_GA'
+CONFIG_FOLDER2 = 'Contained_in_Savannah_City_of_GA_original_configs'
 
 POTENTIAL_CONFIG_FOLDER = 'Contained_in_Savannah_City_of_GA_no_bg_school_configs'
 
@@ -47,13 +47,13 @@ check_location_valid(LOCATION, POTENTIAL_CONFIG_FOLDER)
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
-config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'other')
+config_df_list <- read_result_data(LOCATION2, CONFIG_FOLDER2)
 #config_ede_df<- config_df_list[[1]]
 #config_precinct_df<- config_df_list[[2]]
 #config_residence_df<- config_df_list[[3]]
 #config_result_df<- config_df_list[[4]]
 
-potential_config_df_list <- read_result_data(LOCATION, POTENTIAL_CONFIG_FOLDER, 'other')
+potential_config_df_list <- read_result_data(LOCATION2, POTENTIAL_CONFIG_FOLDER)
 
 #change descriptors
 change_descriptors <- function(df){

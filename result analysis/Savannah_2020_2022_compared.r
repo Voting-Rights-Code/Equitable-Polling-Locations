@@ -9,7 +9,7 @@ setwd(here())
 #source functions
 #######
 
-source('result analysis/graph_functions.R')
+source('result analysis/graph_functions_2.R')
 source('result analysis/map_functions.R')
 
 #######
@@ -52,7 +52,7 @@ check_location_valid(LOCATION[2], INTERSECTING_CONFIG_FOLDER)
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
-config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'other')
+config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER)
 #config_ede_df<- config_df_list[[1]]
 #config_precinct_df<- config_df_list[[2]]
 #config_residence_df<- config_df_list[[3]]

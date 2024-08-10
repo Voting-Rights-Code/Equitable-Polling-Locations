@@ -76,9 +76,13 @@ config_file_fields <- function(config_list){
 
 collapse_fields <- function(config){
 	#In order to put the configs into a list, for each config field that is a list
-	#turn it into a pipe separated string 
-	collapsed <- lapply(config, function(x){paste(x[order(x)], collapse = '|')})
-	return(collapsed)
+	#turn it into a pipe separated string, also change NULLs to NAs 
+	
+	#change nulls to NAs
+	config <- lapply(config, function(x) {if(is.null(x)){x <- NA}else{x}})
+	#collapse lists
+	config <- lapply(config, function(x){paste(x[order(x)], collapse = '|')})
+	return(config)
 }
 
 convert_configs_to_dt <- function(config_list){
@@ -100,7 +104,7 @@ select_varying_fields <- function(config_dt){
 	#determine non-unique field
 	unique_values_of_fields <- sapply(config_dt, function(x){length(unique(x))})
 	varying_cols <- names(unique_values_of_fields)[unique_values_of_fields >1]
-
+	browser()
 	#raise error if more than 2 non-unquie fields (1 in addition to file_name)
 	if (length(varying_cols) != 2){
 		stop('Multiple fields vary across collection of config files')
@@ -169,6 +173,7 @@ process_configs_dt <- function(config_folder){
 	   # N.B. Number of polls must be in the config file name for this to work, 
 		 # it must be the ONLY numbers in the file name
 assign_descriptor <- function(file_path, descriptor_dt){
+	
 	#check if the file_path corresponds to exactly one file_name 
 	if (nrow(descriptor_dt[str_detect(file_path, file_name), ])!=1){
 		stop('A file name in this config folder is not unique')
@@ -210,7 +215,7 @@ combine_results<- function(location, config_folder, result_type){
 	return(big_df)
 }
 
-read_result_data<- function(location, config_folder, analysis_type){
+read_result_data<- function(location, config_folder){
 	#read in and format all the results data assocaited to a 
 	#given config folder.
 	#config_folder: string
@@ -218,10 +223,10 @@ read_result_data<- function(location, config_folder, analysis_type){
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
 	
 	#combine all files with a descriptor column attached
-	ede_df<- combine_results(location, config_folder, 'edes', analysis_type)
-	precinct_df<- combine_results(location, config_folder, 'precinct_distances', analysis_type)
-	residence_df<- combine_results(location, config_folder, 'residence_distances', analysis_type)
-	result_df<- combine_results(location, config_folder, 'result', analysis_type)
+	ede_df<- combine_results(location, config_folder, 'edes')
+	precinct_df<- combine_results(location, config_folder, 'precinct_distances')
+	residence_df<- combine_results(location, config_folder, 'residence_distances')
+	result_df<- combine_results(location, config_folder, 'result')
 
 	#label descriptors with polls and residences
 	num_polls <- precinct_df[ , .(num_polls = .N/6), by = descriptor]
