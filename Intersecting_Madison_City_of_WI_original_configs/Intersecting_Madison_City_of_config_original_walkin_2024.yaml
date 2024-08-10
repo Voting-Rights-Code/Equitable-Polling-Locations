@@ -8,6 +8,7 @@ bad_types:
 beta: -1
 time_limit: 360000 #100 hours minutes
 capacity: 1.5
+fixed_capacity_site_number : 30
 
 ####Optional#####
 precincts_open: null
