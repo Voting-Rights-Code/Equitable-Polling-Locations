@@ -28,9 +28,15 @@ class DistanceGenerator:
         "pacific_islander",
         "other",
         "multiple_races",
+        "weighted_dist",
     ]
 
-    # Distance generator" class. The class should be initialized with a isochrone generator object, list of times, origins dataframe, and a destinations dataframe. The distance generator class should hav a "calc" method which generates a dataframe as output for optimization. Write "save" and "load" methods for the dataframe made with the "calc" method. Optional parameters for initialization include snap origin to road, whether to drop origins with no population, or if minimum time should be used.
+    # Distance generator" class. The class should be initialized with a isochrone generator object,
+    # list of times, origins dataframe, and a destinations dataframe.
+    # The distance generator class should hav a "calc" method which generates a dataframe as
+    # output for optimization. Write "save" and "load" methods for the dataframe made with the
+    # "calc" method. Optional parameters for initialization include snap origin to road, whether
+    # to drop origins with no population, or if minimum time should be used.
     def __init__(
         self,
         isochrone_generator: OsmIsochroneGenerator,
@@ -74,7 +80,7 @@ class DistanceGenerator:
                 print(
                     "Warning: the lowest supplied time was found to satisfy coverage requirements. Increasing the minimum time to the second smallest."
                 )
-                min_time_idx -= 1
+                temp_min_time_idx -= 1
             # TODO: invert minimum time index logic
             min_time_idx = len(self.times) - 1 - temp_min_time_idx
             self.times = self.times[min_time_idx:]
@@ -118,6 +124,9 @@ class DistanceGenerator:
             gdf_full.loc[gdf_full.loc[:, "index_right"].notna(), "distance"] = traveltime
             # drop "index_right" to clean up
             gdf_full.drop("index_right", axis=1, inplace=True)
+
+        # create other useful columns
+        gdf_full["weighted_dist"] = gdf_full["population"] * gdf_full["distance"]
 
         # downselect to the necessary columns
         gdf_full = gdf_full[self.OUTPUT_COLUMNS]

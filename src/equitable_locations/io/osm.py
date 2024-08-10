@@ -7,7 +7,6 @@ import osmnx as ox
 import pandas as pd
 from shapely.geometry import LineString, Point, Polygon
 from shapely import to_geojson, from_geojson
-from pathlib import Path
 from pyproj import CRS
 import concurrent.futures
 import os
@@ -161,7 +160,7 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
         longitudes = locations[lon_column]
         start = time.time()
         max_workers = min(4, os.cpu_count())
-        coordinates = zip(latitudes, longitudes)
+        coordinates = zip(latitudes, longitudes, strict=False)
         processes = []
         isochrone_list = []
         counter = 0
