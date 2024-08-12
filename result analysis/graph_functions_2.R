@@ -104,10 +104,9 @@ select_varying_fields <- function(config_dt){
 	#determine non-unique field
 	unique_values_of_fields <- sapply(config_dt, function(x){length(unique(x))})
 	varying_cols <- names(unique_values_of_fields)[unique_values_of_fields >1]
-	browser()
 	#raise error if more than 2 non-unquie fields (1 in addition to file_name)
 	if (length(varying_cols) != 2){
-		stop('Multiple fields vary across collection of config files')
+		stop(paste('Too many fields vary across collection of config files:', paste(varying_cols, collapse = ', ')))
 	} 
 	#select the parameter of interest
 	result_dt <- config_dt[ , ..varying_cols]
@@ -172,16 +171,21 @@ process_configs_dt <- function(config_folder){
 	   # (E.g. FFA analysis)
 	   # N.B. Number of polls must be in the config file name for this to work, 
 		 # it must be the ONLY numbers in the file name
-assign_descriptor <- function(file_path, descriptor_dt){
+assign_descriptor <- function(file_path, descriptor_dt, config_folder, result_type){
+	#extract the file name of the config file
+	config_file_name <- gsub(paste0('.*', config_folder, '\\.'), '', file_path)
+	config_file_name <- gsub(paste0('_', result_type, '\\.csv'), '', config_file_name)
 	
 	#check if the file_path corresponds to exactly one file_name 
-	if (nrow(descriptor_dt[str_detect(file_path, file_name), ])!=1){
-		stop('A file name in this config folder is not unique')
+	file_name_match = descriptor_dt[file_name == config_file_name, ]
+	num_matches = nrow(file_name_match)
+	if (num_matches!=1){
+		stop(paste('The file path', config_file_name, 'appears', num_matches, 'time in the config data'))
 	}
 	#select and append the unique descriptor value to the dataset
-	value <- descriptor_dt[str_detect(file_path, file_name), ]$descriptor
+	descriptor_value <- file_name_match$descriptor
 	dt <- fread(file_path)
-	dt <- dt[, descriptor := value]
+	dt <- dt[, descriptor := descriptor_value]
 	return(dt)
 }
 
@@ -195,11 +199,12 @@ combine_results<- function(location, config_folder, result_type){
 	#select which results we want (potentially from a list of folders)
 	result_folder_list <-sapply(location, function(x){paste(x, 'results/', sep = '_')})
 	files <- lapply(result_folder_list, list.files)
-	files <- sapply(location, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
+	files <- sapply(location, function(x){files[[x]][grepl(paste0(config_folder, '\\.'), files[[x]]) &grepl(result_type, files[[x]])]}) 
+	#files <- sapply(location, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
 	file_path <- mapply(function(folder, file){paste0(folder, file)}, result_folder_list, files)
-
+	
 	#read data, add descriptor
-	df_list <- lapply(file_path, function(x){assign_descriptor(x, vary_dt)}) 
+	df_list <- lapply(file_path, function(x){assign_descriptor(x, vary_dt, config_folder, result_type)}) 
 		
 	#TODO: Does this still need to be done after the database migration 
 	#		where the types of these fields are set to str in sql?
@@ -227,7 +232,7 @@ read_result_data<- function(location, config_folder){
 	precinct_df<- combine_results(location, config_folder, 'precinct_distances')
 	residence_df<- combine_results(location, config_folder, 'residence_distances')
 	result_df<- combine_results(location, config_folder, 'result')
-
+	browser()
 	#label descriptors with polls and residences
 	num_polls <- precinct_df[ , .(num_polls = .N/6), by = descriptor]
 	num_residences <- residence_df[ , .(num_residences = .N/6), by = descriptor]

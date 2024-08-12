@@ -9,7 +9,7 @@ setwd(here())
 #source functions
 #######
 
-source('result analysis/graph_functions.R')
+source('result analysis/graph_functions_2.R')
 source('result analysis/map_functions.R')
 
 #######
@@ -52,19 +52,19 @@ check_location_valid(LOCATION[2], INTERSECTING_CONFIG_FOLDER)
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
-config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'other')
+config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER)
 #config_ede_df<- config_df_list[[1]]
 #config_precinct_df<- config_df_list[[2]]
 #config_residence_df<- config_df_list[[3]]
 #config_result_df<- config_df_list[[4]]
 
-intersecting_config_df_list <- read_result_data(LOCATION[2], INTERSECTING_CONFIG_FOLDER, 'other')
-contained_in_config_df_list <- read_result_data(LOCATION[1], CONTAINED_IN_CONFIG_FOLDER, 'other')
+intersecting_config_df_list <- read_result_data(LOCATION[2], INTERSECTING_CONFIG_FOLDER)
+contained_in_config_df_list <- read_result_data(LOCATION[1], CONTAINED_IN_CONFIG_FOLDER)
 
 #change descriptors
 change_descriptors <- function(df){
-    df <- df[descriptor == "original_contained_in_2024", descriptor := "Contained"
-            ][descriptor == "original_intersecting_2024", descriptor := "Intersecting"
+    df <- df[descriptor == "location_Contained_in_Madison_City_of_WI", descriptor := "Contained"
+            ][descriptor == "location_Intersecting_Madison_City_of_WI", descriptor := "Intersecting"
             ]
 return(df)
 }

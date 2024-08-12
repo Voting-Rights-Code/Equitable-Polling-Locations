@@ -11,5 +11,5 @@ capacity: 1.5
 ####Optional#####
 precincts_open: null
 max_min_mult: 5 #scalar >= 1
-maxpctnew: 0.5 # in interval [0,1]
+maxpctnew: 0.4 # in interval [0,1]
 minpctold: 0 # in interval [0,1]
