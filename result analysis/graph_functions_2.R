@@ -296,7 +296,7 @@ plot_multiple_edes<-function(ede_list, demo_grp){
 
 #ACCOMODATES DRIVING DISTANCES
 
-plot_historic_edes <- function(config_folder, orig_ede, suffix = ''){	
+plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = FALSE){	
 	
 	#set x axis label order
 	descriptor_order <- unique(orig_ede$descriptor)
@@ -311,7 +311,7 @@ plot_historic_edes <- function(config_folder, orig_ede, suffix = ''){
 	scale_bool = 'pct_demo_population' %in% names(orig_ede)
 	
 	#is this driving distance data
-	if (grepl('driving', config_folder)){
+	if (driving_flag){
 		y_EDE_label = 'Equity weighted driving distance (m)'
 		y_avg_label = 'Average driving distance (m)'
 		title_str = "driving distance by demographic and optimization run"
@@ -367,14 +367,14 @@ ede_with_pop<- function(config_df_list){
 #polls (via plot_historical_edes)
 
 #ACCOMODATES DRIVING DISTANCES
-plot_original_optimized <- function(config_ede, orig_ede, suffix = '', config_folder = CONFIG_FOLDER){	
+plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_flag = FALSE){	
 	#select the relevant optimized runs
 	orig_num_polls <- unique(orig_ede$num_polls)
 	config_num_polls <- unique(config_ede$num_polls)
 	optimization_num_polls<- max(intersect(orig_num_polls, config_num_polls))
 	optimized_run_dfs <- config_ede[num_polls == optimization_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
-	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), config_folder)
+	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), driving_flag)
 
 }
 

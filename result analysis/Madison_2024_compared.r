@@ -110,7 +110,7 @@ if (file.exists(file.path(here(), plot_folder))){
 #Add percent population to data ede data for graph scaling for all general config folder and orig
 pop_scaled_edes <- ede_with_pop(config_df_list)
 #Plot the edes for all runs in original_location and equivalent optimization runs by demographic
-plot_historic_edes(CONFIG_FOLDER, pop_scaled_edes, suffix = 'pop_scaled')
+plot_historic_edes(pop_scaled_edes, suffix = 'pop_scaled')
 
 edes_to_compare <- list(contained_in_config_df_list[[1]], intersecting_config_df_list[[1]])
 plot_multiple_edes(edes_to_compare, 'asian')
