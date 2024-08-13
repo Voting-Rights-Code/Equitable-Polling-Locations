@@ -232,7 +232,7 @@ read_result_data<- function(location, config_folder){
 	precinct_df<- combine_results(location, config_folder, 'precinct_distances')
 	residence_df<- combine_results(location, config_folder, 'residence_distances')
 	result_df<- combine_results(location, config_folder, 'result')
-	browser()
+	
 	#label descriptors with polls and residences
 	num_polls <- precinct_df[ , .(num_polls = .N/6), by = descriptor]
 	num_residences <- residence_df[ , .(num_residences = .N/6), by = descriptor]
@@ -277,6 +277,16 @@ plot_poll_edes<-function(ede_df){
 	ggsave('demographic_edes.png')
 }
 
+plot_multiple_edes<-function(ede_list, demo_grp){
+	ede_df <- do.call(rbind, ede_list)
+	ggplot(ede_df[demographic == demo_grp, ], aes(x = num_polls, y = y_EDE, 
+		group = descriptor, color =  descriptor, shape = demo_grp)) +
+		geom_line()+ geom_point()+ 
+		labs(x = 'Number of polls', y = 'Equity weighted distance (m)', color = "Run Type", shape = 'Demographic')+ 
+		scale_shape_discrete(labels = demographic_legend_dict) + 
+		scale_color_manual(breaks = c('Intersecting', 'Contained'), values = c('red','darkviolet'))
+	ggsave(paste0(demo_grp, '_compare_demographic_edes.png'))
+}
 
 #makes two plots, one showing the y_ede the other avg distance
 #showing how these variables change across the included runs

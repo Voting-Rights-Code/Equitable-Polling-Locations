@@ -110,7 +110,7 @@ distance_bounds <- function(location, config_folder){
 	#calculate the min and max average distances traveled by census block for maps
 
 	#get full residence data
-	residence_df<- combine_results(location, config_folder, 'residence_distances', 'other')
+	residence_df<- combine_results(location, config_folder, 'residence_distances')
 	residence_df <- residence_df[demographic == 'population', ]
 	min_avg_dist <- min(residence_df$avg_dist)
 	max_avg_dist <- max(residence_df$avg_dist)

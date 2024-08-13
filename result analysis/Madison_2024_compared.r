@@ -71,8 +71,8 @@ return(df)
 config_df_list = lapply(config_df_list, change_descriptors)
 
 #change num_polls and descriptor
-contained_in_config_df_list <- lapply(contained_in_config_df_list, function(x) {x[ , num_polls:= as.numeric(gsub('change_', '', descriptor))][ , descriptor := 'Contained']})
-intersecting_config_df_list <- lapply(intersecting_config_df_list, function(x) {x[ , num_polls:= as.numeric(gsub('change_', '', descriptor))][ , descriptor := 'Intersecting']})
+contained_in_config_df_list <- lapply(contained_in_config_df_list, function(x) {x[ , num_polls:= round(as.numeric(gsub('maxpctnew_', '', descriptor))*30)][ , descriptor := 'Contained']})
+intersecting_config_df_list <- lapply(intersecting_config_df_list, function(x) {x[ , num_polls:= round(as.numeric(gsub('maxpctnew_', '', descriptor))*30)][ , descriptor := 'Intersecting']})
 
 #########
 #Set up maps and cartograms
@@ -83,14 +83,15 @@ result_folder = paste(LOCATION, 'results', sep = '_')
 #get all file names the result_folder with the strings config_folder and 'residence_distances'
 res_dist_list = list.files(result_folder)[grepl('residence_distances', list.files(result_folder))]
 orig_res_dist_list = res_dist_list[grepl(CONFIG_FOLDER, res_dist_list)]
-potential_res_dist_list = res_dist_list[grepl(POTENTIAL_CONFIG_FOLDER, res_dist_list)]
+#potential_res_dist_list = res_dist_list[grepl(POTENTIAL_CONFIG_FOLDER, res_dist_list)]
 
 #get avg distance bounds for map coloring
-orig_color_bounds <- distance_bounds(LOCATION, CONFIG_FOLDER)
-potential_color_bounds <- distance_bounds(LOCATION, POTENTIAL_CONFIG_FOLDER)
-global_min <- min(orig_color_bounds[[1]], potential_color_bounds[[1]])
-global_max <- max(orig_color_bounds[[2]], potential_color_bounds[[2]])
-color_bounds <- list(global_min, global_max)
+color_bounds <- distance_bounds(LOCATION, CONFIG_FOLDER)
+#orig_color_bounds <- distance_bounds(LOCATION, CONFIG_FOLDER)
+#potential_color_bounds <- distance_bounds(LOCATION, POTENTIAL_CONFIG_FOLDER)
+#global_min <- min(orig_color_bounds[[1]], potential_color_bounds[[1]])
+#global_max <- max(orig_color_bounds[[2]], potential_color_bounds[[2]])
+#color_bounds <- list(global_min, global_max)
 
 
 #######
