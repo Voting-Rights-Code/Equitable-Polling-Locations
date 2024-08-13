@@ -100,17 +100,6 @@ if (file.exists(file.path(here(), plot_folder))){
 contained_in_pop_scaled_edes <- ede_with_pop(contained_in_orig_df_list)
 intersecting_pop_scaled_edes <- ede_with_pop(intersecting_orig_df_list)
 
-combine_different_runs<- function(df_list){
-    #check for descriptor uniqueness
-    all_descriptors <- unlist(lapply(df_list, function(x){unique(x$descriptor)}))
-    if(length(unique(all_descriptors))< length(all_descriptors)){
-        stop('The data.tables being combined have descriptors in common. Please rename.')
-    }
-    #combine data
-    df<- do.call(rbind, df_list)
-    return(df)
-}
-
 #Plot the edes for all runs in original_location and equivalent optimization runs by demographic
 pop_scaled_list = list(contained_in_pop_scaled_edes, intersecting_pop_scaled_edes)
 combined_pop_scaled_edes <- combine_different_runs(pop_scaled_list)

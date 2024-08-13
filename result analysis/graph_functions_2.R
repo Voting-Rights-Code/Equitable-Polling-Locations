@@ -263,6 +263,20 @@ demographic_legend_dict <- c(
 #######
 #functions to make plots
 #######
+#helper function to combine ede data from different config folders 
+combine_different_runs<- function(df_list){
+	#takes a list of ede data generated from config folders and, if the descriptors
+	#are unique, combines them into one dataframe for plotting
+	
+    #check for descriptor uniqueness
+    all_descriptors <- unlist(lapply(df_list, function(x){unique(x$descriptor)}))
+    if(length(unique(all_descriptors))< length(all_descriptors)){
+        stop('The data.tables being combined have descriptors in common. Please rename.')
+    }
+    #combine data
+    df<- do.call(rbind, df_list)
+    return(df)
+}
 
 #makes a plot showing how y_EDEs change for each demographic group as the 
 #number of polls is increased
