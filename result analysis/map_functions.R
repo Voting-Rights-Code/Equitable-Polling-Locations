@@ -183,7 +183,7 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 	return(map)
 }
 
-make_bg_maps <-function(config_folder, file_to_map, map_type, result_folder_name = result_folder, this_location = LOCATION, demo_str = 'population'){
+make_bg_maps <-function(file_to_map, map_type, result_folder_name = result_folder, this_location = LOCATION, demo_str = 'population', driving_flag = DRIVING_FLAG){
 	#read in a residence_distance file from the correct config_folder, combine this and use it to color the map by distance to matched location, for the indicated demographic
 	#If the map type is "map", then also plot the polling locations
 
@@ -212,7 +212,7 @@ make_bg_maps <-function(config_folder, file_to_map, map_type, result_folder_name
 	demo_dist_shape<- merge(map_sf, res_dist_demo, all = T)	
 	
 	#make maps
-	if (grepl('driving', config_folder)){
+	if (driving_flag){
 		title_str = 'Average driving distance to poll (m)'
 		fill_str = 'Avg driving distance (m)'
 	} else{
@@ -235,7 +235,7 @@ make_bg_maps <-function(config_folder, file_to_map, map_type, result_folder_name
 	}
 	plotted = plotted + ggtitle(title_str, paste('Block group', map_type , 'of', gsub('_', ' ', descriptor) ))
 
-	if (grepl('driving', config_folder)){
+	if (driving_flag){
 	plotted <- plotted #+ labs(fill = 'Avg driving distance (m)')
 	} else {
 		plotted <- plotted #+ labs(fill = 'Avg straight line distance (m)')
@@ -247,7 +247,7 @@ make_bg_maps <-function(config_folder, file_to_map, map_type, result_folder_name
 	ggsave(paste0(here(), '/', plot_folder, '/',map_name, '_',descriptor, '_','polls.png'), plotted)
 	}
 
-make_demo_dist_map <-function(config_folder, file_to_map, demo_str, result_folder_name = result_folder, this_location = LOCATION, map_type = 'map'){
+make_demo_dist_map <-function(file_to_map, demo_str, result_folder_name = result_folder, this_location = LOCATION, map_type = 'map', driving_flag = DRIVING_FLAG){
 
 	#read in block level data and aggregate to block group level
 	res_dist_df <- process_residence(file_to_map, demo_str, result_folder_name)
@@ -264,7 +264,7 @@ make_demo_dist_map <-function(config_folder, file_to_map, demo_str, result_folde
 
 	#plot map with a point at the centroid, colored by distance, sized by size
 	#set names
-	if (grepl('driving', config_folder)){
+	if (driving_flag){
 		title_str = 'population average driving distance to poll (m)'
 		color_str = 'Avg driving distance (m)'
 	} else{

@@ -51,6 +51,16 @@ check_location_valid(LOCATION[2], INTERSECTING_POT_CONFIG_FOLDER)
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
+#driving flags
+config_list<-c(CONTAINED_IN_ORIG_CONFIG_FOLDER, INTERSECTING_ORIG_CONFIG_FOLDER,    CONTAINED_IN_POT_CONFIG_FOLDER, INTERSECTING_POT_CONFIG_FOLDER)
+DRIVING_FLAG <- set_global_driving_flag(config_list)
+
+contained_in_orig_driving_flag <- get_driving_flag(CONTAINED_IN_ORIG_CONFIG_FOLDER)
+intersecting_orig_driving_flag <- get_driving_flag(INTERSECTING_ORIG_CONFIG_FOLDER)
+contained_in_pot_driving_flag <- get_driving_flag(CONTAINED_IN_POT_CONFIG_FOLDER)
+intersecting_pot_driving_flag <- get_driving_flag(INTERSECTING_POT_CONFIG_FOLDER)
+
+
 contained_in_orig_df_list <- read_result_data(LOCATION[1], CONTAINED_IN_ORIG_CONFIG_FOLDER)
 intersecting_orig_df_list <- read_result_data(LOCATION[2], INTERSECTING_ORIG_CONFIG_FOLDER)
 
@@ -112,14 +122,14 @@ plot_multiple_edes(edes_to_compare, 'black')
 plot_multiple_edes(edes_to_compare, 'white')
 
 ###maps####
-make_bg_maps(CONTAINED_IN_ORIG_CONFIG_FOLDER, orig_res_dist_list[1], 'boundries', result_folder_name = result_folder[1], this_location = LOCATION[1])
-make_bg_maps(CONTAINED_IN_ORIG_CONFIG_FOLDER, orig_res_dist_list[2], 'boundries', result_folder_name = result_folder[1], this_location = LOCATION[1])
-make_bg_maps(INTERSECTING_ORIG_CONFIG_FOLDER, orig_res_dist_list[3], 'map', result_folder_name = result_folder[2], this_location = LOCATION[2])
-make_bg_maps(INTERSECTING_ORIG_CONFIG_FOLDER, orig_res_dist_list[4], 'map', result_folder_name = result_folder[2], this_location = LOCATION[2])
+make_bg_maps(orig_res_dist_list[1], 'boundries', result_folder_name = result_folder[1], this_location = LOCATION[1])
+make_bg_maps(orig_res_dist_list[2], 'boundries', result_folder_name = result_folder[1], this_location = LOCATION[1])
+make_bg_maps(orig_res_dist_list[3], 'map', result_folder_name = result_folder[2], this_location = LOCATION[2])
+make_bg_maps(orig_res_dist_list[4], 'map', result_folder_name = result_folder[2], this_location = LOCATION[2])
 
-make_demo_dist_map(CONTAINED_IN_ORIG_CONFIG_FOLDER, orig_res_dist_list[1], 'population', map_type = 'boundries', result_folder_name =  result_folder[1], this_location = LOCATION[1])
-make_demo_dist_map(CONTAINED_IN_ORIG_CONFIG_FOLDER, orig_res_dist_list[2], 'population', map_type = 'boundries', result_folder_name = result_folder[1], this_location = LOCATION[1])
-make_demo_dist_map(INTERSECTING_ORIG_CONFIG_FOLDER, orig_res_dist_list[3], 'population', map_type = 'map', result_folder_name =  result_folder[2], this_location = LOCATION[2])
-make_demo_dist_map(INTERSECTING_ORIG_CONFIG_FOLDER, orig_res_dist_list[4], 'population', map_type = 'map', result_folder_name =  result_folder[2], this_location = LOCATION[2])
+make_demo_dist_map(orig_res_dist_list[1], 'population', map_type = 'boundries', result_folder_name =  result_folder[1], this_location = LOCATION[1])
+make_demo_dist_map(orig_res_dist_list[2], 'population', map_type = 'boundries', result_folder_name = result_folder[1], this_location = LOCATION[1])
+make_demo_dist_map(orig_res_dist_list[3], 'population', map_type = 'map', result_folder_name =  result_folder[2], this_location = LOCATION[2])
+make_demo_dist_map(orig_res_dist_list[4], 'population', map_type = 'map', result_folder_name =  result_folder[2], this_location = LOCATION[2])
 
 

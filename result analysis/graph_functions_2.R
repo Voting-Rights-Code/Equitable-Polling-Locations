@@ -128,32 +128,28 @@ process_configs_dt <- function(config_folder){
 	return(varying_dt)
 }
 
-# process_configs_list <- function(config_folder){
-# 	#read files from config folder and idetify the (unique) field that changes
-# 	config_list<- read_config(config_folder)
-# 	fields <- config_file_fields(config_list)
-# 	#config_dt <- convert_configs_to_dt(config_list)
-# 	#field_name <- identify_varying_field(config_dt)
-# 	field_uniqueness <- sapply(fields, function(x){is_field_unique(config_list,x)})
-# 	varying_fields <- names(field_uniqueness)[!field_uniqueness]
-# 	if (length(varying_fields) != 2){
-# 		stop('Multiple fields vary across collection of config files')
-# 	} 
-# 	parameter = varying_fields[varying_fields != 'file_name']
-# 	long_list <- do.call(c, config_list)
-# 	all_parameter_values <- long_list[names(long_list) == parameter]
-# 	param_value_length <- sapply(all_parameter_values, length)
-# 	if (all(param_value_length ==1)){ #i.e. no multi element objects
-# 		config_list <- lapply(config_list, function(x){c(x, descriptor = paste(parameter, x[parameter], sep = '_'))})
-# 	} else{ #at least some of the elements are multi object
-# 		config_list <- lapply(config_list, function(x){c(x, descriptor = paste(parameter, paste(x[parameter], collapse = '_'), sep = '_'))})
-# 	}
-# 	long_list <- do.call(c, config_list)
-# 	vary_list <- long_list[names(long_list) %in% c('file_name', 'descriptor')]
-# 	vary_dt <- data.table(file_name = vary_list[names(vary_list)== 'file_name'], descriptor = vary_list[names(vary_list)== 'descriptor'])
-# 	return(vary_dt)
-# }
+get_driving_flag <- function(config_folder){
+	config_list<- read_config(config_folder)
+	config_dt <- convert_configs_to_dt(config_list)
+	if (!('driving' %in% names(config_dt))){ #if the flag not present, false
+		driving_flag <- FALSE
+	} else if(length(unique(config_dt$driving))>1){#if this is the flag that varies, not sure how to handle
+		stop('Driving flad not consistent in config set')
+	} else{#otherwise pull driving flag from unique value in this field
+		driving_flag <- unique(config_dt$driving)
+	}
+	return(driving_flag)
+}
 
+set_global_driving_flag<- function(config_list){
+	driving_flag_list <- sapply(config_list, get_driving_flag)
+	if (length(unique(driving_flag_list))==1){
+    	base_driving_flag = unique(driving_flag_list)
+	}else{
+    	stop('driving flags different in different files. Cannot set global value')
+	}
+	return(base_driving_flag)
+}
 ######
 #Functions to read in results
 #Two types to analysis: historical (see CLC work); placement (see FFA work)
@@ -195,7 +191,7 @@ combine_results<- function(location, config_folder, result_type){
 	#config_dt <- convert_configs_to_dt(config_list)
 	#vary_dt <- select_varying_fields(config_dt)
 	vary_dt <- process_configs_dt(config_folder)
-
+	
 	#select which results we want (potentially from a list of folders)
 	result_folder_list <-sapply(location, function(x){paste(x, 'results/', sep = '_')})
 	files <- lapply(result_folder_list, list.files)
@@ -310,7 +306,7 @@ plot_multiple_edes<-function(ede_list, demo_grp){
 
 #ACCOMODATES DRIVING DISTANCES
 
-plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = FALSE){	
+plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLAG){	
 	
 	#set x axis label order
 	descriptor_order <- unique(orig_ede$descriptor)
@@ -381,7 +377,7 @@ ede_with_pop<- function(config_df_list){
 #polls (via plot_historical_edes)
 
 #ACCOMODATES DRIVING DISTANCES
-plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_flag = FALSE){	
+plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_flag = DRIVING_FLAG){	
 	#select the relevant optimized runs
 	orig_num_polls <- unique(orig_ede$num_polls)
 	config_num_polls <- unique(config_ede$num_polls)

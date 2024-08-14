@@ -21,9 +21,9 @@ source('result analysis/map_functions.R')
 #CONFIG_FOLDER must be a string
 
 LOCATION = 'Intersecting_Madison_City_of_WI'
-CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_original_driving_configs'
+CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_original_configs'
 
-POTENTIAL_CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_potential_driving_configs'
+POTENTIAL_CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_potential_configs'
 
 
 #######
@@ -47,13 +47,19 @@ check_location_valid(LOCATION, POTENTIAL_CONFIG_FOLDER)
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
-config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'other')
+#driving flag
+config_list <- c(CONFIG_FOLDER, POTENTIAL_CONFIG_FOLDER)
+DRIVING_FLAG <- set_global_driving_flag(config_list)
+
+
+
+config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER)
 #config_ede_df<- config_df_list[[1]]
 #config_precinct_df<- config_df_list[[2]]
 #config_residence_df<- config_df_list[[3]]
 #config_result_df<- config_df_list[[4]]
 
-potential_config_df_list <- read_result_data(LOCATION, POTENTIAL_CONFIG_FOLDER, 'other')
+potential_config_df_list <- read_result_data(LOCATION, POTENTIAL_CONFIG_FOLDER)
 
 #change descriptors
 change_descriptors <- function(df){
@@ -66,7 +72,7 @@ return(df)
 config_df_list = lapply(config_df_list, change_descriptors)
 
 #change num_polls
-potential_config_df_list <- lapply(potential_config_df_list, function(x) {x[ , num_polls:= as.numeric(gsub('change_', '', descriptor))]})
+potential_config_df_list <- lapply(potential_config_df_list, function(x) {x[ , num_polls:= round(as.numeric(gsub('maxpctnew_', '', descriptor))*30)][, descriptor:= paste('Change', num_polls, sep = '_')]})
 
 #########
 #Set up maps and cartograms
@@ -102,19 +108,19 @@ if (file.exists(file.path(here(), plot_folder))){
 #Add percent population to data ede data for graph scaling for all general config folder and orig
 pop_scaled_edes <- ede_with_pop(config_df_list)
 #Plot the edes for all runs in original_location and equivalent optimization runs by demographic
-plot_historic_edes(CONFIG_FOLDER, pop_scaled_edes, suffix = 'pop_scaled')
+plot_historic_edes(pop_scaled_edes, suffix = 'pop_scaled')
 
 plot_precinct_persistence(config_df_list[[2]])
 
 ####maps####
-sapply(orig_res_dist_list, function(x)make_bg_maps(CONFIG_FOLDER, x, 'boundries'))
-sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'black', map_type = 'boundries'))
-sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'white', map_type = 'boundries'))
-sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'hispanic', map_type = 'boundries'))
-sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'asian', map_type = 'boundries'))
-sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'population', map_type = 'boundries'))
+sapply(orig_res_dist_list, function(x)make_bg_maps(x, 'boundries'))
+sapply(orig_res_dist_list, function(x)make_demo_dist_map(x, 'black', map_type = 'boundries'))
+sapply(orig_res_dist_list, function(x)make_demo_dist_map(x, 'white', map_type = 'boundries'))
+sapply(orig_res_dist_list, function(x)make_demo_dist_map(x, 'hispanic', map_type = 'boundries'))
+sapply(orig_res_dist_list, function(x)make_demo_dist_map(x, 'asian', map_type = 'boundries'))
+sapply(orig_res_dist_list, function(x)make_demo_dist_map(x, 'population', map_type = 'boundries'))
 
-sapply(orig_res_dist_list, function(x)make_bg_maps(CONFIG_FOLDER, x, 'map'))
+sapply(orig_res_dist_list, function(x)make_bg_maps(x, 'map'))
 #sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'black', map_type = 'map'))
 #sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'white', map_type = 'map'))
 #sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'hispanic', map_type = 'map'))
@@ -139,11 +145,11 @@ plot_poll_edes(potential_config_df_list[[1]])
 plot_precinct_persistence(potential_config_df_list[[2]])
 
 ###maps####
-sapply(potential_res_dist_list, function(x)make_bg_maps(POTENTIAL_CONFIG_FOLDER, x, 'boundries'))
-sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'black', map_type = 'boundries'))
-sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'white', map_type = 'boundries'))
-sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'hispanic', map_type = 'boundries'))
-sapply(potential_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'asian', map_type = 'boundries'))
+sapply(potential_res_dist_list, function(x)make_bg_maps(x, 'boundries'))
+sapply(potential_res_dist_list, function(x)make_demo_dist_map(x, 'black', map_type = 'boundries'))
+sapply(potential_res_dist_list, function(x)make_demo_dist_map(x, 'white', map_type = 'boundries'))
+sapply(potential_res_dist_list, function(x)make_demo_dist_map(x, 'hispanic', map_type = 'boundries'))
+sapply(potential_res_dist_list, function(x)make_demo_dist_map(x, 'asian', map_type = 'boundries'))
 
 #sapply(orig_res_dist_list, function(x)make_bg_maps(POTENTIAL_CONFIG_FOLDER, x, 'map'))
 #sapply(orig_res_dist_list, function(x)make_demo_dist_map(POTENTIAL_CONFIG_FOLDER, x, 'black', map_type = 'map'))
