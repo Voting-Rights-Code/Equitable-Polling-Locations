@@ -134,7 +134,7 @@ get_driving_flag <- function(config_folder){
 	if (!('driving' %in% names(config_dt))){ #if the flag not present, false
 		driving_flag <- FALSE
 	} else if(length(unique(config_dt$driving))>1){#if this is the flag that varies, not sure how to handle
-		stop('Driving flad not consistent in config set')
+		stop('Driving flag not consistent in config set')
 	} else{#otherwise pull driving flag from unique value in this field
 		driving_flag <- unique(config_dt$driving)
 	}
