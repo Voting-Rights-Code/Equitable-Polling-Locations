@@ -113,13 +113,20 @@ select_varying_fields <- function(config_dt){
 	return(result_dt)
 }
 
-process_configs_dt <- function(config_folder){
+process_configs_dt <- function(config_folder, field_of_interest){
 	#read files from config folder, identify the (unique) field that changes
 	#add a descriptor field and return the three columns in a data.table
 
 	config_list<- read_config(config_folder)
 	config_dt <- convert_configs_to_dt(config_list)
-	varying_dt <- select_varying_fields(config_dt)
+	if (length(config_list)>1){
+		varying_dt <- select_varying_fields(config_dt)
+	} else if (length(config_list)==1){
+		varying_cols <- c(field_of_interest, 'file_name')
+		varying_dt <- config_dt[ , ..varying_cols]
+	} else {
+		stop('there are no config files in the config folder')
+	}
 	#get name of varying field
 	varying_field<- names(varying_dt)[names(varying_dt) != 'file_name']
 	#paste the name of the varying field with its value to make a descriptor column
@@ -185,12 +192,12 @@ assign_descriptor <- function(file_path, descriptor_dt, config_folder, result_ty
 	return(dt)
 }
 
-combine_results<- function(location, config_folder, result_type){
+combine_results<- function(location, config_folder, result_type, field_of_interest){
 	#read in config 
 	#config_list<- read_config(config_folder)
 	#config_dt <- convert_configs_to_dt(config_list)
 	#vary_dt <- select_varying_fields(config_dt)
-	vary_dt <- process_configs_dt(config_folder)
+	vary_dt <- process_configs_dt(config_folder, field_of_interest)
 	
 	#select which results we want (potentially from a list of folders)
 	result_folder_list <-sapply(location, function(x){paste(x, 'results/', sep = '_')})
@@ -216,7 +223,7 @@ combine_results<- function(location, config_folder, result_type){
 	return(big_df)
 }
 
-read_result_data<- function(location, config_folder){
+read_result_data<- function(location, config_folder, field_of_interest = ''){
 	#read in and format all the results data assocaited to a 
 	#given config folder.
 	#config_folder: string
@@ -224,10 +231,10 @@ read_result_data<- function(location, config_folder){
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
 	
 	#combine all files with a descriptor column attached
-	ede_df<- combine_results(location, config_folder, 'edes')
-	precinct_df<- combine_results(location, config_folder, 'precinct_distances')
-	residence_df<- combine_results(location, config_folder, 'residence_distances')
-	result_df<- combine_results(location, config_folder, 'result')
+	ede_df<- combine_results(location, config_folder, 'edes', field_of_interest)
+	precinct_df<- combine_results(location, config_folder, 'precinct_distances', field_of_interest)
+	residence_df<- combine_results(location, config_folder, 'residence_distances',field_of_interest)
+	result_df<- combine_results(location, config_folder, 'result', field_of_interest)
 	
 	#label descriptors with polls and residences
 	num_polls <- precinct_df[ , .(num_polls = .N/6), by = descriptor]

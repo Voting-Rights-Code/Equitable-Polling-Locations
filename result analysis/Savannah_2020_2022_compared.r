@@ -55,11 +55,6 @@ check_location_valid(LOCATION[2], INTERSECTING_POT_CONFIG_FOLDER)
 config_list<-c(CONTAINED_IN_ORIG_CONFIG_FOLDER, INTERSECTING_ORIG_CONFIG_FOLDER,    CONTAINED_IN_POT_CONFIG_FOLDER, INTERSECTING_POT_CONFIG_FOLDER)
 DRIVING_FLAG <- set_global_driving_flag(config_list)
 
-contained_in_orig_driving_flag <- get_driving_flag(CONTAINED_IN_ORIG_CONFIG_FOLDER)
-intersecting_orig_driving_flag <- get_driving_flag(INTERSECTING_ORIG_CONFIG_FOLDER)
-contained_in_pot_driving_flag <- get_driving_flag(CONTAINED_IN_POT_CONFIG_FOLDER)
-intersecting_pot_driving_flag <- get_driving_flag(INTERSECTING_POT_CONFIG_FOLDER)
-
 
 contained_in_orig_df_list <- read_result_data(LOCATION[1], CONTAINED_IN_ORIG_CONFIG_FOLDER)
 intersecting_orig_df_list <- read_result_data(LOCATION[2], INTERSECTING_ORIG_CONFIG_FOLDER)
