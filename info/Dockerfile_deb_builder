@@ -1,0 +1,110 @@
+# syntax=docker/dockerfile:1
+# escape=\
+# This Dockerfile was provided by request on https://github.com/scipopt/scip/issues/101
+# it shows how distributed binaries are built
+
+FROM --platform=linux/amd64 debian:bookworm-slim AS SCIPOptSuitedebian12_64
+
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y \
+    wget \
+    cmake \
+    g++ m4 \
+    xz-utils \
+    libgmp-dev \
+    unzip \
+    zlib1g-dev \
+    libtbb-dev \
+    libreadline-dev \
+    pkg-config \
+    git \
+    liblapack-dev \
+    flex \
+    bison \
+    libcliquer-dev \
+    gfortran \
+    file \
+    dpkg-dev \
+    libopenblas-dev \
+    rpm \
+    && rm -rf /var/cache/apt/*bin /var/cache/apt/archives/*deb /var/lib/apt/lists/*
+
+WORKDIR /tmp
+
+RUN wget "ftp://ftp.astron.com/pub/file/file-5.39.tar.gz"
+RUN tar xfz file-5.39.tar.gz
+RUN mkdir file && cd file-5.39 && ./configure && make && make install
+RUN rm -Rf "/tmp/file*"
+
+WORKDIR /home/scip
+
+RUN wget https://scipopt.org/download/external/hmetis-2.0pre1.tar.gz
+RUN tar xfz hmetis-2.0pre1.tar.gz
+
+RUN wget https://github.com/coin-or-tools/ThirdParty-Mumps/archive/stable/2.1.zip
+RUN unzip 2.1.zip
+
+RUN wget https://github.com/coin-or/Ipopt/archive/releases/3.14.14.zip
+RUN unzip 3.14.14.zip
+
+RUN wget https://gmplib.org/download/gmp/gmp-6.2.1.tar.xz
+RUN tar xf gmp-6.2.1.tar.xz
+
+RUN wget https://github.com/KarypisLab/METIS/archive/refs/tags/v5.1.1-DistDGL-v0.5.tar.gz
+RUN tar xfz v5.1.1-DistDGL-v0.5.tar.gz
+
+RUN wget https://github.com/KarypisLab/GKlib/archive/refs/tags/METIS-v5.1.1-DistDGL-0.5.tar.gz
+RUN tar xfz METIS-v5.1.1-DistDGL-0.5.tar.gz
+
+RUN wget -O boost_1_74_0.tar.gz https://boostorg.jfrog.io/artifactory/main/release/1.74.0/source/boost_1_74_0.tar.gz
+RUN tar xzf boost_1_74_0.tar.gz
+
+RUN mv hmetis-2.0pre1 hmetis
+RUN mkdir -p hmetis/bin
+RUN ln -s home/scip/hmetis/Linux-x86_64/hmetis2.0pre1 /home/scip/hmetis/bin/hmetis
+
+WORKDIR /home/scip/METIS-5.1.1-DistDGL-v0.5
+RUN rmdir GKlib && mv /home/scip/GKlib-METIS-v5.1.1-DistDGL-0.5 GKlib && make config shared=1 && make
+
+WORKDIR /home/scip/ThirdParty-Mumps-stable-2.1/
+RUN ./get.Mumps
+RUN ./configure --disable-shared --enable-static
+RUN make -j3
+RUN make install
+
+WORKDIR /home/scip/Ipopt-releases-3.14.14/
+RUN ./configure --disable-sipopt --disable-linear-solver-loader --disable-shared
+RUN make -j3
+RUN make install
+
+WORKDIR /home/scip/gmp-6.2.1
+RUN ./configure --with-pic --enable-cxx
+RUN make install -j3
+
+WORKDIR /home/scip/boost_1_74_0/
+RUN ./bootstrap.sh --with-libraries=program_options,serialization,regex,iostreams
+RUN ./b2 install
+
+WORKDIR /home/scip
+
+ARG SCIPOPTSUITE_TAG
+ARG SCIPOPTSUITE_VERSION
+RUN wget ***
+RUN tar xfz scipoptsuite-${SCIPOPTSUITE_TAG}.tgz
+
+WORKDIR /home/scip/scipoptsuite-${SCIPOPTSUITE_VERSION}/build
+
+RUN PATH=$PATH:/home/scip/hmetis/bin/ cmake .. -DBoost_USE_STATIC_LIBS=on -DREADLINE=off -DCMAKE_C_FLAGS="-s" -DCMAKE_CXX_FLAGS="-s" -DSTATIC_GMP=on -DTPI=tny
+RUN make -j3
+RUN make all_executables -j3
+RUN ls bin
+RUN ldd bin/gcg bin/scip bin/soplex bin/papilo bin/soplex_c_testing bin/zimpl lib/*.so
+RUN ./bin/scip -v
+RUN cpack -G STGZ
+
+RUN PATH=$PATH:/home/scip/hmetis/bin/ cmake .. -DBoost_USE_STATIC_LIBS=on -DREADLINE=off -DCMAKE_C_FLAGS="-s" -DCMAKE_CXX_FLAGS="-s" -DTPI=tny
+RUN make -j3
+RUN make all_executables -j3
+RUN ./bin/scip -v
+RUN cpack -G DEB
+RUN cpack -G RPM

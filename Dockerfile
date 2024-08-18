@@ -1,5 +1,5 @@
 # See https://stackoverflow.com/questions/72465421/how-to-use-poetry-with-docker
-FROM python:3.12.2-slim-bookworm AS builder
+FROM python:3.12.4-slim-bookworm AS builder
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -27,8 +27,8 @@ ENV PYTHONUNBUFFERED=1 \
     SCIP_VERSION=9.1.0 \
     OPENMPI_VERSION=5.0.5 \
     HIGHS_VERSION=1.7.2 \
-    SPRAL_VERSION=2024.05.08
-# TBB_VERSION=2021.13.0
+    SPRAL_VERSION=2024.05.08 \
+    TBB_VERSION=2021.13.0
 
 RUN apt-get update && apt-get install -y \
     wget \
@@ -49,14 +49,16 @@ RUN apt-get update && apt-get install -y \
     libopenblas-dev \
     file \
     dpkg-dev \
-    rpm \
-    libopenmpi-dev \
-    libboost1.81-dev \
-    libgmp-dev \
-    libtbb-dev \
-    libmetis-dev \
-    metis \
-    libcriterion-dev
+    rpm
+
+#### Installed below
+# libopenmpi-dev \
+# libboost1.81-dev \
+# libgmp-dev \
+# libtbb-dev \
+# libmetis-dev \
+# metis \
+# libcriterion-dev
 
 
 RUN mkdir $WORKSPACE && mkdir $INSTALLS
@@ -69,6 +71,7 @@ RUN cd $WORKSPACE && \
     mv ${WORKSPACE}/hmetis-2.0pre1/Linux-x86_64/hmetis2.0pre1 ${INSTALLS}/bin/hmetis
 
 # temporarily apt
+RUN apt-get install -y libopenmpi-dev
 # RUN cd ${WORKSPACE} && \
 #     wget https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-${OPENMPI_VERSION}.tar.gz && \
 #     tar xzf openmpi-${OPENMPI_VERSION}.tar.gz && \
@@ -76,6 +79,7 @@ RUN cd $WORKSPACE && \
 #     ./configure --prefix=${INSTALLS} --enable-static --disable-shared && \
 #     make install -j3
 
+# temporarily apt (should be from openblas)
 # RUN cd ${WORKSPACE} && \
 #     wget https://github.com/Reference-LAPACK/lapack/archive/refs/tags/v$LAPACK_VERSION.tar.gz && \
 #     tar xfz v$LAPACK_VERSION.tar.gz && \
@@ -86,6 +90,7 @@ RUN cd $WORKSPACE && \
 #     cmake --build . -j3 --target install
 
 # temporarily apt
+RUN apt-get install -y libboost1.81-dev
 # RUN cd ${WORKSPACE} && \
 #     echo "Download boost from https://boostorg.jfrog.io/artifactory/main/release/${BOOST_MAJOR}.${BOOST_MINOR}.${BOOST_PATCH}/source/boost_${BOOST_MAJOR}_${BOOST_MINOR}_${BOOST_PATCH}.tar.gz" && \
 #     wget https://boostorg.jfrog.io/artifactory/main/release/${BOOST_MAJOR}.${BOOST_MINOR}.${BOOST_PATCH}/source/boost_${BOOST_MAJOR}_${BOOST_MINOR}_${BOOST_PATCH}.tar.gz && \
@@ -95,12 +100,14 @@ RUN cd $WORKSPACE && \
 #     ./b2 install 
 
 # temporarily apt
+RUN apt-get install -y libcriterion-dev
 # RUN cd ${WORKSPACE} && \
 #     wget https://github.com/Snaipe/Criterion/releases/download/v$CRITERION_VERSION/criterion-$CRITERION_VERSION-linux-x86_64.tar.xz && \
 #     tar xf criterion-$CRITERION_VERSION-linux-x86_64.tar.xz && \
 #     cp -r criterion-$CRITERION_VERSION/* ${INSTALLS}
 
 # temporarily apt
+RUN apt-get install -y libgmp-dev 
 # RUN cd ${WORKSPACE} && \
 #     wget https://gmplib.org/download/gmp/gmp-$GMP_VERSION.tar.xz && \
 #     tar xf gmp-$GMP_VERSION.tar.xz && \
@@ -109,6 +116,7 @@ RUN cd $WORKSPACE && \
 #     make install -j3 
 
 # temporarily apt
+RUN apt-get install -y libtbb-dev
 # RUN cd ${WORKSPACE} && \
 #     wget https://github.com/oneapi-src/oneTBB/archive/refs/tags/v$TBB_VERSION.tar.gz && \
 #     tar xvf v$TBB_VERSION.tar.gz && \
@@ -119,6 +127,8 @@ RUN cd $WORKSPACE && \
 #     cmake .. -DCMAKE_INSTALL_PREFIX=${INSTALLS} -DCMAKE_BUILD_TYPE=Release -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF -DTBB4PY_BUILD=OFF -DBUILD_SHARED_LIBS=ON && \
 #     make -j3 && make install
 
+# temporarily apt
+RUN apt-get install -y libmetis-dev metis
 # RUN cd ${WORKSPACE} && \
 #     wget https://github.com/KarypisLab/GKlib/archive/refs/tags/METIS-v$METIS_VERSION-DistDGL-0.5.tar.gz && \
 #     tar xfz METIS-v$METIS_VERSION-DistDGL-0.5.tar.gz && \
@@ -191,7 +201,7 @@ RUN cd ${WORKSPACE} && \
 # make -j6 && make install 
 
 
-
+# included in scipoptsuite
 # RUN cd ${WORKSPACE} && \
 #     git clone https://github.com/scipopt/soplex.git && \
 #     cd ${WORKSPACE}/soplex && \
@@ -201,7 +211,6 @@ RUN cd ${WORKSPACE} && \
 #     LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALLS}/lib/ cmake .. -DCMAKE_INSTALL_PREFIX=${INSTALLS} -DCMAKE_BUILD_TYPE=Release && \
 #     make -j && \
 #     make install
-
 
 
 RUN cd ${WORKSPACE} && \
@@ -231,38 +240,35 @@ RUN cd ${WORKSPACE} && \
 RUN cd ${WORKSPACE}/scipoptsuite-${SCIP_VERSION}/build && \
     make test
 
-
-
-
-# PATH=$PATH:${INSTALLS}/bin/ LIBRARY_PATH=$LIBRARY_PATH:${INSTALLS}/lib/ INCLUDE_PATH=$INCLUDE_PATH:${INSTALLS}/include/:${INSTALLS}/include/highs cmake .. -DCMAKE_INSTALL_PREFIX=${INSTALLS} -DCMAKE_BUILD_TYPE=Release -DLPS=spx -DSYM=snauty -DBoost_USE_STATIC_LIBS=on -DPAPILO=true -DLAPACK=true -DZIMPL=true -DGMP=true -DREADLINE=true -DIPOPT=true -DCMAKE_C_FLAGS="-s" -DCMAKE_CXX_FLAGS="-s" -DTPI=tny && \
-#     make -j6 && \
-#     make test && \
-#     make install
-
 # # to run poetry directly as soon as it's installed
-# ENV PATH="$POETRY_HOME/bin:$PATH"
+ENV PATH="$POETRY_HOME/bin:$PATH"
 
-# # install poetry
-# RUN apt-get update \
-#     && apt-get install -y --no-install-recommends curl \
-#     && curl -sSL https://install.python-poetry.org | python3 -
+# install poetry
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && curl -sSL https://install.python-poetry.org | python3 -
 
-# WORKDIR /app
+WORKDIR /app
 
-# # copy only pyproject.toml and poetry.lock file nothing else here
-# COPY poetry.lock pyproject.toml ./
-# # copy source code as own layer
-# COPY README.md ./
-# COPY src ./src
+# copy only pyproject.toml and poetry.lock file nothing else here
+COPY poetry.lock pyproject.toml ./
+# copy source code as own layer
+COPY README.md ./
+COPY src ./src
 
-# # this will create the folder /app/.venv and install the application
-# RUN poetry install --no-ansi --without dev
+# this will create the folder /app/.venv and install the application
+RUN poetry install --no-ansi --without dev
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:/installs/bin:$PATH"
+
 
 # FROM python:3.12.2-slim-bookworm
 
 # ENV PYTHONDONTWRITEBYTECODE=1 \
 #     PYTHONUNBUFFERED=1 \
-#     PATH="/app/.venv/bin:$PATH"
+#     PATH="/app/.venv/bin:/installs/bin:$PATH"
 
 # WORKDIR /app
 # # make a user so not running as root

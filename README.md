@@ -7,6 +7,24 @@ The following should be run before pushing any code:
 - `ruff check --fix`
 - `ruff format`
 
+## Manual interaction with docker
+
+```bash
+
+docker run -ti --rm \
+-v ./logs:/app/logs \
+-v ./untracked:/app/untracked \
+equitable_locations \
+bash
+
+```
+
+In the container:
+
+```bash
+python untracked/optimization_examples.py
+```
+
 ## TODO
 
 - Click interface to running common commands
