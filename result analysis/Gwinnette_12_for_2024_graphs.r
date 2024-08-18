@@ -1,3 +1,6 @@
+#######
+#Note for pull reviewer: I (SA) believe that this file is now deprecated. If #you agree, please delete this file before approving the pull request
+#######
 library(here)
 
 #######
@@ -9,7 +12,7 @@ setwd(here())
 #source functions
 #######
 
-source('result analysis/graph_functions_2.R')
+source('result analysis/graph_functions.R')
 source('result analysis/map_functions.R')
 
 #######

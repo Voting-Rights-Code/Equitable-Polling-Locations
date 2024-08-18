@@ -3,7 +3,6 @@ library(ggplot2)
 library(stringr)
 library(here)
 library(plotly)
-library(yaml)
 
 
 #######
@@ -16,151 +15,22 @@ check_location_valid <- function(location, config_folder){
 	if (!all(location_in_folder)){
 		bad_locations = paste(location[!location_in_folder], collapse = ', ')
     	stop(paste('Given config folder does not contain data for the following location(s):', bad_locations))
-	}
+}
 }
 
 check_config_folder_valid <- function(config_folder){
 	#raise error if config folder not a directory
 	if (!dir.exists(config_folder)){
     	stop('Config folder does not exist')
-	}
 }
-#######
-#Read and process config files
-#######
-config_to_list <- function(config_folder, file_name){
-	#Reads yamls in config_folder, apppends file name as a field to yaml data
-	config_file <- paste(config_folder, file_name, sep = '/')
-	config_list <- read_yaml(config_file)
-	config_list <- c(config_list, file_name = sub('.yaml', '', file_name))
-	return(config_list)
 }
 
-read_config <- function(config_folder){
-	#returns a list of lists of all config files in config folder, 
-	#with the file name added as a field
-	
-	#first check that this is a valid folder
-	check_config_folder_valid(config_folder)
-	
-	#get file names
-	file_names <- list.files(config_folder)
-
-	#then create a list of list
-	config_list <- lapply(file_names, function(x){config_to_list(config_folder, x)})
-	return(config_list)
-}
-
-config_file_fields <- function(config_list){
-	#checks that a given list of config files all have the same set of fields
-	#if yes, returns the fields. Otherwise, returns an error
-
-	#fields for each config file
-	fields <- unique(lapply(config_list, names))
-	#raise error if each config file does not have the same content
-	if (length(fields)!= 1){
-		stop('Config files have different fields')
-	} 
-	return(fields)	
-}
-
-# is_field_unique <- function(config_list, field){
-# 	long_list <- do.call(c, config_list)
-# 	field_values <- long_list[names(long_list) == field]
-# 	if (length(unique(field_values))!=1){
-# 		return(FALSE)
-# 	} else {
-# 		return(TRUE)
-# 	}
-# }
-
-collapse_fields <- function(config){
-	#In order to put the configs into a list, for each config field that is a list
-	#turn it into a pipe separated string, also change NULLs to NAs 
-	
-	#change nulls to NAs
-	config <- lapply(config, function(x) {if(is.null(x)){x <- NA}else{x}})
-	#collapse lists
-	config <- lapply(config, function(x){paste(x[order(x)], collapse = '|')})
-	return(config)
-}
-
-convert_configs_to_dt <- function(config_list){
-	#check if each config in the list has the same fields
-	fields <- config_file_fields(config_list)
-	#collapse lists to strings
-	collapsed_config_list <- lapply(config_list, function(x){collapse_fields(x)})
-	#make this a data.table
-	config_dt <- rbindlist(collapsed_config_list)
-	return(config_dt)
-}
-
-select_varying_fields <- function(config_dt){
-	#Each config folder should have exactly one field that varies
-	#Therefore there should be exactly two (2) fields in config_dt that are not
-	#constant: file_name, and the filed that varies in the folder
-	#return a data.table with just these two.
-
-	#determine non-unique field
-	unique_values_of_fields <- sapply(config_dt, function(x){length(unique(x))})
-	varying_cols <- names(unique_values_of_fields)[unique_values_of_fields >1]
-	#raise error if more than 2 non-unquie fields (1 in addition to file_name)
-	if (length(varying_cols) != 2){
-		stop(paste('Too many fields vary across collection of config files:', paste(varying_cols, collapse = ', ')))
-	} 
-	#select the parameter of interest
-	result_dt <- config_dt[ , ..varying_cols]
-	return(result_dt)
-}
-
-process_configs_dt <- function(config_folder, field_of_interest){
-	#read files from config folder, identify the (unique) field that changes
-	#add a descriptor field and return the three columns in a data.table
-
-	config_list<- read_config(config_folder)
-	config_dt <- convert_configs_to_dt(config_list)
-	if (length(config_list)>1){
-		varying_dt <- select_varying_fields(config_dt)
-	} else if (length(config_list)==1){
-		varying_cols <- c(field_of_interest, 'file_name')
-		varying_dt <- config_dt[ , ..varying_cols]
-	} else {
-		stop('there are no config files in the config folder')
-	}
-	#get name of varying field
-	varying_field<- names(varying_dt)[names(varying_dt) != 'file_name']
-	#paste the name of the varying field with its value to make a descriptor column
-	varying_dt <- varying_dt[, descriptor_pre:= varying_field
-						   ][, descriptor := do.call(paste, c(.SD, sep = '_')), .SDcols = c('descriptor_pre', varying_field)][ , descriptor_pre:= NULL]
-	return(varying_dt)
-}
-
-get_driving_flag <- function(config_folder){
-	config_list<- read_config(config_folder)
-	config_dt <- convert_configs_to_dt(config_list)
-	if (!('driving' %in% names(config_dt))){ #if the flag not present, false
-		driving_flag <- FALSE
-	} else if(length(unique(config_dt$driving))>1){#if this is the flag that varies, not sure how to handle
-		stop('Driving flag not consistent in config set')
-	} else{#otherwise pull driving flag from unique value in this field
-		driving_flag <- unique(config_dt$driving)
-	}
-	return(driving_flag)
-}
-
-set_global_driving_flag<- function(config_list){
-	driving_flag_list <- sapply(config_list, get_driving_flag)
-	if (length(unique(driving_flag_list))==1){
-    	base_driving_flag = unique(driving_flag_list)
-	}else{
-    	stop('driving flags different in different files. Cannot set global value')
-	}
-	return(base_driving_flag)
-}
 ######
 #Functions to read in results
 #Two types to analysis: historical (see CLC work); placement (see FFA work)
 ######
+
+
 
 #####Formatting notes:
 	# Historical analysis
@@ -174,43 +44,46 @@ set_global_driving_flag<- function(config_list){
 	   # (E.g. FFA analysis)
 	   # N.B. Number of polls must be in the config file name for this to work, 
 		 # it must be the ONLY numbers in the file name
-assign_descriptor <- function(file_path, descriptor_dt, config_folder, result_type){
-	#extract the file name of the config file
-	config_file_name <- gsub(paste0('.*', config_folder, '\\.'), '', file_path)
-	config_file_name <- gsub(paste0('_', result_type, '\\.csv'), '', config_file_name)
-	
-	#check if the file_path corresponds to exactly one file_name 
-	file_name_match = descriptor_dt[file_name == config_file_name, ]
-	num_matches = nrow(file_name_match)
-	if (num_matches!=1){
-		stop(paste('The file path', config_file_name, 'appears', num_matches, 'time in the config data'))
-	}
-	#select and append the unique descriptor value to the dataset
-	descriptor_value <- file_name_match$descriptor
-	dt <- fread(file_path)
-	dt <- dt[, descriptor := descriptor_value]
-	return(dt)
-}
 
-combine_results<- function(location, config_folder, result_type, field_of_interest){
-	#read in config 
-	#config_list<- read_config(config_folder)
-	#config_dt <- convert_configs_to_dt(config_list)
-	#vary_dt <- select_varying_fields(config_dt)
-	vary_dt <- process_configs_dt(config_folder, field_of_interest)
-	
-	#select which results we want (potentially from a list of folders)
-	result_folder_list <-sapply(location, function(x){paste(x, 'results/', sep = '_')})
-	files <- lapply(result_folder_list, list.files)
-	files <- sapply(location, function(x){files[[x]][grepl(paste0(config_folder, '\\.'), files[[x]]) &grepl(result_type, files[[x]])]}) 
-	#files <- sapply(location, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
-	file_path <- mapply(function(folder, file){paste0(folder, file)}, result_folder_list, files)
-	
-	#read data, add descriptor
-	df_list <- lapply(file_path, function(x){assign_descriptor(x, vary_dt, config_folder, result_type)}) 
+combine_results<- function(location, config_folder, result_type, analysis_type = 'placement'){
+	#determined what type of analysis is to be done, and call the appropriate function
+	#currently valid types: historical (see CLC work); placement (see FFA work)
+	if (analysis_type == 'historical'){
+		#select which results we want (potentially from a list of folders)
+		result_folder_list <-sapply(location, function(x){paste(x, 'results/', sep = '_')})
+		files <- lapply(result_folder_list, list.files)
+		files <- lapply(location, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
+		file_path <- c(mapply(function(folder, file){paste0(folder, file)}, result_folder_list, files))
 		
-	#TODO: Does this still need to be done after the database migration 
-	#		where the types of these fields are set to str in sql?
+		#pull the historical year from the file names
+		years <-  gsub('.*?([0-9]+).*', '\\1', file_path)
+		descriptor <- mapply(function(x,y){paste(x, y, sep='_')}, location, years)} #county and year
+	else if (analysis_type == 'placement'){
+		result_folder <-paste(location, 'results/', sep = '_')
+		files <- list.files(result_folder)
+		files <- files[grepl(config_folder, files) &grepl(result_type, files)]
+		file_path <- paste0(result_folder, files)
+		
+		#pull number of polls data from the file names
+		num_polls <-  gsub('.*?([0-9]+).*', '\\1', files)
+		descriptor <- sapply(num_polls, function(x){paste('Optimized', num_polls, 'polls', sep='_')})} #number of polls
+	else if (analysis_type == 'other'){
+		result_folder_list <-sapply(location, function(x){paste(x, 'results/', sep = '_')})
+		files <- lapply(result_folder_list, list.files)
+		files <- lapply(location, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
+		file_path <- c(mapply(function(folder, file){paste0(folder, file)}, result_folder_list, files))
+
+		extraction_instructions <- paste0("(?<=config_).*(?=_", result_type,')')
+		descriptor <- stringr::str_extract(file_path, extraction_instructions)
+	}
+	else{
+		stop("Incorrect analysis_type provided. Analysis type must be historical or placement or other")}
+	
+	#read data
+	df_list <- lapply(file_path, fread)
+	#add appropriate descriptor
+	mapply(function(x, y){x[ , descriptor:= y]}, df_list, descriptor)
+	
 	#Change id_dest and id_orig to strings as needed
 	if ('id_dest' %in% names(df_list[[1]])){
 		sapply(df_list, function(x){x[ , id_dest:= as.character(id_dest)]})}
@@ -223,7 +96,7 @@ combine_results<- function(location, config_folder, result_type, field_of_intere
 	return(big_df)
 }
 
-read_result_data<- function(location, config_folder, field_of_interest = ''){
+read_result_data<- function(location, config_folder, analysis_type){
 	#read in and format all the results data assocaited to a 
 	#given config folder.
 	#config_folder: string
@@ -231,11 +104,11 @@ read_result_data<- function(location, config_folder, field_of_interest = ''){
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
 	
 	#combine all files with a descriptor column attached
-	ede_df<- combine_results(location, config_folder, 'edes', field_of_interest)
-	precinct_df<- combine_results(location, config_folder, 'precinct_distances', field_of_interest)
-	residence_df<- combine_results(location, config_folder, 'residence_distances',field_of_interest)
-	result_df<- combine_results(location, config_folder, 'result', field_of_interest)
-	
+	ede_df<- combine_results(location, config_folder, 'edes', analysis_type)
+	precinct_df<- combine_results(location, config_folder, 'precinct_distances', analysis_type)
+	residence_df<- combine_results(location, config_folder, 'residence_distances', analysis_type)
+	result_df<- combine_results(location, config_folder, 'result', analysis_type)
+
 	#label descriptors with polls and residences
 	num_polls <- precinct_df[ , .(num_polls = .N/6), by = descriptor]
 	num_residences <- residence_df[ , .(num_residences = .N/6), by = descriptor]
@@ -266,20 +139,6 @@ demographic_legend_dict <- c(
 #######
 #functions to make plots
 #######
-#helper function to combine ede data from different config folders 
-combine_different_runs<- function(df_list){
-	#takes a list of ede data generated from config folders and, if the descriptors
-	#are unique, combines them into one dataframe for plotting
-	
-    #check for descriptor uniqueness
-    all_descriptors <- unlist(lapply(df_list, function(x){unique(x$descriptor)}))
-    if(length(unique(all_descriptors))< length(all_descriptors)){
-        stop('The data.tables being combined have descriptors in common. Please rename.')
-    }
-    #combine data
-    df<- do.call(rbind, df_list)
-    return(df)
-}
 
 #makes a plot showing how y_EDEs change for each demographic group as the 
 #number of polls is increased
@@ -313,7 +172,7 @@ plot_multiple_edes<-function(ede_list, demo_grp){
 
 #ACCOMODATES DRIVING DISTANCES
 
-plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLAG){	
+plot_historic_edes <- function(config_folder, orig_ede, suffix = ''){	
 	
 	#set x axis label order
 	descriptor_order <- unique(orig_ede$descriptor)
@@ -328,7 +187,7 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 	scale_bool = 'pct_demo_population' %in% names(orig_ede)
 	
 	#is this driving distance data
-	if (driving_flag){
+	if (grepl('driving', config_folder)){
 		y_EDE_label = 'Equity weighted driving distance (m)'
 		y_avg_label = 'Average driving distance (m)'
 		title_str = "driving distance by demographic and optimization run"
@@ -384,14 +243,14 @@ ede_with_pop<- function(config_df_list){
 #polls (via plot_historical_edes)
 
 #ACCOMODATES DRIVING DISTANCES
-plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_flag = DRIVING_FLAG){	
+plot_original_optimized <- function(config_ede, orig_ede, suffix = '', config_folder = CONFIG_FOLDER){	
 	#select the relevant optimized runs
 	orig_num_polls <- unique(orig_ede$num_polls)
 	config_num_polls <- unique(config_ede$num_polls)
 	optimization_num_polls<- max(intersect(orig_num_polls, config_num_polls))
 	optimized_run_dfs <- config_ede[num_polls == optimization_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
-	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), driving_flag)
+	plot_historic_edes(config_folder, orig_and_optimal, paste0('and_optimal', suffix))
 
 }
 

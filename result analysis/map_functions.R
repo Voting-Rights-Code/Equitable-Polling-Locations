@@ -41,7 +41,7 @@ library(cartogram)
 #	 * the size of the dot corresponds to population. 
 # 	 	* the size scale is determined by the total populations of the block groups
 
-source('result analysis/graph_functions_2.R')
+source('result analysis/graph_functions.R')
 
 
 process_maps <- function(file_name){
