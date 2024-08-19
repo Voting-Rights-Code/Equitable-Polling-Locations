@@ -20,8 +20,8 @@ source('result analysis/graph_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'Henrico_County_VA'
-CONFIG_FOLDER = 'Henrico_County_VA_potential_configs'
+LOCATION = 'Chatham_County_GA'
+CONFIG_FOLDER = 'Chatham_County_GA_original_configs'
 
 #Run-type specific constants
 IDEAL_POLL_NUMBER  = 9 #the optimal number of polls desired for this county
@@ -42,7 +42,7 @@ original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
 #Does the config folder 
 check_config_folder_valid(CONFIG_FOLDER)
 #Does the config folder contain files associated to the location
-check_location_valid(LOCATION, CONFIG_FOLDER)
+#check_location_valid(LOCATION, CONFIG_FOLDER)
 
 
 #######
