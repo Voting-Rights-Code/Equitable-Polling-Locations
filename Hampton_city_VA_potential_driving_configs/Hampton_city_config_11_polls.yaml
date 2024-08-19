@@ -1,5 +1,5 @@
 #Constants for the optimization function
-location: Norfolk_City_VA
+location: Hampton_city_VA
 year: 
   - '2024'
 bad_types: 
@@ -9,7 +9,8 @@ time_limit: 360000 #100 hours minutes
 capacity: 1.8
 
 ####Optional#####
-precincts_open: 20
+precincts_open: 11
 max_min_mult: 5 #scalar >= 1
 maxpctnew: 1 # in interval [0,1]
 minpctold: .8 # in interval [0,1]
+driving: True # bool (default = False)
