@@ -123,7 +123,7 @@ class DistanceGenerator:
             # find merged columns and update distance
             gdf_full.loc[gdf_full.loc[:, "index_right"].notna(), "distance"] = traveltime
             # drop "index_right" to clean up
-            gdf_full.drop("index_right", axis=1, inplace=True)
+            gdf_full = gdf_full.drop("index_right", axis=1)
 
         # create other useful columns
         gdf_full["weighted_dist"] = gdf_full["population"] * gdf_full["distance"]

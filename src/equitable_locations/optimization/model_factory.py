@@ -313,7 +313,7 @@ def polling_model_factory(
     )
     # new location marker
     dist_df["new_location"] = 0
-    dist_df["new_location"].mask(dist_df["dest_type"] != "polling", 1, inplace=True)
+    dist_df["new_location"] = dist_df["new_location"].mask(dist_df["dest_type"] != "polling", 1)
 
     model.new_locations = pyo.Param(
         model.precincts, initialize=dist_df[["id_dest", "new_location"]].drop_duplicates().set_index(["id_dest"])
