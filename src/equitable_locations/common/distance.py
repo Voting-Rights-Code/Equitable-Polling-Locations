@@ -112,6 +112,11 @@ class DistanceGenerator:
 
         # For each additional time, match on point within poly and destination=destination
         for traveltime in self.times[1:]:
+            # TODO: Identify why this loop slows down with big dataframes. Seems to be single-threaded
+            # see https://stackoverflow.com/questions/54804073/how-can-i-accelerate-a-geopandas-spatial-join
+            # https://gis.stackexchange.com/questions/309501/multiprocessing-with-geopandas
+            # this spatial join can probably be accomplished by splitting origins_gdf into multiple and comparing
+            # each against all of the destinations. Final dataframe should then just be the union.
             print(traveltime)
             working_isochrone = self.destination_isochrones[traveltime]
             gdf_full = gdf_full.sjoin(

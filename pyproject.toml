@@ -22,6 +22,7 @@ pygris = "^0.1.6"
 scikit-learn = "^1.5.1"
 pyomo = { git = "https://github.com/orthorhombic/pyomo.git", branch = "3352_fix-nl-file-contains-npfloat64" } # Needs >=6.7.4 https://github.com/Pyomo/pyomo/issues/3290 https://github.com/Pyomo/pyomo/issues/3352
 numpy = "~2.0.1" # Wait for shapely >2.0.5 before upgrading. https://github.com/shapely/shapely/pull/2099
+pybind11 = "^2.13.4"
 
 [tool.poetry.scripts]
 equitable_locations = "equitable_locations.__main__:cli"

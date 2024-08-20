@@ -263,6 +263,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:/installs/bin:$PATH"
 
+# see for arguments: https://setuptools.pypa.io/en/latest/userguide/ext_modules.html
+RUN cd /app/.venv/lib/python3.12/site-packages/pyomo/contrib/appsi/ && python build.py
 
 # FROM python:3.12.2-slim-bookworm
 

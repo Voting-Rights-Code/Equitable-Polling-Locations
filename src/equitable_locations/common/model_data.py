@@ -7,7 +7,6 @@
 
 import pandas as pd
 import math
-import os
 from equitable_locations.io.model_config import PollingModelConfig
 
 
