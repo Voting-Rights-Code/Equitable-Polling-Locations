@@ -135,6 +135,10 @@ process_configs_dt <- function(config_folder, field_of_interest){
 }
 
 get_driving_flag <- function(config_folder){
+	#given a config folder, return the overall driving field value for the folder
+	#If driving field is missing, return false.
+	#If driving field varies in the config file, return an error
+	#Otherwise, return the unique value in the field.
 	config_list<- read_config(config_folder)
 	config_dt <- convert_configs_to_dt(config_list)
 	if (!('driving' %in% names(config_dt))){ #if the flag not present, false
@@ -147,8 +151,10 @@ get_driving_flag <- function(config_folder){
 	return(driving_flag)
 }
 
-set_global_driving_flag<- function(config_list){
-	driving_flag_list <- sapply(config_list, get_driving_flag)
+set_global_driving_flag<- function(config_folder_list){
+	#takes a list of config folders and checked that they all have the same driving flag in them
+	#If they do, this is the global driving flag. If not, returns an error
+	driving_flag_list <- sapply(config_folder_list, get_driving_flag)
 	if (length(unique(driving_flag_list))==1){
     	base_driving_flag = unique(driving_flag_list)
 	}else{
