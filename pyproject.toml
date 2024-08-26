@@ -12,7 +12,7 @@ osmnx = "^1.9.3"
 matplotlib = "^3.9.0"
 geopandas = "^1.0.0"
 networkx = "^3.3"
-shapely = "^2.0.4"
+shapely = "^2.0.6"
 click = "^8.1.7"
 litestar = "^2.9.1"
 logzero = "^1.7.0"
@@ -20,9 +20,9 @@ pydantic = "^2.8.2"
 censusdis = "^1.2.1"
 pygris = "^0.1.6"
 scikit-learn = "^1.5.1"
-pyomo = { git = "https://github.com/orthorhombic/pyomo.git", branch = "3352_fix-nl-file-contains-npfloat64" } # Needs >=6.7.4 https://github.com/Pyomo/pyomo/issues/3290 https://github.com/Pyomo/pyomo/issues/3352
-numpy = "~2.0.1" # Wait for shapely >2.0.5 before upgrading. https://github.com/shapely/shapely/pull/2099
+pyomo = "^6.8.0"
 pybind11 = "^2.13.4"
+highspy = "^1.7.2"      # if wanting locally compiled version, should be uninstalled and re-installed from source in dockerfile
 
 [tool.poetry.scripts]
 equitable_locations = "equitable_locations.__main__:cli"

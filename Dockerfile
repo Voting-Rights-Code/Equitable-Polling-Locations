@@ -89,15 +89,15 @@ RUN apt-get install -y libopenmpi-dev
 #     cmake .. -DCMAKE_INSTALL_PREFIX=${INSTALLS} -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON && \
 #     cmake --build . -j3 --target install
 
-# temporarily apt
-RUN apt-get install -y libboost1.81-dev
-# RUN cd ${WORKSPACE} && \
-#     echo "Download boost from https://boostorg.jfrog.io/artifactory/main/release/${BOOST_MAJOR}.${BOOST_MINOR}.${BOOST_PATCH}/source/boost_${BOOST_MAJOR}_${BOOST_MINOR}_${BOOST_PATCH}.tar.gz" && \
-#     wget https://boostorg.jfrog.io/artifactory/main/release/${BOOST_MAJOR}.${BOOST_MINOR}.${BOOST_PATCH}/source/boost_${BOOST_MAJOR}_${BOOST_MINOR}_${BOOST_PATCH}.tar.gz && \
-#     tar xfz boost_${BOOST_MAJOR}_${BOOST_MINOR}_${BOOST_PATCH}.tar.gz && \
-#     cd ${WORKSPACE}/boost_${BOOST_MAJOR}_${BOOST_MINOR}_${BOOST_PATCH} && \
-#     LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALLS}/lib/ ./bootstrap.sh --prefix=${INSTALLS} --with-libraries=program_options,serialization,regex,iostreams && \
-#     ./b2 install 
+# temporarily apt - libraries needed for papilo
+# RUN apt-get install -y libboost1.81-dev
+RUN cd ${WORKSPACE} && \
+    echo "Download boost from https://boostorg.jfrog.io/artifactory/main/release/${BOOST_MAJOR}.${BOOST_MINOR}.${BOOST_PATCH}/source/boost_${BOOST_MAJOR}_${BOOST_MINOR}_${BOOST_PATCH}.tar.gz" && \
+    wget https://boostorg.jfrog.io/artifactory/main/release/${BOOST_MAJOR}.${BOOST_MINOR}.${BOOST_PATCH}/source/boost_${BOOST_MAJOR}_${BOOST_MINOR}_${BOOST_PATCH}.tar.gz && \
+    tar xfz boost_${BOOST_MAJOR}_${BOOST_MINOR}_${BOOST_PATCH}.tar.gz && \
+    cd ${WORKSPACE}/boost_${BOOST_MAJOR}_${BOOST_MINOR}_${BOOST_PATCH} && \
+    LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALLS}/lib/ ./bootstrap.sh --prefix=${INSTALLS} --with-libraries=program_options,serialization,regex,iostreams && \
+    ./b2 install 
 
 # temporarily apt
 RUN apt-get install -y libcriterion-dev
@@ -144,14 +144,21 @@ RUN apt-get install -y libmetis-dev metis
 #     make && \
 #     make install -j3
 
+# ASL - unsure if this will help add/compile the interface for highs
+# RUN cd ${WORKSPACE} && \
+#     git clone https://github.com/ampl/asl.git && \
+#     cd asl && mkdir build && \
+#     LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALLS}/lib/ cmake -S . -B build -DCMAKE_INSTALL_PREFIX=${INSTALLS} -DBUILD_CPP=1 -DBUILD_MT_LIBS=1 && \
+#     cmake --build build -j 3  && cmake --install build 
+
 RUN cd ${WORKSPACE} && \
     wget https://github.com/ERGO-Code/HiGHS/archive/refs/tags/v${HIGHS_VERSION}.tar.gz && \
     tar xzf v${HIGHS_VERSION}.tar.gz && \
     cd ${WORKSPACE}/HiGHS-${HIGHS_VERSION} && \
-    LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALLS}/lib/ cmake -S . -B build -DCMAKE_INSTALL_PREFIX=${INSTALLS} -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF && \
+    LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALLS}/lib/ cmake -S . -B build -DCMAKE_INSTALL_PREFIX=${INSTALLS} -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DALL_TESTS=1 && \
     cmake --build build -j 3 && \
-    cd build && ctest && cd .. && \
-    cmake --install build 
+    cd build && ctest --parallel --timeout 300 --output-on-failure && cd .. && \
+    cmake --install build
 
 # depends on METIS
 ENV MUMPS_VERSION=3.0.7 
@@ -212,6 +219,11 @@ RUN cd ${WORKSPACE} && \
 #     make -j && \
 #     make install
 
+# Flag reference: https://scipopt.org/doc/html/md_INSTALL.php#MAKE
+# Set solver SOPLEX
+# -DLPS=spx \
+# Set solver HIGHS (compiles but does not pass tests, see https://github.com/scipopt/scip/issues/102)
+# -DLPS=highs \
 
 RUN cd ${WORKSPACE} && \
     wget https://github.com/scipopt/scip/releases/download/${SCIP_TAG}/scipoptsuite-${SCIP_VERSION}.tgz && \
@@ -232,6 +244,7 @@ RUN cd ${WORKSPACE} && \
     -DREADLINE=true \
     -DIPOPT=true \
     -DIPOPT_DIR=${INSTALLS} \
+    -DHIGHS_DIR=${INSTALLS}/lib/cmake/highs \
     -DCMAKE_C_FLAGS="-s -I${INSTALLS}/include/ -I${INSTALLS}/include/highs -L${INSTALLS}/lib/" \
     -DCMAKE_CXX_FLAGS="-s -I${INSTALLS}/include/ -I${INSTALLS}/include/highs -L${INSTALLS}/lib/" \
     -DTPI=tny && \
@@ -261,10 +274,20 @@ RUN poetry install --no-ansi --without dev
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/app/.venv/bin:/installs/bin:$PATH"
+    PATH="/app/.venv/bin:/installs/bin:$PATH" \
+    OPENBLAS_NUM_THREADS=8 \
+    GOTO_NUM_THREADS=8 \
+    OMP_NUM_THREADS=8
 
 # see for arguments: https://setuptools.pypa.io/en/latest/userguide/ext_modules.html
-RUN cd /app/.venv/lib/python3.12/site-packages/pyomo/contrib/appsi/ && python build.py
+RUN cd /app/.venv/lib/python3.12/site-packages/pyomo/contrib/appsi/ && \
+    LIBRARY_PATH=$LIBRARY_PATH:${INSTALLS}/lib/ \
+    CFLAGS="-s -I${INSTALLS}/include/ -I${INSTALLS}/include/highs -L${INSTALLS}/lib/" \
+    CPPFLAGS="-s -I${INSTALLS}/include/ -I${INSTALLS}/include/highs -L${INSTALLS}/lib/" \
+    python build.py
+
+# install highspy from source over existing from pypi
+RUN cd ${WORKSPACE}/HiGHS-${HIGHS_VERSION} && pip uninstall -y highspy && pip install .
 
 # FROM python:3.12.2-slim-bookworm
 
