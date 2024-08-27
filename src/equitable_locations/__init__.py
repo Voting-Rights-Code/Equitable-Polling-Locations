@@ -3,3 +3,6 @@ import os
 
 # use the environment variable, or fall back on the root of this git repo
 PROJECT_ROOT = os.getenv("PROJECT_ROOT", Path(__file__).resolve().parent.parent.parent)
+RESULT_ROOT = os.getenv("RESULT_ROOT", None)
+PARTNER_DATA_ROOT = os.getenv("RESULT_ROOT", None)
+EQUITABLE_LOG_FOLDER = os.getenv("EQUITABLE_LOG_FOLDER", PROJECT_ROOT.joinpath("logs"))

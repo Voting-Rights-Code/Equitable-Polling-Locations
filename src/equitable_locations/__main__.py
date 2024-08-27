@@ -1,16 +1,22 @@
 import click
+from equitable_locations.io.model_config import PollingModelConfig
+from equitable_locations.optimization.run_models import run_model
 
 
 @click.command()
-def initialize_censusdata():
-    # Code to initialize censusdata goes here
-    click.echo("Censusdata initialized successfully!")
+@click.argument("file_path", type=click.Path(exists=True))
+def run_file(file_path):
+    # Code to run optimization on a single config file
+    click.echo(f"Running config on {file_path}")
+    config = PollingModelConfig.load_config_file(file_path)
+    run_model(config)
 
 
 @click.command()
-def initialize_isochrone_data():
+def run_directory():
     # Code to initialize isochrone data goes here
-    click.echo("Isochrone data initialized successfully!")
+    click.echo("Running directory of configs!")
+    raise NotImplemented
 
 
 @click.command()
@@ -23,9 +29,9 @@ def cli():
     pass
 
 
-cli.add_command(initialize_censusdata)
-cli.add_command(initialize_isochrone_data)
+cli.add_command(run_file)
+cli.add_command(run_directory)
 cli.add_command(say_hello)
 
 if __name__ == "__main__":
-    cli(program_name="equitable_locations")
+    cli()

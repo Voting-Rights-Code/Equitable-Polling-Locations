@@ -1,10 +1,3 @@
-#######################################
-# Created on 6 December 2023
-#
-# @author: Voting Rights Code
-# @attribution: based off of code by Josh Murell
-#######################################
-
 import pandas as pd
 import math
 from equitable_locations.io.model_config import PollingModelConfig
@@ -36,10 +29,11 @@ def clean_data(df: pd.DataFrame, config: PollingModelConfig, for_alpha: bool):
     # exclude bad location types
 
     # The bad types must be valid location types
-    if not set(bad_location_list).issubset(set(unique_location_types)):
-        raise ValueError(
-            f"unrecognized bad location types types {set(bad_location_list).difference(set(unique_location_types))}"
-        )
+    # TODO: Log Warning specifying which are not matched
+    # if not set(bad_location_list).issubset(set(unique_location_types)):
+    #     raise ValueError(
+    #         f"unrecognized bad location types types {set(bad_location_list).difference(set(unique_location_types))}"
+    #     )
     # drop rows of bad location types in df
     df = df[~df["location_type"].isin(bad_location_list)]
 

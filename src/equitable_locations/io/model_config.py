@@ -1,11 +1,19 @@
 from typing import List
-from dataclasses import dataclass, field
+from pydantic import BaseModel, Field
 import yaml
 from equitable_locations import PROJECT_ROOT
+from pathlib import Path
+import enum
+
+from equitable_locations.io.osm import OsmIsochroneGenerator
+from pathlib import Path
 
 
-@dataclass
-class PollingModelConfig:
+class IsochroneType(enum.Enum):
+    Osm = OsmIsochroneGenerator
+
+
+class PollingModelConfig(BaseModel):
     """A simple config class to run models."""
 
     state_name: str
@@ -21,7 +29,7 @@ class PollingModelConfig:
     mean. -2 isa good number """
     time_limit: int
     """How long the solver should try to find a solution"""
-    penalized_sites: List[str] = field(default_factory=list)
+    penalized_sites: List[str] = Field(default_factory=list)
     """A list of locations for which the preference is to only place a polling location there
     if absolutely necessary for coverage, e.g. fire stations."""
 
@@ -41,17 +49,14 @@ class PollingModelConfig:
     capacity: float = 1.0
     """A multiplicative factor for calculating the capacity constraint. Should be >= 1.
     Default = 1."""
-    result_folder: str = None
+    relative_result_folder: str = "results"
     """ The location to write out results """
 
-    config_file_path: str = None
+    config_file_path: Path = None
     """ The path to the file that defines this config.  """
 
-    log_file_path: str = None
-    """ If specified, the location of the file to write logs to """
-
-    driving: bool = False
-    """ Driving distances used if True and distance file exists in correct location """
+    relative_partner_data_file_path: str
+    """ The path to the file that defines partner data.  """
 
     def __post_init__(self):
         if not self.result_folder:
@@ -61,11 +66,41 @@ class PollingModelConfig:
             self.result_folder = PROJECT_ROOT / "untracked" / "results" / state_folder / county_folder
 
     @staticmethod
-    def load_config(config_yaml_path: str) -> "PollingModelConfig":
+    def load_config_file(config_path: Path) -> "PollingModelConfig":
         """Return an instance of RunConfig from a yaml file."""
-        with open(config_yaml_path, "r", encoding="utf-8") as yaml_file:
-            # use safe_load instead load
+        with open(config_path, "r", encoding="utf-8") as yaml_file:
             config = yaml.safe_load(yaml_file)
-            result = PollingModelConfig(**config)
-            result.config_file_path = config_yaml_path
-            return result
+
+        config["config_file_path"] = config_path
+
+        return PollingModelConfig.load_config(config)
+
+    @staticmethod
+    def load_config(config: dict) -> "PollingModelConfig":
+        """Return an instance of RunConfig from a yaml file."""
+        # test for location to enable backwards compatibility
+        if config.get("location"):
+            state_name = config["location"].split("_")[1]
+            county_name = config["location"].split("_")[0]
+            config["state_name"] = state_name
+            config["county_name"] = county_name
+
+            config.pop("location", None)
+
+        # safely coerce values into correct type
+        if config.get("partner_data_file_path"):
+            config["partner_data_file_path"] = Path(config["partner_data_file_path"])
+
+        result = PollingModelConfig(**config)
+        return result
+
+
+def load_configs(config_paths: List[Path]) -> List[PollingModelConfig]:
+    """Look through the list of files and confim they exist on disk, print any missing files or errors."""
+    results: List[PollingModelConfig] = []
+
+    for config_path in config_paths:
+        config = PollingModelConfig.load_config(config_path)
+        results.append(config)
+
+    return results
