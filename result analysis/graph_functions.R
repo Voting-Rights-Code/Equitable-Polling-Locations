@@ -213,18 +213,18 @@ combine_results<- function(location, config_folder, result_type, field_of_intere
 	
 	#read data, add descriptor
 	df_list <- lapply(file_path, function(x){assign_descriptor(x, vary_dt, config_folder, result_type)}) 
-		
-	#TODO: Does this still need to be done after the database migration 
-	#		where the types of these fields are set to str in sql?
-	#Change id_dest and id_orig to strings as needed
-	if ('id_dest' %in% names(df_list[[1]])){
-		sapply(df_list, function(x){x[ , id_dest:= as.character(id_dest)]})}
-	if ('id_orig' %in% names(df_list[[1]])){
-		sapply(df_list, function(x){x[ , id_orig:= as.character(id_orig)]})}
-	
+
 	#combine into one df
 	big_df <- do.call(rbind, df_list)
 
+	#TODO: Does this still need to be done after the database migration 
+	#		where the types of these fields are set to str in sql?
+	#Change id_dest and id_orig to strings as needed
+	if ('id_dest' %in% names(big_df)){
+		big_df[ , id_dest:= as.character(id_dest)]}
+	if ('id_orig' %in% names(big_df)){
+		big_df[ , id_orig:= as.character(id_orig)]}
+	
 	return(big_df)
 }
 
