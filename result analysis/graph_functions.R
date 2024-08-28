@@ -27,6 +27,7 @@ check_config_folder_valid <- function(config_folder){
     	stop('Config folder does not exist')
 	}
 }
+
 #######
 #Read and process config files
 #######
@@ -63,16 +64,6 @@ config_file_fields <- function(config_list){
 	return(fields)	
 }
 
-# is_field_unique <- function(config_list, field){
-# 	long_list <- do.call(c, config_list)
-# 	field_values <- long_list[names(long_list) == field]
-# 	if (length(unique(field_values))!=1){
-# 		return(FALSE)
-# 	} else {
-# 		return(TRUE)
-# 	}
-# }
-
 collapse_fields <- function(config){
 	#In order to put the configs into a list, for each config field that is a list
 	#turn it into a pipe separated string, also change NULLs to NAs 
@@ -97,6 +88,7 @@ convert_configs_to_dt <- function(config_list){
 select_varying_fields <- function(config_dt){
 	#Each config folder should have exactly one field that varies
 	#Therefore there should be exactly two (2) fields in config_dt that are not
+	#NOTE: this function does not work if the config folder has only one file in it.
 	#constant: file_name, and the filed that varies in the folder
 	#return a data.table with just these two.
 
@@ -113,11 +105,16 @@ select_varying_fields <- function(config_dt){
 }
 
 process_configs_dt <- function(config_folder, field_of_interest){
-	#read files from config folder, identify the (unique) field that changes
-	#add a descriptor field and return the three columns in a data.table
+	#1) read files from config folder, 
+	#2) identify the (unique) field that changes
+	#2a) if the config folder has a single file in it, the string "field_of_interest"
+	#3) add a descriptor field and return the three columns in a data.table
 
+	#1) read config files and extract varying fields
 	config_list<- read_config(config_folder)
 	config_dt <- convert_configs_to_dt(config_list)
+
+	#2) get name of varying field
 	if (length(config_list)>1){
 		varying_dt <- select_varying_fields(config_dt)
 	} else if (length(config_list)==1){
@@ -126,14 +123,20 @@ process_configs_dt <- function(config_folder, field_of_interest){
 	} else {
 		stop('there are no config files in the config folder')
 	}
-	#get name of varying field
+
+	#3) create a descriptor field
+	#identify the field name
 	varying_field<- names(varying_dt)[names(varying_dt) != 'file_name']
-	#paste the name of the varying field with its value to make a descriptor column
+	#paste the name of the varying field with its value
 	varying_dt <- varying_dt[, descriptor_pre:= varying_field
 						   ][, descriptor := do.call(paste, c(.SD, sep = '_')), .SDcols = c('descriptor_pre', varying_field)][ , descriptor_pre:= NULL]
 	return(varying_dt)
 }
 
+
+#########
+#Get a driving flag from the config folders
+#########
 get_driving_flag <- function(config_folder){
 	#given a config folder, return the overall driving field value for the folder
 	#If driving field is missing, return false.
@@ -162,24 +165,16 @@ set_global_driving_flag<- function(config_folder_list){
 	}
 	return(base_driving_flag)
 }
+
 ######
 #Functions to read in results
-#Two types to analysis: historical (see CLC work); placement (see FFA work)
 ######
 
-#####Formatting notes:
-	# Historical analysis
-	   # One config file contains multiple locations or multiple years
- 	   # (E.G. Engage_VA or CLC analysis)
-	   # N.B. Year must be in the config file name for this to work, 
-		 # it must be the ONLY numbers in the file name
-	# Placement analysis
-	   # One config file contains single location and either
-	      # multiple optimized placement
-	   # (E.g. FFA analysis)
-	   # N.B. Number of polls must be in the config file name for this to work, 
-		 # it must be the ONLY numbers in the file name
 assign_descriptor <- function(file_path, descriptor_dt, config_folder, result_type){
+	#add the desrcriptor from the descriptor_dt dataset to each of the datasets corresponding to the
+	#config_folder and result_type
+
+	#TODO: Likely needs to be cleaned up after the database migration. This is slightly ugly still. 
 	#extract the file name of the config file
 	config_file_name <- gsub(paste0('.*', config_folder, '\\.'), '', file_path)
 	config_file_name <- gsub(paste0('_', result_type, '\\.csv'), '', config_file_name)
@@ -198,10 +193,14 @@ assign_descriptor <- function(file_path, descriptor_dt, config_folder, result_ty
 }
 
 combine_results<- function(location, config_folder, result_type, field_of_interest){
+	#read in and format all the results data assocaited to a 
+	#given config folder.
+	#location: string
+	#config_folder: string
+	#field_of_interest: string indicating the field to be used for a descriptor (in case the config folder has only 1 file)
+	#returns: list(ede_df, precinct_df, residence_df, result_df)
+
 	#read in config 
-	#config_list<- read_config(config_folder)
-	#config_dt <- convert_configs_to_dt(config_list)
-	#vary_dt <- select_varying_fields(config_dt)
 	vary_dt <- process_configs_dt(config_folder, field_of_interest)
 	
 	#select which results we want (potentially from a list of folders)
@@ -231,8 +230,9 @@ combine_results<- function(location, config_folder, result_type, field_of_intere
 read_result_data<- function(location, config_folder, field_of_interest = ''){
 	#read in and format all the results data assocaited to a 
 	#given config folder.
+	#location: string
 	#config_folder: string
-	#analysis_type: string (historical, placement)
+	#field_of_interest: string indicating the field to be used for a descriptor (in case the config folder has only 1 file)
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
 	
 	#combine all files with a descriptor column attached
