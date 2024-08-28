@@ -54,7 +54,7 @@ combine_results<- function(location, config_folder, result_type, analysis_type =
 		files <- lapply(result_folder_list, list.files)
 		files <- sapply(location, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
 		file_path <- mapply(function(folder, file){paste0(folder, file)}, result_folder_list, files)
-		
+
 		#pull the historical year from the file names
 		years <-  gsub('.*?([0-9]+).*', '\\1', files)
 		descriptor <- mapply(function(x,y){paste(x, y, sep='_')}, location, years)} #county and year
@@ -66,7 +66,7 @@ combine_results<- function(location, config_folder, result_type, analysis_type =
 		
 		#pull number of polls data from the file names
 		num_polls <-  gsub('.*?([0-9]+).*', '\\1', files)
-		descriptor <- sapply(num_polls, function(x){paste('Optimized', num_polls, 'polls', sep='_')})} #number of polls
+		descriptor <- sapply(num_polls, function(x){paste('Optimized', x, 'polls', sep='_')})} #number of polls
 	else if (analysis_type == 'other'){
 		result_folder <-paste(location, 'results/', sep = '_')
 		files <- list.files(result_folder)
@@ -78,7 +78,6 @@ combine_results<- function(location, config_folder, result_type, analysis_type =
 	}
 	else{
 		stop("Incorrect analysis_type provided. Analysis type must be historical or placement or other")}
-	
 	#read data
 	df_list <- lapply(file_path, fread)
 
@@ -241,7 +240,7 @@ plot_original_optimized <- function(config_ede, orig_ede, suffix = '', config_fo
 	optimization_num_polls<- max(intersect(orig_num_polls, config_num_polls))
 	optimized_run_dfs <- config_ede[num_polls == optimization_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
-	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), config_folder)
+	plot_historic_edes(config_folder, orig_and_optimal, paste0('and_optimal', suffix))
 
 }
 

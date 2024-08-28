@@ -21,7 +21,7 @@ source('result analysis/graph_functions.R')
 #CONFIG_FOLDER must be a string
 
 LOCATION = 'DeKalb_GA'
-CONFIG_FOLDER = 'DeKalb_GA_no_bg_school_configs_driving'
+CONFIG_FOLDER = 'DeKalb_GA_no_school_penalize_bg_configs_driving'
 
 #Run-type specific constants
 IDEAL_POLL_NUMBER  = 19 #the optimal number of polls desired for this county
@@ -59,9 +59,11 @@ config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'placement')
 #config_result_df<- config_df_list[[4]]
 
 
-orig_df_list <- read_result_data(LOCATION, original_locations, 'historical')
+orig_df_list <- read_result_data(LOCATION, original_locations, 'other')
 #defined as above
 
+#change descriptors
+lapply(orig_df_list, function(x){x[descriptor == 'optimal_allnew_2022', descriptor := 'All New'][descriptor == 'optimal_keep7_2022', descriptor := 'Keep 7'][descriptor == 'original_2020', descriptor := '2020'][descriptor == 'original_2022', descriptor := '2022'][descriptor == 'original_2024', descriptor := '2024']})
 #######
 #Plot data
 #######
