@@ -3,7 +3,6 @@ import censusdis.data as ced
 import censusdis.values as cev
 import geopandas as gpd
 import pandas as pd
-from pygris import blocks, block_groups
 from equitable_locations import PROJECT_ROOT
 from typing import Union
 
@@ -43,9 +42,9 @@ class CensusData:
     }
 
     BLOCK_SHAPE_COLS = {
-        "GEOID20": "id_orig",
-        "INTPTLAT20": "orig_lat",
-        "INTPTLON20": "orig_lon",
+        "GEOID": "id_orig",
+        "INTPTLAT": "orig_lat",
+        "INTPTLON": "orig_lon",
         "geometry": "geometry",
     }
 
@@ -169,7 +168,6 @@ class CensusData:
         return code, name
 
     def _get_block_data(self) -> gpd.GeoDataFrame:
-        # TODO: Update with new version. See https://github.com/censusdis/censusdis/issues/295
         df = ced.download(
             # First we specify the dataset and year:
             dataset=CensusData.DATASET,
@@ -189,36 +187,28 @@ class CensusData:
             # Finally, we put in our API key:
             api_key=self.api_key,
             set_to_nan=cev.ALL_SPECIAL_VALUES,
-            with_geometry=False,
-            # with_geometry_columns=True,
+            with_geometry=True,
+            with_geometry_columns=True,
+            tiger_shapefiles_only=True,
         )
-
-        # use pygris to load geometry with latitude
-        df_tiger = blocks(state=self.state_code, county=self.county_code, year=CensusData.YEAR, cache=True)
-        # filter to only needed columns
-        df_tiger = df_tiger.loc[:, CensusData.BLOCK_SHAPE_COLS.keys()]
-
-        # reformat the geoid to match the tiger format and merge
-        df.loc[:, "GEO_ID"] = df.loc[:, "GEO_ID"].str[-15:]
-        gdf_data = df.merge(df_tiger, how="left", left_on="GEO_ID", right_on="GEOID20")
 
         # downselect columns
         selected_columns = list(CensusData.DATA_COLUMNS.keys()) + list(CensusData.BLOCK_SHAPE_COLS.keys())
-        gdf_data = gdf_data.loc[:, selected_columns]
-        gdf_data.drop("GEO_ID", axis=1, inplace=True)
+        df = df.loc[:, selected_columns]
+        df.drop("GEO_ID", axis=1, inplace=True)
 
         # Rename columns
-        gdf_data = gdf_data.rename(columns=CensusData.DATA_COLUMNS)
-        gdf_data = gdf_data.rename(columns=CensusData.BLOCK_SHAPE_COLS)
+        df = df.rename(columns=CensusData.DATA_COLUMNS)
+        df = df.rename(columns=CensusData.BLOCK_SHAPE_COLS)
 
         # find set of columns to use for renaming
         column_dtypes = {
             key: val
             for key, val in {**CensusData.DATA_COLUMNS_FORMAT, **CensusData.BLOCK_SHAPE_COLS_FORMAT}.items()
-            if key in gdf_data.columns
+            if key in df.columns
         }
 
-        return gpd.GeoDataFrame(gdf_data.astype(dtype=column_dtypes))
+        return gpd.GeoDataFrame(df.astype(dtype=column_dtypes))
 
     def _get_block_group_data(self) -> gpd.GeoDataFrame:
         # TODO: Update with new version. See https://github.com/censusdis/censusdis/issues/295
@@ -241,34 +231,26 @@ class CensusData:
             # Finally, we put in our API key:
             api_key=self.api_key,
             set_to_nan=cev.ALL_SPECIAL_VALUES,
-            with_geometry=False,
-            # with_geometry_columns=True,
+            # with_geometry=False,
+            with_geometry=True,
+            with_geometry_columns=True,
+            tiger_shapefiles_only=True,
         )
-
-        # reformat the geoid to match the tiger format for merging (drop geo_id_prefix)
-        df.loc[:, "GEO_ID"] = df.loc[:, "GEO_ID"].str[-12:]
-
-        # use pygris to load geometry with latitude
-        df_tiger = block_groups(state=self.state_code, county=self.county_code, year=CensusData.YEAR, cache=True)
-        # filter to only needed columns
-        df_tiger = df_tiger.loc[:, CensusData.BLOCK_GROUP_SHAPE_COLS.keys()]
-
-        gdf_data = df.merge(df_tiger, how="left", left_on="GEO_ID", right_on="GEOID")
 
         # downselect columns
         selected_columns = list(CensusData.DATA_COLUMNS.keys()) + list(CensusData.BLOCK_GROUP_SHAPE_COLS.keys())
-        gdf_data = gdf_data.loc[:, selected_columns]
-        gdf_data.drop("GEO_ID", axis=1, inplace=True)
+        df = df.loc[:, selected_columns]
+        df.drop("GEO_ID", axis=1, inplace=True)
 
         # Rename columns
-        gdf_data = gdf_data.rename(columns=CensusData.DATA_COLUMNS)
-        gdf_data = gdf_data.rename(columns=CensusData.BLOCK_GROUP_SHAPE_COLS)
+        df = df.rename(columns=CensusData.DATA_COLUMNS)
+        df = df.rename(columns=CensusData.BLOCK_GROUP_SHAPE_COLS)
 
         # find set of columns to use for renaming
         column_dtypes = {
             key: val
             for key, val in {**CensusData.DATA_COLUMNS_FORMAT, **CensusData.BLOCK_GROUP_SHAPE_COLS_FORMAT}.items()
-            if key in gdf_data.columns
+            if key in df.columns
         }
 
-        return gpd.GeoDataFrame(gdf_data.astype(dtype=column_dtypes))
+        return gpd.GeoDataFrame(df.astype(dtype=column_dtypes))

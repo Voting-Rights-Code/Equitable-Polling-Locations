@@ -73,17 +73,6 @@ test = ["anyio[trio]", "coverage[toml] (>=7)", "exceptiongroup (>=1.2.0)", "hypo
 trio = ["trio (>=0.23)"]
 
 [[package]]
-name = "appdirs"
-version = "1.4.4"
-description = "A small Python module for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
-optional = false
-python-versions = "*"
-files = [
-    {file = "appdirs-1.4.4-py2.py3-none-any.whl", hash = "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128"},
-    {file = "appdirs-1.4.4.tar.gz", hash = "sha256:7d5d0167b2b1ba821647616af46a749d1c653740dd0d2415100fe26e27afdf41"},
-]
-
-[[package]]
 name = "appnope"
 version = "0.1.4"
 description = "Disable App Nap on macOS >= 10.9"
@@ -2743,17 +2732,6 @@ typing = ["typing-extensions"]
 xmp = ["defusedxml"]
 
 [[package]]
-name = "pip"
-version = "24.2"
-description = "The PyPA recommended tool for installing Python packages."
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "pip-24.2-py3-none-any.whl", hash = "sha256:2cd581cf58ab7fcfca4ce8efa6dcacd0de5bf8d0a3eb9ec927e07405f4d9e2a2"},
-    {file = "pip-24.2.tar.gz", hash = "sha256:5b5e490b5e9cb275c879595064adce9ebd31b854e3e803740b72f9ccf34a45b8"},
-]
-
-[[package]]
 name = "platformdirs"
 version = "4.2.2"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a `user data dir`."
@@ -3117,31 +3095,6 @@ files = [
 
 [package.extras]
 windows-terminal = ["colorama (>=0.4.6)"]
-
-[[package]]
-name = "pygris"
-version = "0.1.6"
-description = "Download and use US Census Bureau TIGER/Line Shapefiles and other data resources in Python"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "pygris-0.1.6-py3-none-any.whl", hash = "sha256:3dee79427dcbb4cff3ea832a6ffd65644e66747e1ac0ff7c62f6f421baf247a6"},
-    {file = "pygris-0.1.6.tar.gz", hash = "sha256:28d4f70ace5aa5e45828fc304f451f2cdcd530deb2df143bf810501b336a7588"},
-]
-
-[package.dependencies]
-appdirs = "*"
-fiona = "*"
-geopandas = ">=0.9"
-numpy = "*"
-pandas = "*"
-pip = "*"
-requests = "*"
-rtree = "*"
-shapely = "*"
-
-[package.extras]
-explore = ["folium", "ipyleaflet", "mapclassify"]
 
 [[package]]
 name = "pylint"
@@ -4571,4 +4524,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12.4"
-content-hash = "a6f7f720378aaead72f05be55a02b9bbde21eca7c401ececf8e029f83ba1fca3"
+content-hash = "1d5ce2345e636069e4cbc28b7e89d8935d8717a0419e79b064a66a8f575a1d7a"
