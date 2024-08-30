@@ -1,0 +1,9 @@
+name: equitable_locations
+channels:
+  - default
+  - conda-forge
+dependencies:
+  - python=3.12.4
+  - pip
+  - pip:
+      - poetry
