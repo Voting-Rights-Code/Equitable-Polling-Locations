@@ -187,8 +187,13 @@ def build_capacity_rule(
     '''
     Respects capacity limits and prevents overcrowding by restricting the number that can go to a precinct to some scaling factor of the avg population per center
     '''
-    capacity = config.capacity
-
+    #modify the capacity according to the user defined default precints_open
+    if config.fixed_capacity_site_number == None: 
+        #capacity rule uses capacity * total_pop / precincts open
+        capacity = config.capacity
+    else: #calculate capacity_rule by replacing precints_open with fixed_capacity_site_number
+        capacity = config.capacity * precincts_open / config.fixed_capacity_site_number 
+    
     def capacity_rule(
         model: pyo.AbstractModel,
         precinct,

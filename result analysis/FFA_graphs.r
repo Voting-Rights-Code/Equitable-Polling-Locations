@@ -1,3 +1,7 @@
+#######
+#NOTE: this file is deprecated. It is not compatible with the new graph_functions
+#structure that reads data from the config files
+#######
 library(here)
 
 #######
