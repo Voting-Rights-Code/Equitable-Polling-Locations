@@ -2,7 +2,7 @@ import pandas as pd
 import geopandas as gpd
 import time
 from equitable_locations.io.osm import OsmIsochroneGenerator, CoverageError
-from typing import Union
+from typing import Union, List
 
 
 class DistanceGenerator:
@@ -73,7 +73,7 @@ class DistanceGenerator:
 
         if self.use_minimum_time:
             temp_min_time_idx = self.find_minimum_time(
-                poll_location_type="polling", N_distance_minimum=self.N_distance_minimum
+                poll_location_type=["polling", "potential"], N_distance_minimum=self.N_distance_minimum
             )
             # make sure more than one time is used in generating distances
             if temp_min_time_idx == len(self.times) - 1:
@@ -166,7 +166,7 @@ class DistanceGenerator:
 
     def find_minimum_time(
         self,
-        poll_location_type: Union[None, str] = None,
+        poll_location_type: Union[None, List[str]] = None,
         N_distance_minimum: int = 2,
     ):
         # Find the minimum time from the list of times provided. This should be written using binary search to find the minimum time from the supplied list. This method uses two arguments. The first is a string to filter the poll location type in the destination dataframe. Second, the N distances to each block group. If the smallest time from the provided list, return the next largest and log a warning.
@@ -174,7 +174,7 @@ class DistanceGenerator:
 
         if poll_location_type is not None:
             filtered_destinations = self.destinations.loc[
-                self.destinations.loc[:, "dest_type"] == poll_location_type, :
+                self.destinations.loc[:, "dest_type"].isin(poll_location_type), :
             ]
         else:
             filtered_destinations = self.destinations
@@ -190,21 +190,38 @@ class DistanceGenerator:
         while left <= right:
             mid = (left + right) // 2
             try:
-                print(f"Testing index: {mid} for {processing_times[mid]} minutes")
+                print(
+                    f"Testing index: {mid} for {processing_times[mid]} minutes with {poll_location_type} polling locations"
+                )
                 gdf = self.isochrone_generator.get_isochrones(
                     locations=filtered_destinations,
                     lat_column="dest_lat",
                     lon_column="dest_lon",
                     travel_time=processing_times[mid],
                 )
-                self.isochrone_generator.check_coverage(
-                    origins_df=self.origins,
-                    lat_column="orig_lat",
-                    lon_column="orig_lon",
-                    snap_to_road=self.snap_origin,
-                    isochrones_gdf=gdf,
-                    N=N_distance_minimum,
-                )
+                # make sure N minimum for each type of poll location type
+                if poll_location_type is not None:
+                    for location_type in poll_location_type:
+                        print(
+                            f"Checking coverage for type {location_type} at radius {processing_times[mid]} minutes for a minumum of {N_distance_minimum}"
+                        )
+                        self.isochrone_generator.check_coverage(
+                            origins_df=self.origins,
+                            lat_column="orig_lat",
+                            lon_column="orig_lon",
+                            snap_to_road=self.snap_origin,
+                            isochrones_gdf=gdf.loc[gdf.loc[:, "dest_type"] == location_type, :],
+                            N=N_distance_minimum,
+                        )
+                else:
+                    self.isochrone_generator.check_coverage(
+                        origins_df=self.origins,
+                        lat_column="orig_lat",
+                        lon_column="orig_lon",
+                        snap_to_road=self.snap_origin,
+                        isochrones_gdf=gdf,
+                        N=N_distance_minimum,
+                    )
                 min_time = processing_times[mid]
                 min_idx = mid
                 right = mid - 1

@@ -216,7 +216,8 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
     def check_coverage(self, origins_df, lat_column: str, lon_column: str, snap_to_road, isochrones_gdf, N):
         # Check whether all origins are covered by at least N isochrone geometries
 
-        # for a gdf with columns for latitude and longitude, compare against a list of polygons in the isochrones gdf. count how many do not fall within at least N polygons
+        # for a gdf with columns for latitude and longitude, compare against a list of polygons in the isochrones gdf.
+        # count how many do not fall within at least N polygons
 
         # put together a GeoDataFrame that can be used to do a spatial join with isochrones
         if snap_to_road:
@@ -231,8 +232,15 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
         gdf_check = origins_gdf.sjoin(isochrones_gdf, how="left", predicate="within")
 
         print(
-            "Blocks in polling area radius",
-            gdf_check.loc[:, ["id_orig", "dest_type"]].groupby("id_orig").count().value_counts(),
+            "Blocks in polling area radius\n",
+            pd.DataFrame(
+                gdf_check.loc[:, ["id_orig", "dest_type"]]
+                .groupby("id_orig")
+                .count()
+                .value_counts(sort=True, ascending=True)
+            )
+            .reset_index()
+            .rename({"dest_type": "DestinationsPerOrigin", "count": "NumberOfOrigins"}, axis=1),
         )
 
         grouped_df = gdf_check.loc[:, ["id_orig", "dest_type"]].groupby("id_orig").count()
@@ -240,6 +248,8 @@ class OsmIsochroneGenerator(BaseIsochroneGenerator):
 
         if count > 0:
             raise CoverageError(uncovered_locations=count)
+
+        return True
 
     def get_isochrone(self, lat, lon, travel_time: int):
         # Attempt to load the shapefile

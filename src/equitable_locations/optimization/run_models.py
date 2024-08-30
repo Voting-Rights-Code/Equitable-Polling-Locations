@@ -52,7 +52,7 @@ def run_model(config: PollingModelConfig):
     # filter to location_type not in config.bad_types
     filtered_destinations = df_destinations.loc[~df_destinations.loc[:, "location_type"].isin(config.bad_types), :]
 
-    travel_times = [5, 10, 15, 20, 25, 30]
+    travel_times = list(range(1, 41))
 
     distance_gen = DistanceGenerator(
         isochrone_generator=county_isochrone_generator,
@@ -60,7 +60,8 @@ def run_model(config: PollingModelConfig):
         origins=df_origins,
         destinations=filtered_destinations,
         snap_origin=True,
-        # use_minimum_time=True,
+        use_minimum_time=True,
+        N_distance_minimum=4,
     )
 
     gdf_all = distance_gen.calc()

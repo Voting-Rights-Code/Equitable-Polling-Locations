@@ -81,10 +81,17 @@ minpctold: .8 # in interval [0,1]
 
 ```
 
+### Debugging with VSCode
+
+Be sure to install the python extension, activate the python environment, and set some breakpoints in VSCode before proceeding. See https://code.visualstudio.com/docs/python/debugging for the most up-to-date information on how to use specific launch configurations.
+
+To debug the process of running a specific config file, see `.vscode/launch.json` and update the second argument to point at the desired config file. Next, select the "Python Debugger: Equitable Locations with Arguments" configuration on the Run and Debug panel. Finally, start the debugger by pressing the green "play" button.
 
 ## Architecture
 
 ### Class interactions
+
+TODO
 
 ```mermaid
   graph TD;
@@ -107,6 +114,19 @@ The following should be run before pushing any code:
 
 This is a very rough list of things which would be good to address in this prototype. These are in no particular order.
 
+- Add additional distance providers and additional parameterization
+  - OSM Driving Distance
+  - OSM Driving Time
+  - Haversine distance
+  - OSM Isochrones for alternative travel methods
+    - Walking
+    - Public Transportaion
+  - HERE maps Isochrone generation
+  - ORS Isochrone generation
+- Add database or S3 integration
+- Convert all print statements into python logging (e.g. use logzero)
+- Convert comments to proper docstrings
+- Add type hinting
 - Ensure each origin has a sufficient number of measured distances to possible destinations in order to avoid overly constraining the solution space. Possible approaches are as follows:
   - Possible, make sure each location has a distance to N actual polling locations and N potential polling locations of the correct types.
   - Verify that the "radius" is roughly half of the long edge of a county in real space.
