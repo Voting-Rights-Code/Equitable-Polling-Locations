@@ -1,6 +1,7 @@
 services:
   api_server:
     image: equitable_locations
+    user: ${UID}:${GID}
     ports:
       - 8000:8000
     volumes:

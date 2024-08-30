@@ -22,6 +22,8 @@ scikit-learn = "^1.5.1"
 pyomo = "^6.8.0"
 pybind11 = "^2.13.4"
 highspy = "^1.7.2"      # if wanting locally compiled version, should be uninstalled and re-installed from source in dockerfile
+gunicorn = "^23.0.0"
+uvicorn = "^0.30.6"
 
 [tool.poetry.scripts]
 equitable_locations = "equitable_locations.__main__:cli"

@@ -1,9 +1,8 @@
 #!/bin/bash
 
-# permissions on log folder
-chmod +t logs
-touch logs/rotating-logfile.log
-chmod o+w logs/rotating-logfile.log
+# export user information to integrate with host system permissions
+export UID=$(id -u)
+export GID=$(id -g)
 
 # build docker container
 # docker build -t equitable_locations .
