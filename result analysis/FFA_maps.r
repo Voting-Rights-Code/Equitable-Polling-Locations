@@ -13,8 +13,9 @@ source('result analysis/graph_functions.R')
 #Set Constants
 #######
 #Location must be part of config folder string
-LOCATION = 'Gwinnett_GA'
-CONFIG_FOLDER = 'Gwinnett_GA_12_for_2024_configs'
+LOCATION = 'DeKalb_GA'
+CONFIG_FOLDER = 'DeKalb_GA_no_school_penalize_bg_configs_driving_pre_EV_2024'
+
 
 #original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
 #CONFIG_FOLDER = original_locations

@@ -63,8 +63,9 @@ combine_results<- function(location, config_folder, result_type, analysis_type =
 		files <- list.files(result_folder)
 		files <- files[grepl(config_folder, files) &grepl(result_type, files)]
 		file_path <- paste0(result_folder, files)
-		
+
 		#pull number of polls data from the file names
+		files<- gsub(paste0(config_folder, '.'), '', files)
 		num_polls <-  gsub('.*?([0-9]+).*', '\\1', files)
 		descriptor <- sapply(num_polls, function(x){paste('Optimized', x, 'polls', sep='_')})} #number of polls
 	else if (analysis_type == 'other'){
@@ -72,7 +73,7 @@ combine_results<- function(location, config_folder, result_type, analysis_type =
 		files <- list.files(result_folder)
 		files <- files[grepl(config_folder, files) &grepl(result_type, files)]
 		file_path <- paste0(result_folder, files)
-
+		
 		extraction_instructions <- paste0("(?<=config_).*(?=_", result_type,')')
 		descriptor <- stringr::str_extract(files, extraction_instructions)
 	}
@@ -108,7 +109,7 @@ read_result_data<- function(location, config_folder, analysis_type){
 	precinct_df<- combine_results(location, config_folder, 'precinct_distances', analysis_type)
 	residence_df<- combine_results(location, config_folder, 'residence_distances', analysis_type)
 	result_df<- combine_results(location, config_folder, 'result', analysis_type)
-
+	
 	#label descriptors with polls and residences
 	num_polls <- precinct_df[ , .(num_polls = .N/6), by = descriptor]
 	num_residences <- residence_df[ , .(num_residences = .N/6), by = descriptor]

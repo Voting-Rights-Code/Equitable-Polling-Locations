@@ -21,7 +21,7 @@ source('result analysis/graph_functions.R')
 #CONFIG_FOLDER must be a string
 
 LOCATION = 'DeKalb_GA'
-CONFIG_FOLDER = 'DeKalb_GA_no_school_penalize_bg_configs_driving'
+CONFIG_FOLDER = 'DeKalb_GA_no_school_penalize_bg_configs_driving_pre_EV_2024'
 
 #Run-type specific constants
 IDEAL_POLL_NUMBER  = 19 #the optimal number of polls desired for this county
