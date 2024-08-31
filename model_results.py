@@ -120,16 +120,23 @@ def write_results_csv(result_folder, run_prefix, result_df, demographic_prec, de
     result_file = f'{run_prefix}_result.csv'
     precinct_summary = f'{run_prefix}_precinct_distances.csv'
     residence_summary = f'{run_prefix}_residence_distances.csv'
+
+    # Set to write with replacement if replace == TRUE
+    if replace == True: 
+        mode = 'w'
+    # Otherwise set to write without replacement
+    else:
+        mode = 'x'
     y_ede_summary = f'{run_prefix}_edes.csv'
-    result_df.to_csv(os.path.join(result_folder, result_file), index = True)
-    demographic_prec.to_csv(os.path.join(result_folder, precinct_summary), index = True)
-    demographic_res.to_csv(os.path.join(result_folder, residence_summary), index = True)
-    demographic_ede.to_csv(os.path.join(result_folder, y_ede_summary), index = True)
+    result_df.to_csv(os.path.join(result_folder, result_file), index = True, mode = mode)
+    demographic_prec.to_csv(os.path.join(result_folder, precinct_summary), index = True, mode = mode)
+    demographic_res.to_csv(os.path.join(result_folder, residence_summary), index = True, mode = mode)
+    demographic_ede.to_csv(os.path.join(result_folder, y_ede_summary), index = True, mode = mode)
 
     return
 
 
-def write_results_bigquery(config, result_df, demographic_prec, demographic_res, demographic_ede, overwrite = False, log = True, csv_backfill = False):
+def write_results_bigquery(config, result_df, demographic_prec, demographic_res, demographic_ede, replace = False, log = True, csv_backfill = False):
     '''Write result, demographic_prec, demographic_res and demographic_ede to BigQuery SQL tables'''
 
     # ==== Construct a BigQuery client object ====
@@ -203,14 +210,14 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
     configs_dup_series = "'" + existing_configs_df['config_name'] + "'"
     configs_dup_str = configs_dup_series.str.cat(sep = ", ")
 
-    # --- If overwrite == False and a config with the given name exists, warning message ----
-    if((existing_configs_yn == True) & (overwrite == False)):
-        warnings.warn(f"Config(s) [{configs_dup_str}] already exist; failing since overwrite == False")
+    # --- If replace == False and a config with the given name exists, warning message ----
+    if((existing_configs_yn == True) & (replace == False)):
+        warnings.warn(f"Config(s) [{configs_dup_str}] already exist; failing since replace == False")
         return
 
-    # ---- If overwrite == True or no config exists, drop existing rows ----
+    # ---- If replace == True or no config exists, drop existing rows ----
     # drop rows if necessary
-    if((existing_configs_yn == True) & (overwrite == True)):
+    if((existing_configs_yn == True) & (replace == True)):
        for out_type in out_types:
             dml_statement = f'''
             DELETE FROM {dataset}.{out_type} WHERE config_name IN({configs_dup_str})
@@ -218,7 +225,7 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
             job = client.query(dml_statement)
             job.result()
     
-       warnings.warn(f"Config(s) [{configs_dup_str}] already exist; dropping since overwrite == True")
+       warnings.warn(f"Config(s) [{configs_dup_str}] already exist; dropping since replace == True")
 
 
     # ==== Write data ====
