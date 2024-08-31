@@ -6,7 +6,6 @@ from pathlib import Path
 import enum
 
 from equitable_locations.io.osm import OsmIsochroneGenerator
-from pathlib import Path
 
 
 class IsochroneType(enum.Enum):

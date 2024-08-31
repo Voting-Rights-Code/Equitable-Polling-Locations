@@ -1,13 +1,11 @@
 from equitable_locations.io.census import CensusData
 from equitable_locations.io.locations import create_origins, create_destinations
-from pathlib import Path
 from equitable_locations.io.osm import OsmIsochroneGenerator
 from equitable_locations.common.distance import DistanceGenerator
 from equitable_locations.io.model_config import PollingModelConfig
 from equitable_locations.common.model_data import clean_data, alpha_min
 from equitable_locations.optimization.model_factory import polling_model_factory
-from equitable_locations import PROJECT_ROOT, RESULT_ROOT, EQUITABLE_LOG_FOLDER, PARTNER_DATA_ROOT
-from importlib import resources
+from equitable_locations import RESULT_ROOT, EQUITABLE_LOG_FOLDER, PARTNER_DATA_ROOT
 from equitable_locations.optimization.model_results import (
     incorporate_result,
     demographic_domain_summary,

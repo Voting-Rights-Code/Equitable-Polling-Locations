@@ -5,9 +5,7 @@
 # @attribution: based off of code by Josh Murell
 #######################################
 
-"""
-Factory function to build the pyomo population model
-"""
+"""Factory function to build the pyomo population model"""
 
 import math
 import warnings
@@ -63,7 +61,8 @@ def build_objective_rule(
     kp_penalty_parameter: float = 0,
 ):
     """The function to be minimized:
-    Variables: model.matching, indexed by reisidence precinct pairs"""
+    Variables: model.matching, indexed by reisidence precinct pairs
+    """
     if site_penalty:
 
         def obj_rule_0(model):
@@ -118,8 +117,9 @@ def build_max_new_rule(
     config: PollingModelConfig,
     precincts_open: int,
 ):
-    """percent of new open precincts cannot exceed maxpctnew,
-    skip if no new locations in data"""
+    """Percent of new open precincts cannot exceed maxpctnew,
+    skip if no new locations in data
+    """
     maxpctnew = config.maxpctnew
 
     def max_new_rule(
@@ -140,8 +140,9 @@ def build_min_old_rule(
     config: PollingModelConfig,
     old_polls: int,
 ):
-    """a minimum percent of old polling locations must be included,
-    skip if set to 0"""
+    """A minimum percent of old polling locations must be included,
+    skip if set to 0
+    """
 
     def min_old_rule(
         model: pyo.ConcreteModel,
@@ -159,7 +160,7 @@ def build_min_old_rule(
 
 # @timer
 def build_res_assigned_rule():
-    """assigns each census block to a single precinct in its neighborhood"""
+    """Assigns each census block to a single precinct in its neighborhood"""
 
     def res_assigned_rule(model: pyo.ConcreteModel, residence) -> bool:
         return sum(model.matching[residence, precinct] for precinct in model.within_residence_radius[residence]) == 1
@@ -169,7 +170,7 @@ def build_res_assigned_rule():
 
 # @timer
 def build_precinct_open_rule():
-    """residences can only be assigned to precincts that are opened"""
+    """Residences can only be assigned to precincts that are opened"""
 
     def precinct_open_rule(
         model: pyo.ConcreteModel,
@@ -182,7 +183,7 @@ def build_precinct_open_rule():
 
 
 def build_exclude_sites_rule():
-    """exclude these sites from being selected"""
+    """Exclude these sites from being selected"""
 
     def exclude_sites_rule(model: pyo.ConcreteModel, precinct) -> bool:
         return model.open[precinct] == 0
@@ -191,7 +192,7 @@ def build_exclude_sites_rule():
 
 
 def build_penalty_rule(alpha: float, beta: float, site_penalty: float):
-    """set the penalty factor"""
+    """Set the penalty factor"""
 
     def penalty_rule(model: pyo.ConcreteModel) -> bool:
         return model.penalty == -alpha * beta * sum(model.open[s] * site_penalty for s in model.penalized_sites)
@@ -200,7 +201,7 @@ def build_penalty_rule(alpha: float, beta: float, site_penalty: float):
 
 
 def build_penalty_approximation_rule():
-    """set the penalty factor"""
+    """Set the penalty factor"""
 
     def penalty_approximation_rule(model: pyo.ConcreteModel, linearization_point: float) -> bool:
         return model.penalty_exp >= math.exp(linearization_point) * (1 + model.penalty - linearization_point)
@@ -214,9 +215,7 @@ def build_capacity_rule(
     total_pop: int,
     precincts_open: int,
 ):
-    """
-    Respects capacity limits and prevents overcrowding by restricting the number that can go to a precinct to some scaling factor of the avg population per center
-    """
+    """Respects capacity limits and prevents overcrowding by restricting the number that can go to a precinct to some scaling factor of the avg population per center"""
     capacity = config.capacity
 
     def capacity_rule(
@@ -244,10 +243,7 @@ def polling_model_factory(
     site_penalty: float = 0,
     kp_penalty_parameter: float = 0,
 ) -> PollingModel:
-    """
-    Returns the polling location pyomo model.
-    """
-
+    """Returns the polling location pyomo model."""
     if site_penalty and not kp_penalty_parameter:
         raise ValueError(f"kp_penalty_parameter must be positive if site_penalty is positive ({site_penalty=}")
 

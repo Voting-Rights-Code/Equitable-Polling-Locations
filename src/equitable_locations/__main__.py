@@ -16,7 +16,7 @@ def run_file(file_path):
 def run_directory():
     # Code to initialize isochrone data goes here
     click.echo("Running directory of configs!")
-    raise NotImplemented
+    raise NotImplementedError
 
 
 @click.command()

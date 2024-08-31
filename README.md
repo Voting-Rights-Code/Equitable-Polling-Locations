@@ -114,6 +114,7 @@ The following should be run before pushing any code:
 
 This is a very rough list of things which would be good to address in this prototype. These are in no particular order.
 
+- Investigate experiment tracking systems and methods of exploring the configuration space (e.g. optuna and MLFlow)
 - Add additional distance providers and additional parameterization
   - OSM Driving Distance
   - OSM Driving Time
@@ -123,6 +124,7 @@ This is a very rough list of things which would be good to address in this proto
     - Public Transportaion
   - HERE maps Isochrone generation
   - ORS Isochrone generation
+    - add instructions/automation to deploy a docker container with the right mapping data
 - Add database or S3 integration
 - Convert all print statements into python logging (e.g. use logzero)
 - Convert comments to proper docstrings

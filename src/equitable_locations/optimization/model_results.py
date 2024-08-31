@@ -15,10 +15,10 @@ from equitable_locations.common.utils import timer
 @timer
 def incorporate_result(dist_df, model):
     """Input: dist_df--the main data frame containing the data for model
-              model -- the solved model
-              model.matching -- pyo boolean variable for when a residence is matched to a precinct (res, prec):bool
-    output: dataframe containing only the matched residences and precincts"""
-
+    model -- the solved model
+    model.matching -- pyo boolean variable for when a residence is matched to a precinct (res, prec):bool
+    output: dataframe containing only the matched residences and precincts
+    """
     # turn matched solution into df
     matching_list = [(key[0], key[1], model.matching[key].value) for key in model.matching]
     matching_df = pd.DataFrame(matching_list, columns=["id_orig", "id_dest", "matching"])
@@ -39,9 +39,9 @@ def incorporate_result(dist_df, model):
 @timer
 def demographic_domain_summary(result_df, domain):
     """Input: result_df-- the distance an demographic population data for the matched residences and precincts
-        domain-- ['id_dest', 'id_orig'] either the precinct of residence
-    Output: Calculate the average distances traveled by each demographic group that is assigned to each precinct or that lives in each residence."""
-
+    domain-- ['id_dest', 'id_orig'] either the precinct of residence
+    Output: Calculate the average distances traveled by each demographic group that is assigned to each precinct or that lives in each residence.
+    """
     if domain not in ["id_dest", "id_orig"]:
         raise ValueError("domain much be in [id_dest, id_orig]")
     # Transform to get distance and population by demographic, destination pairs for each origin
@@ -77,8 +77,8 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
     """Input: demographic_df-- the distance an demographic population data for the matched residences and precincts
     beta -- the inequality aversion factor
     alpha -- the data derived normalization factor
-    Output: Calculate the average distances traveled by each demographic group."""
-
+    Output: Calculate the average distances traveled by each demographic group.
+    """
     # calculate the total distance traveled by each demographic group
     demographic_dist = demographic_df["weighted_dist"].groupby("demographic").agg("sum")
 
@@ -120,7 +120,6 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
 @timer
 def write_results(result_folder, run_prefix, result_df, demographic_prec, demographic_res, demographic_ede):
     """Write result, demographic_prec, demographic_res and demographic_ede to file"""
-
     # check if the directory exists
     if not os.path.exists(result_folder):
         os.makedirs(result_folder)
@@ -136,10 +135,8 @@ def write_results(result_folder, run_prefix, result_df, demographic_prec, demogr
 
 
 def _compute_kp_alpha(df):
-    import numpy as np
-
-    num = sum(x * y for x, y in zip(df["population"], df["distance"]))
-    den = sum(x * y * y for x, y in zip(df["population"], df["distance"]))
+    num = sum(x * y for x, y in zip(df["population"], df["distance"], strict=False))
+    den = sum(x * y * y for x, y in zip(df["population"], df["distance"], strict=False))
     return num / den
 
 
@@ -150,6 +147,6 @@ def compute_kp_score(df, beta, *, alpha=None, population_column_name="population
         return (df.population * df.distance).sum() / df.population.sum()
     alpha = _compute_kp_alpha(distance_df) if not alpha else alpha
     kappa = alpha * beta
-    funky_sum = sum(x * math.exp(-kappa * y) for x, y in zip(df["population"], df["distance"]))
+    funky_sum = sum(x * math.exp(-kappa * y) for x, y in zip(df["population"], df["distance"], strict=False))
     tot_pop = distance_df.population.sum()
     return -math.log(funky_sum / tot_pop) / kappa
