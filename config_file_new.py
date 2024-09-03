@@ -1,4 +1,4 @@
-'''In this code we have to change only that paramter_variation which will change in the yml files and the output_dir'''
+'''In this code we have to change only that paramter_variation, base_config and the output_dir as required.'''
 
 import yaml
 import os
