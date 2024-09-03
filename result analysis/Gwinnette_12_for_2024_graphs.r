@@ -1,3 +1,6 @@
+#######
+#Note for pull reviewer: I (SA) believe that this file is now deprecated. If #you agree, please delete this file before approving the pull request
+#######
 library(here)
 
 #######
@@ -10,7 +13,7 @@ setwd(here())
 #######
 
 source('result analysis/graph_functions.R')
-
+source('result analysis/map_functions.R')
 
 #######
 #Set Constants
@@ -23,15 +26,8 @@ source('result analysis/graph_functions.R')
 LOCATION = 'Gwinnett_GA'
 CONFIG_FOLDER = 'Gwinnett_GA_12_for_2024_configs'
 
-#Run-type specific constants
-#IDEAL_POLL_NUMBER  = 19 #the optimal number of polls desired for this county
+PENALIZED_CONFIG_FOLDER = 'Gwinnett_GA_12_for_2024_penalized_configs'
 
-#######
-#Location of original location results
-#and other related constants
-#######
-
-#original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
 
 #######
 #Check that location and folders valid
@@ -40,8 +36,11 @@ CONFIG_FOLDER = 'Gwinnett_GA_12_for_2024_configs'
 
 #Does the config folder exist?
 check_config_folder_valid(CONFIG_FOLDER)
+check_config_folder_valid(PENALIZED_CONFIG_FOLDER)
+
 #Does the config folder contain files associated to the location
 check_location_valid(LOCATION, CONFIG_FOLDER)
+check_location_valid(LOCATION, PENALIZED_CONFIG_FOLDER)
 
 
 #######
@@ -49,26 +48,46 @@ check_location_valid(LOCATION, CONFIG_FOLDER)
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
-config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'other')
+#driving flag
+config_list <- c(CONFIG_FOLDER, PENALIZED_CONFIG_FOLDER)
+DRIVING_FLAG <- set_global_driving_flag(config_list)
+
+config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER)
 #config_ede_df<- config_df_list[[1]]
 #config_precinct_df<- config_df_list[[2]]
 #config_residence_df<- config_df_list[[3]]
 #config_result_df<- config_df_list[[4]]
 
+penalized_config_df_list <- read_result_data(LOCATION, PENALIZED_CONFIG_FOLDER, field_of_interest = 'penalized_sites')
+
+#change descriptor
 change_descriptors <- function(df){
-    df <- df[descriptor == "no_bg_school_penalty_fire_church", descriptor := "Penalty"
-            ][descriptor == "no_bg_school", descriptor := "Both"
-            ][descriptor == "no_bg_school_church", descriptor := "Fire Stations"
-            ][descriptor == "no_bg_school_fire", descriptor := "Churches"
-            ][descriptor == "no_bg_school_fire_church", descriptor := "Neither"
+    df <- df[descriptor == "bad_types_bg_centroid|Elec Day School - Potential|EV_2022_cease", descriptor := "Both"
+            ][descriptor == "bad_types_bg_centroid|Elec Day Church - Potential|Elec Day School - Potential|EV_2022_cease", descriptor := "Fire Stations"
+            ][descriptor == "bad_types_bg_centroid|Elec Day School - Potential|EV_2022_cease|Fire Station - Potential", descriptor := "Churches"
+            ][descriptor == "bad_types_bg_centroid|Elec Day Church - Potential|Elec Day School - Potential|EV_2022_cease|Fire Station - Potential", descriptor := "Neither"
             ]
 return(df)
 }
 config_df_list = lapply(config_df_list, change_descriptors)
+penalized_config_df_list <- lapply(penalized_config_df_list, function(x){x[ , descriptor := 'Penalized']})
 
+#########
+#Set up maps and cartograms
+#########
+#set result folder
+result_folder = paste(LOCATION, 'results', sep = '_')
 
-#orig_df_list <- read_result_data(LOCATION, original_locations, 'historical')
-#defined as above
+#get all file names the result_folder with the strings config_folder and 'residence_distances'
+res_dist_list = list.files(result_folder)[grepl('residence_distances', list.files(result_folder))]
+res_dist_list = res_dist_list[grepl(CONFIG_FOLDER, res_dist_list)|grepl(PENALIZED_CONFIG_FOLDER, res_dist_list)]
+
+#get avg distance bounds for map coloring
+base_color_bounds <- distance_bounds(LOCATION, CONFIG_FOLDER)
+penalized_color_bounds <- distance_bounds(LOCATION, PENALIZED_CONFIG_FOLDER, field_of_interest = 'penalized_sites')
+global_min <- min(base_color_bounds[[1]], penalized_color_bounds[[1]])
+global_max <- max(base_color_bounds[[2]], penalized_color_bounds[[2]])
+color_bounds <- list(global_min, global_max)
 
 #######
 #Plot data
@@ -83,20 +102,15 @@ if (file.exists(file.path(here(), plot_folder))){
 
 #Add percent population to data ede data for graph scaling for all general config folder and orig
 pop_scaled_edes <- ede_with_pop(config_df_list)
-#pop_scaled_edes_orig <- ede_with_pop(orig_df_list)
-#pop_scaled_edes_orig <- ede_with_pop(orig_df_list)
-
-#Plot the edes for all runs in config_folder by demographic and population only
-#plot_poll_edes(config_df_list[[1]])
-#plot_population_edes(config_df_list[[1]])
+penalized_pop_scaled_edes <- ede_with_pop(penalized_config_df_list)
 
 #Plot the edes for all runs in original_location and equivalent optimization runs by demographic
-plot_historic_edes(CONFIG_FOLDER, pop_scaled_edes, suffix = 'pop_scaled')
+pop_scaled_list = list(pop_scaled_edes, penalized_pop_scaled_edes)
+combined_pop_scaled_edes <- combine_different_runs(pop_scaled_list)
+plot_historic_edes(combined_pop_scaled_edes, suffix = 'pop_scaled')
 
+###maps####
+sapply(res_dist_list, function(x)make_bg_maps(x, 'map'))
+sapply(res_dist_list, function(x)make_demo_dist_map(x, 'black'))
+sapply(res_dist_list, function(x)make_demo_dist_map(x, 'white'))
 
-#Histogram of the original distributions and that for the desired number of polls
-#plot_orig_ideal_hist(orig_df_list[[3]], config_df_list[[3]], IDEAL_POLL_NUMBER)
-#ggplot(config_df_list[[3]], aes(x = avg_dist, fill = descriptor)) + 
-#		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
-#		labs(x = 'Average distance traveled to poll (m)', y = 'Number of people', fill = 'Optimization Run') 
-#		ggsave('avg_dist_distribution_hist.png')

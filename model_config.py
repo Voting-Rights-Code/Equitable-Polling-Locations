@@ -43,7 +43,11 @@ class PollingModelConfig:
     from the data. Should be >= 1. Default = 1.'''
     capacity: float = 1.0
     '''A multiplicative factor for calculating the capacity constraint. Should be >= 1.
-    Default = 1.'''
+    Default = 1.
+    Note, if this is not paired with fixed_capacity_site_number, then the capacity changes as a function of number of precincts.'''
+    fixed_capacity_site_number: int = None
+    '''If default number of open precincts if one wants to hold the number
+    of people that can go to a location constant (as opposed to a function of the number of locations) '''
     result_folder: str = None
     ''' The location to write out results '''
 
