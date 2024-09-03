@@ -11,7 +11,7 @@ def generate_configs(base_config, output_dir, locations=None, years=None, bad_ty
     if locations is None:
         locations = ['York_SC']
     if years is None:
-        years = list(range(2022, 2028, 2))
+        years = list(range(2014, 2024, 2))
     if bad_types_values is None:
         bad_types_values = ['bg_centroid']
     if beta_values is None:
@@ -87,7 +87,7 @@ def generate_configs(base_config, output_dir, locations=None, years=None, bad_ty
 # Example usage of the function
 base_config = {
     "location": "Greenville_SC",
-    "year": 2024,
+    "year": 2020,
     "bad_types": "'bg_centroid'",
     "beta": -1,
     "time_limit": 360000,  # 100 hours minutes
