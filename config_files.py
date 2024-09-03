@@ -9,7 +9,7 @@ base_config = {
     "beta": -1,
     "time_limit": 360000,  # 100 hours minutes
     "capacity": 1.5,
-    # "precincts_open": 'null',
+    "precincts_open": 'null',
     "max_min_mult": 5,  # scalar >= 1
     "maxpctnew": 0,  # in interval [0,1]
     "minpctold": 1  # in interval [0,1]
@@ -33,16 +33,16 @@ os.makedirs(output_dir, exist_ok=True)
 
 # Create a dictionary to hold parameter variations
 parameter_variations = {
-    # "location": locations,
-    # "year": years,
-    # "max_min_mult": max_min_mult_values,
-    # "bad_types": bad_types_values,
-    # "beta": beta_values,
-    # "capacity": capacity_values,
+    "location": locations,
+    "year": years,
+    "max_min_mult": max_min_mult_values,
+    "bad_types": bad_types_values,
+    "beta": beta_values,
+    "capacity": capacity_values,
     "precincts_open": precincts_open_values,
-    # "max_min_mult": max_min_mult_values,
-    # "maxpctnew": maxpctnew_values,
-    # "minpctold": minpctold_values 
+    "max_min_mult": max_min_mult_values,
+    "maxpctnew": maxpctnew_values,
+    "minpctold": minpctold_values 
 }
 
 # Generate configurations based on combinations of parameters
