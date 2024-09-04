@@ -1,15 +1,22 @@
-'''1st we have to arrange the base_config.yaml as per requirement.
-2nd check generate_configs, if you want to change the range of any parameter.
-3rd we have to off the comment out of parameter_variation which we want to change
-4th we have to copy the relative path of the directory where we want to save and paste it on output_dir.
-5th Run the code'''
+'''1st --> we have to arrange the base_config.yaml as per requirement.
+2nd --> check generate_configs, if you want to change the range of any particular parameter.
+3rd --> You have to off the comment out that parameter of parameter_variation which you want to change.
+4th --> You have to copy the relative path of that particular folder where you want to save it and paste it on output_dir.'''
 
 import yaml
 import os
+import numpy as np
 
-def generate_configs(base_config, output_dir, locations=None, years=None, bad_types_values=None, beta_values=None,
+def load_base_config(config_file):
+    with open(config_file, 'r') as file:
+        return yaml.safe_load(file)
+
+def generate_configs(base_config_file, output_dir, locations=None, years=None, bad_types_values=None, beta_values=None,
                      capacity_values=None, precincts_open_values=None, max_min_mult_values=None,
                      maxpctnew_values=None, minpctold_values=None):
+
+    # Load the base configuration from the file
+    base_config = load_base_config(base_config_file)
 
     # Set default values if not provided
     if locations is None:
@@ -23,13 +30,13 @@ def generate_configs(base_config, output_dir, locations=None, years=None, bad_ty
     if capacity_values is None:
         capacity_values = [1.5]
     if precincts_open_values is None:
-        precincts_open_values = list(range(25, 30))
+        precincts_open_values = list(range(16, 30))
     if max_min_mult_values is None:
         max_min_mult_values = [5]
     if maxpctnew_values is None:
-        maxpctnew_values = [0]
+        maxpctnew_values = [0,1]
     if minpctold_values is None:
-        minpctold_values = [1]
+        minpctold_values = np.arange(0, 1.1, 0.1).tolist()
 
     # Create the output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
@@ -38,7 +45,6 @@ def generate_configs(base_config, output_dir, locations=None, years=None, bad_ty
     parameter_variations = {
         # "location": locations,
         # "year": years,
-        # "max_min_mult": max_min_mult_values,
         # "bad_types": bad_types_values,
         # "beta": beta_values,
         # "capacity": capacity_values,
@@ -50,13 +56,12 @@ def generate_configs(base_config, output_dir, locations=None, years=None, bad_ty
 
     # Generate configurations based on combinations of parameters
     for config_name, param_values in parameter_variations.items():
-        # Create a config for each value in the parameter list
         for value in param_values:
             config = base_config.copy()
             config[config_name] = value
             
             # Define the output file name
-            file_name = f"{config['location']}_config_original_{value}_polls.yaml"
+            file_name = f"{config['location']}_config_original_{value}.yaml"
             file_path = os.path.join(output_dir, file_name)
             
             # Create YAML content with comments
@@ -89,19 +94,7 @@ def generate_configs(base_config, output_dir, locations=None, years=None, bad_ty
 
 
 # Example usage of the function
-base_config = {
-    "location": "Greenville_SC",
-    "year": 2020,
-    "bad_types": "'bg_centroid'",
-    "beta": -1,
-    "time_limit": 360000,  # 100 hours minutes
-    "capacity": 1.5,
-    "precincts_open": 'null',
-    "max_min_mult": 5,  # scalar >= 1
-    "maxpctnew": 0,  # in interval [0,1]
-    "minpctold": 1  # in interval [0,1]
-}
+base_config_file = 'base_config.yaml'
+output_dir = './Richmond_city_VA_potential_configs'
 
-output_dir = './Greenville_SC_original_configs'
-
-generate_configs(base_config, output_dir)
+generate_configs(base_config_file, output_dir)
