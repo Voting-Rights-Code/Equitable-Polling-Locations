@@ -22,7 +22,7 @@ import utils
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 
-def load_configs(config_paths: List[str], logdir: str) -> (bool, List[PollingModelConfig]):
+def load_configs(config_paths: List[str], logdir: str, allow_other_args: bool=False) -> (bool, List[PollingModelConfig]):
     ''' Look through the list of files and confim they exist on disk, print any missing files or errors. '''
     valid = True
     results: List[PollingModelConfig] = []
@@ -44,6 +44,9 @@ def load_configs(config_paths: List[str], logdir: str) -> (bool, List[PollingMod
                        log_file_name,
                     )
                 results.append(config)
+                if config.other_args & !(allow_other_args): # An empty dict evalutes to false
+                    Print(f('Invalid arguments detected in config file. To allow arbitrary arguemnts, set outtype to "csv"'))
+
             # pylint: disable-next=broad-exception-caught
             except Exception as exception:
                 print(f'Failed to parse {config_path} due to:\n{exception}')
@@ -59,6 +62,8 @@ def run_config(config: PollingModelConfig, log: bool=False, replace: bool=False,
         print(f'Starting config: {config.config_file_path} -> BigQuery {outtype} output with config set {config.config_set} and name {config.config_name}')
     elif verbose & outtype == 'csv':
         print(f'Starting config: {config.config_file_path} -> CSV output to directory {config.result_folder}')
+
+
 
     model_run.run_on_config(config, log, replace, outtype)
     if verbose:
@@ -82,12 +87,17 @@ def main(args: argparse.Namespace):
         print(f'Invalid outtype: {outtype}')
         sys.exit(1)
 
+    if outtype in ['csv']:
+        allow_other_args = True
+    else
+        allow_other_args = False
+
     # Handle wildcards in Windows properly
     glob_paths = [ glob(item) for item in args.configs ]
     config_paths: List[str] = [ item for sublist in glob_paths for item in sublist ]
 
     # Check that all files are valid, exist if they do not exist
-    valid, configs = load_configs(config_paths, logdir)
+    valid, configs = load_configs(config_paths, logdir, allow_other_args)
     if not valid:
         sys.exit(1)
 

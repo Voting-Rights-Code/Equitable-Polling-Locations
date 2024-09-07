@@ -48,7 +48,6 @@ class PollingModelConfig:
     config_set: str = None
     '''Set of related configs that this config belongs to'''
 
-
     commit_hash: str = None
     '''NOT CURRENTLY IN USE. Git commit under which this code was run'''
     run_time: dt.datetime = None
@@ -61,9 +60,13 @@ class PollingModelConfig:
     log_file_path: str = None
     ''' If specified, the location of the file to write logs to '''
 
+    other_args: dict = {}
+    ''' Unspecified other args, allowed only for writing to test database or CSV (not prod database) '''
+
     def __post_init__(self):
         if not self.result_folder:
             self.result_folder = f'{self.location}_results'
+        self.varnames = list(vars(self).keys()) # Not sure if this will work, let's see
 
     @staticmethod
     def load_config(config_yaml_path: str) -> 'PollingModelConfig':
@@ -72,8 +75,21 @@ class PollingModelConfig:
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
             config = yaml.safe_load(yaml_file)
-            result = PollingModelConfig(**config)
-            result.config_file_path = config_yaml_path
+
+            # iterate over elements of the config, identify elements that don't match with known variables
+            # and store these in an 'other_args' dict
+            defined_args =  ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 'max_min_mult', 'maxpctnew', 'minpctold', 'config_name','config_set', 'result_folder', 'config_file_path', 'log_file_path']
+
+            filtered_args = {}
+            other_args = {}
+            for key, value in config.items():
+                if key not in defined_args:
+                    other_args[key] = value
+                else:
+                    filtered_args[key] = value
+            filtered_args['other_args'] = other_args
+
+            result = PollingModelConfig(**filtered_args)
 
             if not result.config_name:
                 result.config_name = os.path.splitext(os.path.basename(config_yaml_path))[0]
