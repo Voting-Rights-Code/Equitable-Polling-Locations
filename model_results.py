@@ -276,9 +276,21 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
                     if(log == True): print(f'''
                     Deleted rows from table {dataset}.{out_type} with config name(s) [{configs_str}] because of write failures to other tables
                     ''')
-
-
     return
 
+def _compute_kp_alpha(df):
+    import numpy as np
+    num = sum(x*y for x, y in zip(df['population'], df['distance_m']))
+    den = sum(x*y*y for x, y in zip(df['population'], df['distance_m']))
+    return num/den
 
-
+def compute_kp_score(df, beta, *, alpha=None, population_column_name='population', distance_column_name='distance_m'):
+    distance_df = df[[population_column_name, distance_column_name]].copy()
+    distance_df.columns = ['population', 'distance_m']
+    if beta == 0:
+        return (df.population*df.distance_m).sum()/df.population.sum()
+    alpha = _compute_kp_alpha(distance_df) if not alpha else alpha
+    kappa = alpha * beta
+    funky_sum = sum(x * math.exp(-kappa*y) for x, y in zip(df['population'], df['distance_m']))
+    tot_pop = distance_df.population.sum()
+    return -math.log(funky_sum/tot_pop)/kappa

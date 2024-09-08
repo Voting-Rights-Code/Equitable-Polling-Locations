@@ -1,3 +1,8 @@
+#######
+#NOTE: this file is deprecated. It is not compatible with the new graph_functions
+#structure that reads data from the config files
+#######
+
 library(here)
 
 #######
@@ -81,9 +86,9 @@ if (file.exists(file.path(here(), plot_folder))){
 #join ede data with population data for scaling
 pop_scaled_edes <- ede_with_pop(config_df_list)
 #population scaled graph
-plot_election_edes(CONFIG_FOLDER, pop_scaled_edes, suffix = 'pop_scaled')
+plot_historic_edes(CONFIG_FOLDER, pop_scaled_edes, suffix = 'pop_scaled')
 #unscaled graph
-plot_election_edes(CONFIG_FOLDER, config_df_list[[1]], suffix ='')
+plot_historic_edes(CONFIG_FOLDER, config_df_list[[1]], suffix ='')
 
 #########
 #Make maps and cartograms

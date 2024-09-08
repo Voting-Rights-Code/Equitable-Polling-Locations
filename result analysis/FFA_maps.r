@@ -1,4 +1,9 @@
 #######
+#NOTE: this file is deprecated. It is not compatible with the new graph_functions
+#structure that reads data from the config files
+#######
+library(here)
+#######
 #Change directory
 #######
 setwd(here())
@@ -14,11 +19,13 @@ source('result analysis/graph_functions.R')
 #######
 #Location must be part of config folder string
 
-LOCATION = 'Gwinnett_GA'
-CONFIG_FOLDER = 'Gwinnett_GA_no_bg_school_fire_configs'
 
-original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
-CONFIG_FOLDER = original_locations
+LOCATION = 'Chatham_County_GA'
+CONFIG_FOLDER = 'Chatham_County_GA_original_configs'
+
+
+#original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
+#CONFIG_FOLDER = original_locations
 #######
 #Check that location and folders valid
 #######
@@ -26,7 +33,7 @@ CONFIG_FOLDER = original_locations
 #Does the config folder exist?
 check_config_folder_valid(CONFIG_FOLDER)
 #Does the config folder contain files associated to the location
-check_location_valid(LOCATION, CONFIG_FOLDER)
+#check_location_valid(LOCATION, CONFIG_FOLDER)
 
 #########
 #Set up maps and cartograms
@@ -54,5 +61,8 @@ if (!file.exists(file.path(here(), plot_folder))){
 
 #Choosing not to do cartograms because of convergence difficulties
 #sapply(res_dist_list, function(x)make_bg_maps(x, 'cartogram'))
-sapply(res_dist_list, function(x)make_bg_maps(CONFIG_FOLDER, x, 'map'))
-sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'black'))
+sapply(res_dist_list, function(x)make_bg_maps(CONFIG_FOLDER, x, 'boundries'))
+sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'black',map_type = 'boundries'))
+sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'white',map_type = 'boundries'))
+sapply(res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'hispanic',map_type = 'boundries'))
+

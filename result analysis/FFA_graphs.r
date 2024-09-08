@@ -1,3 +1,7 @@
+#######
+#NOTE: this file is deprecated. It is not compatible with the new graph_functions
+#structure that reads data from the config files
+#######
 library(here)
 
 #######
@@ -20,11 +24,11 @@ source('result analysis/graph_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'Gwinnett_GA'
-CONFIG_FOLDER = 'Gwinnett_GA_no_bg_school_fire_configs'
+LOCATION = 'Chatham_County_GA'
+CONFIG_FOLDER = 'Chatham_County_GA_original_configs'
 
 #Run-type specific constants
-IDEAL_POLL_NUMBER  = 22 #the optimal number of polls desired for this county
+IDEAL_POLL_NUMBER  = 9 #the optimal number of polls desired for this county
 
 #######
 #Location of original location results
@@ -32,16 +36,17 @@ IDEAL_POLL_NUMBER  = 22 #the optimal number of polls desired for this county
 #######
 
 original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
+#original_locations = 'Engage_VA_2024_configs'
 
 #######
 #Check that location and folders valid
 #this also ensures that you are in the right folder to read data
 #######
 
-#Does the config folder exist?
+#Does the config folder 
 check_config_folder_valid(CONFIG_FOLDER)
 #Does the config folder contain files associated to the location
-check_location_valid(LOCATION, CONFIG_FOLDER)
+#check_location_valid(LOCATION, CONFIG_FOLDER)
 
 
 #######

@@ -1,3 +1,8 @@
+#######
+#NOTE: this file is deprecated. It is not compatible with the new graph_functions
+#structure that reads data from the config files
+#######
+
 library(here)
 
 #######
@@ -38,7 +43,7 @@ check_location_valid(LOCATION, CONFIG_FOLDER)
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
-config_df_list <- read_result_data(CONFIG_FOLDER, 'historical')
+config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER, 'historical')
 #config_ede_df<- config_df_list[[1]]
 #config_precinct_df<- config_df_list[[2]]
 #config_residence_df<- config_df_list[[3]]

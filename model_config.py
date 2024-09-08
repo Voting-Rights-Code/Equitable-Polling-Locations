@@ -6,7 +6,7 @@
 
 ''' Utils for configuring models '''
 from typing import List
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import yaml
 import os
 import pandas as pd
@@ -27,6 +27,10 @@ class PollingModelConfig:
     mean. -2 isa good number '''
     time_limit: int
     '''How long the solver should try to find a solution'''
+    penalized_sites: List[str] = field(default_factory=list)
+    '''A list of locations for which the preference is to only place a polling location there
+    if absolutely necessary for coverage, e.g. fire stations.'''
+
     precincts_open: int = None
     '''The total number of precincts to be used this year. If no
     user input is given, this is calculated to be the number of
@@ -42,17 +46,27 @@ class PollingModelConfig:
     from the data. Should be >= 1. Default = 1.'''
     capacity: float = 1.0
     '''A multiplicative factor for calculating the capacity constraint. Should be >= 1.
-    Default = 1.'''
+    Default = 1.
+    Note, if this is not paired with fixed_capacity_site_number, then the capacity changes as a function of number of precincts.'''
     config_name: str = None
     '''Unique name of config. Will fall back to name of file if none is supplied'''
     config_set: str = None
     '''Set of related configs that this config belongs to'''
-
+    
+    # NOT SUPPORTED IN PROD, CSV ONLY. Access via other_args
+    #fixed_capacity_site_number: int = None
+    #'''If default number of open precincts if one wants to hold the number
+    #of people that can go to a location constant (as opposed to a function of the number of locations) '''
+    
+    # NOT SUPPORTED IN PROD, CSV ONLY. Access via other_args
+    #driving: bool = False
+    #''' Driving distances used if True and distance file exists in correct location '''
+    
     commit_hash: str = None
     '''NOT CURRENTLY IN USE. Git commit under which this code was run'''
     run_time: dt.datetime = None
     '''NOT CURRENTLY IN USE. Time at which model run was initiated'''
-
+    
     result_folder: str = None
     ''' The location to write out results '''
     config_file_path: str = None

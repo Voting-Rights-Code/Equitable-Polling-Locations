@@ -1,0 +1,17 @@
+# Constants for the optimization function
+location: Intersecting_Savannah_City_of_GA
+year:
+    - '2020'
+    - '2022'
+bad_types: 
+    - 'Elec Day School - Potential'
+    - 'bg_centroid'  
+beta: -1
+time_limit: 360000 #100 hours minutes
+capacity: 1.5
+
+####Optional#####
+precincts_open: 19
+max_min_mult: 5 #scalar >= 1
+maxpctnew: 1 # in interval [0,1]
+minpctold: .8 # in interval [0,1]
