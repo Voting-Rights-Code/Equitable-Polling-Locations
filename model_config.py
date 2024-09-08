@@ -60,7 +60,7 @@ class PollingModelConfig:
     log_file_path: str = None
     ''' If specified, the location of the file to write logs to '''
 
-    other_args: dict = {}
+    other_args: dict = None
     ''' Unspecified other args, allowed only for writing to test database or CSV (not prod database) '''
 
     def __post_init__(self):
@@ -78,6 +78,7 @@ class PollingModelConfig:
 
             # iterate over elements of the config, identify elements that don't match with known variables
             # and store these in an 'other_args' dict
+            # There is probably a way to compile this list from the class definition, but was not straightforward so didn't do
             defined_args =  ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 'max_min_mult', 'maxpctnew', 'minpctold', 'config_name','config_set', 'result_folder', 'config_file_path', 'log_file_path']
 
             filtered_args = {}
@@ -91,6 +92,8 @@ class PollingModelConfig:
 
             result = PollingModelConfig(**filtered_args)
 
+            if(((not result.config_name) | (not result.config_set)) & (not result.config_file_path)):
+                result.config_file_path = config_yaml_path
             if not result.config_name:
                 result.config_name = os.path.splitext(os.path.basename(config_yaml_path))[0]
                 print("Config name not specified, so taking from config YAML filepath; this is not recommended")

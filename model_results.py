@@ -111,7 +111,7 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
     return demographic_summary
 
 @timer
-def write_results_csv(result_folder, run_prefix, result_df, demographic_prec, demographic_res, demographic_ede):
+def write_results_csv(result_folder, run_prefix, result_df, demographic_prec, demographic_res, demographic_ede, replace):
     '''Write result, demographic_prec, demographic_res and demographic_ede to local CSV file'''
 
     #check if the directory exists
@@ -120,22 +120,26 @@ def write_results_csv(result_folder, run_prefix, result_df, demographic_prec, de
     result_file = f'{run_prefix}_result.csv'
     precinct_summary = f'{run_prefix}_precinct_distances.csv'
     residence_summary = f'{run_prefix}_residence_distances.csv'
+    y_ede_summary = f'{run_prefix}_edes.csv'
 
     # Set to write with replacement if replace == TRUE
     if replace == True: 
         mode = 'w'
     # Otherwise set to write without replacement
-    else:
+    elif replace == False:
         mode = 'x'
-    y_ede_summary = f'{run_prefix}_edes.csv'
-    result_df.to_csv(os.path.join(result_folder, result_file), index = True, mode = mode)
-    demographic_prec.to_csv(os.path.join(result_folder, precinct_summary), index = True, mode = mode)
-    demographic_res.to_csv(os.path.join(result_folder, residence_summary), index = True, mode = mode)
-    demographic_ede.to_csv(os.path.join(result_folder, y_ede_summary), index = True, mode = mode)
+
+    try:
+        result_df.to_csv(os.path.join(result_folder, result_file), index = True, mode = mode)
+        demographic_prec.to_csv(os.path.join(result_folder, precinct_summary), index = True, mode = mode)
+        demographic_res.to_csv(os.path.join(result_folder, residence_summary), index = True, mode = mode)
+        demographic_ede.to_csv(os.path.join(result_folder, y_ede_summary), index = True, mode = mode)
+    except FileExistsError:
+        print("Output file already exists for " + result_folder + "/" + run_prefix + ", set replace = True to overwrite")
 
     return
 
-
+@timer
 def write_results_bigquery(config, result_df, demographic_prec, demographic_res, demographic_ede, replace = False, log = True, csv_backfill = False):
     '''Write result, demographic_prec, demographic_res and demographic_ede to BigQuery SQL tables'''
 
@@ -164,9 +168,12 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
 
     # TEMPORARY: Fix type issues
     # TODO: change these at the source
+    # These three *should* be fixed but need verification
     result_df['id_orig'] = result_df['id_orig'].astype('string')
     result_df = result_df.rename(columns = {"non-hispanic": "non_hispanic"})
     demographic_res['id_orig'] = demographic_res['id_orig'].astype('string')
+    # This one still needs fixing
+    #result_df['matching'] = result_df['matching'].astype('int')
 
     source_data = {
         "configs": config_df,
@@ -177,7 +184,7 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
     } 
     out_types = source_data.keys()
 
-    # Cycle over out_types other than config_df, and append config_name and config_set columns to them (excpet for backfills, which don't need this)
+    # Cycle over out_types other than config_df, and append config_name and config_set columns to them (except for backfills, which don't need this)
     if(csv_backfill == False):
         for out_type in out_types:
             if(out_type != "configs"):
@@ -186,9 +193,7 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
 
         # Drop unused 'county' field from results
         # TODO: never create this field (we instead handle country by joining with the configs table)
-        #source_data['result'] = source_data['result'].drop('county', axis = 1)
-
-
+        source_data['result'] = source_data['result'].drop('county', axis = 1)
 
     # ==== Handle duplicated data ====
     # ---- TO DO: Check types of output before writing, possibly using the existing type data from the table_specs.py file ----
@@ -231,34 +236,32 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
     # ==== Write data ====
     write_success = {}
     for out_type in out_types:
-
         table_id = project_dataset + "." + out_type
 
         # ---- Upload ----
         # Try uploading
-        try:
-            job = client.load_table_from_dataframe(
-                source_data[out_type], 
-                table_id
+        #try:
+        job = client.load_table_from_dataframe(
+            source_data[out_type], 
+            table_id
+        )
+
+        # TO DO: Running these jobs in serial right now, which is inefficient; need to monitor progress for all simultaneously
+        job.result()  # Waits for the job to complete.
+
+        if(log == True):
+            print(
+                "Wrote {} rows to table {}".format(
+                    job.output_rows, table_id
+                )
             )
 
-            # TO DO: Running these jobs in serial right now, which is inefficient; need to monitor progress for all simultaneously
-            # TO DO: Drop new rows (revert) if not all tables update successfully
-            job.result()  # Waits for the job to complete.
+        write_success[out_type] = True
 
-            if(log == True):
-                print(
-                    "Wrote {} rows to table {}".format(
-                        job.output_rows, table_id
-                    )
-                )
-
-            write_success[out_type] = True
-
-        except GoogleAPICallError:
-            warnings.warn(f'Failed to write table {table_id}')
-            write_success[out_type] = False
-            break
+        #except GoogleAPICallError:
+        #    warnings.warn(f'Failed to write table {table_id}')
+        #    write_success[out_type] = False
+        #    break
 
     # ## ==== Delete data if any writing failed ====
     if False in write_success.values():

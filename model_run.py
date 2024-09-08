@@ -29,7 +29,7 @@ DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
 def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=False, outtype: str = 'prod'):
     '''
-    The entry point to exectue a pyomo/scip run.
+    The entry point to exectute a pyomo/scip run.
     '''
 
     config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
@@ -98,6 +98,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
             demographic_prec,
             demographic_res,
             demographic_ede,
+            replace
         )
 
-    return out_location
+    return True

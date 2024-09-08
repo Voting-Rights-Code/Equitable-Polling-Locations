@@ -44,7 +44,7 @@ def load_configs(config_paths: List[str], logdir: str, allow_other_args: bool=Fa
                        log_file_name,
                     )
                 results.append(config)
-                if config.other_args & !(allow_other_args): # An empty dict evalutes to false
+                if (bool(config.other_args) == True) & (allow_other_args == False): # An empty dict evalutes to false
                     Print(f('Invalid arguments detected in config file. To allow arbitrary arguemnts, set outtype to "csv"'))
 
             # pylint: disable-next=broad-exception-caught
@@ -58,12 +58,10 @@ def run_config(config: PollingModelConfig, log: bool=False, replace: bool=False,
     ''' run a config file '''
 
     # pylint: disable-next=line-too-long
-    if verbose & outtype in ['prod']:
+    if verbose & (outtype in ['prod']):
         print(f'Starting config: {config.config_file_path} -> BigQuery {outtype} output with config set {config.config_set} and name {config.config_name}')
-    elif verbose & outtype == 'csv':
+    elif verbose & (outtype == 'csv'):
         print(f'Starting config: {config.config_file_path} -> CSV output to directory {config.result_folder}')
-
-
 
     model_run.run_on_config(config, log, replace, outtype)
     if verbose:
@@ -76,6 +74,7 @@ def main(args: argparse.Namespace):
     logdir = args.logdir
     replace = args.replace
     outtype = args.outtype
+
     if logdir:
         if not os.path.exists(logdir):
             print(f'Invalid log dir: {logdir}')
@@ -89,7 +88,7 @@ def main(args: argparse.Namespace):
 
     if outtype in ['csv']:
         allow_other_args = True
-    else
+    else:
         allow_other_args = False
 
     # Handle wildcards in Windows properly
@@ -119,7 +118,7 @@ def main(args: argparse.Namespace):
         print(f'Running single process against {total_files} config file(s)')
 
         for config_file in configs:
-            run_config(config_file, log, outtype, replace, True)
+            run_config(config_file, log, replace, outtype)
             print('--------------------------------------------------------------------------------')
 
 if __name__ == '__main__':
