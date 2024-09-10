@@ -23,7 +23,7 @@ def validate_required_fields(config, required_fields):
             raise MissingFieldError(field)
 
 def generate_configs(base_config_file, output_dir, locations=None, years=None, bad_types_values=None, beta_values=None,
-                     capacity_values=None, precincts_open_values=None, max_min_mult_values=None,
+                     time_limits=None, capacity_values=None, precincts_open_values=None, max_min_mult_values=None,
                      maxpctnew_values=None, minpctold_values=None, parameter_variations=None):
 
     # Load the base configuration from the file
@@ -46,15 +46,17 @@ def generate_configs(base_config_file, output_dir, locations=None, years=None, b
     if locations is None:
         locations = ['York_SC']
     if years is None:
-        years = list(range(2014, 2024, 2))
+        years = ['2020']
     if bad_types_values is None:
         bad_types_values = ['bg_centroid']
     if beta_values is None:
         beta_values = [-1]
+    if time_limits is None:
+        time_limits = [360000]
     if capacity_values is None:
         capacity_values = [1.5]
     if precincts_open_values is None:
-        precincts_open_values = list(range(14, 30))
+        precincts_open_values = [14, 15, 16, 17, 18]
     if max_min_mult_values is None:
         max_min_mult_values = [5]
     if maxpctnew_values is None:
@@ -72,6 +74,7 @@ def generate_configs(base_config_file, output_dir, locations=None, years=None, b
             "year": years,
             "bad_types": bad_types_values,
             "beta": beta_values,
+            "time_limit": time_limits,
             "capacity": capacity_values,
             "precincts_open": precincts_open_values,
             "max_min_mult": max_min_mult_values,
@@ -132,3 +135,16 @@ def generate_configs(base_config_file, output_dir, locations=None, years=None, b
                 yaml_file.write(yaml_content)
 
             print(f"Generated {file_name}")
+
+parameter_variations = {
+    "location": ['Richmond_city_VA'],
+    "year": [2014, 2016],
+    "bad_types": ['bg_centroid'],
+    "beta": [-1],
+    "capacity": [1.8],
+    "time_limit": [360000],
+    "precincts_open": [16, 17, 18, 19, 20],
+    "max_min_mult": [5],
+    "maxpctnew": [1],
+    "minpctold": [0.8]
+}
