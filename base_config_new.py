@@ -132,23 +132,3 @@ def generate_configs(base_config_file, output_dir, locations=None, years=None, b
                 yaml_file.write(yaml_content)
 
             print(f"Generated {file_name}")
-
-# Example usage of the function with parameter_variations as an argument
-base_config_file = 'base_config.yaml'
-output_dir = './Richmond_city_VA_potential_configs'
-
-# Custom parameter variations with all required fields
-parameter_variations = {
-    "location": ['Richmond_city_VA'],
-    "year": [2014, 2016],
-    "bad_types": ['bg_centroid'],
-    "beta": [-1],
-    "capacity": [1.8],
-    "time_limit": [360000],
-    "precincts_open": [16, 17, 18],
-    "max_min_mult": [5],
-    "maxpctnew": [1],
-    "minpctold": [0.8]
-}
-
-generate_configs(base_config_file, output_dir, parameter_variations=parameter_variations)
