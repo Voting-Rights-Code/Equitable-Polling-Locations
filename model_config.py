@@ -86,19 +86,20 @@ class PollingModelConfig:
     def load_config(config_yaml_path: str) -> 'PollingModelConfig':
         ''' Return an instance of RunConfig from a yaml file '''
 
+        # list of cannonical args that have their own fields in BigQuery
+        # Non-cannonical args can't get written to prod, and get collapsed into an other_args list/JSON
+        # Ideally we should sync this list automatically from BigQuery instead of defining manually
+        cannonical_args =  ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 
+        'max_min_mult', 'maxpctnew', 'minpctold', 'config_name','config_set', 'result_folder', 'config_file_path', 'log_file_path']
+
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
             config = yaml.safe_load(yaml_file)
 
-            # iterate over elements of the config, identify elements that don't match with known variables
-            # and store these in an 'other_args' dict
-            # There is probably a way to compile this list from the class definition, but was not straightforward so didn't do
-            defined_args =  ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 'max_min_mult', 'maxpctnew', 'minpctold', 'config_name','config_set', 'result_folder', 'config_file_path', 'log_file_path']
-
             filtered_args = {}
             other_args = {}
             for key, value in config.items():
-                if key not in defined_args:
+                if key not in cannonical_args:
                     other_args[key] = value
                 else:
                     filtered_args[key] = value
