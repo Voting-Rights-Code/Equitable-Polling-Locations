@@ -13,7 +13,7 @@ class MissingFieldError(Exception):
 
 def load_base_config(config_file):
     '''Load the base configuration from the provided YAML file.'''
-    with open(config_file, 'r') as file:
+    with open(config_file, 'r') as file: 
         return yaml.safe_load(file)
 
 def validate_required_fields(config, required_fields):
@@ -24,14 +24,14 @@ def validate_required_fields(config, required_fields):
 
 def generate_configs(base_config_file, output_dir, locations=None, years=None, bad_types_values=None, beta_values=None,
                      time_limits=None, capacity_values=None, precincts_open_values=None, max_min_mult_values=None,
-                     maxpctnew_values=None, minpctold_values=None, parameter_variations=None):
+                     maxpctnew_values=None, minpctold_values=None, other_args_values=None, parameter_variations=None):
 
     # Load the base configuration from the file
     base_config = load_base_config(base_config_file)
 
     # List of required fields that must be present in the base config
     required_fields = ['location', 'year', 'bad_types', 'beta', 'capacity', 'time_limit', 'precincts_open', 
-                       'max_min_mult', 'maxpctnew', 'minpctold']
+                       'max_min_mult', 'maxpctnew', 'minpctold', 'other_args']
 
     # Validate the base config for required fields
     validate_required_fields(base_config, required_fields)
@@ -56,13 +56,13 @@ def generate_configs(base_config_file, output_dir, locations=None, years=None, b
     if capacity_values is None:
         capacity_values = [1.5]
     if precincts_open_values is None:
-        precincts_open_values = [14, 15, 16, 17, 18]
+        precincts_open_values = [14, 15]
     if max_min_mult_values is None:
         max_min_mult_values = [5]
     if maxpctnew_values is None:
         maxpctnew_values = [0, 1]
     if minpctold_values is None:
-        minpctold_values = np.arange(0, 1.1, 0.1).tolist()
+        minpctold_values = np.arange(0.8, 1.0, 0.1).tolist()
 
     # Create the output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
@@ -79,7 +79,8 @@ def generate_configs(base_config_file, output_dir, locations=None, years=None, b
             "precincts_open": precincts_open_values,
             "max_min_mult": max_min_mult_values,
             "maxpctnew": maxpctnew_values,
-            "minpctold": minpctold_values
+            "minpctold": minpctold_values,
+            "other_args": other_args_values,
         }
 
     # Validate required fields in parameter_variations
@@ -92,10 +93,10 @@ def generate_configs(base_config_file, output_dir, locations=None, years=None, b
             config[config_name] = value
 
             # Automatically add commit_hash, run_time, username, and run_id
-            config['commit_hash'] = commit_hash
-            config['run_time'] = run_time
-            config['username'] = username
-            config['run_id'] = run_id
+            config['commit_hash'] = None
+            config['run_time'] = None
+            config['username'] = None
+            config['run_id'] = None
 
             # Define the output file name
             file_name = f"{config['location']}_config_{value}.yaml"
@@ -135,16 +136,3 @@ def generate_configs(base_config_file, output_dir, locations=None, years=None, b
                 yaml_file.write(yaml_content)
 
             print(f"Generated {file_name}")
-
-parameter_variations = {
-    "location": ['Richmond_city_VA'],
-    "year": [2014, 2016],
-    "bad_types": ['bg_centroid'],
-    "beta": [-1],
-    "capacity": [1.8],
-    "time_limit": [360000],
-    "precincts_open": [16, 17, 18, 19, 20],
-    "max_min_mult": [5],
-    "maxpctnew": [1],
-    "minpctold": [0.8]
-}
