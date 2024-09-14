@@ -90,7 +90,8 @@ class PollingModelConfig:
         # Non-cannonical args can't get written to prod, and get collapsed into an other_args list/JSON
         # Ideally we should sync this list automatically from BigQuery instead of defining manually
         cannonical_args =  ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 
-        'max_min_mult', 'maxpctnew', 'minpctold', 'config_name','config_set', 'result_folder', 'config_file_path', 'log_file_path']
+        'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set', 
+        'result_folder', 'config_file_path', 'log_file_path']
 
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
