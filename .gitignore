@@ -168,6 +168,4 @@ cython_debug/
 
 # Misc
 logs
-.DS_Store
-
-
+**/.DS_Store
