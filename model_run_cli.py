@@ -22,7 +22,7 @@ import utils
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 
-def load_configs(config_paths: List[str], logdir: str, allow_other_args: bool=False) -> (bool, List[PollingModelConfig]):
+def load_configs(config_paths: List[str], logdir: str, allow_other_args: bool=False, outtype: str = 'prod') -> (bool, List[PollingModelConfig]):
     ''' Look through the list of files and confim they exist on disk, print any missing files or errors. '''
     valid = True
     results: List[PollingModelConfig] = []
@@ -35,7 +35,7 @@ def load_configs(config_paths: List[str], logdir: str, allow_other_args: bool=Fa
             valid = False
         else:
             try:
-                config = PollingModelConfig.load_config(config_path)
+                config = PollingModelConfig.load_config(config_path, outtype)
                 if logdir:
                     config_file_basename = os.path.basename(config.config_file_path)
                     log_file_name = f'{log_date_prefix}_{config_file_basename}.log'
@@ -96,7 +96,7 @@ def main(args: argparse.Namespace):
     config_paths: List[str] = [ item for sublist in glob_paths for item in sublist ]
 
     # Check that all files are valid, exist if they do not exist
-    valid, configs = load_configs(config_paths, logdir, allow_other_args)
+    valid, configs = load_configs(config_paths, logdir, allow_other_args, outtype)
     if not valid:
         sys.exit(1)
 

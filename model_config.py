@@ -11,6 +11,40 @@ import yaml
 import os
 import pandas as pd
 import datetime as dt
+import warnings
+
+
+def get_cannonical_config_args(server:bool = True):
+    '''Return a list of cannonical config arguments'''
+
+    # These should be sourced from the server
+    if(server == True):
+        project = "equitable-polling-locations"
+        dataset = "polling"
+        project_dataset = project + "." + dataset
+
+        query = '''
+        SELECT *
+        FROM dataset.configs
+        LIMIT 1
+        '''
+
+        client = bigquery.Client()
+        sample_df = client.query(query).to_dataframe()
+
+        out = list(sample_df.columns)
+
+    # However, if someone's running a local-only optimization, we'll return a hardcoded fallback list
+    elif(server == False):
+        warnings.warn('Using hardcoded list of cannonical arguments; these may be wrong and should be validated.')
+
+        hardcoded_fallback = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 
+        'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set', 
+        'result_folder', 'config_file_path', 'log_file_path']
+        out = hardcoded_fallback
+
+    return(out)
+
 
 @dataclass
 class PollingModelConfig:
@@ -83,15 +117,12 @@ class PollingModelConfig:
         self.varnames = list(vars(self).keys()) # Not sure if this will work, let's see
 
     @staticmethod
-    def load_config(config_yaml_path: str) -> 'PollingModelConfig':
+    def load_config(config_yaml_path: str, outtype: str = 'prod') -> 'PollingModelConfig':
         ''' Return an instance of RunConfig from a yaml file '''
 
-        # list of cannonical args that have their own fields in BigQuery
-        # Non-cannonical args can't get written to prod, and get collapsed into an other_args list/JSON
-        # Ideally we should sync this list automatically from BigQuery instead of defining manually
-        cannonical_args =  ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 
-        'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set', 
-        'result_folder', 'config_file_path', 'log_file_path']
+        # Get a list of cannonical arguments from BigQuery
+        server = (outtype in ['test', 'prod'])
+        cannonical_args = get_cannonical_config_args(server)
 
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
