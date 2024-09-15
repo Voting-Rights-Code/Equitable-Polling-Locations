@@ -25,9 +25,9 @@ def get_cannonical_config_args(server:bool = True):
         dataset = "polling"
         project_dataset = project + "." + dataset
 
-        query = '''
+        query = f'''
         SELECT *
-        FROM dataset.configs
+        FROM {dataset}.configs
         LIMIT 1
         '''
 
