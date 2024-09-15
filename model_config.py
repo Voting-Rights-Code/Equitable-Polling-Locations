@@ -12,6 +12,8 @@ import os
 import pandas as pd
 import datetime as dt
 import warnings
+from google.cloud import bigquery 
+
 
 
 def get_cannonical_config_args(server:bool = True):
