@@ -10,8 +10,10 @@ precincts_open: 'null'
 max_min_mult: 5  # scalar >= 1
 maxpctnew: 1  # in interval [0,1]
 minpctold: .8  # in interval [0,1]
-other_args: null
+penalized_sites: null
 config_name: null
 config_set: null
-commit_hash: null
-run_time: null
+result_folder: null 
+config_file_path: null
+log_file_path: null
+driving: True
