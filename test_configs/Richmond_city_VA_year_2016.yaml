@@ -1,0 +1,19 @@
+bad_types:
+- Community Center - Potential
+- Fire Station - Potential
+- Library - Potential
+- Municipal - Potential
+- bg_centroid
+beta: -1
+capacity: 1.8
+commit_hash: null
+config_name: Richmond_city_VA_year_2016.yaml
+config_set: test_configs
+location: Richmond_city_VA
+max_min_mult: 5
+maxpctnew: 1
+minpctold: 1
+precincts_open: null
+run_time: null
+time_limit: 360000
+year: '2016'
