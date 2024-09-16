@@ -122,9 +122,13 @@ class PollingModelConfig:
     other_args: dict = None
     ''' Unspecified other args, allowed only for writing to test database or CSV (not prod database) '''
 
+    other_args: dict = None
+    ''' Unspecified other args, allowed only for writing to test database or CSV (not prod database) '''
+
     def __post_init__(self):
         if not self.result_folder:
             self.result_folder = f'{self.location}_results'
+        self.varnames = list(vars(self).keys()) # Not sure if this will work, let's see
         self.varnames = list(vars(self).keys()) # Not sure if this will work, let's see
 
     @staticmethod
@@ -161,25 +165,3 @@ class PollingModelConfig:
 
             return result
 
-
-    def df(self) -> pd.DataFrame:
-        config_dict = {}
-        for key, value in vars(self).items():
-            config_dict[key] = [value]
-        config_df = pd.DataFrame(config_dict)
-
-        col_order = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 'max_min_mult', 'maxpctnew', 'minpctold', 'config_name','config_set' ,'commit_hash','run_time']
-        config_df = config_df.loc[:, col_order]
-        return config_df
-
-
-
-    def df(self) -> pd.DataFrame:
-        config_dict = {}
-        for key, value in vars(self).items():
-            config_dict[key] = [value]
-        config_df = pd.DataFrame(config_dict)
-
-        col_order = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 'max_min_mult', 'maxpctnew', 'minpctold', 'config_name','config_set' ,'commit_hash','run_time']
-        config_df = config_df.loc[:, col_order]
-        return config_df
