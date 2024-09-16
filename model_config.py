@@ -84,11 +84,16 @@ class PollingModelConfig:
     '''A multiplicative factor for calculating the capacity constraint. Should be >= 1.
     Default = 1.
     Note, if this is not paired with fixed_capacity_site_number, then the capacity changes as a function of number of precincts.'''
+
+    driving: bool = False
+    ''' Driving distances used if True and distance file exists in correct location '''
+
     config_name: str = None
     '''Unique name of config. Will fall back to name of file if none is supplied'''
     config_set: str = None
     '''Set of related configs that this config belongs to'''
-    
+
+
     # NOT SUPPORTED IN PROD, CSV ONLY. Access via other_args
     #fixed_capacity_site_number: int = None
     #'''If default number of open precincts if one wants to hold the number
