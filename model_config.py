@@ -88,6 +88,10 @@ class PollingModelConfig:
     driving: bool = False
     ''' Driving distances used if True and distance file exists in correct location '''
 
+    fixed_capacity_site_number: int = None
+    '''If default number of open precincts if one wants to hold the number
+    #of people that can go to a location constant (as opposed to a function of the number of locations) '''
+    
     config_name: str = None
     '''Unique name of config. Will fall back to name of file if none is supplied'''
     config_set: str = None
@@ -169,3 +173,13 @@ class PollingModelConfig:
         return config_df
 
 
+
+    def df(self) -> pd.DataFrame:
+        config_dict = {}
+        for key, value in vars(self).items():
+            config_dict[key] = [value]
+        config_df = pd.DataFrame(config_dict)
+
+        col_order = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 'max_min_mult', 'maxpctnew', 'minpctold', 'config_name','config_set' ,'commit_hash','run_time']
+        config_df = config_df.loc[:, col_order]
+        return config_df
