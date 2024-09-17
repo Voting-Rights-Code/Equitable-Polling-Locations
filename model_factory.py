@@ -246,7 +246,9 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
     #all possible residence locations with population > 0 (unique)
     model.residences = pyo.Set(initialize = list(set(dist_df['id_orig'])))
     #residence, precint pairs
-    model.pairs = model.residences * model.precincts
+    model.pairs = pyo.Set(
+        initialize=dist_df.loc[:, ["id_orig", "id_dest"]].values.tolist()
+    )  # Corrected because original presumes the full list of pairs exists
     #penalized sites
     model.penalized_sites = pyo.Set(initialize=config.penalized_sites)
 
@@ -257,7 +259,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
 
     model.distance = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'distance_m']].set_index(['id_orig', 'id_dest']))
     #population weighted distances
-    model.weighted_dist = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'Weighted_dist']].set_index(['id_orig', 'id_dest']))
+    model.weighted_dist = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'weighted_dist']].set_index(['id_orig', 'id_dest']))
 
     #KP factor
     dist_df['KP_factor'] = compute_kp_factor(config, alpha, dist_df)
@@ -268,7 +270,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
     model.KP_factor = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'KP_factor']].set_index(['id_orig', 'id_dest']))
     #new location marker
     dist_df['new_location'] = 0
-    dist_df['new_location'].mask(dist_df['dest_type']!='polling', 1, inplace = True)
+    dist_df["new_location"] = dist_df["new_location"].mask(dist_df["dest_type"] != "polling", 1)
 
     model.new_locations = pyo.Param(model.precincts, initialize = dist_df[['id_dest', 'new_location']].drop_duplicates().set_index(['id_dest']))
 
@@ -281,10 +283,23 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
         model.penalty = pyo.Var(domain=pyo.NonNegativeReals)
     
     ####define parameter dependent indices####
-    #residences in precint radius
-    model.within_residence_radius = pyo.Set(model.residences, initialize = {res:[prec for prec in model.precincts if model.distance[(res,prec)] <= max_min] for res in model.residences})
-    #precinct in residence radius
-    model.within_precinct_radius = pyo.Set(model.precincts, initialize = {prec:[res for res in model.residences if model.distance[(res,prec)] <= max_min] for prec in model.precincts})
+    # residences in precint radius. Residence=origin, precinct=destination, this creates a list of destinations for each origin if the distance is less than the max_min
+    within_residence_radius_dict = (
+        dist_df[dist_df["distance"] < max_min].groupby("id_orig")["id_dest"].apply(list).to_dict()
+    )
+
+    model.within_residence_radius = pyo.Set(
+        model.residences,
+        initialize=within_residence_radius_dict,
+    )
+    # precinct in residence radius
+    within_precinct_radius_dict = (
+        dist_df[dist_df["distance"] < max_min].groupby("id_dest")["id_orig"].apply(list).to_dict()
+    )
+    model.within_precinct_radius = pyo.Set(
+        model.precincts,
+        initialize=within_precinct_radius_dict,
+    )
 
     # Set the objective function
     obj_rule = build_objective_rule(config, total_pop, alpha, site_penalty=site_penalty, kp_penalty_parameter=kp_penalty_parameter)
