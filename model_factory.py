@@ -285,7 +285,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
     ####define parameter dependent indices####
     # residences in precint radius. Residence=origin, precinct=destination, this creates a list of destinations for each origin if the distance is less than the max_min
     within_residence_radius_dict = (
-        dist_df[dist_df["distance"] < max_min].groupby("id_orig")["id_dest"].apply(list).to_dict()
+        dist_df[dist_df["distance_m"] < max_min].groupby("id_orig")["id_dest"].apply(list).to_dict()
     )
 
     model.within_residence_radius = pyo.Set(
@@ -294,7 +294,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
     )
     # precinct in residence radius
     within_precinct_radius_dict = (
-        dist_df[dist_df["distance"] < max_min].groupby("id_dest")["id_orig"].apply(list).to_dict()
+        dist_df[dist_df["distance_m"] < max_min].groupby("id_dest")["id_orig"].apply(list).to_dict()
     )
     model.within_precinct_radius = pyo.Set(
         model.precincts,

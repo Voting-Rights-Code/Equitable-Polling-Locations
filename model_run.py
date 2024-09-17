@@ -39,7 +39,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
     if not os.path.exists(source_path):
         warnings.warn(f'File {source_path} not found. Creating it.')
-        build_source(config.location)
+        build_source(location=config.location, other_args=config.other_args)
 
     #get main data frame
     dist_df = clean_data(config, False)
