@@ -373,9 +373,3 @@ class IsochroneDistanceGenerator(BaseDistanceGenerator):
         print(f"Found minimum: {min_time} (index {min_idx}), Time Elapsed: {time.time()-start:.2f} seconds")
 
         return min_idx
-
-        # # Filter the destination dataframe based on poll_location_type
-        # filtered_destinations = self.destinations[self.destinations['poll_location_type'] == poll_location_type]
-
-        # # Calculate the distances to each block group
-        # distances_to_block_groups = self.calculate_distances(filtered_destinations)

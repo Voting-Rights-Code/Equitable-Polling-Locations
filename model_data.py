@@ -193,10 +193,6 @@ def build_source(location, other_args):
     #####
     # Cross join polling locations and demographics tables and calculate distances
     #####
-    # full_df = demographics_block.merge(all_locations, how= 'cross')
-
-    # full_df['distance_m'] = full_df.apply(lambda row: haversine((row.INTPTLAT20, row.INTPTLON20), (row.Latitude, row.Longitude)), axis=1)*1000
-
     state_name = location.split("_")[1]
     county_name = location.split("_")[0]
 
