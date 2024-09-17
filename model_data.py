@@ -222,7 +222,7 @@ def build_source(location, other_args):
             other_args=other_args,
         )
 
-    gdf_all = distance_gen.calc()
+    full_df = distance_gen.calc()
 
 
 
