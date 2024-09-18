@@ -5,9 +5,42 @@
 #######################################
 
 ''' Utils for configuring models '''
-from typing import List
+from typing import List, Optional, Literal, Union
 from dataclasses import dataclass, field
 import yaml
+from pydantic import BaseModel, Field, ConfigDict
+
+class ConfigOtherArgs(BaseModel):
+    """Config class to make sure necessary distance generation parameters are specified."""
+
+    model_config = ConfigDict(extra="allow")
+
+    # calculation_method: str
+    # """Method can be Isochrone or Direct"""
+    data_source: str
+    """Specifies the data source"""
+    travel_method: Optional[str]
+    """Must be a method supported by the specified data source. Not needed for Haversine"""
+    travel_times: list = list(range(1, 41))
+    # isochrone_buffer_m: float
+    # """Used by some isochrone generators to provide a radius around the roads when generating shapes"""
+
+
+class OsmArgs(BaseModel):
+    """Config class to make sure necessary OSM parameters are specified."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    county_buffer_m: Union[float, int] = 10000
+    """The range of space around the county to pull OSM data for. This is to account for
+    travel over county borders to the destination."""
+    isochrone_buffer_m: Union[float, int] = 304.8
+    """What buffer to apply in creating the shape once the isochrone has been calculated."""
+    network_type: Literal["all", "all_public", "bike", "drive", "drive_service", "walk"]
+    """Allowed OSM netowork types. E.g. drive or bike"""
+    retain_all: bool = False
+    """if True, return the entire graph even if it is not connected. otherwise,
+    retain only the largest weakly connected component."""
 
 @dataclass
 class PollingModelConfig:
