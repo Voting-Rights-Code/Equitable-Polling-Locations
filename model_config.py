@@ -31,8 +31,12 @@ def get_cannonical_config_args(server:bool = True):
         LIMIT 1
         '''
 
-        client = bigquery.Client()
+        client = bigquery.Client(
+            project = 'equitable-polling-locations'
+        )
         sample_df = client.query(query).to_dataframe()
+
+        
 
         out = list(sample_df.columns)
 

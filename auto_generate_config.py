@@ -1,9 +1,5 @@
 import yaml
 import os
-import numpy as np
-import uuid
-import getpass
-from datetime import datetime
 from model_config import get_cannonical_config_args
 
 
@@ -25,7 +21,7 @@ def validate_required_fields(config, required_fields):
     for field in required_fields:
         if field not in config:
             raise MissingFieldError(field)
-        
+
 def generate_configs(base_config_file:str, field_to_vary:str, desired_range: list, other_args = EXPERIMENTAL_FIELDS):
     """
     Generate YAML configurations by varying specified parameters while keeping others constant.
@@ -66,7 +62,8 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
         config = base_config.copy()
         location = base_config['location']
         if field_to_vary != 'location':
-            new_config_name = f'{location}_{field_to_vary}_{new_value}'
+            # new_config_name = f'{location}_config_{field_to_vary}_{new_value}'
+            new_config_name = f'{location}_config_{new_value}'
         else:
             new_config_name = f'{new_value}'
         new_config_file_name = f'{new_config_name}.yaml'
@@ -74,13 +71,48 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
         config['config_name'] = new_config_file_name
         config[field_to_vary] = new_value
 
-        # yaml path    
+        #yaml path    
         file_path = os.path.join(base_config['config_set'], new_config_file_name)
         if os.path.isfile(file_path):
             raise ValueError(f'{file_path} already exists')
         #breakpoint()
         with open(file_path, 'w') as outfile:
             yaml.dump(config, outfile, default_flow_style=False)
+        
+        #Create YAML content with comments
+        yaml_content = (
+            "#Constants for the optimization function#\n"
+            f"location: {config['location']}\n"
+            "year:\n"
+            f"  - '{config['year']}'\n"
+            "bad_types:\n"
+            + "\n".join([f"    - {bad_type}" for bad_type in config['bad_types']]) + "\n"
+            f"beta: {config['beta']}\n"
+            f"time_limit: {config['time_limit']} # in minutes\n"
+            f"capacity: {config['capacity']}\n"
+            "\n"
+            "####Optional#####\n"
+            f"penalized_sites: {config['penalized_sites']}\n"
+            f"precincts_open: {config['precincts_open']}\n"
+            f"max_min_mult: {config['max_min_mult']} # scalar >= 1\n"
+            f"maxpctnew: {config['maxpctnew']} # in interval [0,1]\n"
+            f"minpctold: {config['minpctold']} # in interval [0,1]\n"
+            "\n"
+            "####MetaData####\n"
+            f"commit_hash: {config['commit_hash']}\n"
+            f"config_name: {config['config_name']}\n"
+            f"config_set: {config['config_set']}\n"
+            f"run_time: {config['run_time']}\n"
+            "\n"
+            "####ExperimentalData####\n"
+            f"driving: {config['driving']}\n"
+            f"fixed_capacity_site_number: {config['fixed_capacity_site_number']}\n"
+        )
 
+        #Write the custom content to the YAML file
+        with open(file_path, 'w') as outfile:
+            outfile.write(yaml_content)
 
-generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', ['2014', '2016', '2018', '2020'])
+#generate files 
+# generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', ['2014', '2016', '2018', '2020'])
+generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['14', '15', '16', '17', '18'])
