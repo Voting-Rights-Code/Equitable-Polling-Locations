@@ -1,6 +1,6 @@
 import yaml
 import os
-from model_config import get_cannonical_config_args
+from model_config import get_canonical_config_args
 
 # Define experimental fields
 EXPERIMENTAL_FIELDS = ['driving', 'fixed_capacity_site_number']
@@ -30,7 +30,7 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
     base_config = load_base_config(base_config_file)
     
     # List of required fields that must be present in the base config
-    db_fields = get_cannonical_config_args(True)
+    db_fields = get_canonical_config_args(True)
     required_fields = [field for field in db_fields if not isinstance(field, list)]
     all_fields = required_fields + other_args
     
@@ -76,9 +76,9 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
             raise ValueError(f'{file_path} already exists')
         #breakpoint()
         with open(file_path, 'w') as outfile:
-            yaml.dump(config, outfile, default_flow_style=False)
-
-        #Create YAML content with comments
+            yaml.dump(config, outfile, default_flow_style=False, sort_keys= False)
+        
+        ''' #Create YAML content with comments
         yaml_content = (
             "#Constants for the optimization function#\n"
             f"location: {config['location']}\n"
@@ -110,7 +110,7 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
 
         # Write the custom content to the YAML file
         with open(file_path, 'w') as outfile:
-            outfile.write(yaml_content)
+            outfile.write(yaml_content) '''
 
 #generate files 
 # generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', ['2014', '2016', '2018', '2020'])

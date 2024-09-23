@@ -103,12 +103,12 @@ class PollingModelConfig:
 
 
     # NOT SUPPORTED IN PROD, CSV ONLY. Access via other_args
-    #fixed_capacity_site_number: int = None
+    fixed_capacity_site_number: int = None
     #'''If default number of open precincts if one wants to hold the number
     #of people that can go to a location constant (as opposed to a function of the number of locations) '''
     
     # NOT SUPPORTED IN PROD, CSV ONLY. Access via other_args
-    #driving: bool = False
+    driving: bool = False
     #''' Driving distances used if True and distance file exists in correct location '''
     
     commit_hash: str = None
