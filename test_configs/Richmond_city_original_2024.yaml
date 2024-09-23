@@ -1,7 +1,7 @@
 #Constants for the optimization function
 location: Richmond_city_VA
 year: 
-  - '2024'
+  - 2024
 bad_types: 
     - 'Community Center - Potential'
     - 'Fire Station - Potential'
@@ -27,4 +27,3 @@ run_time: null
 
 ####ExperimentalData####
 driving: False
-fixed_capacity_site_number: null
