@@ -1,1 +1,1 @@
-client = bigquery.Client()
+generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['14', '15', '16', '17', '18'])

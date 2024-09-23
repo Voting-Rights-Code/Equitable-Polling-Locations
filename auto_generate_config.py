@@ -2,14 +2,14 @@ import yaml
 import os
 from model_config import get_cannonical_config_args
 
+# Define experimental fields
+EXPERIMENTAL_FIELDS = ['driving', 'fixed_capacity_site_number']
 
 class MissingFieldError(Exception):
     '''Custom exception for missing required fields.'''
     def __init__(self, field_name):
         self.field_name = field_name
         super().__init__(f"Missing required field: {self.field_name}")
-
-EXPERIMENTAL_FIELDS = ['driving', 'fixed_capacity_site_number']
 
 def load_base_config(config_file):
     '''Load the base configuration from the provided YAML file.'''
@@ -62,8 +62,7 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
         config = base_config.copy()
         location = base_config['location']
         if field_to_vary != 'location':
-            # new_config_name = f'{location}_config_{field_to_vary}_{new_value}'
-            new_config_name = f'{location}_config_{new_value}'
+            new_config_name = f'{location}_{field_to_vary}_{new_value}'
         else:
             new_config_name = f'{new_value}'
         new_config_file_name = f'{new_config_name}.yaml'
@@ -78,7 +77,7 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
         #breakpoint()
         with open(file_path, 'w') as outfile:
             yaml.dump(config, outfile, default_flow_style=False)
-        
+
         #Create YAML content with comments
         yaml_content = (
             "#Constants for the optimization function#\n"
@@ -92,24 +91,24 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
             f"capacity: {config['capacity']}\n"
             "\n"
             "####Optional#####\n"
-            f"penalized_sites: {config['penalized_sites']}\n"
-            f"precincts_open: {config['precincts_open']}\n"
+            f"penalized_sites: {config['penalized_sites'] or 'null'}\n"
+            f"precincts_open: {config['precincts_open'] or 'null'}\n"
             f"max_min_mult: {config['max_min_mult']} # scalar >= 1\n"
             f"maxpctnew: {config['maxpctnew']} # in interval [0,1]\n"
             f"minpctold: {config['minpctold']} # in interval [0,1]\n"
             "\n"
             "####MetaData####\n"
-            f"commit_hash: {config['commit_hash']}\n"
-            f"config_name: {config['config_name']}\n"
-            f"config_set: {config['config_set']}\n"
-            f"run_time: {config['run_time']}\n"
+            f"commit_hash: {config['commit_hash'] or 'null'}\n"
+            f"config_name: {config['config_name'] or 'null'}\n"
+            f"config_set: {config['config_set'] or 'null'}\n"
+            f"run_time: {config['run_time'] or 'null'}\n"
             "\n"
             "####ExperimentalData####\n"
-            f"driving: {config['driving']}\n"
-            f"fixed_capacity_site_number: {config['fixed_capacity_site_number']}\n"
         )
+        for field in EXPERIMENTAL_FIELDS:
+            yaml_content += f"{field}: {config.get(field, 'null')}\n"
 
-        #Write the custom content to the YAML file
+        # Write the custom content to the YAML file
         with open(file_path, 'w') as outfile:
             outfile.write(yaml_content)
 
