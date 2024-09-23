@@ -144,8 +144,9 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
     '''Write result, demographic_prec, demographic_res and demographic_ede to BigQuery SQL tables'''
 
     # ==== Construct a BigQuery client object ====
-    client = bigquery.Client()
-
+    client = bigquery.Client(
+            project = 'equitable-polling-locations'
+        )
 
     # ==== Define parameters that should usually be fixed ====
 
