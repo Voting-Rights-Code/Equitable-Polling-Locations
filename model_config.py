@@ -17,7 +17,7 @@ from google.cloud import bigquery
 
 
 def get_canonical_config_args(server:bool = True):
-    '''Return a list of cannonical config arguments'''
+    '''Return a list of canonical config arguments'''
 
     # These should be sourced from the server
     if(server == True):
@@ -42,7 +42,7 @@ def get_canonical_config_args(server:bool = True):
 
     # However, if someone's running a local-only optimization, we'll return a hardcoded fallback list
     elif(server == False):
-        warnings.warn('Using hardcoded list of cannonical arguments; these may be wrong and should be validated.')
+        warnings.warn('Using hardcoded list of canonical arguments; these may be wrong and should be validated.')
 
         hardcoded_fallback = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 
         'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set', 
@@ -138,9 +138,9 @@ class PollingModelConfig:
     def load_config(config_yaml_path: str, outtype: str = 'prod') -> 'PollingModelConfig':
         ''' Return an instance of RunConfig from a yaml file '''
 
-        # Get a list of cannonical arguments from BigQuery
+        # Get a list of canonical arguments from BigQuery
         server = (outtype in ['test', 'prod'])
-        cannonical_args = get_cannonical_config_args(server)
+        canonical_args = get_canonical_config_args(server)
 
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
@@ -149,7 +149,7 @@ class PollingModelConfig:
             filtered_args = {}
             other_args = {}
             for key, value in config.items():
-                if key not in cannonical_args:
+                if key not in canonical_args:
                     other_args[key] = value
                 else:
                     filtered_args[key] = value
