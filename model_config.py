@@ -16,7 +16,7 @@ from google.cloud import bigquery
 
 
 
-def get_cannonical_config_args(server:bool = True):
+def get_canonical_config_args(server:bool = True):
     '''Return a list of cannonical config arguments'''
 
     # These should be sourced from the server
