@@ -45,7 +45,7 @@ def load_configs(config_paths: List[str], logdir: str, allow_other_args: bool=Fa
                     )
                 results.append(config)
                 if (bool(config.other_args) == True) & (allow_other_args == False): # An empty dict evalutes to false
-                    print(f('Invalid arguments detected in config file. To allow arbitrary arguemnts, set outtype to "csv"'))
+                    print(f'Invalid arguments detected in config file. To allow arbitrary arguemnts, set outtype to "csv"')
 
             # pylint: disable-next=broad-exception-caught
             except Exception as exception:
