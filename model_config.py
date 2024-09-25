@@ -16,8 +16,8 @@ from google.cloud import bigquery
 
 
 
-def get_cannonical_config_args(server:bool = True):
-    '''Return a list of cannonical config arguments'''
+def get_canonical_config_args(server:bool = True):
+    '''Return a list of canonical config arguments'''
 
     # These should be sourced from the server
     if(server == True):
@@ -42,7 +42,7 @@ def get_cannonical_config_args(server:bool = True):
 
     # However, if someone's running a local-only optimization, we'll return a hardcoded fallback list
     elif(server == False):
-        warnings.warn('Using hardcoded list of cannonical arguments; these may be wrong and should be validated.')
+        warnings.warn('Using hardcoded list of canonical arguments; these may be wrong and should be validated.')
 
         hardcoded_fallback = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 
         'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set', 
@@ -103,12 +103,12 @@ class PollingModelConfig:
 
 
     # NOT SUPPORTED IN PROD, CSV ONLY. Access via other_args
-    #fixed_capacity_site_number: int = None
+    fixed_capacity_site_number: int = None
     #'''If default number of open precincts if one wants to hold the number
     #of people that can go to a location constant (as opposed to a function of the number of locations) '''
     
     # NOT SUPPORTED IN PROD, CSV ONLY. Access via other_args
-    #driving: bool = False
+    driving: bool = False
     #''' Driving distances used if True and distance file exists in correct location '''
     
     commit_hash: str = None
@@ -138,9 +138,9 @@ class PollingModelConfig:
     def load_config(config_yaml_path: str, outtype: str = 'prod') -> 'PollingModelConfig':
         ''' Return an instance of RunConfig from a yaml file '''
 
-        # Get a list of cannonical arguments from BigQuery
+        # Get a list of canonical arguments from BigQuery
         server = (outtype in ['test', 'prod'])
-        cannonical_args = get_cannonical_config_args(server)
+        canonical_args = get_canonical_config_args(server)
 
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
@@ -149,7 +149,7 @@ class PollingModelConfig:
             filtered_args = {}
             other_args = {}
             for key, value in config.items():
-                if key not in cannonical_args:
+                if key not in canonical_args:
                     other_args[key] = value
                 else:
                     filtered_args[key] = value
@@ -157,8 +157,7 @@ class PollingModelConfig:
 
             result = PollingModelConfig(**filtered_args)
 
-            if(((not result.config_name) | (not result.config_set)) & (not result.config_file_path)):
-                result.config_file_path = config_yaml_path
+            result.config_file_path = config_yaml_path
             if not result.config_name:
                 result.config_name = os.path.splitext(os.path.basename(config_yaml_path))[0]
                 print("Config name not specified, so taking from config YAML filepath; this is not recommended")
