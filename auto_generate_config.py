@@ -2,7 +2,7 @@ import yaml
 import os
 from model_config import get_cannonical_config_args
 
-# Define experimental fields
+#Define experimental fields
 EXPERIMENTAL_FIELDS = ['driving', 'fixed_capacity_site_number']
 
 class MissingFieldError(Exception):
@@ -21,6 +21,25 @@ def validate_required_fields(config, required_fields):
     for field in required_fields:
         if field not in config:
             raise MissingFieldError(field)
+        
+def generate_yaml_content(config):
+    '''Generate YAML content dynamically based on the config.'''
+    yaml_content = "# Constants for the optimization function #\n"
+    
+    for key in config.keys():
+        value = config.get(key)
+        if isinstance(value, list):
+            yaml_content += f"{key}:\n"
+            for item in value:
+                yaml_content += f"  - {item}\n"
+        else:
+            yaml_content += f"{key}: {value}\n"
+
+    yaml_content += "\n####Experimental Data####\n"
+    for field in EXPERIMENTAL_FIELDS:
+        yaml_content += f"{field}: {config.get(field, 'null')}\n"
+
+    return yaml_content
 
 def generate_configs(base_config_file:str, field_to_vary:str, desired_range: list, other_args = EXPERIMENTAL_FIELDS):
     """
@@ -78,35 +97,8 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
         with open(file_path, 'w') as outfile:
             yaml.dump(config, outfile, default_flow_style=False)
 
-        #Create YAML content with comments
-        yaml_content = (
-            "#Constants for the optimization function#\n"
-            f"location: {config['location']}\n"
-            "year:\n"
-            f"  - '{config['year']}'\n"
-            "bad_types:\n"
-            + "\n".join([f"    - {bad_type}" for bad_type in config['bad_types']]) + "\n"
-            f"beta: {config['beta']}\n"
-            f"time_limit: {config['time_limit']} # in minutes\n"
-            f"capacity: {config['capacity']}\n"
-            "\n"
-            "####Optional#####\n"
-            f"penalized_sites: {config['penalized_sites'] or 'null'}\n"
-            f"precincts_open: {config['precincts_open'] or 'null'}\n"
-            f"max_min_mult: {config['max_min_mult']} # scalar >= 1\n"
-            f"maxpctnew: {config['maxpctnew']} # in interval [0,1]\n"
-            f"minpctold: {config['minpctold']} # in interval [0,1]\n"
-            "\n"
-            "####MetaData####\n"
-            f"commit_hash: {config['commit_hash'] or 'null'}\n"
-            f"config_name: {config['config_name'] or 'null'}\n"
-            f"config_set: {config['config_set'] or 'null'}\n"
-            f"run_time: {config['run_time'] or 'null'}\n"
-            "\n"
-            "####ExperimentalData####\n"
-        )
-        for field in EXPERIMENTAL_FIELDS:
-            yaml_content += f"{field}: {config.get(field, 'null')}\n"
+        # Create YAML content dynamically based on the base_config
+        yaml_content = generate_yaml_content(config)
 
         # Write the custom content to the YAML file
         with open(file_path, 'w') as outfile:
