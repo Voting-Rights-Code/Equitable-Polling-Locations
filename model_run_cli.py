@@ -127,17 +127,17 @@ if __name__ == '__main__':
         description='A commandline tool that chooses an optimal set of polling locations from a set of potential locations.',
         epilog='''
 Examples:
-    To run all expanded configs, parallel processing 4 at a time, and write log files out to the logs
+    To run all configs in a given folder, parallel processing 4 at a time, and write log files out to the logs
     directory:
 
-        python ./model_run_cli.py -c4 -l logs ./Gwinnett_GA_configs/Gwinnett_config_expanded_*.yaml
+        python ./model_run_cli.py -c4 -l logs ./Gwinnett_GA_no_bg_school_fire_configs/*.yaml
 
-    To run all full configs run one at a time, extra logging printed to the console,
+    To run all configs run one at a time, extra logging printed to the console,
     and write log files out to the logs directory:
 
-        python ./model_run_cli.py -vv -l logs ./Gwinnett_GA_configs/Gwinnett_config_full_*.yaml
+        python ./model_run_cli.py -vv -l logs ./Gwinnett_GA_no_bg_school_fire_configs/*.yaml
 
-    To run only the full_11 and write log files out to the logs directory:
+    To run only the Gwinnett_config_no_bg_11 config and write log files out to the logs directory:
 
         python ./model_run_cli.py -l logs ./Gwinnett_GA_configs/Gwinnett_config_full_11.yaml
         '''

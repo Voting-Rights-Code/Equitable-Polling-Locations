@@ -2,8 +2,6 @@ import yaml
 import os
 from model_config import get_canonical_config_args
 
-#Define experimental fields
-EXPERIMENTAL_FIELDS = ['driving', 'fixed_capacity_site_number']
 
 class MissingFieldError(Exception):
     '''Custom exception for missing required fields.'''
@@ -49,8 +47,7 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
     base_config = load_base_config(base_config_file)
     
     # List of required fields that must be present in the base config
-    db_fields = get_canonical_config_args(True)
-    required_fields = [field for field in db_fields if not isinstance(field, list)]
+    required_fields = get_canonical_config_args(True)
     all_fields = required_fields + other_args
     
     # Validate the base config for correct fields
