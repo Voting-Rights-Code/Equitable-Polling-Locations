@@ -14,6 +14,7 @@ from utils import timer
 from google.cloud import bigquery
 from google.cloud import bigquery_storage
 from google.api_core.exceptions import GoogleAPICallError
+import gcloud_constants as gc
 import arrow
 import warnings
 
@@ -140,31 +141,28 @@ def write_results_csv(result_folder, run_prefix, result_df, demographic_prec, de
     return
 
 @timer
-def write_results_bigquery(config, result_df, demographic_prec, demographic_res, demographic_ede, replace = False, log = True, csv_backfill = False):
+def write_results_bigquery(config, result_df, demographic_prec, demographic_res, demographic_ede, replace = False, log = True, outtype: str = 'prod', csv_backfill = False):
     '''Write result, demographic_prec, demographic_res and demographic_ede to BigQuery SQL tables'''
+
+    if(outtype == 'prod'):
+        dataset = gc.PROD_DATASET
+    elif(outtype == "test"):
+        dataset = gc.TEST_DATASET
+    project_dataset = gc.PROJECT + "." + dataset
 
     # ==== Construct a BigQuery client object ====
     client = bigquery.Client()
 
 
-    # ==== Define parameters that should usually be fixed ====
-
-    # Don't change this, it's the server-side name
-    project = "equitable-polling-locations"
-    dataset = "polling"
-    project_dataset = project + "." + dataset
-
-
     # ==== Create dict of outputs and related name ====
     if(csv_backfill == False):
         config_df = config.df()
+        # Convert indices to columns
+        demographic_ede = demographic_ede.reset_index()
+        demographic_res = demographic_res.reset_index()
     else: 
         config_df = config
 
-    # Convert indices to columns
-    if(csv_backfill == False):
-        demographic_ede = demographic_ede.reset_index()
-        demographic_res = demographic_res.reset_index()
 
     # TEMPORARY: Fix type issues
     # TODO: change these at the source
@@ -240,6 +238,7 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
 
         # ---- Upload ----
         # Try uploading
+        # TODO: add back trycatch statement, but display details of Google API Call errors
         #try:
         job = client.load_table_from_dataframe(
             source_data[out_type], 

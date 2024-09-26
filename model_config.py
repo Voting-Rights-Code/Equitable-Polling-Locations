@@ -12,33 +12,31 @@ import os
 import pandas as pd
 import datetime as dt
 import warnings
+
 from google.cloud import bigquery 
+import gcloud_constants as gc
 
 
-
-def get_cannonical_config_args(server:bool = True):
-    '''Return a list of cannonical config arguments'''
+def get_canonical_config_args():
+    '''Return a list of canonical config arguments'''
 
     # These should be sourced from the server
-    if(server == True):
-        project = "equitable-polling-locations"
-        dataset = "polling"
-        project_dataset = project + "." + dataset
+    if(gc.SERVER == True):
 
         query = f'''
         SELECT *
-        FROM {dataset}.configs
+        FROM {gc.PROD_DATASET}.configs
         LIMIT 1
         '''
 
-        client = bigquery.Client()
+        client = bigquery.Client(project = gc.PROJECT)
         sample_df = client.query(query).to_dataframe()
 
         out = list(sample_df.columns)
 
     # However, if someone's running a local-only optimization, we'll return a hardcoded fallback list
-    elif(server == False):
-        warnings.warn('Using hardcoded list of cannonical arguments; these may be wrong and should be validated.')
+    elif(gc.SERVER == False):
+        warnings.warn('Using hardcoded list of canonical arguments; these may be wrong and should be validated.')
 
         hardcoded_fallback = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 
         'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set', 
@@ -127,9 +125,8 @@ class PollingModelConfig:
     def load_config(config_yaml_path: str, outtype: str = 'prod') -> 'PollingModelConfig':
         ''' Return an instance of RunConfig from a yaml file '''
 
-        # Get a list of cannonical arguments from BigQuery
-        server = (outtype in ['test', 'prod'])
-        cannonical_args = get_cannonical_config_args(server)
+        # Get a list of canonical arguments from BigQuery
+        canonical_args = get_canonical_config_args()
 
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
@@ -138,7 +135,7 @@ class PollingModelConfig:
             filtered_args = {}
             other_args = {}
             for key, value in config.items():
-                if key not in cannonical_args:
+                if key not in canonical_args:
                     other_args[key] = value
                 else:
                     filtered_args[key] = value
