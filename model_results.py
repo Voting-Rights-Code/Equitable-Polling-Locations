@@ -151,7 +151,7 @@ def write_results_bigquery(config, result_df, demographic_prec, demographic_res,
     project_dataset = gc.PROJECT + "." + dataset
 
     # ==== Construct a BigQuery client object ====
-    client = bigquery.Client()
+    client = bigquery.Client(project = gc.PROJECT)
 
 
     # ==== Create dict of outputs and related name ====
