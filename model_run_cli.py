@@ -139,7 +139,7 @@ Examples:
 
     To run only the Gwinnett_config_no_bg_11 config and write log files out to the logs directory:
 
-        python ./model_run_cli.py -l logs ./Gwinnett_GA_configs/Gwinnett_config_full_11.yaml
+        python ./model_run_cli.py -l logs ./Gwinnett_GA_no_bg_school_fire_configs/Gwinnett_config_no_bg_11.yaml
         '''
     )
     parser.add_argument('configs', nargs='+', help='One or more yaml configuration files to run.')

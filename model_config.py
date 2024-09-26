@@ -16,9 +16,9 @@ from google.cloud import bigquery
 
 #Define experimental and canonical fields
 CANONICAL_FIELDS = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 
-        'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set', 
-        'result_folder', 'config_file_path', 'log_file_path']
+        'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set'] 
 EXPERIMENTAL_FIELDS = ['driving', 'fixed_capacity_site_number']
+NON_CONFIG_META_DATA = ['result_folder', 'config_file_path', 'log_file_path']
 
 
 def get_canonical_config_args(server:bool = True, canonical_fields:list = CANONICAL_FIELDS):
@@ -42,6 +42,7 @@ def get_canonical_config_args(server:bool = True, canonical_fields:list = CANONI
         sample_df = client.query(query).to_dataframe()
 
         out = list(sample_df.columns)
+        breakpoint()
         if (set(out) != set(canonical_fields)):
             warnings.warn('Hardcoded list of canonical arguments do not match the canonical fields. Validate and updated as needed.')
     # However, if someone's running a local-only optimization, we'll return a hardcoded fallback list
@@ -144,7 +145,7 @@ class PollingModelConfig:
         server = (outtype in ['test', 'prod'])
         canonical_args = get_canonical_config_args(server)
         all_args = canonical_args + experimental_args
-        
+
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
             config = yaml.safe_load(yaml_file)

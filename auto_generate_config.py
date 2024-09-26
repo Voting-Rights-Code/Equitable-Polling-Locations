@@ -1,6 +1,6 @@
 import yaml
 import os
-from model_config import get_canonical_config_args
+from model_config import (get_canonical_config_args, EXPERIMENTAL_FIELDS)
 
 
 class MissingFieldError(Exception):
@@ -54,7 +54,7 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
     config_fields = base_config.keys()
     missing_fields = set(required_fields).difference(set(config_fields))
     extra_fields = set(config_fields).difference(all_fields)
-    
+    breakpoint()
     if len(missing_fields) >0:
         raise ValueError(f'missing required fields: {missing_fields}')
     if len(extra_fields) >0:
@@ -102,6 +102,7 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
             outfile.write(yaml_content)
 
 #generate files 
-generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', ['2014', '2016', '2018', '2020'])
+#generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', ['2014', '2016', '2018', '2020'])
 #generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['14', '15', '16', '17', '18'])
-# generate_configs('test_configs\Richmond_city_original_2024.yaml', 'capacity', [1.2, 1.4, 1.6, 1.8])
+#generate_configs('test_configs\Richmond_city_original_2024.yaml', 'capacity', [1.2, 1.4, 1.6, 1.8])
+generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['10', '11'])
