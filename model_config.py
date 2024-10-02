@@ -42,7 +42,7 @@ def get_canonical_config_args(server:bool = True, canonical_fields:list = CANONI
         sample_df = client.query(query).to_dataframe()
 
         out = list(sample_df.columns)
-        breakpoint()
+        # breakpoint()
         if (set(out) != set(canonical_fields)):
             warnings.warn('Hardcoded list of canonical arguments do not match the canonical fields. Validate and updated as needed.')
     # However, if someone's running a local-only optimization, we'll return a hardcoded fallback list
