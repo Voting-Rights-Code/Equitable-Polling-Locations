@@ -1,18 +1,10 @@
 import pytest
 import yaml
 import os
-import warnings
-from auto_generate_config import (MissingFieldError, load_base_config, validate_required_fields, 
-                                  generate_yaml_content, generate_configs)
+from auto_generate_config import (load_base_config, generate_yaml_content, generate_configs)
 
 tests_dir = 'tests'
 mock_base_config_file = os.path.join(tests_dir, 'testing_auto_generate_config.yaml')
-
-def test_missing_field_error():
-    with pytest.raises(MissingFieldError) as excinfo:
-        raise MissingFieldError('field_name')
-    assert str(excinfo.value) == "Missing required field: field_name"
-    assert excinfo.value.field_name == 'field_name'
 
 def test_load_base_config(tmp_path):
     config_file = tmp_path / "config.yaml"
@@ -22,12 +14,6 @@ def test_load_base_config(tmp_path):
     """)
     config = load_base_config(config_file)
     assert config == {'key1': 'value1', 'key2': 'value2'}
-
-def test_validate_required_fields():
-    config = {'field1': 'value1'}
-    required_fields = ['field1', 'field2']
-    with pytest.raises(MissingFieldError):
-        validate_required_fields(config, required_fields)
 
 def test_generate_yaml_content():
     config = {
@@ -82,7 +68,7 @@ def test_generate_configs_extra_fields(mock_base_config_file):
         'config_set': config_directory,  # Set to the directory instead of the full file path
         'config_name': 'Richmond_city_original_2024',
         'location': 'Richmond',
-        'year': 2022,
+        'year': '2022',
         'max_min_mult': 1,
         'capacity': 100,
         'run_time': 60,
@@ -112,5 +98,3 @@ def test_generate_configs_file_already_exists(mock_base_config_file):
     generate_configs(mock_base_config_file, 'year', ['2014'])
     with pytest.raises(ValueError, match='already exists'):
         generate_configs(mock_base_config_file, 'year', ['2014'])
-
-warnings.filterwarnings("ignore", message="Hardcoded list of canonical arguments do not match the canonical fields.")
