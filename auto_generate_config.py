@@ -47,7 +47,7 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
     base_config = load_base_config(base_config_file)
     
     # List of required fields that must be present in the base config
-    required_fields = get_canonical_config_args(True)
+    required_fields = get_canonical_config_args()
     all_fields = required_fields + other_args
     
     # Validate the base config for correct fields
@@ -104,5 +104,5 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
 #generate files 
 # generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', ['2014', '2016', '2018', '2020'])
 #generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['14', '15', '16', '17', '18'])
-#generate_configs('test_configs\Richmond_city_original_2024.yaml', 'capacity', [1.2, 1.4, 1.6, 1.8])
+generate_configs('test_configs\Richmond_city_original_2024.yaml', 'capacity', [1.2, 1.4, 1.6, 1.8])
 # generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['10', '11'])
