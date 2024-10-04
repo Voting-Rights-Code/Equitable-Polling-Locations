@@ -75,7 +75,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
     #calculate the average distances (and y_ede if beta !=0) traveled by each demographic
     demographic_ede = demographic_summary(demographic_res, result_df, config.beta, alpha_new)
 
-    if outtype == 'prod':
+    if outtype in('prod', 'test'):
         write_results_bigquery(
              config,
              result_df,
@@ -83,7 +83,8 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
              demographic_res,
              demographic_ede,
              replace,
-             log
+             log,
+             outttype
         )
 
     elif outtype == 'csv':

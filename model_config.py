@@ -12,41 +12,37 @@ import os
 import pandas as pd
 import datetime as dt
 import warnings
+
 from google.cloud import bigquery 
+import gcloud_constants as gc
 
 #Define experimental and canonical fields
 CANONICAL_FIELDS = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 
-        'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set'] 
+        'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set', 'run_time', 'commit_hash'] 
 EXPERIMENTAL_FIELDS = ['driving', 'fixed_capacity_site_number']
 NON_CONFIG_META_DATA = ['result_folder', 'config_file_path', 'log_file_path']
 
 
-def get_canonical_config_args(server:bool = True, canonical_fields:list = CANONICAL_FIELDS):
+def get_canonical_config_args(canonical_fields:list = CANONICAL_FIELDS):
     '''Return a list of canonical config arguments'''
 
     # These should be sourced from the server
-    if(server == True):
-        project = "equitable-polling-locations"
-        dataset = "polling"
-        project_dataset = project + "." + dataset
+    if(gc.SERVER == True):
 
         query = f'''
         SELECT *
-        FROM {dataset}.configs
+        FROM {gc.PROD_DATASET}.configs
         LIMIT 1
         '''
 
-        client = bigquery.Client(
-            project = 'equitable-polling-locations'
-        )
+        client = bigquery.Client(project = gc.PROJECT)
         sample_df = client.query(query).to_dataframe()
 
         out = list(sample_df.columns)
-        # breakpoint()
-        if (set(out) != set(canonical_fields)):
+        if (out.sort() != canonical_fields.sort()):
             warnings.warn('Hardcoded list of canonical arguments do not match the canonical fields. Validate and updated as needed.')
     # However, if someone's running a local-only optimization, we'll return a hardcoded fallback list
-    elif(server == False):
+    elif(gc.SERVER == False):
         warnings.warn('Using hardcoded list of canonical arguments; these may be wrong and should be validated.')
 
         hardcoded_fallback = canonical_fields
@@ -142,9 +138,9 @@ class PollingModelConfig:
         ''' Return an instance of RunConfig from a yaml file '''
 
         # Get a list of canonical arguments from BigQuery
-        server = (outtype in ['test', 'prod'])
-        canonical_args = get_canonical_config_args(server)
+        canonical_args = get_canonical_config_args()
         all_args = canonical_args + experimental_args
+        
 
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load

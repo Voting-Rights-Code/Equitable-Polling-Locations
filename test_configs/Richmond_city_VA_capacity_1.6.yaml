@@ -1,23 +1,26 @@
+# Constants for the optimization function #
 location: Richmond_city_VA
 year:
-- '2024'
+  - 2024
 bad_types:
-- Community Center - Potential
-- Fire Station - Potential
-- Library - Potential
-- Municipal - Potential
-- bg_centroid
+  - Community Center - Potential
+  - Fire Station - Potential
+  - Library - Potential
+  - Municipal - Potential
+  - bg_centroid
 beta: -1
 time_limit: 360000
 capacity: 1.6
-precincts_open: null
+precincts_open: None
 max_min_mult: 5
 maxpctnew: 1
 minpctold: 1
-penalized_sites: null
-commit_hash: null
+penalized_sites: None
+commit_hash: None
 config_name: Richmond_city_VA_capacity_1.6.yaml
 config_set: test_configs
-run_time: null
-driving: false
+run_time: None
+
+####Experimental Data####
+driving: null
 fixed_capacity_site_number: null
