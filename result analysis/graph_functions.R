@@ -274,11 +274,12 @@ construct_results_query <- function(config_name = NULL, config_set = NULL, locat
     FROM
     polling.",
     table,
-    "_extra WHERE"
+    #"_extra 
+	" WHERE"
   )
   
   query_str <- paste(query_base_str, " ", query_params_str)
-  
+  #browser()
   return(query_str)
 }
 
@@ -327,6 +328,9 @@ query_result_data <-  function(config_name = NULL, config_set = NULL, location =
   } else{
     stop("Incorrect analysis_type provided. Analysis type must be historical or placement")}
   
+  #convert to data.table
+  data <- lapply(data, as.data.table)
+
   #label descriptors with polls and residences
   num_polls <- data$precinct_distances[ , .(num_polls = .N/6), by = descriptor]
   num_residences <- data$residence_distances[ , .(num_residences = .N/6), by = descriptor]
