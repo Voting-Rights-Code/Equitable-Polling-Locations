@@ -20,9 +20,18 @@ source('result analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'Chatham_County_GA'
-ORIG_CONFIG_FOLDER = 'Chatham_County_GA_original_configs'
-POTENTIAL_CONFIG_FOLDER = 'Chatham_County_GA_no_bg_school_configs'
+LOCATION = 'Cobb_GA'
+ORIG_CONFIG_FOLDER = "Cobb_GA_original_configs"
+POTENTIAL_CONFIG_FOLDER = "Cobb_GA_no_bg_school_configs"
+
+#constants for reading data
+READ_FROM_CSV = FALSE
+TABLES = c("edes", "result", "precinct_distances", "residence_distances")
+
+#constants for database queries
+#only need to define if READ_FROM_CSV = TRUE
+PROJECT = "equitable-polling-locations"
+DATASET = "polling"
 
 #Run-type specific constants
 IDEAL_POLL_NUMBER  = 9 #the optimal number of polls desired for this county
@@ -31,24 +40,25 @@ IDEAL_POLL_NUMBER  = 9 #the optimal number of polls desired for this county
 #Check that location and folders valid
 #this also ensures that you are in the right folder to read data
 #######
+#Connect to database if needed
+#returns NULL if READ_FROM_CSV = FALSE
+polling_con <- define_connection()
 
-#Does the config folder exist?
-check_config_folder_valid(ORIG_CONFIG_FOLDER)
-check_config_folder_valid(POTENTIAL_CONFIG_FOLDER)
+#Load config data
+#checking if the config folder is valid
+#and that the location is in the indicated dataset
+orig_config_dt <- load_config_data(LOCATION, ORIG_CONFIG_FOLDER)
+potential_config_dt <- load_config_data(LOCATION, POTENTIAL_CONFIG_FOLDER)
 
-#Does the config folder contain files associated to the location
-check_location_valid(LOCATION, ORIG_CONFIG_FOLDER)
-check_location_valid(LOCATION, POTENTIAL_CONFIG_FOLDER)
+#get driving flags
+config_dt_list<-c(orig_config_dt, potential_config_dt)
+DRIVING_FLAG <- set_global_driving_flag(config_dt_list)
 
 #######
 #Read in data
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
-#driving flags
-config_list<-c(ORIG_CONFIG_FOLDER, POTENTIAL_CONFIG_FOLDER)
-DRIVING_FLAG <- set_global_driving_flag(config_list)
-
 
 orig_config_df_list <- read_result_data(LOCATION, ORIG_CONFIG_FOLDER)
 #config_ede_df<- config_df_list[[1]]

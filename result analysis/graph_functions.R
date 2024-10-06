@@ -8,30 +8,24 @@ library(bigrquery)
 library(yaml)
 
 #######
-#Check that location and folders valid
+#DB connection
 #######
-check_location_valid <- function(location, config_folder){
-	#raise error if config folder does not contain a file with location in the file name
-	
-	config_list<- read_config(config_folder)
-	config_dt <- convert_configs_to_dt(config_list)
-	locations_in_config_folder <- unique(config_dt$location)
-	missing_locations <- setdiff(location, locations_in_config_folder)
-	if (length(missing_locations)>0){
-    	stop(paste('Given config folder does not contain data for the following location(s):', missing_locations))
-	}
-}
-
-check_config_folder_valid <- function(config_folder){
-	#raise error if config folder not a directory
-	if (!dir.exists(config_folder)){
-    	stop('Config folder does not exist')
-	}
+define_connection<- function(read_from_csv = READ_FROM_CSV, project = PROJECT, dataset = DATASET){
+	if (!READ_FROM_CSV){
+    	con <- dbConnect(
+        	bigrquery::bigquery(),
+        	project = PROJECT,
+        	dataset = DATASET
+    	)
+	} else{ con = NULL}
+	return(con)
 }
 
 #######
-#Read and process config files
+#Read config files
 #######
+
+
 config_to_list <- function(config_folder, file_name){
 	#Reads yamls in config_folder, apppends file name as a field to yaml data
 	config_file <- paste(config_folder, file_name, sep = '/')
@@ -86,6 +80,109 @@ convert_configs_to_dt <- function(config_list){
 	return(config_dt)
 }
 
+read_config_folder_from_file <- function(config_folder){
+	#read config folder data from file
+	config_list <- read_config(config_folder)
+	config_dt <- convert_configs_to_dt(config_list)
+	return(config_dt)
+}
+
+read_config_set_from_db <- function(config_set, columns, con=polling_con){
+	#read indicated columns from config set data in database
+	comma_sep_colls = paste(columns, collapse = ',')
+	sql <- paste0("SELECT ", comma_sep_colls, " FROM configs WHERE config_set =  '", config_set, "'")
+	config_dt <- dbGetQuery(con, sql)
+	return(config_dt)
+}
+
+
+#######
+#Check that location and folders valid
+#Load the data if they are
+#######
+check_config_folder_valid <- function(config_folder, read_from_csv, con){
+	#chech that the config folder / set is valid
+	if (read_from_csv){
+		#raise error if config folder not a directory
+		if (!dir.exists(config_folder)){
+    		stop('Config folder does not exist on file')
+		}
+	} else{
+		#raise error if config set not in database
+		config_dt <- read_config_set_from_db(config_folder, 'config_set')
+		if (nrow(config_dt) == 0){
+			stop('Config set does not exist in database')
+		}
+	}
+}
+
+check_location_valid <- function(location, config_dt){
+	#raise error if config folder does not contain a file with 
+	#given location or config set does not contain data with
+	#given location
+	locations_in_config_folder <- unique(config_dt$location)
+	missing_locations <- setdiff(location, locations_in_config_folder)
+	if (length(missing_locations)>0){
+    	stop(paste('Given config folder does not contain data for the following location(s):', missing_locations))
+	}
+}
+
+#Read in config data
+load_config_data <- function(location, config_folder, read_from_csv = READ_FROM_CSV, con = polling_con){
+	#check that the config folder is valid, and contains data for the location, then loads data.
+
+	#check that config folder valid
+	check_config_folder_valid(config_folder, read_from_csv, con)
+
+	#if it is, load the data
+	if(read_from_csv){
+		config_dt <- read_config_folder_from_file(config_folder)
+	} else{
+		config_dt <- read_config_set_from_db(config_folder, '*')
+	}
+
+	#then check that the location is in the data
+	check_location_valid(location, config_dt)
+
+	#if all checks pass, convert to data.table and return data
+	config_dt <- as.data.table(config_dt)
+	return(config_dt)
+}
+
+#########
+#Get a driving flag from the config folders
+#########
+get_driving_flag <- function(config_dt){
+	#given a config folder, return the overall driving field value for the folder
+	#If driving field is missing, return false.
+	#If driving field varies in the config file, return an error
+	#Otherwise, return the unique value in the field.
+	if (!('driving' %in% names(config_dt))){ #if the flag not present, false
+		driving_flag <- FALSE
+	} else if(length(unique(config_dt$driving))>1){#if this is the flag that varies, not sure how to handle
+		stop('Driving flag not consistent in config set')
+	} else{#otherwise pull driving flag from unique value in this field
+		driving_flag <- unique(config_dt$driving)
+	}
+	return(driving_flag)
+}
+
+set_global_driving_flag<- function(config_dt_list){
+	#takes a list of config folders and checked that they all have the same driving flag in them
+	#If they do, this is the global driving flag. If not, returns an error
+	driving_flag_list <- sapply(config_dt_list, get_driving_flag)
+	if (length(unique(driving_flag_list))==1){
+    	global_driving_flag = unique(driving_flag_list)
+	}else{
+    	stop('driving flags different in different files. Cannot set global value')
+	}
+	return(global_driving_flag)
+}
+
+#######
+#Process config files to generate graph labels
+#######
+
 select_varying_fields <- function(config_dt){
 	#Each config folder should have exactly one field that varies
 	#Therefore there should be exactly two (2) fields in config_dt that are not
@@ -105,17 +202,12 @@ select_varying_fields <- function(config_dt){
 	return(result_dt)
 }
 
-process_configs_dt <- function(config_folder, field_of_interest){
-	#1) read files from config folder, 
-	#2) identify the (unique) field that changes
-	#2a) if the config folder has a single file in it, the string "field_of_interest"
-	#3) add a descriptor field and return the three columns in a data.table
+process_configs_dt <- function(config_dt, field_of_interest){
+	#1) identify the (unique) field that changes
+	#1a) if the config folder has a single file in it, the string "field_of_interest"
+	#2) add a descriptor field and return the three columns in a data.table
 
-	#1) read config files and extract varying fields
-	config_list<- read_config(config_folder)
-	config_dt <- convert_configs_to_dt(config_list)
-
-	#2) get name of varying field
+	#1) get name of varying field
 	if (length(config_list)>1){
 		varying_dt <- select_varying_fields(config_dt)
 	} else if (length(config_list)==1){
@@ -125,7 +217,7 @@ process_configs_dt <- function(config_folder, field_of_interest){
 		stop('there are no config files in the config folder')
 	}
 
-	#3) create a descriptor field
+	#2) create a descriptor field
 	#identify the field name
 	varying_field<- names(varying_dt)[names(varying_dt) != 'file_name']
 	#paste the name of the varying field with its value
@@ -135,37 +227,6 @@ process_configs_dt <- function(config_folder, field_of_interest){
 }
 
 
-#########
-#Get a driving flag from the config folders
-#########
-get_driving_flag <- function(config_folder){
-	#given a config folder, return the overall driving field value for the folder
-	#If driving field is missing, return false.
-	#If driving field varies in the config file, return an error
-	#Otherwise, return the unique value in the field.
-	config_list<- read_config(config_folder)
-	config_dt <- convert_configs_to_dt(config_list)
-	if (!('driving' %in% names(config_dt))){ #if the flag not present, false
-		driving_flag <- FALSE
-	} else if(length(unique(config_dt$driving))>1){#if this is the flag that varies, not sure how to handle
-		stop('Driving flag not consistent in config set')
-	} else{#otherwise pull driving flag from unique value in this field
-		driving_flag <- unique(config_dt$driving)
-	}
-	return(driving_flag)
-}
-
-set_global_driving_flag<- function(config_folder_list){
-	#takes a list of config folders and checked that they all have the same driving flag in them
-	#If they do, this is the global driving flag. If not, returns an error
-	driving_flag_list <- sapply(config_folder_list, get_driving_flag)
-	if (length(unique(driving_flag_list))==1){
-    	base_driving_flag = unique(driving_flag_list)
-	}else{
-    	stop('driving flags different in different files. Cannot set global value')
-	}
-	return(base_driving_flag)
-}
 
 ######
 #Functions to read in results
@@ -256,11 +317,14 @@ read_result_data<- function(location, config_folder, field_of_interest = ''){
 }
 
 construct_results_query <- function(config_name = NULL, config_set = NULL, location = NULL, table){
-  query_params <- list(config_name = config_name, config_set = config_set, location = location)
-  query_params <- query_params[!sapply(query_params, is.null)]
-  if(length(query_params) == 0) stop("No valid parameters passed to get_results_bigquery")
+	#create a list of query params from the non missing fields provided
+	query_params <- list(config_name = config_name, config_set = config_set, location = location)
+	query_params <- query_params[!sapply(query_params, is.null)]
+	if(length(query_params) == 0) stop("No valid parameters passed to get_results_bigquery")
   
-  query_params_str <- paste0(
+	#string to follow WHERE clause
+	#of form "param_name1, ... param_nameN IN ('param_value1', ... 'param_valueN')"
+	query_params_str <- paste0(
     sapply(names(query_params), function(param_name){
       rhs_str <- paste0("(", paste0("'", query_params[[param_name]], "'", collapse = ", "), ")")
       lhs_str <- paste0(param_name, " IN ")
@@ -269,17 +333,16 @@ construct_results_query <- function(config_name = NULL, config_set = NULL, locat
     collapse = " AND "
   )
   
+  
   query_base_str <- paste0(
     "SELECT *
     FROM
     polling.",
     table,
-    #"_extra 
 	" WHERE"
   )
   
-  query_str <- paste(query_base_str, " ", query_params_str)
-  #browser()
+  query_str <- paste(query_base_str, query_params_str)
   return(query_str)
 }
 
@@ -308,7 +371,7 @@ query_result_data <-  function(config_name = NULL, config_set = NULL, location =
   #analysis_type: string (historical, placement)
   #returns: list(ede_df, precinct_df, residence_df, result_df), with appended "descriptor" fields
   
-  tables <- c("edes", "result", "precinct_distances", "residence_distances")
+
   if(missing(config_set) & !missing(config_folder)){
     config_set <- config_folder
     warning("config_folder parameter was specified; please use config_set instead")
@@ -316,7 +379,11 @@ query_result_data <-  function(config_name = NULL, config_set = NULL, location =
   
   data <- get_table_bigquery(config_name = config_name, config_set = config_set, location = location, tables = tables)
   names(data) <- tables
-  
+
+  #convert to data.table
+  data <- lapply(data, as.data.table)
+
+
   if(analysis_type == "historical"){
     data <- lapply(data, function(df){
       df$descriptor <- paste(df$location, "_", df$year)
@@ -328,8 +395,6 @@ query_result_data <-  function(config_name = NULL, config_set = NULL, location =
   } else{
     stop("Incorrect analysis_type provided. Analysis type must be historical or placement")}
   
-  #convert to data.table
-  data <- lapply(data, as.data.table)
 
   #label descriptors with polls and residences
   num_polls <- data$precinct_distances[ , .(num_polls = .N/6), by = descriptor]
@@ -358,12 +423,6 @@ demographic_legend_dict <- c(
 	'population' = 'Total')
 
 
-#######
-#constants for database queries 
-#######
-
-project <- "equitable-polling-locations"
-dataset <- "polling"
 
 #######
 #functions to make plots
