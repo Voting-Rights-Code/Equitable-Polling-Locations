@@ -294,7 +294,7 @@ get_table_bigquery <- function(config_name = NULL, config_set = NULL, location =
   
   out <- lapply(tables, function(table){
     sql <- construct_results_query(config_name = config_name, config_set = config_set, location = location, table = table)
-    data <- dbGetQuery(con, sql)
+    data <- data.table(dbGetQuery(con, sql))
   })
   
   return(out)  
@@ -319,10 +319,12 @@ query_result_data <-  function(config_name = NULL, config_set = NULL, location =
   if(analysis_type == "historical"){
     data <- lapply(data, function(df){
       df$descriptor <- paste(df$location, "_", df$year)
+      return(df)
     })
   } else if(analysis_type == "placement"){
     data <- lapply(data, function(df){
       df$descriptor <- paste("Optimized_", df$precincts_open, "_polls")
+      return(df)
     })
   } else{
     stop("Incorrect analysis_type provided. Analysis type must be historical or placement")}
