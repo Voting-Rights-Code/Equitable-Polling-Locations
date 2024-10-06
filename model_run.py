@@ -84,7 +84,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
              demographic_ede,
              replace,
              log,
-             outttype
+             outtype
         )
 
     elif outtype == 'csv':
