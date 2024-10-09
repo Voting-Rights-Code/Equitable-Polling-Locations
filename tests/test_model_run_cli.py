@@ -5,11 +5,8 @@ import argparse
 
 parser = argparse.ArgumentParser(prog='cli')
 parser.add_argument('configs', nargs='+', help='One or more yaml configuration files to run.')
-parser.add_argument('-c', '--concurrent', default=2, type=int,
-                    help='How many concurrent optimization processes to run at the same time.  ' +
-                    'Be mindful of ram availability - full runs can use in excess of 40 GB' +
-                    ' for each concurrent process.')
-parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
+parser.add_argument('-c', '--concurrent', default=1, type=int, help='')
+parser.add_argument('-v', '--verbose', action='count', default=2, help='Print extra logging.')
 parser.add_argument('-l', '--logdir', default="logs", type=str, help='The directory to output log files to')
 
 what = parser.parse_args(["./Gwinnett_GA_12_for_2024_configs/Gwinnett_config_no_bg_school_fire_church.yaml"])
