@@ -1,0 +1,353 @@
+---
+title: "Driving Distances"
+subtitle: "OpenStreetMap vs. Google Maps"
+echo: false 
+warning: false 
+format: 
+  revealjs: default 
+  html: default
+  commonmark: default
+author: "Voting Rights Code"
+date: today
+date_format: yyyy-MM-dd
+editor: source
+---
+
+```{r}
+#| label: load-packages
+library(data.table)
+#library(ggplot2)
+library(scales)
+library(knitr)
+library(gt)
+library(gtsummary)
+library(leaflet)
+library(osrm)
+library(sf)
+library(httr2)
+library(jsonlite)
+library(mapsapi)
+```
+
+```{r}
+#| label:  Set Constants & OSRM servers and keys
+#| echo: false
+#| output: false 
+
+# define files
+path = '/mnt/bin/BlueBonnet/Project_Archive/Equitable-Polling-Locations/datasets/driving'
+location = 'Virginia_Beach_City_VA'
+
+#system values 
+options(osrm.server = "http://host.docker.internal:5005/")
+options(nominatim.server = "http://host.docker.internal:8080/reverse")
+x=grep("Directions",readLines("/mnt/bin/BlueBonnet/Project_Archive/Equitable-Polling-Locations/authentication_files"), value=TRUE)
+options(GMAP_Directions_API_KEY=gsub('GMAP_Directions_API_KEY=','',x))
+rm(x)
+```
+
+```{r}
+#| label: Functions
+#construct OSM map
+#| output: false
+make_osrm_map <- function(orig_lon,orig_lat,dest_lon,dest_lat){
+  # using local OSM server map the driving directions between two points
+    # Define origin and destination
+    orig <- c(orig_lon,orig_lat)
+    dest <- c(dest_lon,dest_lat)
+
+    # Get the full route with geometry
+    route <- osrmRoute(src = orig, dst = dest, overview = "full",osrm.profile="car")
+    duration <- round(route$duration,1)
+    distance <- round(route$distance* 1000,1)  # distance in meters
+    # Extract coordinates from the route geometry
+    coords <- st_coordinates(route$geometry)
+
+    # Create map with markers and route polylines
+    map<-leaflet() |> addTiles() |>
+      addMarkers(lng = orig[1], lat = orig[2], popup = paste("Origin - Coordinates:",orig[1],",",orig[2]) ) |>
+      addMarkers(lng = dest[1], lat = dest[2], popup = paste("Destination - Coordinates:",dest[1],",",dest[2])) |>
+      addControl("Open Street Map",position='topright') |>
+      addPolylines(lng = coords[, 1], lat = coords[, 2],
+                   label = paste(duration, 'minutes -', distance, 'meters'),
+                   labelOptions = labelOptions(noHide = TRUE))
+    return(map)
+}
+
+#construct Google map
+make_google_map <- function(orig_lon,orig_lat,dest_lon,dest_lat,api_key){
+  # Using Google maps map the driving directions between two points
+  # Define origin and destination
+  orig <- c(orig_lat,orig_lon)
+  dest <- c(dest_lat,dest_lon)
+
+  # get directions from Google 
+  doc = mp_directions(origin = orig,destination = dest,
+    alternatives = FALSE,key = api_key,quiet = TRUE
+  )
+  
+# Extract routes from the returned info
+  routes = mp_get_routes(doc)
+  map<-leaflet() |> 
+    addTiles() |>
+    addMarkers(lng = orig[1], lat = orig[2], popup = paste("Origin Coordinates:",orig[1],",",orig[2])) |>
+    addMarkers(lng = dest[1], lat = dest[2], popup = paste("Destination Coordinates:",dest[1],",",dest[2])) |>
+    addControl("Google Map",position='topright') |>
+    addControl("Google driving directions displayed on OSM for comparision.",position='bottomleft') |>
+    addPolylines(data = routes,label = paste(routes$duration_text, '-' , routes$distance_m,'meters'),
+                 labelOptions = labelOptions(noHide = TRUE)
+                 ) 
+  return(map)
+}
+
+
+## Reverse Geocoding 
+# Function to reverse geocode using local Nominatim
+reverse_geocode <- function(lat, lon) {
+  # Make the API call with latitude and longitude
+  response <- request(getOption("nominatim.server")) |>
+    req_url_query(lat = lat, lon = lon, format = "json") |> req_perform()
+
+  # Check if the response is successful
+    if (resp_status(response) == 200) {
+      # Parse the JSON response
+      result <- resp_body_json(response)
+      # Return display name if it exists, otherwise NA
+      if (!is.null(result$display_name)) {
+          return(paste(result$address$house_number," ",result$address$road,", ",
+               result$address$city,", ",substr(result$address$`ISO3166-2-lvl4`,4,5),
+               " ",result$address$postcode,", USA",sep="")
+               )
+      } else {
+        return(NA)
+      }
+    } else {
+      # Log the error and return NA
+      print(paste("Failed to retrieve data for lat:", lat, "lon:", lon))
+      return(NA)
+    }
+}
+
+# display table of the biggest differences in driving direction in each group  between programs
+table_difference <- function(dt_diff){
+  gt(dt_diff,groupname_col = 'grp_label') |>
+    fmt(  columns=c("distance_m"),
+          fns = function(x) {formatC(as.numeric(x), format = "f", digits = 1, big.mark = ",") }
+    ) |>
+    cols_move(
+      columns = c("dest","distance_m"),after = orig
+    ) |>
+    cols_hide(columns = row) |>
+    cols_label(
+      program = 'source',
+      dest = 'destination',
+      distance_m = 'distance (m)',
+      orig = 'origin'
+    )   |>
+    tab_header(
+      title = 'Two Largest Driving Distance Variations Between Google Maps and OSM',
+      subtitle = 'by Sample Group'
+    ) |>  sub_missing(missing_text = '')   
+}
+```
+
+```{r}
+#| label: read data
+distance_compare <- fread(file = paste0(path,'/',location,'/',"Virginia_Beach_City_VA_compare_driving_distances.csv"))
+distance_sample <- fread(file = paste0(path,'/',location,'/',"Virginia_Beach_City_VA_sampling_info_driving_distances.csv"))
+distance_compare[, distance_difference := abs(GMAP_distance_m - OSM_distance_m)]
+distance_compare<-distance_compare[, `:=` (sort_order=fcase(Sample_Block=='inc' , 2, 
+                                                            Sample_Block=='pop' ,1, 
+                                                            Sample_Block=='rac',3,
+                                                            Sample_Block=='oth',4),
+                                           grp_label= fcase(Sample_Block=='inc','Sample Group: lowest income quartile', 
+                                                            Sample_Block=='pop','Sample Group: lowest density quartile',
+                                                            Sample_Block=='rac','Sample Group: lowest percent white quartile',
+                                                            Sample_Block=='oth','Sample Group: remaining dataset')
+                                            ) 
+                                    ]
+setorder(distance_compare,sort_order)
+```
+
+```{r}
+#| label: reverse geocode OSM data
+#| echo: false
+#| output: false 
+# this will take a while but it is faster than the free servers 
+distance_compare[, OSM_dest := mapply(reverse_geocode, dest_lat, dest_lon)]
+distance_compare[, OSM_orig := mapply(reverse_geocode, orig_lat, orig_lon)]
+```
+
+*Location*: **`r gsub('_',' ',location)`**
+
+Disproportionately sampled `r format(distance_sample[V1 == 'all', Rows_grp], big.mark = ",")` records out of a total of `r format(distance_sample[V1 == 'all', Rows_total], big.mark = ",")` census block records with a non zero population. This sample represents `r percent(distance_sample[V1 == 'all', grp_pct], .1)` of the total records. Statistics by group are shown below:
+
+```{r}
+#| label: Summarize the sample
+pri<-distance_sample[V1 != 'all',][
+          ,sort_order:=fcase(V1=='inc' , 2, V1=='pop' ,1, V1=='rac',3,V1=='oth',4)]
+  setorder(pri,'sort_order')
+  pri[,sort_order:=NULL] |>
+  gt() |> 
+  cols_label(V1 = "Sample Group",
+             Rows_total = "Total Rows",
+             Rows_grp   = "Sampled Rows",
+             grp_pct    = "Sample Percentage"
+  ) |>
+  cols_move(
+        columns = Rows_total,
+        after =   Rows_grp
+  ) |>
+  fmt_number(
+    columns='Rows_total',
+     sep_mark = ",",
+     decimals = 0
+  ) |>
+  fmt_percent(
+      columns='grp_pct',
+      decimals = 1
+  ) |>
+  text_replace(
+    pattern='inc',replacement='lowest income quartile') |>
+  text_replace(
+    pattern='oth',replacement='remaining dataset') |>
+   text_replace(
+    pattern='pop',replacement='lowest density quartile') |>
+   text_replace(
+    pattern='rac',replacement='lowest percent white quartile'
+  ) 
+```
+
+## 
+
+\newpage
+
+The table below summarizes the descriptive statistics of driving distances for each program, categorized by sampling group:
+
+```{r}
+distance_compare[,.(
+    mean =mean(distance_difference, na.rm = TRUE),
+    median = median(distance_difference, na.rm = TRUE),
+    sd = sd(distance_difference, na.rm = TRUE),
+    min = min(distance_difference, na.rm = TRUE),
+    max = max(distance_difference, na.rm = TRUE)
+), by=.(grp_label)] |>  gt() |> 
+  tab_header(
+    title = "Descriptive Statistics of Distance Difference (m) by Sample Group"
+  ) |>
+  cols_label(
+    grp_label= "Sample Group",
+    mean = "Mean",
+    median = "Median",
+    sd = "Standard Deviation",
+    min = "Minimum",
+    max = "Maximum"
+  ) |>
+  fmt_number(
+    columns=everything(),
+     sep_mark = ",",
+     decimals = 1
+  ) |>
+  text_replace(
+    pattern='Sample Group: ',replacement='') 
+```
+
+The driving distances between the the mapping programs were calculated using the formula $abs(Dist_{gm} - Dist_{osm})$. 
+The total number of routes that could not be calculated, based on the missing differences between the two driving distance calculations, is `r sum(is.na(distance_compare[,distance_difference]))`.
+
+The minimum and maximum actual driving distance difference was `r formatC(abs(min(distance_compare[,'distance_difference'])),digits=1,format='f',big.mark=',')` - `r formatC(abs(max(distance_compare[,'distance_difference'])),digits=1,format='f',big.mark=',')` meters, or `r formatC(abs(min(distance_compare[,'distance_difference'])/1609.34708789),digits=1,format='f',big.mark=',')` - `r formatC(abs(max(distance_compare[,'distance_difference'])/1609.34708789),digits=1,format='f',big.mark=',')` miles.
+
+## 
+
+\newpage
+
+The box plots illustrate the small overall differences highlighted in the descriptive statistics table, while also revealing significant outliers with much larger distance discrepancies. To further explore these outliers, we will examine the two greatest outliers from each group.
+
+```{r}
+setorder(distance_compare,-sort_order)
+par(mar = c(5, 8, 4, 2) + 0.1)  # Increase the left margin 
+par(mgp = c(4, 1, 0))  # Adjust the axis title further from axis
+boxplot(distance_difference ~ sort_order,data=distance_compare,
+        outline = TRUE, horizontal = TRUE,yaxt = 'n',outcol='red',
+        main = "OSM - Google Maps Driving Differences",
+        ylab = "Sample Group", xlab="Difference (m)"
+) 
+# Rotate y-axis labels and add them back with space adjustment
+axis(2, at = 4:1, labels = c("density","income", "white", "remaining"), las = 1, cex.axis = 0.8)
+```
+
+# 
+
+```{r, resuls="asis"}
+#| label: Select the cases with the bigest difference 
+records_2explore <- distance_compare[, .SD[order(-distance_difference)][1:2], by = Sample_Block]  
+biggest_distances<- copy(records_2explore)
+biggest_distances<-biggest_distances[,.(row = .I,grp_label,GMAP_orig, OSM_orig, GMAP_dest,OSM_dest,GMAP_distance_m,OSM_distance_m,distance_difference)] |> 
+  melt(id.vars=c("row","grp_label")) 
+biggest_distances <- biggest_distances[,':='(
+  program = fcase(
+                grepl("GMAP_",variable), 'GMAP' ,
+                grepl("OSM_",variable), 'OSM',
+                default = 'Difference'),
+  variable = gsub("(GMAP_|OSM_)","",variable)
+  )]
+biggest_distances <- dcast(biggest_distances, row+grp_label+program ~ ... ) 
+biggest_distances[program=="Difference",distance_m := distance_difference][,distance_difference := NULL]
+setorder(biggest_distances,row,grp_label,-program)    # order  so difference is the last row  
+gt_tables <- lapply(split(biggest_distances, by = "grp_label"), table_difference)
+```
+
+```{r loop-tables, results='asis'}
+  for( row in 1:4) {
+    cat("\n#\n\\newpage\n")
+    print(gt_tables[[row]])
+    cat("  \n")
+  }
+```
+
+# 
+
+\newpage
+
+The differences in driving distances result from each mapping program using different assumptions about the nearest structures and selecting different routes. To illustrate this, the driving routes generated by each mapping program for the two outlying observations in each group are shown side by side.
+
+```{r}
+#| label: difference in route selection
+
+osm_maps= apply(records_2explore[, .(orig_lon,orig_lat,dest_lon,dest_lat)], 1, function(x) {make_osrm_map(x[1], x[2], x[3], x[4])})
+
+g_maps  = apply(records_2explore[, .(orig_lat,orig_lon,dest_lat,dest_lon)], 1, function(x) 
+                                                                          {make_google_map(x[1], x[2], x[3], x[4], getOption("GMAP_Directions_API_KEY"))})
+```
+
+<!--
+For unknown reasons, the following loop does not produce output unless there is first a manual call to produce the maps.
+Therefore, leave the following code block in the code and start the loop at 2 since this will provide a flexible solution of 
+displaying all maps no matter the number of records chosen to display.  **You've been warned.**
+-->
+
+\newpage
+
+## `r paste(records_2explore$grp_label[1],"(1)")`
+
+::::: columns
+::: {.column width="50%"}
+`r osm_maps[[1]]`
+:::
+
+::: {.column width="50%"}
+`r g_maps[[1]]`
+:::
+:::::
+
+```{r loop-figures, results='asis'}
+for (row in 2:nrow(records_2explore)) {
+  title_mod<- ifelse(row %%2, '(1)','(2)')
+  cat("\n##", paste(records_2explore$grp_label[row],title_mod), "\n")
+  cat( '::: columns \n::: {.column  width="50%"}\n' )
+  print(htmltools::div(osm_maps[row]))
+  cat('::: \n::: {.column  width="50%"}\n' )
+  print(htmltools::div(g_maps[row]))
+  cat(":::\n:::\n" )
+}
+```
