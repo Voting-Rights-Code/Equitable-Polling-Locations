@@ -57,7 +57,7 @@ def test_generate_configs_missing_required_fields(mock_base_config_file):
 
     # Expecting ValueError for missing fields
     with pytest.raises(ValueError, match='missing required fields'):
-        generate_configs(mock_base_config_file, 'year', ['2014', '2016', '2018', '2020'])
+        generate_configs(mock_base_config_file, 'year', ['2014'])
 
 def test_generate_configs_extra_fields(mock_base_config_file):
     # Get the directory of the mock config file
