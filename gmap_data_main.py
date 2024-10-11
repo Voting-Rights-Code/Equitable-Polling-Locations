@@ -177,6 +177,10 @@ def add_GMAP_distance_m(df: pd.DataFrame, api_key: str):
                        left_index=True, right_index=True)
     return (df_gmap)
 
+def get_census_data(fipscode, countycode):
+    rtnval = pd.read_json('https://api.census.gov/data/2020/acs/acs5?get=group(B19013),NAME&for=block%20group:*&in=state:'+fipscode+'%20county:'+countycode)
+    return rtnval
+
 def main():
     ### program start ####
     # check if current default directory is the polling location repo
@@ -249,8 +253,7 @@ def main():
     # ACS economic data-- read json ACS file from Census Bureau website
     try:
         print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Fetching ACS Json FIle')
-        VB_Income = pd.read_json(
-            'https://api.census.gov/data/2020/acs/acs5?get=group(B19013),NAME&for=block%20group:*&in=state:'+fipscode+'%20county:'+countycode)
+        VB_Income = get_census_data(fipscode, countycode)
         # set the first row as the columns names
         VB_Income.columns = VB_Income.iloc[0]
         # drop the first row, reset  index and sort
