@@ -12,7 +12,6 @@ from dotenv import load_dotenv
 from time import gmtime, strftime
 import json
 from authentication_files.gmap_api_key import API_KEY
-from authentication_files.file_path import driving_distances
 
 # Total rows in output dataset
 SAMPLE_ROWS = 2000
@@ -181,10 +180,7 @@ def get_census_data(fipscode, countycode):
     rtnval = pd.read_json('https://api.census.gov/data/2020/acs/acs5?get=group(B19013),NAME&for=block%20group:*&in=state:'+fipscode+'%20county:'+countycode)
     return rtnval
 
-def main():
-    ### program start ####
-    # check if current default directory is the polling location repo
-    # by looking for critical dataset directories.   If files not found have user specify repo location
+def select_driving_distance_folder():
     try:
         path = Path(os.getcwd())
         if (os.path.isdir(path.joinpath('datasets/census')) & os.path.isdir(path.joinpath('datasets/polling'))):
@@ -198,6 +194,21 @@ def main():
     except SystemExit as e:
         print("*Error: Could not read driving distance repo")
         print(f"Program Exit: {e}")
+    return OUTPUT_DIRECT
+
+def get_file_path(OUTPUT_DIRECT):
+    
+    initial_directory = OUTPUT_DIRECT.joinpath('datasets', 'driving')
+    file_path = filedialog.askopenfilename(title="Select Driving Distance File", initialdir=initial_directory,
+                                           filetypes=[("CSV File", ('*.csv'))])
+    return file_path
+
+def main():
+    ### program start ####
+    # check if current default directory is the polling location repo
+    # by looking for critical dataset directories.   If files not found have user specify repo location
+
+    OUTPUT_DIRECT = select_driving_distance_folder()
 
     # Select and read driving distance file
     try:
@@ -208,8 +219,7 @@ def main():
             'source': object
         }
 
-        initial_directory = OUTPUT_DIRECT.joinpath('datasets', 'driving')
-        file_path = driving_distances
+        file_path = get_file_path(OUTPUT_DIRECT)
 
         print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Reading Driving Direction File')
         Driving_Distance = pd.read_csv(
