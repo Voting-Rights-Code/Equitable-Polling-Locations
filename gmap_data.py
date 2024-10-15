@@ -5,9 +5,9 @@ import numpy as np
 import sys
 import os
 import tkinter as tk
+from tkinter import filedialog
 import json
 from pathlib import Path
-from tkinter import filedialog
 from pathlib import Path
 from dotenv import load_dotenv
 from time import gmtime, strftime
@@ -96,8 +96,7 @@ def df_sample(df: pd.DataFrame, quartile: float):
     df.loc[df["Sample"].str.len() == 0, "Sample"] = 'oth'
     # create an identifier of which block the row was selected from
     df['Sample_Block'] = df['Sample']
-    print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Sampling')
-
+   
     dataset_rows = df.shape[0]
     cnt = df["Sample"].value_counts().to_frame().reset_index()
     group_rows = cnt.shape[0]
@@ -145,7 +144,7 @@ def helper(dest_lat: float, dest_lon: float, orig_lat: float, orig_lon: float):
     # merge the normalized structure back the returned data
     df = distance_matrix.merge(df)
     # return the required data as a pandas series
-    return df[['status', 'distance.value', 'origin_addresses', 'destination_addresses']].squeeze()
+    return df[['status', 'distance.value']].squeeze()
 
 
 def add_GMAP_distance_m(df: pd.DataFrame, api_key: str):
@@ -169,143 +168,146 @@ def add_GMAP_distance_m(df: pd.DataFrame, api_key: str):
     df_gmap = df[required_variables].apply(
         lambda x: helper(*x), axis=1)
 
-    # set identifiable variable names, combine with original data and save to disk
-    df_gmap.rename(columns={'status': 'GMAP_status', 'distance.value': 'GMAP_distance_m',
-                            'origin_addresses': 'GMAP_orig', 'destination_addresses': 'GMAP_dest'}, inplace=True)
+    # to comply with Google Maps Platform Terms Of Service only the difference between the OSM and Google Maps distances can be saved
+    df_gmap.rename(columns={'status': 'GMAP_status', 'distance.value': 'GMAP_distance_m'}, inplace=True)
     df_gmap = pd.merge(df, df_gmap, how='left',
                        left_index=True, right_index=True)
+    df_gmap['program_distance_m'] = df_gmap['OSM_distance_m'] - df_gmap['GMAP_distance_m']
+    df_gmap.drop(['GMAP_distance_m'],axis=1,inplace=True)
     return (df_gmap)
 
+def main():
+        # check if current default directory is the polling location repo
+        # by looking for critical dataset directories.   If files not found have user specify repo location
+        try:
+            path = Path(os.getcwd())
+            if (os.path.isdir(path.joinpath('datasets/census')) & os.path.isdir(path.joinpath('datasets/polling'))):
+                # path+'/datasets/census') & os.path.isdir(path+'/datasets/polling')):
+                OUTPUT_DIRECT = path
+            else:
+                initial_directory = Path.home()
+                OUTPUT_DIRECT = Path(filedialog.askdirectory(
+                    initialdir=initial_directory, title="Select Driving Distance Directory"
+                ))
+        except SystemExit as e:
+            print("*Error: Could not read driving distance repo")
+            print(f"Program Exit: {e}")
 
-### program start ####
-# check if current default directory is the polling location repo
-# by looking for critical dataset directories.   If files not found have user specify repo location
-try:
-    path = Path(os.getcwd())
-    if (os.path.isdir(path.joinpath('datasets/census')) & os.path.isdir(path.joinpath('datasets/polling'))):
-        # path+'/datasets/census') & os.path.isdir(path+'/datasets/polling')):
-        OUTPUT_DIRECT = path
-    else:
-        initial_directory = Path.home()
-        OUTPUT_DIRECT = Path(filedialog.askdirectory(
-            initialdir=initial_directory, title="Select Driving Distance Directory"
-        ))
-except SystemExit as e:
-    print("*Error: Could not read driving distance repo")
-    print(f"Program Exit: {e}")
+        # Select and read driving distance file
+        try:
+            dtype = {
+                'id_orig': object,
+                'id_dest': object,
+                'distance_m': float,
+                'source': object
+            }
 
-# Select and read driving distance file
-try:
-    dtype = {
-        'id_orig': object,
-        'id_dest': object,
-        'distance_m': float,
-        'source': object
-    }
+            initial_directory = OUTPUT_DIRECT.joinpath('datasets', 'driving')
+            file_path = filedialog.askopenfilename(title="Select Driving Distance File", initialdir=initial_directory,
+                                                filetypes=[("CSV File", ('*.csv'))])
 
-    initial_directory = OUTPUT_DIRECT.joinpath('datasets', 'driving')
-    file_path = filedialog.askopenfilename(title="Select Driving Distance File", initialdir=initial_directory,
-                                           filetypes=[("CSV File", ('*.csv'))])
+            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Reading Driving Direction File')
+            Driving_Distance = pd.read_csv(
+                file_path, sep=',', engine='pyarrow',  dtype=dtype
+            )
+            Driving_Distance.sort_values(by=["id_orig", "id_dest"], inplace=True)
+            # Create other variables needed to read remaining data files.
+            fipscode = str(Driving_Distance['id_orig'].iloc[0])[:2]
+            countycode = str(Driving_Distance['id_orig'].iloc[0])[2:5]
+            county_ST = os.path.basename(os.path.dirname(file_path))
 
-    print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Reading Driving Direction File')
-    Driving_Distance = pd.read_csv(
-        file_path, sep=',', engine='pyarrow',  dtype=dtype
-    )
-    Driving_Distance.sort_values(by=["id_orig", "id_dest"], inplace=True)
-    # Create other variables needed to read remaining data files.
-    fipscode = str(Driving_Distance['id_orig'].iloc[0])[:2]
-    countycode = str(Driving_Distance['id_orig'].iloc[0])[2:5]
-    county_ST = os.path.basename(os.path.dirname(file_path))
+            Driving_Distance = Driving_Distance.rename(
+                columns={'distance_m': 'OSM_distance_m'})
+        except SystemExit as e:
+            print("*Error: Could not read driving distance file for " + county_ST)
+            print(f"Program Exit: {e}")
 
-    Driving_Distance = Driving_Distance.rename(
-        columns={'distance_m': 'OSM_distance_m'})
-except SystemExit as e:
-    print("*Error: Could not read driving distance file for " + county_ST)
-    print(f"Program Exit: {e}")
+        # confirm polling location program has been run and an output file exists.  Read in if present
+        try:
+            # read only these columns:
+            cols = ['id_orig', 'id_dest', 'distance_m',
+                    'dest_lat', 'dest_lon', 'orig_lat', 'orig_lon', 'location_type',
+                    'dest_type', 'population',  'white']
+            fn = county_ST + ".csv"
+            VB_Data = pd.read_csv(OUTPUT_DIRECT.joinpath("datasets/polling", county_ST, fn),
+                                usecols=cols, sep=',', engine='pyarrow')
 
-# confirm polling location program has been run and an output file exists.  Read in if present
-try:
-    print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Reading Polling Location Output File')
+            VB_Data.sort_values(by=["id_orig", "id_dest"], inplace=True)
+            # Data file is at the block level.  Other files at the block group level
+            # split Data GEOID into State, County, tract and block group area types for merging
+            VB_Data["state"] = number_subset(VB_Data["id_orig"], 0, 2)
+            VB_Data["county"] = number_subset(VB_Data["id_orig"], 2, 5)
+            VB_Data["tract"] = number_subset(VB_Data["id_orig"], 5, 11)
+            VB_Data["block group"] = number_subset(VB_Data["id_orig"], 11, 12)
+            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Reading Polling Location Output File')
+        except SystemExit as e:
+            print("*Error: Could not read program results file for " + county_ST)
+            print(f"Program Exit: {e}")
 
-    # read only these columns:
-    cols = ['id_orig', 'id_dest', 'distance_m',
-            'dest_lat', 'dest_lon', 'orig_lat', 'orig_lon', 'location_type',
-            'dest_type', 'population',  'white']
-    fn = county_ST + ".csv"
-    VB_Data = pd.read_csv(OUTPUT_DIRECT.joinpath("datasets/polling", county_ST, fn),
-                          usecols=cols, sep=',', engine='pyarrow')
+        # ACS economic data-- read json ACS file from Census Bureau website
+        try:
+            VB_Income = pd.read_json(
+                'https://api.census.gov/data/2020/acs/acs5?get=group(B19013),NAME&for=block%20group:*&in=state:'+fipscode+'%20county:'+countycode)
+            # set the first row as the columns names
+            VB_Income.columns = VB_Income.iloc[0]
+            # drop the first row, reset  index and sort
+            VB_Income = VB_Income.drop(0).reset_index(drop=True)
+            VB_Income.sort_values(
+                by=["state", "county", "tract", "block group"], inplace=True)
 
-    VB_Data.sort_values(by=["id_orig", "id_dest"], inplace=True)
-    # Data file is at the block level.  Other files at the block group level
-    # split Data GEOID into State, County, tract and block group area types for merging
-    VB_Data["state"] = number_subset(VB_Data["id_orig"], 0, 2)
-    VB_Data["county"] = number_subset(VB_Data["id_orig"], 2, 5)
-    VB_Data["tract"] = number_subset(VB_Data["id_orig"], 5, 11)
-    VB_Data["block group"] = number_subset(VB_Data["id_orig"], 11, 12)
-except SystemExit as e:
-    print("*Error: Could not read program results file for " + county_ST)
-    print(f"Program Exit: {e}")
+            # create meaningful variable name and type
+            VB_Income = VB_Income.rename(columns={"B19013_001E": "income"})
+            # keep only needed variables
+            VB_Income = VB_Income[["state", "county",
+                                "tract", "block group", "income"]]
+            VB_Income['income'] = VB_Income['income'].astype(int)
+            # Replace where the median household income cannot be calculated or reported with NaN
+            VB_Income["income"] = VB_Income["income"].replace(-666666666, np.nan)
+            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Fetching ACS Json FIle')
+        except json.JSONDecodeError as e:
+            # Handle issues related to malformed JSON data
+            print("*JSON Error " + f"JSONDecodeError: {e}")
+            sys.exit()
+        except ValueError as e:
+            # This might catch unexpected cases where the data is valid JSON but not suitable for a DataFrame
+            print(f"*ValueError: {e}")
+            sys.exit()
+        except SystemExit as e:
+            # Handle any other unexpected errors
+            print(f"*An unexpected error occurred: {e}")
+            # Stop the program from running and raise an error.
+            print(f"Program Exit: {e}")
 
-# ACS economic data-- read json ACS file from Census Bureau website
-try:
-    print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Fetching ACS Json FIle')
-    VB_Income = pd.read_json(
-        'https://api.census.gov/data/2020/acs/acs5?get=group(B19013),NAME&for=block%20group:*&in=state:'+fipscode+'%20county:'+countycode)
-    # set the first row as the columns names
-    VB_Income.columns = VB_Income.iloc[0]
-    # drop the first row, reset  index and sort
-    VB_Income = VB_Income.drop(0).reset_index(drop=True)
-    VB_Income.sort_values(
-        by=["state", "county", "tract", "block group"], inplace=True)
+        # Merge all data together
+        # Use the Map daa as the core dataset since all comparisons are made to it
+        VB_All = pd.merge(Driving_Distance, VB_Data,
+                        on=["id_orig", "id_dest"],
+                        how="inner"
+                        ).merge(
+            VB_Income,
+            on=["state", "county", "tract", "block group"],
+            how="left"
+        )
+        print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Merging Files')
 
-    # create meaningful variable name and type
-    VB_Income = VB_Income.rename(columns={"B19013_001E": "income"})
-    # keep only needed variables
-    VB_Income = VB_Income[["state", "county",
-                           "tract", "block group", "income"]]
-    VB_Income['income'] = VB_Income['income'].astype(int)
-    # Replace where the median household income cannot be calculated or reported with NaN
-    VB_Income["income"] = VB_Income["income"].replace(-666666666, np.nan)
-except json.JSONDecodeError as e:
-    # Handle issues related to malformed JSON data
-    print("*JSON Error " + f"JSONDecodeError: {e}")
-    sys.exit()
-except ValueError as e:
-    # This might catch unexpected cases where the data is valid JSON but not suitable for a DataFrame
-    print(f"*ValueError: {e}")
-    sys.exit()
-except SystemExit as e:
-    # Handle any other unexpected errors
-    print(f"*An unexpected error occurred: {e}")
-    # Stop the program from running and raise an error.
-    print(f"Program Exit: {e}")
+        # remove blocks that nobody lives in
+        VB_All = VB_All.loc[VB_All["population"] > 0].copy()
 
-# Merge all data together
-# Use the Map daa as the core dataset since all comparisons are made to it
-print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Merging Files')
-VB_All = pd.merge(Driving_Distance, VB_Data,
-                  on=["id_orig", "id_dest"],
-                  how="inner"
-                  ).merge(
-    VB_Income,
-    on=["state", "county", "tract", "block group"],
-    how="left"
-)
+        # construct the sample
+        VB_sample, sample_summary = df_sample(VB_All, 0.25)
+        print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Sampling Done')
 
-# remove blocks that nobody lives in
-VB_All = VB_All.loc[VB_All["population"] > 0].copy()
+        # add the google map distances
+        VB_sample = add_GMAP_distance_m(VB_sample, GMAP_api_key)
+        print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Google Driving Distances Calculated')
 
-# construct the sample
-VB_sample, sample_summary = df_sample(VB_All, 0.25)
-
-# add the google map distances
-VB_sample = add_GMAP_distance_m(VB_sample, GMAP_api_key)
-print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Google Driving Distances')
-
-# write out data files
-fn = county_ST+"_compare_driving_distances.csv"
-fn1 = county_ST+"_sampling_info_driving_distances.csv"
-VB_sample.to_csv(OUTPUT_DIRECT.joinpath("datasets/driving", county_ST, fn))
-sample_summary.to_csv(OUTPUT_DIRECT.joinpath(
-    "datasets/driving", county_ST, fn1))
-print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Driving Distance Sample File Written')
+        # write out data files
+        fn = county_ST+"_compare_driving_distances.csv"
+        fn1 = county_ST+"_sampling_info_driving_distances.csv"
+        VB_sample.to_csv(OUTPUT_DIRECT.joinpath("datasets/driving", county_ST, fn))
+        sample_summary.to_csv(OUTPUT_DIRECT.joinpath(
+            "datasets/driving", county_ST, fn1))
+        print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Driving Distance Sample File Written')
+        
+if __name__ == "__main__":
+    main()           
