@@ -85,40 +85,26 @@ potential_output_df_list <- read_result_data(potential_config_dt)
 #set result folder
 result_folder = paste(LOCATION, 'results', sep = '_')
 
-#add location to residence data and split
-orig_res_dist <- orig_output_df_list$residence_distances
-potential_res_dist <- potential_output_df_list$residence_distances
-orig_res_dist_list <- split_residence_data(orig_res_dist, orig_config_dt)
-potential_res_dist_list<- split_residence_data(potential_res_dist, potential_config_dt)
+#add location to residence data, aggregate to block level, merge with polling locations and split
+orig_list_prepped <- prepare_outputs_for_maps(orig_output_df_list$residence_distances, orig_output_df_list$result, orig_config_dt)
 
-#add location to result data and split
-orig_result <- orig_output_df_list$result
-potential_result <- potential_output_df_list$result
-orig_result_list <- split_residence_data(orig_result, orig_config_dt)
-potential_res_dist_list<- split_residence_data(potential_result, potential_config_dt)
+potential_list_prepped <- prepare_outputs_for_maps(potential_output_df_list$residence_distances, potential_output_df_list$result, potential_config_dt)
 
 
 #get avg distance bounds for map coloring
 #same scale for orig and potential
-all_res_output <- rbind(orig_res_dist, orig_res_dist$residence_distances)
-all_color_bounds <- distance_bounds(all_res_output, all_config_dt)
-if (any(sapply(all_color_bounds, anyNA))){
-    warning('Some location does not have a min or max average distance for mapping')
-}
-global_max <- max(all_color_bounds$max_avg_dist)
-global_min <- max(all_color_bounds$min_avg_dist)
-color_bounds <- list(global_min, global_max)
+all_res_output <- do.call(rbind, c(orig_list_prepped, potential_list_prepped))
+global_color_bounds <- distance_bounds(all_res_output)
+
 
 #######
 #Plot potential data
 #######
 plot_folder = paste0('result analysis/', POTENTIAL_CONFIG_FOLDER)
-if (file.exists(file.path(here(), plot_folder))){
-    setwd(file.path(here(), plot_folder))    
-} else{
+if not (file.exists(file.path(here(), plot_folder))){
     dir.create(file.path(here(), plot_folder))
-    setwd(file.path(here(), plot_folder))
 }
+setwd(file.path(here(), plot_folder))
 
 ###graphs####
 
@@ -144,12 +130,13 @@ plot_boxplots(potential_output_df_list$residence_distances)
 plot_orig_ideal_hist(orig_output_df_list$residence_distances, potential_output_df_list$residence_distances, IDEAL_POLL_NUMBER)
 
 ###maps####
-sapply(potential_res_dist_list, function(x)make_bg_maps(x, 'map'))
-sapply(potential_res_dist_list, function(x)make_demo_dist_map(x, 'population'))
-sapply(potential_res_dist_list, function(x)make_demo_dist_map(x, 'black'))
-sapply(potential_res_dist_list, function(x)make_demo_dist_map(x, 'white'))
-sapply(potential_res_dist_list, function(x)make_demo_dist_map(x, 'hispanic'))
-sapply(potential_res_dist_list, function(x)make_demo_dist_map(x, 'asian'))
+
+sapply(potential_list_prepped, function(x)make_bg_maps(x, 'map'))
+sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'population'))
+sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'black'))
+sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'white'))
+sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'hispanic'))
+sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
 
 
 #######
@@ -164,12 +151,12 @@ if (file.exists(file.path(here(), plot_folder))){
 }
 
 ###maps####
-make_bg_maps(orig_res_dist, orig_result, orig_config_dt, 'map')
 
-sapply(orig_res_dist_list, function(x)make_bg_maps(x, 'map'))
-sapply(orig_res_dist_list, function(x)make_demo_dist_map(x, 'population'))
-sapply(orig_res_dist_list, function(x)make_demo_dist_map(x, 'black'))
-sapply(orig_res_dist_list, function(x)make_demo_dist_map(x, 'white'))
-sapply(orig_res_dist_list, function(x)make_demo_dist_map(x, 'hispanic'))
-sapply(orig_res_dist_list, function(x)make_demo_dist_map(x, 'asian'))
+sapply(orig_list_prepped, function(x)make_bg_maps(x, 'map'))
+
+sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'population'))
+sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'black'))
+sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'white'))
+sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'hispanic'))
+sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
 
