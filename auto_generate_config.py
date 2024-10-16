@@ -1,6 +1,6 @@
 import yaml
 import os
-from model_config import (get_canonical_config_args, EXPERIMENTAL_FIELDS)
+from model_config import (get_canonical_config_args, EXPERIMENTAL_FIELDS, NON_CONFIG_META_DATA)
 
 
 class MissingFieldError(Exception):
@@ -41,7 +41,7 @@ def generate_yaml_content(config):
 
     return yaml_content
 
-def generate_configs(base_config_file:str, field_to_vary:str, desired_range: list, other_args = EXPERIMENTAL_FIELDS):
+def generate_configs(base_config_file:str, field_to_vary:str, desired_range: list, other_args = EXPERIMENTAL_FIELDS, ignore_fields = NON_CONFIG_META_DATA):
     """
     Generate YAML configurations by varying specified parameters while keeping others constant.
     """
@@ -49,17 +49,20 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
     base_config = load_base_config(base_config_file)
     
     # List of required fields that must be present in the base config
-    required_fields = get_canonical_config_args()
-    all_fields = required_fields + other_args
+    required_fields = get_canonical_config_args() 
+    # TODO We are taking this difference until we can move the meta data to a different table in the db
+    required_fields = list(set(required_fields).difference(set(ignore_fields)))
+    all_fields = required_fields + other_args 
     
     # Validate the base config for correct fields
     config_fields = base_config.keys()
     missing_fields = set(required_fields).difference(set(config_fields))
     extra_fields = set(config_fields).difference(all_fields)
+    extra_fields_valid = extra_fields.issubset(set(ignore_fields))
     # breakpoint()
     if len(missing_fields) >0:
         raise ValueError(f'missing required fields: {missing_fields}')
-    if len(extra_fields) >0:
+    if not (extra_fields_valid):
         raise ValueError(f'unknown fields provided: {extra_fields}')
     
     #validate config name and set
@@ -97,15 +100,15 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
             yaml.dump(config, outfile, default_flow_style=False, sort_keys= False)
 
         # Create YAML content dynamically based on the base_config
-        yaml_content = generate_yaml_content(config)
+        # yaml_content = generate_yaml_content(config)
         
         # Write the custom content to the YAML file
-        with open(file_path, 'w') as outfile:
-            outfile.write(yaml_content)
+        # with open(file_path, 'w') as outfile:
+        #     outfile.write(yaml_content)
 
 #generate files 
-generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', ['2014', '2016', ['2018', '2020']])
+# generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', ['2014', '2016', ['2018', '2020']])
 #generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['14', '15', '16', '17', '18'])
 # generate_configs('test_configs\Richmond_city_original_2024.yaml', 'capacity', [1.2, 1.4, 1.6, 1.8])
 # generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['10', '11'])
-# generate_configs('test_configs\Richmond_city_original_2024.yaml', 'fixed_capacity_site_number', ['13', '14', '15'])
+generate_configs('test_configs\Richmond_city_original_2024.yaml', 'fixed_capacity_site_number', [13, 14, 15])

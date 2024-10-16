@@ -1,7 +1,6 @@
 location: Richmond_city_VA
 year:
-- '2018'
-- '2020'
+- '2024'
 bad_types:
 - Community Center - Potential
 - Fire Station - Potential
@@ -16,5 +15,6 @@ max_min_mult: 5
 maxpctnew: 1
 minpctold: 1
 penalized_sites: null
-config_name: Richmond_city_VA_year_['2018', '2020'].yaml
+config_name: Richmond_city_VA_fixed_capacity_site_number_13.yaml
 config_set: test_configs
+fixed_capacity_site_number: 13

@@ -11,7 +11,7 @@ bad_types:
 beta: -1
 time_limit: 360000 #100 hours minutes
 capacity: 1.8
-username: 'your_username'
+# username: 'your_username'
 
 ####Optional#####
 precincts_open: null
@@ -21,10 +21,10 @@ minpctold: 1 # in interval [0,1]
 penalized_sites: null
 
 ####MetaData#####
-commit_hash: null
+# commit_hash: null
 config_name: 'Richmond_city_original_2024'
 config_set: 'test_configs'
-run_time: null
+# run_time: null
 
 ####ExperimentalData####
 # driving: False

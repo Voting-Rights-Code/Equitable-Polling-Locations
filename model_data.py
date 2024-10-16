@@ -321,16 +321,8 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
         bad_location_list = config.bad_types
 
     polling_location_types = set(df[df.dest_type == 'polling']['location_type'])
-    
-    year_list = []  # This could also be an int input
-    # Convert to list if it's an integer
-    if isinstance(year_list, int):
-        year_list = [year_list]
-    # Check if year_list is indeed a list
-    if not isinstance(year_list, list):
-        raise ValueError("year_list must be a list")
     for year in year_list:
-        if not any(str(year) in poll for poll in polling_location_types):
+        if not any(list(str(year)) in poll for poll in polling_location_types):
             raise ValueError(f'Do not currently have any data for {location} for {year} from {config.config_file_path}')
     #drop duplicates and empty block groups
     df = df.drop_duplicates() #put in to avoid duplications down the line.
@@ -354,7 +346,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
     #the concatenation will create duplicates if a polling location is used multiple years
     #drop these
     df = df.drop_duplicates()
-
+    
     #check that population is unique by id_orig
     pop_df = df.groupby('id_orig')['population'].agg('unique').str.len()
     if any(pop_df>1):
