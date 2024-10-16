@@ -18,7 +18,7 @@ import gcloud_constants as gc
 
 #Define experimental and canonical fields
 CANONICAL_FIELDS = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 
-        'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set', 'run_time', 'commit_hash'] 
+        'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set', 'run_time', 'commit_hash', 'username'] 
 EXPERIMENTAL_FIELDS = ['driving', 'fixed_capacity_site_number']
 NON_CONFIG_META_DATA = ['result_folder', 'config_file_path', 'log_file_path']
 
@@ -127,6 +127,9 @@ class PollingModelConfig:
 
     other_args: dict = None
     ''' Unspecified other args, allowed only for writing to test database or CSV (not prod database) '''
+
+    username: str = None
+    '''Unique name of config.'''
 
     def __post_init__(self):
         if not self.result_folder:

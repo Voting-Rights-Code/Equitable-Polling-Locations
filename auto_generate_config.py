@@ -104,8 +104,8 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
             outfile.write(yaml_content)
 
 #generate files 
-generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', ['2014', '2016'])
+generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', ['2014', '2016', ['2018', '2020']])
 #generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['14', '15', '16', '17', '18'])
 # generate_configs('test_configs\Richmond_city_original_2024.yaml', 'capacity', [1.2, 1.4, 1.6, 1.8])
 # generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['10', '11'])
-# generate_configs('test_configs\Richmond_city_original_2024.yaml', 'fixed_capacity_site_number', ['10', '11', '12'])
+# generate_configs('test_configs\Richmond_city_original_2024.yaml', 'fixed_capacity_site_number', ['13', '14', '15'])

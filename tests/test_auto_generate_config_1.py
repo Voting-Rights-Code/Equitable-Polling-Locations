@@ -34,6 +34,7 @@ def load_config_template():
 def mock_base_config_file(tmp_path, load_config_template):
     config = load_config_template
     config['config_set'] = str(tmp_path)
+    config['username'] = 'test_user'
     config_file_path = tmp_path / "Richmond_city_original_2024.yaml"
     with open(config_file_path, 'w') as f:
         yaml.dump(config, f)
@@ -49,8 +50,6 @@ def test_generate_configs_missing_required_fields(mock_base_config_file):
     # Create a config file intentionally missing required fields
     config = {
         'config_set': str(mock_base_config_file),
-        'config_name': 'Richmond_city_original_2024',
-        'location': 'Richmond'
     }
     with open(mock_base_config_file, 'w') as f:
         yaml.dump(config, f)
@@ -66,20 +65,6 @@ def test_generate_configs_extra_fields(mock_base_config_file):
     # Create a config file with required fields plus an extra field
     config = {
         'config_set': config_directory,  # Set to the directory instead of the full file path
-        'config_name': 'Richmond_city_original_2024',
-        'location': 'Richmond',
-        'year': '2022',
-        'max_min_mult': 1,
-        'capacity': 100,
-        'run_time': 60,
-        'bad_types': [],
-        'precincts_open': 10,
-        'penalized_sites': [],
-        'maxpctnew': 50,
-        'commit_hash': 'abc123',
-        'time_limit': 120,
-        'beta': 0.5,
-        'minpctold': 25,
         'extra_field': 'not_allowed'  # This should trigger an unknown fields error
     }
 
