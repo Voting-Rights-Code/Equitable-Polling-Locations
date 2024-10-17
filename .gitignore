@@ -169,4 +169,4 @@ cython_debug/
 # Misc
 logs
 **/.DS_Store
-**GMAP_driving_distancereport_files/
+**GMAP_distance_report_files/

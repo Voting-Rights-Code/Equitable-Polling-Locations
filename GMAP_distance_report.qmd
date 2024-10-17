@@ -18,7 +18,6 @@ library(data.table)
 library(scales)
 library(knitr)
 library(gt)
-library(gtsummary)
 library(leaflet)
 library(osrm)
 library(sf)
@@ -35,15 +34,16 @@ library(ggmap)
 #| output: false 
 
 # define data files
-path = '/mnt/bin/BlueBonnet/Project_Archive/Equitable-Polling-Locations/datasets/driving'
+root = '/mnt/bin/BlueBonnet/Project_Archive/Equitable-Polling-Locations'
+path = '/datasets/driving'
 location = 'Virginia_Beach_City_VA'
 
 #system values 
 options(osrm.server = "http://host.docker.internal:5005/")
 options(nominatim.server = "http://host.docker.internal:8080/reverse")
 options(GMAP_Tile=FALSE)
-x=grep("Directions",readLines("/mnt/bin/BlueBonnet/Project_Archive/Equitable-Polling-Locations/authentication_files"), value=TRUE)
-options(GMAP_Directions_API_KEY=gsub('GMAP_Directions_API_KEY=','',x))
+x=grep("Platform",readLines(paste0(root,"/authentication_files")), value=TRUE)
+options(GMAP_API_KEY=gsub('GMAP_Platform_KEY=','',x))
 rm(x)
 ```
 
@@ -81,7 +81,7 @@ make_google_map <- function(orig_lon,orig_lat,dest_lon,dest_lat,api_key){
   # Define origin and destination
   orig <- c(orig_lat,orig_lon)
   dest <- c(dest_lat,dest_lon)
-
+ 
   # get directions 
   doc = mp_directions(origin = orig,destination = dest,
     alternatives = FALSE,key = api_key,quiet = TRUE)
@@ -102,7 +102,7 @@ make_google_map <- function(orig_lon,orig_lat,dest_lon,dest_lat,api_key){
                     ) 
   #If GMAP_Tile is True the display directions on Google Maps tile
   } else {
-    #register_google(key =getOption("GMAP_Directions_API_KEY"))
+    #register_google(key =getOption("GMAP_API_KEY"))
     # Extract the coordinates  
     route_coords <- st_coordinates(routes)
     # Convert to a data frame
@@ -110,7 +110,7 @@ make_google_map <- function(orig_lon,orig_lat,dest_lon,dest_lat,api_key){
     #generate Map
     suppressMessages({
         map <- get_googlemap(center = c(lon = mean(route_df$lon), lat = mean(route_df$lat)),
-                          zoom = 11, maptype = "roadmap",key=getOption("GMAP_Directions_API_KEY"))  |> 
+                          zoom = 11, maptype = "roadmap",key=getOption("GMAP_API_KEY"))  |> 
                 ggmap() +  geom_path(data = route_df,aes(x = lon, y = lat),
                                     color = "blue", linewidth= 1, lineend = "round"
                                     )
@@ -174,9 +174,9 @@ table_difference <- function(dt_diff){
 
 ```{r}
 #| label: read data
-distance_compare <- fread(file = paste0(path,'/',location,'/',"Virginia_Beach_City_VA_compare_driving_distances.csv"))
-distance_sample <- fread(file = paste0(path,'/',location,'/',"Virginia_Beach_City_VA_sampling_info_driving_distances.csv"))
-distance_compare[, distance_difference := abs(program_distance_m)]   #difference calculated in python program for efficency 
+distance_compare <- fread(file = paste0(root, path,'/',location,'/',location,"_compare_driving_distances.csv"))
+distance_sample <- fread(file = paste0(root, path,'/',location,'/',location,"_sampling_info_driving_distances.csv"))
+distance_compare[, distance_difference := abs(Programs_difference_m)]   #difference calculated in python program for efficiency 
 distance_compare<-distance_compare[, `:=` (sort_order=fcase(Sample_Block=='inc' , 2, 
                                                             Sample_Block=='pop' ,1, 
                                                             Sample_Block=='rac',3,
@@ -295,7 +295,7 @@ osm_maps= apply(records_2explore[, .(orig_lon,orig_lat,dest_lon,dest_lat)], 1, f
 
 #this function also reverse Geocodes the google data and provices the distance calculation 
 google  = apply(records_2explore[, .(orig_lat,orig_lon,dest_lat,dest_lon)], 1, function(x) 
-                                                                          {make_google_map(x[1], x[2], x[3], x[4], getOption("GMAP_Directions_API_KEY"))})
+                                                                          {make_google_map(x[1], x[2], x[3], x[4], getOption("GMAP_API_KEY"))})
 # Extract the Google information into a data table
 google_data <- rbindlist(lapply(google, function(x) {
   as.data.table(x$info)  # Convert each 'info' to a data.table
