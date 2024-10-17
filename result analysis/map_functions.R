@@ -289,7 +289,6 @@ make_demo_dist_map <-function(prepped_data, demo_str, map_type = 'map', result_f
 	
 	#select only the desired demographic
 	prepped_data_demo <- prepped_data[demographic == demo_str, ]
-
 	#get map
 	map_demo <- make_or_load_maps(location, map_type)
 

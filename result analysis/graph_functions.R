@@ -84,6 +84,7 @@ read_config_folder_from_file <- function(config_folder){
 	#read config folder data from file
 	config_list <- read_config(config_folder)
 	config_dt <- convert_configs_to_dt(config_list)
+	config_dt <- config_dt[ , config_set := config_folder]
 	return(config_dt)
 }
 

@@ -25,7 +25,7 @@ ORIG_CONFIG_FOLDER = "DeKalb_GA_original_configs"
 POTENTIAL_CONFIG_FOLDER = "DeKalb_GA_no_bg_school_configs"
 
 #constants for reading data
-READ_FROM_CSV = FALSE
+READ_FROM_CSV = TRUE
 TABLES = c("edes", "precinct_distances", "residence_distances", "result")
 
 #constants for database queries
@@ -43,7 +43,7 @@ POLLING_CON <- define_connection()
 
 #######
 #Check that location and folders valid
-#this also ensures that you are in the right folder to read data
+#Load configs and get driving flags
 #######
 
 #Load config data
@@ -101,7 +101,7 @@ global_color_bounds <- distance_bounds(all_res_output)
 #Plot potential data
 #######
 plot_folder = paste0('result analysis/', POTENTIAL_CONFIG_FOLDER)
-if not (file.exists(file.path(here(), plot_folder))){
+if (!file.exists(file.path(here(), plot_folder))){
     dir.create(file.path(here(), plot_folder))
 }
 setwd(file.path(here(), plot_folder))
