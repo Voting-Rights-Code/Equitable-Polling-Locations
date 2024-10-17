@@ -35,14 +35,15 @@ library(ggmap)
 #| output: false 
 
 # define data files
-path = '/mnt/bin/BlueBonnet/Project_Archive/Equitable-Polling-Locations/datasets/driving'
+root = '/mnt/bin/BlueBonnet/Project_Archive/Equitable-Polling-Locations'
+path = '/datasets/driving'
 location = 'Virginia_Beach_City_VA'
 
 #system values 
 options(osrm.server = "http://host.docker.internal:5005/")
 options(nominatim.server = "http://host.docker.internal:8080/reverse")
 options(GMAP_Tile=FALSE)
-x=grep("Directions",readLines("/mnt/bin/BlueBonnet/Project_Archive/Equitable-Polling-Locations/authentication_files"), value=TRUE)
+x=grep("Directions",readLines(paste0(root,"/authentication_files")), value=TRUE)
 options(GMAP_Directions_API_KEY=gsub('GMAP_Directions_API_KEY=','',x))
 rm(x)
 ```
@@ -174,8 +175,8 @@ table_difference <- function(dt_diff){
 
 ```{r}
 #| label: read data
-distance_compare <- fread(file = paste0(path,'/',location,'/',"Virginia_Beach_City_VA_compare_driving_distances.csv"))
-distance_sample <- fread(file = paste0(path,'/',location,'/',"Virginia_Beach_City_VA_sampling_info_driving_distances.csv"))
+distance_compare <- fread(file = paste0(root, path,'/',location,'/',location,"_compare_driving_distances.csv"))
+distance_sample <- fread(file = paste0(root, path,'/',location,'/',location,"_sampling_info_driving_distances.csv"))
 distance_compare[, distance_difference := abs(program_distance_m)]   #difference calculated in python program for efficency 
 distance_compare<-distance_compare[, `:=` (sort_order=fcase(Sample_Block=='inc' , 2, 
                                                             Sample_Block=='pop' ,1, 
