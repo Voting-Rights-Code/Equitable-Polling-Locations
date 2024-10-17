@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import sys
 import os
+import time
 import tkinter as tk
 from tkinter import filedialog
 import json
@@ -14,6 +15,9 @@ from time import gmtime, strftime
 
 # Total rows in output dataset
 SAMPLE_ROWS = 2000
+
+# Google Maps limits 1,000 elements per minute (1 element =  single origin-destination pair)
+REQUESTS_MINUTE = 1000
 
 # get the API Key
 load_dotenv('authentication_files')
@@ -122,7 +126,7 @@ def df_sample(df: pd.DataFrame, quartile: float):
     return sample, sample_summary
 
 
-def helper(dest_lat: float, dest_lon: float, orig_lat: float, orig_lon: float):
+def distance_api(dest_lat: float, dest_lon: float, orig_lat: float, orig_lon: float):
     """ given a origin longitude and latitude use google maps
         to find the distance to a destination longitude and latitude.
 
@@ -137,15 +141,32 @@ def helper(dest_lat: float, dest_lon: float, orig_lat: float, orig_lon: float):
     """
     # call the google maps with the origin and destination information
     # the  distance information is returned in the elements structure and needs to be normalized into a flat structure
-    distance_matrix = pd.read_json(f"https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&destinations={
-        dest_lat}%2C{dest_lon}&origins={orig_lat}%2C{orig_lon}&mode=driving&key={GMAP_api_key}", orient='columns')
+    
+    from pandas.errors import MergeError
+    import sys
+    
+    url = (
+        f"https://maps.googleapis.com/maps/api/distancematrix/json?units=metric"
+        f"&destinations={dest_lat}%2C{dest_lon}"
+        f"&origins={orig_lat}%2C{orig_lon}"     
+        f"&mode=driving&key={GMAP_api_key}"
+    )
+    distance_matrix = pd.read_json(url,orient='columns')
     df = pd.json_normalize(distance_matrix['rows'], 'elements')
 
-    # merge the normalized structure back the returned data
-    df = distance_matrix.merge(df)
-    # return the required data as a pandas series
-    return df[['status', 'distance.value']].squeeze()
-
+    try:
+        # merge the normalized structure back the returned data
+        df = distance_matrix.merge(df)
+        # return the required data as a pandas series
+        return df[['status', 'distance.value']].squeeze()
+    except pd.errors.MergeError as e:
+         print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Invalid data from Google Maps Distance call.')
+         print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Execution Stopping.')
+         sys.exit(1)
+    except Exception as e:
+        # Catch any other errors and print them for debugging
+        print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), f'Unexpected Google Map Distance call error: {e}')
+        sys.exit(1)
 
 def add_GMAP_distance_m(df: pd.DataFrame, api_key: str):
     """ prepare the data for the API call and combine the distance results with
@@ -164,9 +185,21 @@ def add_GMAP_distance_m(df: pd.DataFrame, api_key: str):
     # check to see if variables are present
     variables_present(required_variables, df)
 
-    # call the api with only the required columns
-    df_gmap = df[required_variables].apply(
-        lambda x: helper(*x), axis=1)
+    # Process the records in batches of REQUESTS_MINUTE and 
+    # insert a 1 minute pause to comply with Google Maps Usage limits 
+    df_gmap = pd.DataFrame()
+    for i in range (0, SAMPLE_ROWS, REQUESTS_MINUTE):
+        chunk = df.iloc[i:i+REQUESTS_MINUTE]
+        api_returned = chunk[required_variables].apply(
+               lambda x: distance_api(*x), axis=1)
+        df_gmap = pd.concat(df_gmap,api_returned,ignore_index=True)
+        if i + REQUESTS_MINUTE < SAMPLE_ROWS:  # Only wait if there are more records to process
+            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Waiting 1 minute before sending next batch to Distance Server')
+            time.sleep(65)  # Delay for 65 seconds
+
+    ## call the api with only the required columns
+    #df_gmap = df[required_variables].apply(
+    #    lambda x: distance_api(*x), axis=1)
 
     # to comply with Google Maps Platform Terms Of Service only the difference between the OSM and Google Maps distances can be saved
     df_gmap.rename(columns={'status': 'GMAP_status', 'distance.value': 'GMAP_distance_m'}, inplace=True)
