@@ -133,7 +133,7 @@ prepare_outputs_for_maps <- function(residence_data, result_data, config_data){
 
 	#aggregate block level demographic data to block group level
 	res_dist_demo <- aggregate_residence_demo(residence_data)
-
+	
 	#get lat/ lon coords from results
 	dest_lat_lon <- result_data[ ,.(lon = unique(dest_lon), lat = unique(dest_lat), type = unique(dest_type)), by = c('id_dest', 'config_set', 'config_name')]
 

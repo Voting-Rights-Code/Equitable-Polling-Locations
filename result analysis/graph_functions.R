@@ -199,6 +199,7 @@ select_varying_fields <- function(config_dt){
 	if (length(varying_cols) != 2){
 		stop(paste('Too many fields vary across collection of config files:', paste(varying_cols, collapse = ', ')))
 	} 
+	
 	#select the parameter of interest
 	result_dt <- config_dt[ , ..varying_cols]
 	return(result_dt)

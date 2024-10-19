@@ -91,12 +91,8 @@ result_folder = paste(LOCATION, 'results', sep = '_')
 #get all file names the result_folder with the strings config_folder and 'residence_distances'
 config_list_prepped <- prepare_outputs_for_maps(config_output_df_list$residence_distances, config_output_df_list$result, config_dt)
 
-contained_in_list_prepped <- prepare_outputs_for_maps(contained_in_output_df_list$residence_distances, contained_in_output_df_list$result, contained_in_config_dt)
-
-intersecting_list_prepped <- prepare_outputs_for_maps(intersecting_output_df_list$residence_distances, intersecting_output_df_list$result, intersecting_config_dt)
-
 #get avg distance bounds for map coloring
-all_res_output <- do.call(rbind, c(config_list_prepped, intersecting_list_prepped, contained_in_list_prepped))
+all_res_output <- do.call(rbind, config_list_prepped)
 
 global_color_bounds <- distance_bounds(all_res_output)
 
