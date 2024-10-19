@@ -60,6 +60,8 @@ DRIVING_FLAG <- set_global_driving_flag(config_dt_list)
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
 
+#names of the output data in these lists 
+#come from TABLES above
 config_output_df_list <- read_result_data(config_dt)
 
 potential_output_df_list <- read_result_data(potential_config_dt)
@@ -97,12 +99,11 @@ global_color_bounds <- distance_bounds(all_res_output)
 #Plot data
 #######
 plot_folder = paste0('result analysis/', CONFIG_FOLDER)
-if (file.exists(file.path(here(), plot_folder))){
-    setwd(file.path(here(), plot_folder))
-} else{
+if (!file.exists(file.path(here(), plot_folder))){
     dir.create(file.path(here(), plot_folder))
-    setwd(file.path(here(), plot_folder))
 }
+setwd(file.path(here(), plot_folder))
+
 
 ###graphs####
 
