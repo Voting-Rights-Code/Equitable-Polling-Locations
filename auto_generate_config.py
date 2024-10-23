@@ -23,22 +23,36 @@ def validate_required_fields(config, required_fields):
 def generate_yaml_content(config):
     '''Generate YAML content dynamically based on the config.'''
     yaml_content = "# Constants for the optimization function #\n"
-    
+    # Create a set for faster lookups
+    experimental_fields_set = set(EXPERIMENTAL_FIELDS)
+    if 'location' in config:
+        yaml_content += f"location: {config['location']}\n"
+    # # Check if 'year' is in config and handle it as a list of strings
+    if 'year' in config:
+        years = config['year']
+        if isinstance(years, list):
+            yaml_content += f"year:\n"
+            for year in years:
+                yaml_content += f"    - '{year}'\n"
+        else:
+            yaml_content += f"year: '{years}'\n"
     for key in config.keys():
         value = config.get(key)
+        if key in ['location', 'year']:
+            continue
         if isinstance(value, list):
             yaml_content += f"{key}:\n"
             for item in value:
                 yaml_content += f"    - {item}\n"
         elif value is None:
             yaml_content += f"{key}: None\n"
-        else:
+        # Exclude experimental fields
+        elif key not in experimental_fields_set: 
             yaml_content += f"{key}: {value}\n"
 
     yaml_content += "\n####Experimental Data####\n"
     for field in EXPERIMENTAL_FIELDS:
         yaml_content += f"{field}: {config.get(field, 'null')}\n"
-
     return yaml_content
 
 def generate_configs(base_config_file:str, field_to_vary:str, desired_range: list, other_args = EXPERIMENTAL_FIELDS, ignore_fields = NON_CONFIG_META_DATA):
@@ -100,15 +114,15 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
             yaml.dump(config, outfile, default_flow_style=False, sort_keys= False)
 
         # Create YAML content dynamically based on the base_config
-        # yaml_content = generate_yaml_content(config)
+        yaml_content = generate_yaml_content(config)
         
         # Write the custom content to the YAML file
-        # with open(file_path, 'w') as outfile:
-        #     outfile.write(yaml_content)
+        with open(file_path, 'w') as outfile:
+            outfile.write(yaml_content)
 
 #generate files 
 # generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', ['2014', '2016', ['2018', '2020']])
 #generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['14', '15', '16', '17', '18'])
 # generate_configs('test_configs\Richmond_city_original_2024.yaml', 'capacity', [1.2, 1.4, 1.6, 1.8])
 # generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['10', '11'])
-generate_configs('test_configs\Richmond_city_original_2024.yaml', 'fixed_capacity_site_number', [13, 14, 15])
+# generate_configs('test_configs\Richmond_city_original_2024.yaml', 'fixed_capacity_site_number', [10, 11, 12])

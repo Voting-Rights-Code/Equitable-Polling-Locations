@@ -1,7 +1,7 @@
 # Constants for the optimization function #
 location: Richmond_city_VA
 year:
-    - 2024
+    - '2024'
 bad_types:
     - Community Center - Potential
     - Fire Station - Potential
@@ -11,17 +11,13 @@ bad_types:
 beta: -1
 time_limit: 360000
 capacity: 1.8
-username: your_username
 precincts_open: None
 max_min_mult: 5
 maxpctnew: 1
 minpctold: 1
 penalized_sites: None
-commit_hash: None
 config_name: Richmond_city_VA_fixed_capacity_site_number_12.yaml
 config_set: test_configs
-run_time: None
-fixed_capacity_site_number: 12
 
 ####Experimental Data####
 driving: null

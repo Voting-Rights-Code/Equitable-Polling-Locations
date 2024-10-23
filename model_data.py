@@ -322,7 +322,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
 
     polling_location_types = set(df[df.dest_type == 'polling']['location_type'])
     for year in year_list:
-        if not any(list(str(year)) in poll for poll in polling_location_types):
+        if not any(str(year) in poll for poll in polling_location_types):
             raise ValueError(f'Do not currently have any data for {location} for {year} from {config.config_file_path}')
     #drop duplicates and empty block groups
     df = df.drop_duplicates() #put in to avoid duplications down the line.
