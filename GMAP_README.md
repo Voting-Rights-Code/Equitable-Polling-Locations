@@ -46,9 +46,10 @@ GMAP_distance_report.qmd is written in R using [Quatro](https://quarto.org). It 
    - Install required R packages:
 
     ```r
-    install.packages(c("data.table", "scales", "knitr", "gt", 
-                        "leaflet", "osrm", "sf", "httr2", 
-                        "jsonlite", "xml2", "mapsapi","ggmap"
+    install.packages(c("data.table", "scales", "knitr", 
+                        "gt",  "leaflet", "osrm", "sf", 
+                        "httr2", "jsonlite", "xml2", "mapsapi","ggmap",
+                        "plotly"
                     ))
     ```
 
@@ -99,7 +100,7 @@ GMAP_distance_report.qmd is written in R using [Quatro](https://quarto.org). It 
             mediagis/nominatim:4.4
         ```
     
-        **Note**:  These commands will also download and set up a Postgres server. 
+        **Note**:  This command will also download and set up a Postgres server. 
     
         It may take some time for this command to complete. 
 
@@ -128,6 +129,11 @@ GMAP_distance_report.qmd is written in R using [Quatro](https://quarto.org). It 
     ```bash
         GMAP_Platform_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     ```
+
+    The following Google Map Products must be enabled and authorized to use the API key:
+
+    +  Distance Matrix API
+
 2. ### Selecting The Geographic Area To Be Processed
 
     The program should be run from the root directory.   It provides the user with an interface to select the directory containing the {location}driving_distance.csv file.
@@ -190,6 +196,12 @@ GMAP_distance_report.qmd is written in R using [Quatro](https://quarto.org). It 
         GMAP_Platform_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     ```
 
+     The following Google Map Products must be enabled and authorized to use the API key:
+
+    +  Maps Static API
+    +  Directions API
+
+
 2. ### Output Format
 
     This program is written in [Quatro](https://quarto.org).   It is currently formatted to produce slides and html output.
@@ -222,7 +234,7 @@ GMAP_distance_report.qmd is written in R using [Quatro](https://quarto.org). It 
 
 7. ### Google Map Tiles
 
-    The option `GMAP_Tile` specifies if the Google driving directions are displayed on a Google Map background (True) or an OSM background (False).  Default setting is to display the map on an OSM background. 
+    The option `GMAP_Tile` specifies if the Google driving directions are displayed on a Google Map background (True) or an OSM background (False).  Default setting is to display the map on an Google Map background. 
 
 8. ### Distance Calculation 
     The program utilizes the absolute value of the differences between the driving distances returned from each program:

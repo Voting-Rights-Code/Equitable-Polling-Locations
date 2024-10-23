@@ -192,11 +192,12 @@ def add_GMAP_distance_m(df: pd.DataFrame, api_key: str):
  
     for i in range (0, len(df), REQUESTS_MINUTE):
         chunk = df.iloc[i:i+REQUESTS_MINUTE].copy()
+        print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Batch sent to GMAP API')
         chunk[['GMAP_Status','GMAP_distance_m']] = chunk[required_variables].apply(
                lambda x: distance_api(*x), axis=1,result_type='expand')
         df_gmap = pd.concat([df_gmap,chunk],ignore_index=True)
         if i + REQUESTS_MINUTE < len(df):  # Only wait if there are more records to process
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Waiting 1 minute before sending next batch to Distance Server')
+            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Waiting 1 minute before sending next batch to GMAP API')
             time.sleep(65)  # Delay for 65 seconds
 
     # to comply with Google Maps Platform Terms Of Service only the difference between the OSM and Google Maps distances can be saved
