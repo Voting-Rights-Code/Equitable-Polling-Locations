@@ -102,7 +102,8 @@ GMAP_distance_report.qmd is written in R using [Quatro](https://quarto.org). It 
     
         **Note**:  This command will also download and set up a Postgres server. 
     
-        It may take some time for this command to complete. 
+        It may take some time for this command to complete.  It is recommend that the imported data be kept across deletion and recreation of the container by storing it in a [volume](https://github.com/mediagis/nominatim-docker/tree/master/4.4#persistent-container-data).  
+        
 
 6.  ### Running The Python Script
 

@@ -4,8 +4,8 @@ subtitle: "OpenStreetMap vs. Google Maps"
 echo: false 
 warning: false 
 format: 
-  revealjs: default 
   html: default
+  revealjs: default 
 author: "Voting Rights Code"
 date: today
 date_format: yyyy-MM-dd
