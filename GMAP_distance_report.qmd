@@ -43,7 +43,7 @@ location = 'Virginia_Beach_City_VA'
 options(osrm.server = "http://host.docker.internal:5005/")
 options(nominatim.server = "http://host.docker.internal:8080/reverse")
 options(GMAP_Tile=TRUE)
-x=grep("Platform",readLines(paste0(root,"/authentication_files")), value=TRUE)
+x=grep("Platform",readLines(paste0(root,"/authentication_files/GMAP_Platform_KEY")), value=TRUE)
 options(GMAP_API_KEY=gsub('GMAP_Platform_KEY=','',x))
 rm(x)
 ```

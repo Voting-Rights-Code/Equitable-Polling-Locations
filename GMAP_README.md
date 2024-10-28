@@ -118,7 +118,7 @@ GMAP_distance_report.qmd is written in R using [Quatro](https://quarto.org). It 
     It is recommended that RStudio IDE be used but the following will also run the program:
 
     ```r
-        Rscript analyze_driving_distances.R
+        Rscript GMAP_distance_report.qmd
     ```
     Execution from the command line will require loading additional packages that are preinstalled in the RStudio IDE.
     
@@ -126,7 +126,7 @@ GMAP_distance_report.qmd is written in R using [Quatro](https://quarto.org). It 
 
 1. ### Google Map API Key
 
-    The program requires an API key.  A single key (maps platform key) is used for all API calls to enabled maps libraries. The key should be stored in a file called `authentication_files` which is located in the root.  The program will automatically look for this file and privately store the key.  The file should contain a single line with the key words GMAP_Platform_Key followed bu the actual key (with no spaces):
+    The program requires an API key.  A single key (maps platform key) is used for all API calls to enabled maps libraries. The key should be stored in a file called `GMAP_Platform_KEY` which is located `./authentication_files`.  The program will automatically look for this file and privately store the key.  The file should contain a single line with the key words GMAP_Platform_Key followed bu the actual key (with no spaces):
     ```bash
         GMAP_Platform_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     ```
@@ -192,7 +192,7 @@ GMAP_distance_report.qmd is written in R using [Quatro](https://quarto.org). It 
 
 1. ### Google Map API Key
 
-    The program requires an API key.  A single key (maps platform key) is used for all API calls to enabled maps libraries. The key should be stored in a file called `authentication_files` which is located in the root.  The exact path to the program root must be specified in the `#define data files` section of the code.   Once defined the code will automatically look for this file and privately store the key. The file should contain a single line with the key words GMAP_Platform_Key followed bu the actual key (with no spaces):
+    The program requires an API key.  A single key (maps platform key) is used for all API calls to enabled maps libraries. The key should be stored in a file called `GMAP_Platform_KEY` which is located `./authentication_files`.  The exact path to the program root must be specified in the `#define data files` section of the code.   Once defined the code will automatically look for this file and privately store the key. The file should contain a single line with the key words GMAP_Platform_Key followed bu the actual key (with no spaces):
     ```bash
         GMAP_Platform_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     ```

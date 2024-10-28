@@ -21,9 +21,10 @@ SAMPLE_ROWS = 2000
 REQUESTS_MINUTE = 1000
 
 # get the API Key
-load_dotenv('authentication_files')
+fn = "GMAP_Platform_KEY"
+env_path=os.path.join("./authentication_files",fn)
+load_dotenv(dotenv_path=env_path)
 GMAP_api_key = os.getenv('GMAP_Platform_KEY')
-
 
 def variables_present(required_variables: list, df: pd.DataFrame):
     """check to see if required variable names exist in a dataframe
