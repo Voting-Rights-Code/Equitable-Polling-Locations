@@ -96,7 +96,11 @@ def get_county_code(county, all_county_codes):
     """
     Get the county code for a given county
     """
-    county_code = all_county_codes.loc[all_county_codes.county_name == county]['county'].values[0]
+
+    try: 
+        county_code = all_county_codes.loc[all_county_codes.county_name == county]['county'].values[0]
+    except:
+        county_code = all_county_codes.loc[all_county_codes.county_name.str.contains(county)]['county'].values[0]
     return county_code
 
 

@@ -9,7 +9,7 @@ parser.add_argument('-c', '--concurrent', default=1, type=int, help='')
 parser.add_argument('-v', '--verbose', action='count', default=2, help='Print extra logging.')
 parser.add_argument('-l', '--logdir', default="logs", type=str, help='The directory to output log files to')
 
-what = parser.parse_args(["./Gwinnett_GA_12_for_2024_configs/Gwinnett_config_no_bg_school_fire_church.yaml"])
+what = parser.parse_args(["./Gwinnett_GA_12_for_2024_configs/Gwinnett_config_missing.yaml"])
 
 def test_main():
     MAIN = model_run_cli.main(what)
