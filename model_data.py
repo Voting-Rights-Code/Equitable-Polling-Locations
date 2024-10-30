@@ -70,11 +70,17 @@ def build_source(location):
     BLOCK_SOURCE_FILE  = os.path.join(geography_dir, file_name_block)
     BLOCK_GROUP_SOURCE_FILE  = os.path.join(geography_dir, file_name_bg)
     if os.path.exists(BLOCK_SOURCE_FILE):
-        blocks_gdf = gpd.read_file(BLOCK_SOURCE_FILE)
+        try:
+            blocks_gdf = gpd.read_file(BLOCK_SOURCE_FILE)
+        except Exception:
+                print(Exception)
     else:
         raise ValueError(f'Census data for block geography not found. Reinstall using api or manually following download instruction from README.')
     if os.path.exists(BLOCK_GROUP_SOURCE_FILE):
-        blockgroup_gdf = gpd.read_file(BLOCK_GROUP_SOURCE_FILE)
+        try:
+            blockgroup_gdf = gpd.read_file(BLOCK_GROUP_SOURCE_FILE)
+        except Exception:
+                print(Exception)
     else:
         raise ValueError(f'Census data for block group geography not found. Reinstall using api or manually following download instruction from README.')
 

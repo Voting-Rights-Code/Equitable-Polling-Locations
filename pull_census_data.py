@@ -198,7 +198,9 @@ def pull_tiger_file(state, fips, county_ST, county_code, geo):
         geo = "tabblock20"
     elif geo == 'block group':
         geo = "bg20"
-    base_url = f"https://www2.census.gov/geo/tiger/TIGER2020PL/STATE/{fips}_{state.upper()}/{fips}{county_code}/tl_2020_{fips}{county_code}_{geo}.zip"
+        
+    state_UC = state.replace(' ','_').upper()
+    base_url = f"https://www2.census.gov/geo/tiger/TIGER2020PL/STATE/{fips}_{state_UC}/{fips}{county_code}/tl_2020_{fips}{county_code}_{geo}.zip"
     output_directory = Path(f"./datasets/census/tiger/{county_ST}/")
     fname = download_file(base_url, output_directory)
     unzip_file(fname, output_directory)
