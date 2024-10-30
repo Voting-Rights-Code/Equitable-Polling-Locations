@@ -2,7 +2,7 @@ from google.cloud import bigquery
 from google.cloud import bigquery_storage
 import pandas as pd
 from ast import literal_eval # Converting CSV strings to lists
-import arrow
+# import arrow
 
 from model_results import write_results_bigquery
 
@@ -124,7 +124,7 @@ def backfill_data(config_set, in_dir, overwrite = False):
 
     # ==== Read files ====
 
-    source_data = {} # Empty dict to store the data 
+    source_data = {} # Empty dict to store the data
     for out_type in out_types:
 
         # ---- Define filepaths ----
@@ -173,5 +173,5 @@ backfill_data(config_set = config_set, in_dir = in_dir, overwrite = overwrite)
 
 # Backfill all configs
 # for i,j in zip(filemaps.config_set, filemaps.out_dir):
-#     print(f"Backfilling data for config set {i}")   
+#     print(f"Backfilling data for config set {i}")
 #     backfill_data(config_set = i, in_dir = j, overwrite = overwrite)

@@ -13,12 +13,12 @@ import pandas as pd
 import datetime as dt
 import warnings
 
-from google.cloud import bigquery 
+from google.cloud import bigquery
 import gcloud_constants as gc
 
 #Define experimental and canonical fields
-CANONICAL_FIELDS = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 
-        'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set'] 
+CANONICAL_FIELDS = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open',
+        'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set']
 EXPERIMENTAL_FIELDS = ['driving', 'fixed_capacity_site_number']
 NON_CONFIG_META_DATA = ['result_folder', 'config_file_path', 'log_file_path', 'username', 'run_time', 'commit_hash']
 
@@ -94,7 +94,7 @@ class PollingModelConfig:
     fixed_capacity_site_number: int = None
     '''If default number of open precincts if one wants to hold the number
     #of people that can go to a location constant (as opposed to a function of the number of locations) '''
-    
+
     config_name: str = None
     '''Unique name of config. Will fall back to name of file if none is supplied'''
     config_set: str = None
@@ -105,16 +105,16 @@ class PollingModelConfig:
     fixed_capacity_site_number: int = None
     #'''If default number of open precincts if one wants to hold the number
     #of people that can go to a location constant (as opposed to a function of the number of locations) '''
-    
+
     # NOT SUPPORTED IN PROD, CSV ONLY. Access via other_args
     driving: bool = False
     #''' Driving distances used if True and distance file exists in correct location '''
-    
+
     commit_hash: str = None
     '''NOT CURRENTLY IN USE. Git commit under which this code was run'''
     run_time: dt.datetime = None
     '''NOT CURRENTLY IN USE. Time at which model run was initiated'''
-    
+
     result_folder: str = None
     ''' The location to write out results '''
     config_file_path: str = None
@@ -143,7 +143,7 @@ class PollingModelConfig:
         # Get a list of canonical arguments from BigQuery
         canonical_args = get_canonical_config_args()
         all_args = canonical_args + experimental_args
-        
+
 
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
@@ -183,3 +183,6 @@ class PollingModelConfig:
         col_order = canonical_fields
         config_df = config_df.loc[:, col_order]
         return config_df
+
+    # def load_from_db(params) -> PollingModelConfig:
+    #     pass
