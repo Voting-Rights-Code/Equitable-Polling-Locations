@@ -14,6 +14,7 @@ import geopandas as gpd
 from model_config import PollingModelConfig
 from authentication_files.census_key import census_key
 from pull_census_data import pull_census_data
+import fiona
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
@@ -72,15 +73,20 @@ def build_source(location):
     if os.path.exists(BLOCK_SOURCE_FILE):
         try:
             blocks_gdf = gpd.read_file(BLOCK_SOURCE_FILE)
+            print("blocks_gdf okay")
         except Exception:
-                print(Exception)
+            print(Exception)
+            print("blocks_gdf Exception")
     else:
         raise ValueError(f'Census data for block geography not found. Reinstall using api or manually following download instruction from README.')
+    
     if os.path.exists(BLOCK_GROUP_SOURCE_FILE):
         try:
             blockgroup_gdf = gpd.read_file(BLOCK_GROUP_SOURCE_FILE)
+            print("blockgroup_gdf okay")
         except Exception:
-                print(Exception)
+            print(Exception)
+            print("blockgroup_gdf Exception")
     else:
         raise ValueError(f'Census data for block group geography not found. Reinstall using api or manually following download instruction from README.')
 

@@ -1,6 +1,9 @@
 '''
 coverage run -m pytest tests\test_model_run_cli_bergen_nj.py
 coverage report -m
+
+python ./model_run_cli.py -c1 -l logs ./Bergen_NJ/Bergen_NJ.yaml
+
 '''
 
 import model_run_cli
