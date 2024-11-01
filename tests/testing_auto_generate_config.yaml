@@ -9,7 +9,6 @@ capacity: 1.8
 config_name: Richmond_city_original_2024
 config_set: test_configs
 driving: false
-driving: false
 fixed_capacity_site_number: null
 location: Richmond_city_VA
 max_min_mult: 5
