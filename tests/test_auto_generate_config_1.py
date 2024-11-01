@@ -16,8 +16,16 @@ def test_get_canonical_config_args_server(mocker):
     mock_query_result.to_dataframe.return_value.columns = CANONICAL_FIELDS
     mock_client.return_value.query.return_value = mock_query_result
 
-    expected_fields = CANONICAL_FIELDS
-    assert sorted(get_canonical_config_args()) == sorted(expected_fields)
+    # expected_fields = CANONICAL_FIELDS
+    # assert sorted(get_canonical_config_args()) == sorted(expected_fields)
+
+    # Call the function which is testing here
+    result = get_canonical_config_args()
+    # Assertions to validate the results
+    print("Result from get_canonical_config_args:", result)
+    print("Expected fields:", CANONICAL_FIELDS)
+    # print("Expected fields:", expected_fields)
+    assert sorted(result) == sorted(CANONICAL_FIELDS), "The returned fields do not match the expected canonical fields."
 
 def test_get_canonical_config_args_local(mocker):
     mocker.patch('model_config.gc.SERVER', False)
@@ -76,6 +84,7 @@ def test_experimental_and_required_fields_mutual_exclusivity():
     intersection = intersection - set(REQUIRED_FIELDS) - set(EXPERIMENTAL_FIELDS)
     
     assert len(intersection) == 0, "Required and experimental fields should not overlap."
+    # assert not intersection, "Required and experimental fields should not overlap."
 
 # A mock validate_config function for testing purposes
 def validate_config(config):
@@ -83,11 +92,21 @@ def validate_config(config):
     for field in REQUIRED_FIELDS:
         if field not in config:
             raise KeyError(field)
+        
+    # Check for required fields
+    missing_fields = [field for field in REQUIRED_FIELDS if field not in config]
+    if missing_fields:
+        raise KeyError(f"Missing required fields: {', '.join(missing_fields)}")
     
     # Check for unexpected fields
     unexpected_fields = set(config.keys()) - set(REQUIRED_FIELDS) - set(EXPERIMENTAL_FIELDS)
     if unexpected_fields:
         raise ValueError(f"Unexpected fields found: {', '.join(unexpected_fields)}")
+    
+    # Check for mutual exclusivity
+    overlapping_fields = set(REQUIRED_FIELDS).intersection(EXPERIMENTAL_FIELDS)
+    if overlapping_fields:
+        raise ValueError(f"Fields cannot be both required and experimental: {', '.join(overlapping_fields)}")
     
     for field in EXPERIMENTAL_FIELDS:
         if field in config and field in REQUIRED_FIELDS:

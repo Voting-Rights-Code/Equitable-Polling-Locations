@@ -1,6 +1,7 @@
 # Constants for the optimization function #
 location: Richmond_city_VA
-year: '2016'
+year:
+    - '2016'
 bad_types:
     - Community Center - Potential
     - Fire Station - Potential

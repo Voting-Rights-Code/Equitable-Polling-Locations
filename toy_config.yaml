@@ -1,0 +1,5 @@
+experimental_fields:
+  experimental_field: value_experimental
+required_fields:
+  field1: value1
+  field2: value2
