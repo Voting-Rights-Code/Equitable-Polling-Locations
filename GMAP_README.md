@@ -147,7 +147,7 @@ GMAP_distance_report.qmd is written in R using [Quatro](https://quarto.org). It 
 
     The purpose of the program is to create a sample from the records in /datasets/polling/{location}.csv.   The program contains a variable called `SAMPLE_ROWS` which defines the total number of records in the sample.  The program will evenly divide the total number of `SAMPLE_ROWS` into the following 4 groups (`Sample` is the variable name in the output file):
         
-    1. lowest density quartile (`Sample` = 'pop')
+    1. lowest population density quartile (`Sample` = 'pop')
     2. lowest percent white quartile (`Sample` = 'rac')
     3. lowest income quartile (`Sample` = 'inc')
     4. remaining dataset (`Sample` = 'oth')
@@ -178,9 +178,11 @@ GMAP_distance_report.qmd is written in R using [Quatro](https://quarto.org). It 
         +  /datasets/driving/{location}/{location}_driving_distances.csv
             -  Contains OSM driving distances for all origin, destination pairs.  Calculated externally of these programs.  
         +  /datasets/polling/{location}/{location}.csv
-            - Contains the results of the Equitable Polling Locations program.  
+            - Contains the results of the Equitable Polling Locations program. 
+        + /datasets/census/tiger/{location}
+            - Contains Census Tiger/Line Shapefiles. Used to calculate land mass for population density.   
 
-        Both input data sets are merged to construct the data from which the sample is extracted.
+        All input data sets are merged to construct the data from which the sample is extracted.
 
     - Output
         + /datasets/driving/{location}/{location}_compare_driving_distances.csv
@@ -270,7 +272,6 @@ For questions or support, contact us at: ???
 - Resolve OSM driving differences between supplied data and OSRM results.
 - Enhance visualization features with additional interactivity.
 - Deeper analysis of the differences between the driving distances.
-- Develop a web interface for easier access and usage.
 - Combine into one program -- A design decision was made to follow the project's coding standard of data process/manipulation in Python and analysis in R.   However a single R (or Python) program can handle all the sampling, API calls, and the analysis.
 
 ## Common Issues and Troubleshooting
@@ -283,3 +284,4 @@ For questions or support, contact us at: ???
 ## Changelog
 
 - **v1.0**: Initial release with core features for constructing the data sample and producing a driving distance report.
+- **v1.1**: Shapefiles and population density added. 

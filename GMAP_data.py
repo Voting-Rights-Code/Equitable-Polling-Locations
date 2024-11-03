@@ -1,7 +1,9 @@
+#%%
 #!/usr/local/bin/python
 
 import pandas as pd
 import numpy as np
+import geopandas 
 import sys
 import os
 import time
@@ -25,6 +27,7 @@ fn = "GMAP_Platform_KEY"
 env_path=os.path.join("./authentication_files",fn)
 load_dotenv(dotenv_path=env_path)
 GMAP_api_key = os.getenv('GMAP_Platform_KEY')
+
 
 def variables_present(required_variables: list, df: pd.DataFrame):
     """check to see if required variable names exist in a dataframe
@@ -61,6 +64,20 @@ def number_subset(var, start, end):
     string = var.apply(str).str[start:end]
     return string.astype(str)
 
+def LandMass(geo_map):
+    """calculate the land mass area from the geopanda 
+    
+    Args: 
+        geo_map (geopanda):   geopanda map
+    
+    Returns:   
+        panda containing GEOID and land area in meters
+    """
+    # Census data uses EPSG: 4269, which is a  latitude and longitude geographic coordinate system.
+    # For accurate area and distance calculations convert to EPSG:3857, which translates the geographic system into a flat surface.
+    map_projected = geo_map.to_crs(epsg=3857)
+    map_projected['area_sq_m']=map_projected.geometry.area
+    return(map_projected[['GEOID20','area_sq_m']])
 
 def row_identify(df, var_in, q_val, text):
     """identify rows that have not previously been selected and have
@@ -78,8 +95,7 @@ def row_identify(df, var_in, q_val, text):
     df.loc[(df["Sample"].str.len() == 0) &
            (df[var_in] <= df[var_in].quantile(q_val)), "Sample"] = text
     return df
-
-
+    
 def df_sample(df: pd.DataFrame, quartile: float):
     """given a dataframe select a sample based on pre specified demographic conditions 
 
@@ -91,18 +107,19 @@ def df_sample(df: pd.DataFrame, quartile: float):
     """
 
     # check to see if variables are present
-    variables_present(['white', 'income', 'population'], df)
+    variables_present(['white', 'income', 'population_density'], df)
 
-    # identify  blocks that have the lowest quartile of income,white, and population
-    # prevent sampling the same cases by creating a hierarchy of race>income>population>other
+    # identify  blocks that have the lowest quartile of income,white, and population density.
+    # prevent sampling the same cases by creating a hierarchy of race>income>population density>other. 
     df['Sample'] = ''
     df = row_identify(df, "white", quartile, "rac")
     df = row_identify(df, "income", quartile, "inc")
-    df = row_identify(df, "population", quartile, "pop")
+    df = row_identify(df, "population_density", quartile, "pop")
     df.loc[df["Sample"].str.len() == 0, "Sample"] = 'oth'
     # create an identifier of which block the row was selected from
     df['Sample_Block'] = df['Sample']
    
+   # get record count for dataset and each block and number of sample blocks
     dataset_rows = df.shape[0]
     cnt = df["Sample"].value_counts().to_frame().reset_index()
     group_rows = cnt.shape[0]
@@ -274,6 +291,15 @@ def main():
             print("*Error: Could not read program results file for " + county_ST)
             print(f"Program Exit: {e}")
 
+        #confirm census maps have been downloaded and can be read
+        try:
+            map=geopandas.read_file(path.joinpath('datasets/census/tiger',county_ST,'tl_2020_'+fipscode+countycode+'_bg20.shp'))
+            area = LandMass(map)
+            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Reading Tiger File')
+        except SystemExit as e:
+            print("*Error: Could not read tiger file for " + county_ST)
+            print(f"Program Exit: {e}")
+
         # ACS economic data-- read json ACS file from Census Bureau website
         try:
             VB_Income = pd.read_json(
@@ -293,7 +319,7 @@ def main():
             VB_Income['income'] = VB_Income['income'].astype(int)
             # Replace where the median household income cannot be calculated or reported with NaN
             VB_Income["income"] = VB_Income["income"].replace(-666666666, np.nan)
-            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Fetching ACS Json FIle')
+            print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Fetching ACS JSON FIle')
         except json.JSONDecodeError as e:
             # Handle issues related to malformed JSON data
             print("*JSON Error " + f"JSONDecodeError: {e}")
@@ -309,20 +335,29 @@ def main():
             print(f"Program Exit: {e}")
 
         # Merge all data together
+        #create a composite key to be use to merge the Tiger land area in
+        VB_Data["GEOID20"]= VB_Data["state"]+VB_Data["county"]+VB_Data["tract"]+VB_Data["block group"]
         # Use the Map daa as the core dataset since all comparisons are made to it
         VB_All = pd.merge(Driving_Distance, VB_Data,
                         on=["id_orig", "id_dest"],
                         how="inner"
                         ).merge(
-            VB_Income,
-            on=["state", "county", "tract", "block group"],
-            how="left"
-        )
+                                    VB_Income,
+                                    on=["state", "county", "tract", "block group"],
+                                    how="left"
+                                ).merge(
+                                        area,
+                                        on='GEOID20',
+                                        how="left"
+                                        )               
         print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Merging Files')
 
         # remove blocks that nobody lives in
         VB_All = VB_All.loc[VB_All["population"] > 0].copy()
 
+        # calculate population density
+        VB_All["population_density"] = VB_All["population"] / VB_All["area_sq_m"]
+        
         # construct the sample
         VB_sample, sample_summary = df_sample(VB_All, 0.25)
         print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Sampling Done')

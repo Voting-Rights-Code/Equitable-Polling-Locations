@@ -192,7 +192,7 @@ distance_compare<-distance_compare[, `:=` (sort_order=fcase(Sample_Block=='inc' 
                                                             Sample_Block=='rac',3,
                                                             Sample_Block=='oth',4),
                                            grp_label= fcase(Sample_Block=='inc','Sample Group: lowest income quartile', 
-                                                            Sample_Block=='pop','Sample Group: lowest density quartile',
+                                                            Sample_Block=='pop','Sample Group: lowest population density quartile',
                                                             Sample_Block=='rac','Sample Group: lowest percent white quartile',
                                                             Sample_Block=='oth','Sample Group: remaining dataset')
                                             ) 
@@ -243,7 +243,7 @@ pri<-distance_sample[V1 != 'all',][
   text_replace(
     pattern='oth',replacement='remaining dataset') |>
    text_replace(
-    pattern='pop',replacement='lowest density quartile') |>
+    pattern='pop',replacement='lowest population density quartile') |>
    text_replace(
     pattern='rac',replacement='lowest percent white quartile'
   ) 
@@ -289,7 +289,7 @@ boxplot(distance_difference ~ sort_order,data=distance_compare,
         ylab = "Sample Group", xlab="Difference (m)"
 ) 
 # Rotate y-axis labels and add them back with space adjustment
-axis(2, at = 4:1, labels = c("density","income", "white", "remaining"), las = 1, cex.axis = 0.8)
+axis(2, at = 4:1, labels = c("population density","income", "white", "remaining"), las = 1, cex.axis = 0.8)
 ```
 
 # 
