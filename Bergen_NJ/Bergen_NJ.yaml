@@ -4,7 +4,7 @@ year:
     - '2020'
 
 bad_types: 
-    - 'Bergen County Courthouse 2020' 
+    - 'Warehouse - 2020' 
 beta: -2
 time_limit: 360000 #100 hours minutes
 capacity: 5
