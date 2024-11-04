@@ -1,5 +1,5 @@
 # Constants for the optimization function
-location: Gwinnett_GA
+location: Gwinnett_County_GA
 year:
     - '2020'
     - '2022'
@@ -16,4 +16,4 @@ precincts_open: 20
 max_min_mult: 5 #scalar >= 1
 maxpctnew: 1 # in interval [0,1]
 minpctold: .8 # in interval [0,1]
-driving_distance_file_path: datasets/driving/Gwinnett_GA/Gwinnett_GA_driving_distances.csv
+driving_distance_file_path: datasets/driving/Gwinnett_County_GA/Gwinnett_County_GA_driving_distances.csv

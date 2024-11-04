@@ -14,8 +14,8 @@ setwd(here())
 #source functions
 #######
 
-source('result analysis/graph_functions.R')
-source('result analysis/map_functions.R')
+source('result_analysis/graph_functions.R')
+source('result_analysis/map_functions.R')
 
 #######
 #Set Constants
@@ -24,7 +24,7 @@ source('result analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_City_VA', 'Virginia_Beach_City_VA')
+LOCATION = c('Fairfax_County_VA', 'Loudon_County_VA', 'Norfolk_city_VA', 'Virginia_Beach_city_VA')
 CONFIG_FOLDER = 'Engage_VA_2024_configs'
 
 
@@ -67,7 +67,7 @@ color_bounds <- distance_bounds(CONFIG_FOLDER)
 #######
 #Plot data
 #######
-plot_folder = paste0('result analysis/', CONFIG_FOLDER)
+plot_folder = paste0('result_analysis/', CONFIG_FOLDER)
 if (file.exists(file.path(here(), plot_folder))){
     setwd(file.path(here(), plot_folder))    
 } else{

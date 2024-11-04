@@ -1,5 +1,5 @@
 #Constants for the optimization function
-location: DeKalb_GA
+location: DeKalb_County_GA
 year: 
   - '2024'
 bad_types: 

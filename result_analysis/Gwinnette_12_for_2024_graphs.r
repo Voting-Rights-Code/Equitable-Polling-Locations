@@ -12,8 +12,8 @@ setwd(here())
 #source functions
 #######
 
-source('result analysis/graph_functions.R')
-source('result analysis/map_functions.R')
+source('result_analysis/graph_functions.R')
+source('result_analysis/map_functions.R')
 
 #######
 #Set Constants
@@ -23,10 +23,10 @@ source('result analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'Gwinnett_GA'
-CONFIG_FOLDER = 'Gwinnett_GA_12_for_2024_configs'
+LOCATION = 'Gwinnett_County_GA'
+CONFIG_FOLDER = 'Gwinnett_County_GA_12_for_2024_configs'
 
-PENALIZED_CONFIG_FOLDER = 'Gwinnett_GA_12_for_2024_penalized_configs'
+PENALIZED_CONFIG_FOLDER = 'Gwinnett_County_GA_12_for_2024_penalized_configs'
 
 
 #######
@@ -92,7 +92,7 @@ color_bounds <- list(global_min, global_max)
 #######
 #Plot data
 #######
-plot_folder = paste0('result analysis/', CONFIG_FOLDER)
+plot_folder = paste0('result_analysis/', CONFIG_FOLDER)
 if (file.exists(file.path(here(), plot_folder))){
     setwd(file.path(here(), plot_folder))    
 } else{

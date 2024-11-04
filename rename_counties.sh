@@ -1,6 +1,6 @@
 #change folder names to eliminate spaces
-mv "./result analysis" "./result_analysis"
-mv "./result_analysis/map work" "./result_analysis/map_work"
+mv "./result_analysis" "./result_analysis"
+mv "./result_analysis/map_work" "./result_analysis/map_work"
 
 #list of locations where "County" needs to be added
 declare -a add_county=("Gwinnett_GA" "DeKalb_GA" "Cobb_GA" "Berkeley_SC" "Lexington_SC" "Greenville_SC" "Richland_SC" "York_SC")

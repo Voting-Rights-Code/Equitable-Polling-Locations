@@ -9,8 +9,8 @@ setwd(here())
 #source functions
 #######
 
-source('result analysis/graph_functions.R')
-source('result analysis/map_functions.R')
+source('result_analysis/graph_functions.R')
+source('result_analysis/map_functions.R')
 
 #######
 #Set Constants
@@ -80,7 +80,7 @@ color_bounds <- list(global_min, global_max)
 #######
 #Plot data
 #######
-plot_folder = paste0('result analysis/', CONFIG_FOLDER)
+plot_folder = paste0('result_analysis/', CONFIG_FOLDER)
 if (file.exists(file.path(here(), plot_folder))){
     setwd(file.path(here(), plot_folder))
 } else{
@@ -113,7 +113,7 @@ sapply(orig_res_dist_list, function(x)make_bg_maps(x, 'map'))
 #sapply(orig_res_dist_list, function(x)make_demo_dist_map(CONFIG_FOLDER, x, 'population', map_type = 'map'))
 
 
-plot_folder = paste0('result analysis/', POTENTIAL_CONFIG_FOLDER)
+plot_folder = paste0('result_analysis/', POTENTIAL_CONFIG_FOLDER)
 if (file.exists(file.path(here(), plot_folder))){
     setwd(file.path(here(), plot_folder))    
 } else{

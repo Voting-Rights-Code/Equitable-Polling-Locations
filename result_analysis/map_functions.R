@@ -41,7 +41,7 @@ library(cartogram)
 #	 * the size of the dot corresponds to population. 
 # 	 	* the size scale is determined by the total populations of the block groups
 
-source('result analysis/graph_functions.R')
+source('result_analysis/graph_functions.R')
 
 
 process_maps <- function(file_name){
@@ -132,7 +132,7 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 	} else{
 		stop('map_type must be either map, boundries or cartogram')
 	}
-	map_folder <- 'result analysis/map work'
+	map_folder <- 'result_analysis/map_work'
 	#load if it exists, else make
 	print(map_name)
 	if (file.exists(file.path(here(), map_folder, map_name))){

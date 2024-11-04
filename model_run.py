@@ -5,7 +5,7 @@
 #######################################
 '''
 This file sets up a pyomo/scip run based on a config file, e.g.
-Gwinnett_GA_configs/Gwinnett_config_full_11.py
+Gwinnett_County_GA_configs/Gwinnett_config_full_11.py
 '''
 
 import os

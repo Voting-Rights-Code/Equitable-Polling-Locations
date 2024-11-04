@@ -1,7 +1,7 @@
 for i in range(11, 31):
-    with open(f'Gwinnett_GA_driving_no_bg_no_ed_{i}.yaml', 'w') as f:
+    with open(f'Gwinnett_County_GA_driving_no_bg_no_ed_{i}.yaml', 'w') as f:
         f.write(f"""# Constants for the optimization function
-location: Gwinnett_GA
+location: Gwinnett_County_GA
 year:
     - '2020'
     - '2022'

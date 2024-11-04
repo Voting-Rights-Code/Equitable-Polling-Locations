@@ -11,7 +11,7 @@ Input is two files: origins and destinations. Each of these is a "location file"
 - Additional columns are fine to include, as long as the required columns are included and accurately named. 
 - There is no need to indicate (apart from the column names) which kind of location file it is.
 - **Examples:**
-    - "lat/lon" location file examples are in 'datasets/driving/Gwinnett_GA'
+    - "lat/lon" location file examples are in 'datasets/driving/Gwinnett_County_GA'
     - an "address" location file example is in 'datasets/driving/SC'
 
 ## Output file formats

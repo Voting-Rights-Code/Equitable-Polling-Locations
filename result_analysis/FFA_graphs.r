@@ -13,7 +13,7 @@ setwd(here())
 #source functions
 #######
 
-source('result analysis/graph_functions.R')
+source('result_analysis/graph_functions.R')
 
 
 #######
@@ -67,7 +67,7 @@ orig_df_list <- read_result_data(LOCATION, original_locations, 'historical')
 #######
 #Plot data
 #######
-plot_folder = paste0('result analysis/', CONFIG_FOLDER)
+plot_folder = paste0('result_analysis/', CONFIG_FOLDER)
 if (file.exists(file.path(here(), plot_folder))){
     setwd(file.path(here(), plot_folder))    
 } else{

@@ -9,8 +9,8 @@ setwd(here())
 #source functions
 #######
 
-source('result analysis/graph_functions.R')
-source('result analysis/map_functions.R')
+source('result_analysis/graph_functions.R')
+source('result_analysis/map_functions.R')
 
 #######
 #Set Constants
@@ -91,7 +91,7 @@ color_bounds <- list(global_min, global_max)
 #Plot data
 #######
 
-plot_folder = paste0('result analysis/', COMPARISON_FOLDER)
+plot_folder = paste0('result_analysis/', COMPARISON_FOLDER)
 if (file.exists(file.path(here(), plot_folder))){
     setwd(file.path(here(), plot_folder))
 } else{
