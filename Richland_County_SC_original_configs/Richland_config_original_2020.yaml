@@ -1,5 +1,5 @@
 #Constants for the optimization function
-location: Richland_SC
+location: Richland_County_SC
 year: 
   - '2020'
 bad_types: 

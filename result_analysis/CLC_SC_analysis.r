@@ -23,8 +23,8 @@ source('result_analysis/map_functions.R')
 #Basic constants for analysis
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
-LOCATION = 'York_SC'
-CONFIG_FOLDER = 'York_SC_original_configs'
+LOCATION = 'York_County_SC'
+CONFIG_FOLDER = 'York_County_SC_original_configs'
 
 
 #Run-type specific constants

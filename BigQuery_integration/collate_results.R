@@ -16,11 +16,11 @@ loc_changes <- list(
   c(old = "Berkeley_SC", new = "Berkeley_County_SC"),
   c(old = "Cobb_GA", new = "Cobb_County_GA"),
   c(old = "Dekalb_GA", new = "Dekalb_County_GA"),
-  c(old = "Greenville_SC", new = "Greenville_County_SC"),
+  c(old = "Greenville_County_SC", new = "Greenville_County_SC"),
   c(old = "Gwinett_GA", new = "Gwinett_County_GA"),
-  c(old = "Lexington_SC", new = "Lexington_County_SC"),
-  c(old = "Richland_SC", new = "Richland_County_SC"),
-  c(old = "York_SC", new = "York_County_SC")
+  c(old = "Lexington_County_SC", new = "Lexington_County_SC"),
+  c(old = "Richland_County_SC", new = "Richland_County_SC"),
+  c(old = "York_County_SC", new = "York_County_SC")
 )
 
 
@@ -184,7 +184,7 @@ collate_runs <- function(config_set, config_dir, result_dir, out_dir, loc_change
 
 # --- Tests of low-level functions ---
 # Read in York and Berkeley configs
-york_configs.df <- collate_configs(config_set = "York_SC_original_configs", config_dir = "../York_SC_original_configs")
+york_configs.df <- collate_configs(config_set = "York_County_SC_original_configs", config_dir = "../York_County_SC_original_configs")
 berkeley_configs.df <- collate_configs(config_set = "Berkeley_SC_original_configs", config_dir = "../Berkeley_SC_original_configs")
 
 # Read in Dekalb configs to validate that we can handle with an array of years per config

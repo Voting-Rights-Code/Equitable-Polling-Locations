@@ -107,10 +107,10 @@ richland_dt <- dt[county_name == 'RICHLAND', ][,county_name := NULL]
 york_dt <- dt[county_name == 'YORK',][,county_name := NULL]
 
 fwrite(berkeley_dt, '../Berkeley_SC/Berkeley_SC_locations_only.csv')
-fwrite(greenville_dt, '../Greenville_SC/Greenville_SC_locations_only.csv')
-fwrite(lexington_dt, '../Lexington_SC/Lexington_SC_locations_only.csv')
-fwrite(richland_dt, '../Richland_SC/Richland_SC_locations_only.csv')
-fwrite(york_dt, '../York_SC/York_SC_locations_only.csv')
+fwrite(greenville_dt, '../Greenville_County_SC/Greenville_County_SC_locations_only.csv')
+fwrite(lexington_dt, '../Lexington_County_SC/Lexington_County_SC_locations_only.csv')
+fwrite(richland_dt, '../Richland_County_SC/Richland_County_SC_locations_only.csv')
+fwrite(york_dt, '../York_County_SC/York_County_SC_locations_only.csv')
 ########
 #old stuff below
 ########

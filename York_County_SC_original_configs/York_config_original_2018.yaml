@@ -1,5 +1,5 @@
 #Constants for the optimization function
-location: York_SC
+location: York_County_SC
 year: 
   - '2018'
 bad_types: 
