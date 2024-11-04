@@ -25,4 +25,4 @@ Output is 3 files:
 The 'ors_lat' and 'ors_lon' are the actual latitude and longitude used by the Open Route Service (ORS) in the distance calculation. This is not always the same as the latitude and longitude in the input files: the ORS "snaps" to the closest mappable location from a given input location.
 
 - **Examples:**
-    - Examples of the output files are in 'datasets/driving/Gwinnett_GA/'
+    - Examples of the output files are in 'datasets/driving/Gwinnett_County_GA/'

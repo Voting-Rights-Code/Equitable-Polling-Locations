@@ -13,8 +13,8 @@ if((strsplit(getwd(), "/", fixed = TRUE)[[1]][length(strsplit(getwd(), "/", fixe
 config_folders_rec <- read.csv("filemaps.csv")
 
 loc_changes <- list(
-  c(old = "Berkeley_SC", new = "Berkeley_County_SC"),
-  c(old = "Cobb_GA", new = "Cobb_County_GA"),
+  c(old = "Berkeley_County_SC", new = "Berkeley_County_SC"),
+  c(old = "Cobb_County_GA", new = "Cobb_County_GA"),
   c(old = "Dekalb_GA", new = "Dekalb_County_GA"),
   c(old = "Greenville_County_SC", new = "Greenville_County_SC"),
   c(old = "Gwinett_GA", new = "Gwinett_County_GA"),
@@ -185,7 +185,7 @@ collate_runs <- function(config_set, config_dir, result_dir, out_dir, loc_change
 # --- Tests of low-level functions ---
 # Read in York and Berkeley configs
 york_configs.df <- collate_configs(config_set = "York_County_SC_original_configs", config_dir = "../York_County_SC_original_configs")
-berkeley_configs.df <- collate_configs(config_set = "Berkeley_SC_original_configs", config_dir = "../Berkeley_SC_original_configs")
+berkeley_configs.df <- collate_configs(config_set = "Berkeley_County_SC_original_configs", config_dir = "../Berkeley_County_SC_original_configs")
 
 # Read in Dekalb configs to validate that we can handle with an array of years per config
 dekalb_test_configs.df <- collate_configs(config_set = "Dekalb_GA_no_bg_school_configs", config_dir = "../Dekalb_GA_no_bg_school_configs")
@@ -193,10 +193,10 @@ dekalb_test_configs.df <- collate_configs(config_set = "Dekalb_GA_no_bg_school_c
 # --- Test run of collate_run ---
 # Set directories
 # collate_runs(
-#   config_set = "Cobb_GA_no_bg_school_configs",
-#   config_dir = "../Cobb_GA_no_bg_school_configs",
-#   result_dir = "../Cobb_GA_results",
-#   out_dir = "Cobb_GA_no_bg_school_configs_collated"
+#   config_set = "Cobb_County_GA_no_bg_school_configs",
+#   config_dir = "../Cobb_County_GA_no_bg_school_configs",
+#   result_dir = "../Cobb_County_GA_results",
+#   out_dir = "Cobb_County_GA_no_bg_school_configs_collated"
 # )
 collate_runs(
   config_set = "Engage_VA_2024_original_configs",
