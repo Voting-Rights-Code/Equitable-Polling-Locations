@@ -264,8 +264,8 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str, 
         raise ValueError(f'Driving Distance File ({driving_distance_file_path}) '
                          'must contain id_orig, id_dest, and distance_m columns')
 
-    if 'distance_m' in df.columns:
-        df = df.rename(columns={'distance_m':'haversine_m'})
+    #if 'distance_m' in df.columns:
+    #    df = df.rename(columns={'distance_m':'haversine_m'})
 
     combined_df = pd.merge(df, driving_distance, on=['id_orig', 'id_dest'], how='left')
 
@@ -357,6 +357,8 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
         driving_file_name = location + '_driving_distances.csv'
         DRIVING_DISTANCES_FILE = os.path.join(DATASETS_DIR, 'driving', location, driving_file_name)
         df = insert_driving_distances(df, DRIVING_DISTANCES_FILE, log)
+    else:
+        df['source'] = 'haversine distance'
 
     #create other useful columns
     df['Weighted_dist'] = df['population'] * df['distance_m']

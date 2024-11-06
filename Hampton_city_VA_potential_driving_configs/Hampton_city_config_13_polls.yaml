@@ -14,4 +14,3 @@ max_min_mult: 5 #scalar >= 1
 maxpctnew: 1 # in interval [0,1]
 minpctold: .8 # in interval [0,1]
 driving: True # bool (default = False)
-driving: True # bool (default = False)
