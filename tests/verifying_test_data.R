@@ -29,7 +29,7 @@ test_kp_factor <- sample_expanded[ , .(id_orig, id_dest, kp_factor)]
 fwrite(test_kp_factor, 'tests/test_kp_factor.csv')
 
 
-dt_old_2020<- fread("Gwinnett_GA_results/Gwinnett_GA_original_old/Gwinnett_GA_configs.Gwinnett_config_original_2020_result.csv")
-dt_new_2020<- fread("Gwinnett_GA_results/Gwinnett_GA_configs.Gwinnett_config_original_2020_result.csv")
+dt_old_2020<- fread("Gwinnett_County_GA_results/Gwinnett_County_GA_original_old/Gwinnett_County_GA_configs.Gwinnett_config_original_2020_result.csv")
+dt_new_2020<- fread("Gwinnett_County_GA_results/Gwinnett_County_GA_configs.Gwinnett_config_original_2020_result.csv")
 all.equal(dt_old_2020, dt_new_2020)
 
