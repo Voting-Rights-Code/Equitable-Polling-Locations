@@ -5,7 +5,7 @@
 #######################################
 '''
 This file sets up a pyomo/scip run based on a config file, e.g.
-Gwinnett_GA_configs/Gwinnett_config_full_11.py
+Gwinnett_County_GA_configs/Gwinnett_config_full_11.py
 '''
 
 import os
@@ -65,7 +65,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
 
     #calculate the new alpha given this assignment
     alpha_new = alpha_min(result_df)
-
+    
     #calculate the average distances traveled by each demographic to the assigned precinct
     demographic_prec = demographic_domain_summary(result_df, 'id_dest')
 
@@ -101,5 +101,6 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
             demographic_ede,
             replace
         )
+
 
     return

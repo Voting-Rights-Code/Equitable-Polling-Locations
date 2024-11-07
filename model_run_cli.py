@@ -130,16 +130,16 @@ Examples:
     To run all configs in a given folder, parallel processing 4 at a time, and write log files out to the logs
     directory:
 
-        python ./model_run_cli.py -c4 -l logs ./Gwinnett_GA_no_bg_school_fire_configs/*.yaml
+        python ./model_run_cli.py -c4 -l logs ./Gwinnett_County_GA_no_bg_school_fire_configs/*.yaml
 
     To run all configs run one at a time, extra logging printed to the console,
     and write log files out to the logs directory:
 
-        python ./model_run_cli.py -vv -l logs ./Gwinnett_GA_no_bg_school_fire_configs/*.yaml
+        python ./model_run_cli.py -vv -l logs ./Gwinnett_County_GA_no_bg_school_fire_configs/*.yaml
 
     To run only the Gwinnett_config_no_bg_11 config and write log files out to the logs directory:
 
-        python ./model_run_cli.py -l logs ./Gwinnett_GA_no_bg_school_fire_configs/Gwinnett_config_no_bg_11.yaml
+        python ./model_run_cli.py -l logs ./Gwinnett_County_GA_no_bg_school_fire_configs/Gwinnett_config_no_bg_11.yaml
         '''
     )
     parser.add_argument('configs', nargs='+', help='One or more yaml configuration files to run.')

@@ -1,0 +1,23 @@
+#Constants for the optimization function
+location: Gwinnett_County_GA
+year: 
+  - '2022'
+bad_types: 
+    - 'Elec Day School - Potential'
+    - 'Elec Day Church - Potential'
+    - 'Elec Day Other - Potential'
+    - 'College Campus - Potential'
+    - 'Community Center - Potential'
+    - 'Fire Station - Potential'
+    - 'Library - Potential'
+    - 'Other - Potential'
+    - 'bg_centroid' 
+beta: -2
+time_limit: 360000 #100 hours minutes
+capacity: 5
+
+####Optional#####
+precincts_open: null
+max_min_mult: 5 #scalar >= 1
+maxpctnew: 0 # in interval [0,1]
+minpctold: 1 # in interval [0,1]
