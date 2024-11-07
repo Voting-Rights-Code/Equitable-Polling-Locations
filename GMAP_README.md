@@ -239,14 +239,18 @@ GMAP_distance_report.qmd is written in R using [Quatro](https://quarto.org). It 
 
     The option `GMAP_Tile` specifies if the Google driving directions are displayed on a Google Map background (True) or an OSM background (False).  Default setting is to display the map on an Google Map background. 
 
-8. ### Distance Calculation 
+8. ### OSM Driving Distance Calculation 
+
+    The option `OSM_reCalc` specifies if the OSM driving distances are recalculated (True) or the if the values provided in the input file are used (False). 
+
+9. ### Distance Calculation 
     The program utilizes the absolute value of the differences between the driving distances returned from each program:
  
     $$
     distance\_difference  = abs(Distance _{osm}  - Distance_{gmap})
     $$
 
-9. ### Datasets
+10. ### Datasets
     
     {location} is the city/county being examined.
 
@@ -269,7 +273,7 @@ For questions or support, contact us at: ???
 
 ## Future Work
 
-- Resolve OSM driving differences between supplied data and OSRM results.
+- Resolve OSM driving differences between supplied data and OSRM results. Current solution is an option to recalculate the OSM driving distances to remove teh discrepancies.  
 - Enhance visualization features with additional interactivity.
 - Deeper analysis of the differences between the driving distances.
 - Combine into one program -- A design decision was made to follow the project's coding standard of data process/manipulation in Python and analysis in R.   However a single R (or Python) program can handle all the sampling, API calls, and the analysis.
@@ -277,8 +281,8 @@ For questions or support, contact us at: ???
 ## Common Issues and Troubleshooting
 
 - **Error: API key missing**: Ensure you have set your Google Maps API key in the configuration.
+- **Failed to perform HTTP request**:  The OSM and/or Nominatim server is not running or improperly configured. 
 - **Latency in local OSM servers**: Check the Nominatim server status and reduce the volume of requests.
-
 - **Data File Not Found**: Ensure the paths to the data files are correct and the files exist in the specified directories.
 
 ## Changelog

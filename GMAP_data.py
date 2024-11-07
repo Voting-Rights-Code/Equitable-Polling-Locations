@@ -218,9 +218,8 @@ def add_GMAP_distance_m(df: pd.DataFrame, api_key: str):
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Waiting 1 minute before sending next batch to GMAP API')
             time.sleep(65)  # Delay for 65 seconds
 
-    # to comply with Google Maps Platform Terms Of Service only the difference between the OSM and Google Maps distances can be saved
     df_gmap['Programs_difference_m'] = df_gmap['OSM_distance_m'] - df_gmap['GMAP_distance_m']
-    df_gmap.drop(['GMAP_distance_m'],axis=1,inplace=True)
+    # df_gmap.drop(['GMAP_distance_m'],axis=1,inplace=True)
     return (df_gmap)
 
 def main():

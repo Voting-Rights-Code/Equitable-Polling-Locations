@@ -4,8 +4,8 @@ subtitle: "OpenStreetMap vs. Google Maps"
 echo: false 
 warning: false 
 format: 
-  html: default
-  revealjs: default 
+  html: 
+     smooth-scroll: true
 author: "Voting Rights Code"
 date: today
 date_format: yyyy-MM-dd
@@ -37,29 +37,44 @@ library(plotly)
 # define data files
 root = '/mnt/bin/BlueBonnet/Project_Archive/Equitable-Polling-Locations'
 path = '/datasets/driving'
-location = 'Virginia_Beach_City_VA'
+location = 'Norfolk_City_VA'
 
 #system values 
 options(osrm.server = "http://host.docker.internal:5005/")
 options(nominatim.server = "http://host.docker.internal:8080/reverse")
-options(GMAP_Tile=TRUE)
 x=grep("Platform",readLines(paste0(root,"/authentication_files/GMAP_Platform_KEY")), value=TRUE)
 options(GMAP_API_KEY=gsub('GMAP_Platform_KEY=','',x))
 rm(x)
+options(GMAP_Tile=TRUE)   # display gmaps
+options(OSM_reCalc=TRUE)  # recalculate OSM drivng distance 
 ```
 
 ```{r}
 #| label: Functions
-#construct OSM map
-#| output: false
-make_osrm_map <- function(orig_lon,orig_lat,dest_lon,dest_lat){
+# OSRM API query to get the travel geometry between two points. This function interfaces with the route OSRM service.
+osrm_route <- function(orig_lon, orig_lat, dest_lon, dest_lat,returnlevel) {
   # using local OSM server map the driving directions between two points
   # Define origin and destination
   orig <- c(orig_lon,orig_lat)
   dest <- c(dest_lon,dest_lat)
 
+  # Get route
+  route = osrmRoute(src = orig, dst = dest, overview = returnlevel,osrm.profile="car")
+  
+  # 
+  if (returnlevel  %in% c("full","simplified")) {
+      return(route)              #return entire list
+  } else if (!returnlevel) {     #false 
+    return( list(route))         # return time and distance to data table 
+  }
+}
+
+#construct OSM map
+#| output: false
+make_osrm_map <- function(orig_lon,orig_lat,dest_lon,dest_lat){
   # Get the full route with geometry
-  route <- osrmRoute(src = orig, dst = dest, overview = "full",osrm.profile="car")
+  route <- osrm_route(orig_lon,orig_lat,dest_lon,dest_lat,"full")
+  
   duration <- round(route$duration,1)
   distance <- round(route$distance* 1000,1)  # distance in meters
   # Extract coordinates from the route geometry
@@ -67,8 +82,8 @@ make_osrm_map <- function(orig_lon,orig_lat,dest_lon,dest_lat){
 
   # Create map with markers and route polylines
   map<-leaflet() |> addTiles() |>
-    addMarkers(lng = orig[1], lat = orig[2], popup = paste("Origin - Coordinates:",orig[1],",",orig[2]) ) |>
-    addMarkers(lng = dest[1], lat = dest[2], popup = paste("Destination - Coordinates:",dest[1],",",dest[2])) |>
+    addMarkers(lng = orig_lon, lat = orig_lat, popup = paste("Origin - Coordinates:",orig_lon,",",orig_lat) ) |>
+    addMarkers(lng = dest_lon, lat = dest_lat, popup = paste("Destination - Coordinates:",dest_lon,",",dest_lat)) |>
     addControl("Open Street Map",position='topright') |>
     addPolylines(lng = coords[, 1], lat = coords[, 2],
                   label = paste(duration, 'minutes -', distance, 'meters'),
@@ -134,7 +149,6 @@ make_google_map <- function(orig_lon,orig_lat,dest_lon,dest_lat,api_key){
     map<- map + 
       annotate('text', x=max(route_df$lon)-.02, y=min(route_df$lat)-.02, label = paste(duration,"minutes -",distance, "meters"), color = 'black', size = 4,fontface="bold")
  }
-  
   return(list(info=google_data,display=map))
 }
 
@@ -186,7 +200,8 @@ table_difference <- function(dt_diff){
 #| label: read data
 distance_compare <- fread(file = paste0(root, path,'/',location,'/',location,"_compare_driving_distances.csv"))
 distance_sample <- fread(file = paste0(root, path,'/',location,'/',location,"_sampling_info_driving_distances.csv"))
-distance_compare[, distance_difference := abs(Programs_difference_m)]   #difference calculated in python program for efficiency 
+#calculate the difference between the the map directions. 
+distance_compare[, distance_difference := abs(OSM_distance_m  -  GMAP_distance_m)]   
 distance_compare<-distance_compare[, `:=` (sort_order=fcase(Sample_Block=='inc' , 2, 
                                                             Sample_Block=='pop' ,1, 
                                                             Sample_Block=='rac',3,
@@ -198,6 +213,19 @@ distance_compare<-distance_compare[, `:=` (sort_order=fcase(Sample_Block=='inc' 
                                             ) 
                                     ]
 setorder(distance_compare,sort_order)
+
+if (getOption("OSM_reCalc")) {
+  # Optionally calculate the OSM differences since there is a difference between provided and calculated values
+  
+  #calculate the driving distances from the server
+  distance_compare[,result:=(mapply(osrm_route,orig_lon,orig_lat,dest_lon,dest_lat,FALSE))][
+                 , c("OSM_distance_m") :=    sapply(result, function(x)  x[2]*1000)][
+                 , result:=NULL]
+
+  #use the new driving data to recalculate the differences between the programs. 
+  distance_compare[, distance_difference :=  abs(as.numeric(OSM_distance_m)  -  GMAP_distance_m)]
+}
+
 ```
 
 ```{r}
@@ -297,9 +325,8 @@ axis(2, at = 4:1, labels = c("population density","income", "white", "remaining"
 ```{r}
 #| label: select largest driving difference and generate plots
 #| echo: false
-#select the 2 records with the biggest descrepency in distance for each sample group.
+#select the 2 records with the biggest discrepancy in distance for each sample group.
 records_2explore <- distance_compare[, .SD[order(-distance_difference)][1:2], by = Sample_Block]  
-
 # create a map for both the OSM and Google Data.  
 osm_maps= apply(records_2explore[, .(orig_lon,orig_lat,dest_lon,dest_lat)], 1, function(x) {make_osrm_map(x[1], x[2], x[3], x[4])})
 
@@ -325,14 +352,17 @@ g_maps <- lapply(google, function(x) {
 #| label: create table of largest driving distances 
 #need a unconnected copy so the records can be manipulated 
 biggest_distances<- copy(records_2explore)
-#separate the google, OSM, and difference records onto separate rows 
+
+#OSM distances recalculated -- use those variables:
+#separate the Google, OSM, and difference records onto separate rows 
 biggest_distances<-biggest_distances[,.(row = .I,grp_label,OSM_orig, OSM_dest,GMAP_orig, GMAP_dest,GMAP_distance_m,OSM_distance_m,distance_difference)] |>
-  melt(id.vars=c("row","grp_label")) 
+    melt(id.vars=c("row","grp_label")) 
 biggest_distances <- biggest_distances[,':='(
                                               program = fcase(grepl("GMAP_",variable), 'GMAP' ,
                                                               grepl("OSM_",variable), 'OSM',
-                                                              default = 'Difference'),variable = gsub("(GMAP_|OSM_)","",variable) )
-]
+                                                              default = 'Difference'),
+                                              variable = gsub("(GMAP_|OSM_)","",variable) )
+] 
 biggest_distances <- dcast(biggest_distances, row+grp_label+program ~ ... ) 
 biggest_distances[program=="Difference",distance_m := distance_difference][,distance_difference := NULL]
 setorder(biggest_distances,row,grp_label,-program)    # order  so difference is the last row  
