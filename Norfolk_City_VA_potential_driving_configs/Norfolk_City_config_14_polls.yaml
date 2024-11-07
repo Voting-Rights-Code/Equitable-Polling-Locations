@@ -1,5 +1,5 @@
 #Constants for the optimization function
-location: Norfolk_city_VA
+location: Norfolk_City_VA
 year: 
   - '2024'
 bad_types: 

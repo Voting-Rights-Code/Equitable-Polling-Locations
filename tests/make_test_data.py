@@ -4,7 +4,7 @@ from random import sample, seed
 #set seed
 seed(157934)
 
-df = pd.read_csv('datasets/polling/Gwinnett_County_GA/Gwinnett_County_GA.csv')
+df = pd.read_csv('datasets/polling/Gwinnett_GA/Gwinnett_GA.csv')
 df = df[df.population > 0 ]
 
 #pick 10 random places of origin
