@@ -49,8 +49,10 @@ def demographic_domain_summary(result_df, domain):
 
     if domain not in ['id_dest', 'id_orig']:
         raise ValueError('domain much be in [id_dest, id_orig]')
+    #extract unique source value for later
+    source_value = result_df['source'].unique() 
     #Transform to get distance and population by demographic, destination pairs for each origin
-    demographic_all = pd.melt(result_df[[domain, 'distance_m', 'population','white', 'black', 'native', 'asian', 'hispanic']], id_vars = [domain, 'distance_m', 'source'], value_vars = ['population','white', 'black', 'native', 'asian', 'hispanic'], var_name = 'demographic', value_name = 'demo_pop')
+    demographic_all = pd.melt(result_df[[domain, 'distance_m', 'population','white', 'black', 'native', 'asian', 'hispanic']], id_vars = [domain, 'distance_m'], value_vars = ['population','white', 'black', 'native', 'asian', 'hispanic'], var_name = 'demographic', value_name = 'demo_pop')
 
     #create a weighted distance column for people of each demographic
     demographic_all['weighted_dist'] = demographic_all['demo_pop']*demographic_all['distance_m']
@@ -66,6 +68,9 @@ def demographic_domain_summary(result_df, domain):
 
     #calculate the average distance
     demographic_prec['avg_dist'] =  demographic_prec['weighted_dist']/ demographic_prec['demo_pop']
+
+    #add source data back in
+    demographic_prec['source'] = source_value[0]
     return demographic_prec
 
 @timer
@@ -74,6 +79,9 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
     beta -- the inequality aversion factor
     alpha -- the data derived normalization factor
     Output: Calculate the average distances traveled by each demographic group.'''
+
+    #extract unique source value for later
+    source_value = result_df['source'].unique() 
 
     #calculate the total distance traveled by each demographic group
     demographic_dist = demographic_df['weighted_dist'].groupby('demographic').agg('sum')
@@ -109,6 +117,10 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
 
         #merge the datasets
         demographic_summary = pd.concat([demographic_summary[['weighted_dist', 'avg_dist']], demographic_ede], axis = 1)
+
+        #add source data back in
+        demographic_summary['source'] = source_value[0]
+
     return demographic_summary
 
 @timer

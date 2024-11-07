@@ -41,7 +41,17 @@ add_source_value <- function(filename_base, result_type, source_value){
 
 adapt_result_datasets <- function(filename_base){
     result_dt_name <- paste0(filename_base, '_result.csv')
-    result_dt <- fread(result_dt_name)
+    if (file.exists(result_dt_name)){
+            result_dt <- fread(result_dt_name)
+    } else{
+        if (file.exists('configs_without_results.txt')){
+            write(filename_base, file = 'configs_without_results.txt', append = TRUE)
+        } else{
+            cat(filename_base, file = 'configs_without_results.txt',sep="\n")
+        }
+
+        return(NA)
+    }
     if ('source' %in% names(dt)){ #remove haversine
         result_dt[ , haversine_m := NULL] 
     } else{ #add source
@@ -59,9 +69,10 @@ location_list = list.dirs('datasets/polling', recursive = FALSE)
 location_list <- location_list[!(grepl('Dane', location_list))]
 location_list <- location_list[!(grepl('testing', location_list))]
 location_list <- location_list[!(grepl('South Carolina temp', location_list))]
-sapply(location_list, function(x){adapt_big_dataset(x)})
+#sapply(location_list, function(x){adapt_big_dataset(x)})
 
 #add source column to/ remove haversine_m from result files
 all_folders <- list.dirs('.', recursive = FALSE)
 config_folders <- all_folders[grepl('configs', all_folders)]
-all_base_names <- unlist(sa
+all_base_names <- unlist(sapply(config_folders, get_basenames))
+sapply(all_base_names, adapt_result_datasets)

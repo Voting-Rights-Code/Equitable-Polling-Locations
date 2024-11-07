@@ -65,7 +65,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
 
     #calculate the new alpha given this assignment
     alpha_new = alpha_min(result_df)
-
+    
     #calculate the average distances traveled by each demographic to the assigned precinct
     demographic_prec = demographic_domain_summary(result_df, 'id_dest')
 
@@ -101,5 +101,6 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
             demographic_ede,
             replace
         )
+
 
     return
