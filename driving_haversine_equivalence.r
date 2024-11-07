@@ -2,8 +2,9 @@ library(data.table)
 library(here)
 library(yaml)
 
-adapt_big_dataset <- function(location){
-    file_name <- paste0('datasets/polling/', location, '/', location, '.csv')
+adapt_big_dataset <- function(location_path){
+    location_name <- gsub('datasets/polling', '', location_path)
+    file_name <- paste0(location_path, '/', location_name, '.csv')
     dt <- fread(file_name)
     if ('source' %in% names(dt)){ #remove haversine
         dt[ , haversine_m := NULL] 
@@ -54,11 +55,13 @@ adapt_result_datasets <- function(filename_base){
 }
 
 #add source column to/ remove haversine_m from big file
-#location_list = list.dirs('datasets/polling', recursive = FALSE)
-#sapply(location_list, function(x){adapt_big_dataset(x)})
+location_list = list.dirs('datasets/polling', recursive = FALSE)
+location_list <- location_list[!(grepl('Dane', location_list))]
+location_list <- location_list[!(grepl('testing', location_list))]
+location_list <- location_list[!(grepl('South Carolina temp', location_list))]
+sapply(location_list, function(x){adapt_big_dataset(x)})
 
 #add source column to/ remove haversine_m from result files
 all_folders <- list.dirs('.', recursive = FALSE)
 config_folders <- all_folders[grepl('configs', all_folders)]
-all_base_names <- unlist(sapply(config_folders, get_basenames))
-adapt_result_datasets(all_base_names[1])
+all_base_names <- unlist(sa
