@@ -129,7 +129,6 @@ disable=R,
         wrong-import-order,
         xrange-builtin,
         zip-builtin-not-iterating,
-        consider-using-f-string,
 
 
 [REPORTS]

@@ -111,7 +111,7 @@ def build_source(location):
     'NAME',
     'P4_001N', # Total population
     'P4_002N', # Total hispanic
-    'P4_003N', # Total non_hispanic
+    'P4_003N', # Total non-hispanic
     ]
 
     BLOCK_SHAPE_COLS = [
@@ -148,7 +148,7 @@ def build_source(location):
 
     #Change column names
     demographics.drop(['P4_001N', 'Pop_diff'], axis =1, inplace = True)
-    demographics = demographics.rename(columns = {'P4_002N': 'hispanic', 'P4_003N':'non_hispanic', 'P3_001N':'population', 'P3_003N':'white', 'P3_004N':'black', 'P3_005N':'native', 'P3_006N':'asian', 'P3_007N':'pacific_islander', 'P3_008N':'other', 'P3_009N':'multiple_races'})
+    demographics = demographics.rename(columns = {'P4_002N': 'hispanic', 'P4_003N':'non-hispanic', 'P3_001N':'population', 'P3_003N':'white', 'P3_004N':'black', 'P3_005N':'native', 'P3_006N':'asian', 'P3_007N':'pacific_islander', 'P3_008N':'other', 'P3_009N':'multiple_races'})
 
     #drop geo_id_prefix
     demographics['GEO_ID'] = demographics['GEO_ID'].str.replace(GEO_ID_PREFIX, '')
@@ -201,11 +201,13 @@ def build_source(location):
     #Rename, select columns and write to file
     #####
     full_df = full_df.rename(columns = {'GEO_ID': 'id_orig', 'Address': 'address', 'Latitude':'dest_lat', 'Longitude':'dest_lon', 'INTPTLAT20':'orig_lat', 'INTPTLON20':'orig_lon', 'Location type': 'location_type', 'Location': 'id_dest'})
-    
+    full_df['county'] = location
+
     FULL_DF_COLS = [
     'id_orig',
     'id_dest',
     'distance_m',
+    'county',
     'address',
     'dest_lat',
     'dest_lon',
@@ -215,7 +217,7 @@ def build_source(location):
     'dest_type',
     'population',
     'hispanic',
-    'non_hispanic',
+    'non-hispanic',
     'white',
     'black',
     'native',
@@ -310,7 +312,6 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
         raise ValueError(f'Do not currently have any data for {file_path} from {config.config_file_path}')
 
     df = pd.read_csv(file_path, index_col=0)
-    df= df.astype({'id_orig':'str'})
 
     #pull out unique location types is this data
     unique_location_types = df['location_type'].unique()

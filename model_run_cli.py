@@ -22,7 +22,7 @@ import utils
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 
-def load_configs(config_paths: List[str], logdir: str, allow_other_args: bool=False, outtype: str = 'prod') -> (bool, List[PollingModelConfig]):
+def load_configs(config_paths: List[str], logdir: str) -> (bool, List[PollingModelConfig]):
     ''' Look through the list of files and confim they exist on disk, print any missing files or errors. '''
     valid = True
     results: List[PollingModelConfig] = []
@@ -35,7 +35,7 @@ def load_configs(config_paths: List[str], logdir: str, allow_other_args: bool=Fa
             valid = False
         else:
             try:
-                config = PollingModelConfig.load_config(config_path, outtype)
+                config = PollingModelConfig.load_config(config_path)
                 if logdir:
                     config_file_basename = os.path.basename(config.config_file_path)
                     log_file_name = f'{log_date_prefix}_{config_file_basename}.log'
@@ -44,9 +44,6 @@ def load_configs(config_paths: List[str], logdir: str, allow_other_args: bool=Fa
                        log_file_name,
                     )
                 results.append(config)
-                if (bool(config.other_args) == True) & (allow_other_args == False): # An empty dict evalutes to false
-                    print(f'Invalid arguments detected in config file. To allow arbitrary arguments, set outtype to "csv"')
-
             # pylint: disable-next=broad-exception-caught
             except Exception as exception:
                 print(f'Failed to parse {config_path} due to:\n{exception}')
@@ -54,16 +51,13 @@ def load_configs(config_paths: List[str], logdir: str, allow_other_args: bool=Fa
 
     return (valid, results)
 
-def run_config(config: PollingModelConfig, log: bool=False, replace: bool=False, outtype: str = 'prod', verbose=False):
+def run_config(config: PollingModelConfig, log: bool=False, verbose=False):
     ''' run a config file '''
 
     # pylint: disable-next=line-too-long
-    if verbose & (outtype in ['prod']):
-        print(f'Starting config: {config.config_file_path} -> BigQuery {outtype} output with config set {config.config_set} and name {config.config_name}')
-    elif verbose & (outtype == 'csv'):
-        print(f'Starting config: {config.config_file_path} -> CSV output to directory {config.result_folder}')
-
-    model_run.run_on_config(config, log, replace, outtype)
+    if verbose:
+        print(f'Starting config: {config.config_file_path} -> Output dir: {config.result_folder}')
+    model_run.run_on_config(config, log)
     if verbose:
         print(f'Finished config: {config.config_file_path}')
 
@@ -72,9 +66,6 @@ def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
     logdir = args.logdir
-    replace = args.replace
-    outtype = args.outtype
-
     if logdir:
         if not os.path.exists(logdir):
             print(f'Invalid log dir: {logdir}')
@@ -82,21 +73,12 @@ def main(args: argparse.Namespace):
         else:
             print(f'Writing logs to dir: {logdir}')
 
-    if outtype not in ['csv', 'prod']:
-        print(f'Invalid outtype: {outtype}')
-        sys.exit(1)
-
-    if outtype in ['csv']:
-        allow_other_args = True
-    else:
-        allow_other_args = False
-
     # Handle wildcards in Windows properly
     glob_paths = [ glob(item) for item in args.configs ]
     config_paths: List[str] = [ item for sublist in glob_paths for item in sublist ]
 
     # Check that all files are valid, exist if they do not exist
-    valid, configs = load_configs(config_paths, logdir, allow_other_args, outtype)
+    valid, configs = load_configs(config_paths, logdir)
     if not valid:
         sys.exit(1)
 
@@ -108,7 +90,7 @@ def main(args: argparse.Namespace):
     if args.concurrent > 1:
         print(f'Running concurrent with a pool size of {args.concurrent} against {total_files} config file(s)')
         with Pool(args.concurrent) as pool:
-            for _ in tqdm(pool.imap_unordered(lambda x: run_config(x, replace, outtype), configs), total=total_files):
+            for _ in tqdm(pool.imap_unordered(run_config, configs), total=total_files):
                 pass
     else:
         # Disable function timers messages unless verbosity 2 or higher is set
@@ -118,7 +100,7 @@ def main(args: argparse.Namespace):
         print(f'Running single process against {total_files} config file(s)')
 
         for config_file in configs:
-            run_config(config_file, log, replace, outtype)
+            run_config(config_file, log, True)
             print('--------------------------------------------------------------------------------')
 
 if __name__ == '__main__':
@@ -127,19 +109,19 @@ if __name__ == '__main__':
         description='A commandline tool that chooses an optimal set of polling locations from a set of potential locations.',
         epilog='''
 Examples:
-    To run all configs in a given folder, parallel processing 4 at a time, and write log files out to the logs
+    To run all expanded configs, parallel processing 4 at a time, and write log files out to the logs
     directory:
 
-        python ./model_run_cli.py -c4 -l logs ./Gwinnett_County_GA_no_bg_school_fire_configs/*.yaml
+        python ./model_run_cli.py -c4 -l logs ./Gwinnett_GA_configs/Gwinnett_config_expanded_*.yaml
 
-    To run all configs run one at a time, extra logging printed to the console,
+    To run all full configs run one at a time, extra logging printed to the console,
     and write log files out to the logs directory:
 
-        python ./model_run_cli.py -vv -l logs ./Gwinnett_County_GA_no_bg_school_fire_configs/*.yaml
+        python ./model_run_cli.py -vv -l logs ./Gwinnett_GA_configs/Gwinnett_config_full_*.yaml
 
-    To run only the Gwinnett_config_no_bg_11 config and write log files out to the logs directory:
+    To run only the full_11 and write log files out to the logs directory:
 
-        python ./model_run_cli.py -l logs ./Gwinnett_County_GA_no_bg_school_fire_configs/Gwinnett_config_no_bg_11.yaml
+        python ./model_run_cli.py -l logs ./Gwinnett_GA_configs/Gwinnett_config_full_11.yaml
         '''
     )
     parser.add_argument('configs', nargs='+', help='One or more yaml configuration files to run.')
@@ -149,7 +131,5 @@ Examples:
                         ' for each concurrent process.')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
     parser.add_argument('-l', '--logdir', type=str, help='The directory to output log files to')
-    parser.add_argument('-r', '--replace', action='store_true', help = 'Replace existing output data for a given config name and set')
-    parser.add_argument('-o', '--outtype', type=str, default = 'prod', help = 'Output location, one of "prod" (production database) or "csv" (local CSV)')
 
     main(parser.parse_args())

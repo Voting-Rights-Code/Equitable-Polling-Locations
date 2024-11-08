@@ -5,7 +5,7 @@
 #######################################
 '''
 This file sets up a pyomo/scip run based on a config file, e.g.
-Gwinnett_County_GA_configs/Gwinnett_config_full_11.py
+Gwinnett_GA_configs/Gwinnett_config_full_11.py
 '''
 
 import os
@@ -20,17 +20,16 @@ from model_results import (
     incorporate_result,
     demographic_domain_summary,
     demographic_summary,
-    write_results_csv,
-    write_results_bigquery
+    write_results
 )
 from model_penalties import incorporate_penalties
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
-def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=False, outtype: str = 'prod'):
+def run_on_config(config: PollingModelConfig, log: bool=False):
     '''
-    The entry point to exectute a pyomo/scip run.
+    The entry point to exectue a pyomo/scip run.
     '''
 
     config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
@@ -48,7 +47,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
     #get alpha 
     alpha_df = clean_data(config, True, log)
     alpha  = alpha_min(alpha_df)
-    
+
     #build model
     ea_model = polling_model_factory(dist_df, alpha, config)
     if log:
@@ -75,31 +74,19 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
     #calculate the average distances (and y_ede if beta !=0) traveled by each demographic
     demographic_ede = demographic_summary(demographic_res, result_df, config.beta, alpha_new)
 
-    if outtype in('prod', 'test'):
-        write_results_bigquery(
-             config,
-             result_df,
-             demographic_prec,
-             demographic_res,
-             demographic_ede,
-             replace,
-             log,
-             outttype
-        )
+    result_folder = config.result_folder
 
-    elif outtype == 'csv':
-        if hasattr(config, 'result_folder'):
-            out_location = config.result_folder
-        else: 
-            out_location = config.config_set
-        write_results_csv(
-            out_location,
-            run_prefix,
-            result_df,
-            demographic_prec,
-            demographic_res,
-            demographic_ede,
-            replace
-        )
+    write_results(
+        result_folder,
+        run_prefix,
+        result_df,
+        demographic_prec,
+        demographic_res,
+        demographic_ede,
+    )
 
-    return
+    return result_folder
+
+
+
+
