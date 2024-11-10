@@ -13,11 +13,17 @@ import pandas as pd
 import datetime as dt
 import warnings
 
-from google.cloud import bigquery 
+from google.cloud import bigquery
 import gcloud_constants as gc
 
+#Define experimental and canonical fields
+CANONICAL_FIELDS = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open',
+        'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set']
+EXPERIMENTAL_FIELDS = ['driving', 'fixed_capacity_site_number']
+NON_CONFIG_META_DATA = ['result_folder', 'config_file_path', 'log_file_path', 'username', 'run_time', 'commit_hash']
 
-def get_canonical_config_args():
+
+def get_canonical_config_args(canonical_fields:list = CANONICAL_FIELDS):
     '''Return a list of canonical config arguments'''
 
     # These should be sourced from the server
@@ -33,14 +39,13 @@ def get_canonical_config_args():
         sample_df = client.query(query).to_dataframe()
 
         out = list(sample_df.columns)
-
+        if (out.sort() != canonical_fields.sort()):
+            warnings.warn('Hardcoded list of canonical arguments do not match the canonical fields. Validate and updated as needed.')
     # However, if someone's running a local-only optimization, we'll return a hardcoded fallback list
     elif(gc.SERVER == False):
         warnings.warn('Using hardcoded list of canonical arguments; these may be wrong and should be validated.')
 
-        hardcoded_fallback = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 
-        'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set', 
-        'result_folder', 'config_file_path', 'log_file_path']
+        hardcoded_fallback = canonical_fields
         out = hardcoded_fallback
 
     return(out)
@@ -86,6 +91,10 @@ class PollingModelConfig:
     driving: bool = False
     ''' Driving distances used if True and distance file exists in correct location '''
 
+    fixed_capacity_site_number: int = None
+    '''If default number of open precincts if one wants to hold the number
+    #of people that can go to a location constant (as opposed to a function of the number of locations) '''
+
     config_name: str = None
     '''Unique name of config. Will fall back to name of file if none is supplied'''
     config_set: str = None
@@ -96,16 +105,16 @@ class PollingModelConfig:
     fixed_capacity_site_number: int = None
     #'''If default number of open precincts if one wants to hold the number
     #of people that can go to a location constant (as opposed to a function of the number of locations) '''
-    
+
     # NOT SUPPORTED IN PROD, CSV ONLY. Access via other_args
     driving: bool = False
     #''' Driving distances used if True and distance file exists in correct location '''
-    
+
     commit_hash: str = None
     '''NOT CURRENTLY IN USE. Git commit under which this code was run'''
     run_time: dt.datetime = None
     '''NOT CURRENTLY IN USE. Time at which model run was initiated'''
-    
+
     result_folder: str = None
     ''' The location to write out results '''
     config_file_path: str = None
@@ -116,17 +125,25 @@ class PollingModelConfig:
     other_args: dict = None
     ''' Unspecified other args, allowed only for writing to test database or CSV (not prod database) '''
 
+    other_args: dict = None
+    ''' Unspecified other args, allowed only for writing to test database or CSV (not prod database) '''
+
+    # username: str = None
+    # '''Unique name of config.'''
+
     def __post_init__(self):
         if not self.result_folder:
             self.result_folder = f'{self.location}_results'
         self.varnames = list(vars(self).keys()) # Not sure if this will work, let's see
 
     @staticmethod
-    def load_config(config_yaml_path: str, outtype: str = 'prod') -> 'PollingModelConfig':
+    def load_config(config_yaml_path: str, outtype: str = 'prod', experimental_args: list = EXPERIMENTAL_FIELDS) -> 'PollingModelConfig':
         ''' Return an instance of RunConfig from a yaml file '''
 
         # Get a list of canonical arguments from BigQuery
         canonical_args = get_canonical_config_args()
+        all_args = canonical_args + experimental_args
+
 
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
@@ -135,6 +152,10 @@ class PollingModelConfig:
             filtered_args = {}
             other_args = {}
             for key, value in config.items():
+                #check that the keys are all in cananonical or experimental arguments.
+                #this logic allows for missing fields, just not fields outside of those predefined.
+                if key not in all_args:
+                    raise ValueError(f'{key} not a canonical or experimental argument. Please check name or update list of experimental arguments.')
                 if key not in canonical_args:
                     other_args[key] = value
                 else:
@@ -153,15 +174,15 @@ class PollingModelConfig:
 
             return result
 
-
-    def df(self) -> pd.DataFrame:
+    def df(self, canonical_fields:list = CANONICAL_FIELDS ) -> pd.DataFrame:
         config_dict = {}
         for key, value in vars(self).items():
             config_dict[key] = [value]
         config_df = pd.DataFrame(config_dict)
 
-        col_order = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open', 'max_min_mult', 'maxpctnew', 'minpctold', 'config_name','config_set' ,'commit_hash','run_time']
+        col_order = canonical_fields
         config_df = config_df.loc[:, col_order]
         return config_df
 
-
+    # def load_from_db(params) -> PollingModelConfig:
+    #     pass

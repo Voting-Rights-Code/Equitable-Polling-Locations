@@ -45,7 +45,7 @@ def load_configs(config_paths: List[str], logdir: str, allow_other_args: bool=Fa
                     )
                 results.append(config)
                 if (bool(config.other_args) == True) & (allow_other_args == False): # An empty dict evalutes to false
-                    print(f'Invalid arguments detected in config file. To allow arbitrary arguemnts, set outtype to "csv"')
+                    print(f'Invalid arguments detected in config file. To allow arbitrary arguments, set outtype to "csv"')
 
             # pylint: disable-next=broad-exception-caught
             except Exception as exception:
@@ -127,19 +127,19 @@ if __name__ == '__main__':
         description='A commandline tool that chooses an optimal set of polling locations from a set of potential locations.',
         epilog='''
 Examples:
-    To run all expanded configs, parallel processing 4 at a time, and write log files out to the logs
+    To run all configs in a given folder, parallel processing 4 at a time, and write log files out to the logs
     directory:
 
-        python ./model_run_cli.py -c4 -l logs ./Gwinnett_GA_configs/Gwinnett_config_expanded_*.yaml
+        python ./model_run_cli.py -c4 -l logs ./Gwinnett_County_GA_no_bg_school_fire_configs/*.yaml
 
-    To run all full configs run one at a time, extra logging printed to the console,
+    To run all configs run one at a time, extra logging printed to the console,
     and write log files out to the logs directory:
 
-        python ./model_run_cli.py -vv -l logs ./Gwinnett_GA_configs/Gwinnett_config_full_*.yaml
+        python ./model_run_cli.py -vv -l logs ./Gwinnett_County_GA_no_bg_school_fire_configs/*.yaml
 
-    To run only the full_11 and write log files out to the logs directory:
+    To run only the Gwinnett_config_no_bg_11 config and write log files out to the logs directory:
 
-        python ./model_run_cli.py -l logs ./Gwinnett_GA_configs/Gwinnett_config_full_11.yaml
+        python ./model_run_cli.py -l logs ./Gwinnett_County_GA_no_bg_school_fire_configs/Gwinnett_config_no_bg_11.yaml
         '''
     )
     parser.add_argument('configs', nargs='+', help='One or more yaml configuration files to run.')
