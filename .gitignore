@@ -164,10 +164,9 @@ cython_debug/
 #.idea/
 
 # API keys 
-/authentication_files
+**/authentication_files
 
 # Misc
 logs
-.DS_Store
-
-
+**/.DS_Store
+**GMAP_distance_report_files/
