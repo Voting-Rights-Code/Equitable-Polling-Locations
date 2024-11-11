@@ -8,7 +8,6 @@ declare -a add_county=("Gwinnett_GA" "DeKalb_GA" "Cobb_GA" "Berkeley_SC" "Lexing
 #list of locations where "City" needs to go to "city"
 declare -a change_city=("Norfolk_City_VA" "Virginia_Beach_City_VA" )
 
-
 #change files manually in ., census/* and result_analysis
 #for the City -> city change
 #otherwise it doesn't seen the case change

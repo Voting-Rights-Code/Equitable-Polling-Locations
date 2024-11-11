@@ -338,12 +338,9 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
     #select data based on year
     #select the polling locations only for the indicated years
     #keep all other locations
-    not_polling = df[(df.dest_type != 'polling')]
-    polling_year_list =  [df[df.location_type.str.contains(str(year))] for year in year_list]
-    polling_year_list.append(not_polling)
-    df = pd.concat(polling_year_list)
-    #the concatenation will create duplicates if a polling location is used multiple years
-    #drop these
+    df['dest_type'].mask(df['dest_type'] != 'bg_centroid', 'potential', inplace = True)
+    df['dest_type'].mask(df['location_type'].str.contains('|'.join(year_list)), 'polling', inplace = True)
+    #check that this hasn't created duplicates (should not have); drop these
     df = df.drop_duplicates()
     
     #check that population is unique by id_orig
