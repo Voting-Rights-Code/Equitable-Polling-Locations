@@ -12,6 +12,8 @@ from pathlib import Path
 from haversine import haversine
 import geopandas as gpd
 from model_config import PollingModelConfig
+from authentication_files.census_key import census_key
+from pull_census_data import pull_census_data
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
@@ -41,20 +43,25 @@ def build_source(location):
     demographics_dir = os.path.join(DATASETS_DIR, 'census', 'redistricting', location)
     P3_SOURCE_FILE  = os.path.join(demographics_dir, file_nameP3)
     P4_SOURCE_FILE  = os.path.join(demographics_dir, file_nameP4)
+    if not os.path.exists(demographics_dir):
+        statecode = location[-2:]
+        locality = location[:-3].replace('_',' ')
+        pull_census_data(statecode,locality,census_key)
     if os.path.exists(P3_SOURCE_FILE):
         p3_df = pd.read_csv(P3_SOURCE_FILE,
             header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
             low_memory=False, # files are too big, set this to False to prevent errors
             )
     else:
-        raise ValueError(f'Census data from table P3 not found. Follow download instruction from README.')
+        raise ValueError(f'Census data from table P3 not found. Reinstall using api or manually following download instruction from README.')
     if os.path.exists(P4_SOURCE_FILE):
         p4_df = pd.read_csv(P4_SOURCE_FILE,
             header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
             low_memory=False, # files are too big, set this to False to prevent errors
             )
     else:
-        raise ValueError(f'Census data from table P4 not found. Follow download instruction from README.')
+        raise ValueError(f'Census data from table P4 not found. Reinstall using api or manually following download instruction from README.')
+    
     #3. Census geographic data
     geography_dir = os.path.join(DATASETS_DIR, 'census', 'tiger', location)
     file_list = os.listdir(geography_dir)
@@ -65,11 +72,11 @@ def build_source(location):
     if os.path.exists(BLOCK_SOURCE_FILE):
         blocks_gdf = gpd.read_file(BLOCK_SOURCE_FILE)
     else:
-        raise ValueError(f'Census data for block geography not found. Follow download instruction from README.')
+        raise ValueError(f'Census data for block geography not found. Reinstall using api or manually following download instruction from README.')
     if os.path.exists(BLOCK_GROUP_SOURCE_FILE):
         blockgroup_gdf = gpd.read_file(BLOCK_GROUP_SOURCE_FILE)
     else:
-        raise ValueError(f'Census data for block group geography not found. Follow download instruction from README.')
+        raise ValueError(f'Census data for block group geography not found. Reinstall using api or manually following download instruction from README.')
 
     #######
     #Clean data
@@ -104,7 +111,7 @@ def build_source(location):
     'NAME',
     'P4_001N', # Total population
     'P4_002N', # Total hispanic
-    'P4_003N', # Total non-hispanic
+    'P4_003N', # Total non_hispanic
     ]
 
     BLOCK_SHAPE_COLS = [
@@ -141,7 +148,7 @@ def build_source(location):
 
     #Change column names
     demographics.drop(['P4_001N', 'Pop_diff'], axis =1, inplace = True)
-    demographics = demographics.rename(columns = {'P4_002N': 'hispanic', 'P4_003N':'non-hispanic', 'P3_001N':'population', 'P3_003N':'white', 'P3_004N':'black', 'P3_005N':'native', 'P3_006N':'asian', 'P3_007N':'pacific_islander', 'P3_008N':'other', 'P3_009N':'multiple_races'})
+    demographics = demographics.rename(columns = {'P4_002N': 'hispanic', 'P4_003N':'non_hispanic', 'P3_001N':'population', 'P3_003N':'white', 'P3_004N':'black', 'P3_005N':'native', 'P3_006N':'asian', 'P3_007N':'pacific_islander', 'P3_008N':'other', 'P3_009N':'multiple_races'})
 
     #drop geo_id_prefix
     demographics['GEO_ID'] = demographics['GEO_ID'].str.replace(GEO_ID_PREFIX, '')
@@ -194,13 +201,11 @@ def build_source(location):
     #Rename, select columns and write to file
     #####
     full_df = full_df.rename(columns = {'GEO_ID': 'id_orig', 'Address': 'address', 'Latitude':'dest_lat', 'Longitude':'dest_lon', 'INTPTLAT20':'orig_lat', 'INTPTLON20':'orig_lon', 'Location type': 'location_type', 'Location': 'id_dest'})
-    full_df['county'] = location
-
+    
     FULL_DF_COLS = [
     'id_orig',
     'id_dest',
     'distance_m',
-    'county',
     'address',
     'dest_lat',
     'dest_lon',
@@ -210,7 +215,7 @@ def build_source(location):
     'dest_type',
     'population',
     'hispanic',
-    'non-hispanic',
+    'non_hispanic',
     'white',
     'black',
     'native',
@@ -221,6 +226,7 @@ def build_source(location):
     ]
 
     full_df = full_df[FULL_DF_COLS]
+    full_df['source'] = 'haversine distance'
     
     output_file_name = location + '.csv'
     output_path = os.path.join(DATASETS_DIR, 'polling', location, output_file_name)
@@ -259,9 +265,7 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str, 
         raise ValueError(f'Driving Distance File ({driving_distance_file_path}) '
                          'must contain id_orig, id_dest, and distance_m columns')
 
-    if 'distance_m' in df.columns:
-        df = df.rename(columns={'distance_m':'haversine_m'})
-
+    df.drop(columns= ['source'])
     combined_df = pd.merge(df, driving_distance, on=['id_orig', 'id_dest'], how='left')
 
     # raise error if there are any missing distances
@@ -305,6 +309,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
         raise ValueError(f'Do not currently have any data for {file_path} from {config.config_file_path}')
 
     df = pd.read_csv(file_path, index_col=0)
+    df= df.astype({'id_orig':'str'})
 
     #pull out unique location types is this data
     unique_location_types = df['location_type'].unique()
@@ -351,7 +356,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
         driving_file_name = location + '_driving_distances.csv'
         DRIVING_DISTANCES_FILE = os.path.join(DATASETS_DIR, 'driving', location, driving_file_name)
         df = insert_driving_distances(df, DRIVING_DISTANCES_FILE, log)
-
+    
     #create other useful columns
     df['Weighted_dist'] = df['population'] * df['distance_m']
     return(df)

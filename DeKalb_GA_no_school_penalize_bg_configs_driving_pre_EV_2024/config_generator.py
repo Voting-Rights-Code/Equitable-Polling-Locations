@@ -17,6 +17,7 @@ max_min_mult: 5 #scalar >= 1
 maxpctnew: 1 # in interval [0,1]
 minpctold: .75 # in interval [0,1]
 driving: True
+log_distance: True
 penalized_sites:
     - 130890201001
     - 130890201002
