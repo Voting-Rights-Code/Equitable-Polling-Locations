@@ -15,6 +15,7 @@ change_dt <- function(right){
     fwrite(dt_big, file_name)    
 }
 
-sapply(right_county_list, change_dt)
-sapply(right_city_list, change_dt)
+#sapply(right_county_list, change_dt)
+#sapply(right_city_list, change_dt)
 
+change_dt(DeKalb_County_GA)

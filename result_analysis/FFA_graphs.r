@@ -25,7 +25,7 @@ source('result_analysis/graph_functions.R')
 #CONFIG_FOLDER must be a string
 
 <<<<<<< HEAD:result analysis/FFA_graphs.r
-LOCATION = 'DeKalb_GA'
+LOCATION = 'DeKalb_County_GA'
 CONFIG_FOLDER = 'DeKalb_GA_no_bg_school_configs_driving'
 =======
 LOCATION = 'Chatham_County_GA'

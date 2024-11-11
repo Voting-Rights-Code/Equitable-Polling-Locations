@@ -1,7 +1,7 @@
 for i in range(11, 31):
     with open(f'DeKalb_GA_no_bg_school_{i}.yaml', 'w') as f:
         f.write(f"""# Constants for the optimization function
-location: DeKalb_GA
+location: DeKalb_County_GA
 year:
     - '2020'
     - '2022'

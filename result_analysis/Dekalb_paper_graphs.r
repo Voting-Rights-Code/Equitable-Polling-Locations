@@ -20,7 +20,7 @@ source('result analysis/graph_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'DeKalb_GA'
+LOCATION = 'DeKalb_County_GA'
 CONFIG_FOLDER = 'DeKalb_GA_no_school_penalize_bg_configs_driving_pre_EV_2024'
 
 #Run-type specific constants
