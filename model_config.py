@@ -19,7 +19,7 @@ import gcloud_constants as gc
 #Define experimental and canonical fields
 CANONICAL_FIELDS = ['location', 'year', 'bad_types', 'beta', 'time_limit', 'capacity', 'precincts_open',
         'max_min_mult', 'maxpctnew', 'minpctold','penalized_sites', 'config_name','config_set']
-EXPERIMENTAL_FIELDS = ['driving', 'fixed_capacity_site_number']
+EXPERIMENTAL_FIELDS = ['driving', 'fixed_capacity_site_number', 'log_distance']
 NON_CONFIG_META_DATA = ['result_folder', 'config_file_path', 'log_file_path', 'username', 'run_time', 'commit_hash']
 
 
@@ -91,6 +91,9 @@ class PollingModelConfig:
     driving: bool = False
     ''' Driving distances used if True and distance file exists in correct location '''
 
+    log_distance: bool = False
+    ''' Log of the distance (driving or haversine) computed and used in optimization if True '''
+
     fixed_capacity_site_number: int = None
     '''If default number of open precincts if one wants to hold the number
     #of people that can go to a location constant (as opposed to a function of the number of locations) '''
@@ -125,8 +128,6 @@ class PollingModelConfig:
     other_args: dict = None
     ''' Unspecified other args, allowed only for writing to test database or CSV (not prod database) '''
 
-    other_args: dict = None
-    ''' Unspecified other args, allowed only for writing to test database or CSV (not prod database) '''
 
     # username: str = None
     # '''Unique name of config.'''

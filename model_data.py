@@ -6,6 +6,7 @@
 #######################################
 
 import pandas as pd
+import numpy as np
 import math
 import os
 from pathlib import Path
@@ -259,13 +260,14 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str, 
         print(f'inserting driving distances {driving_distance_file_path}')
     if os.path.exists(driving_distance_file_path):
         driving_distance = pd.read_csv(driving_distance_file_path)
+        driving_distance['id_orig'] = driving_distance.id_orig.astype(str)
     else:
         raise ValueError(f'Driving Distance File ({driving_distance_file_path}) not found.')
     if {'id_orig', 'id_dest', 'distance_m'} - set(driving_distance.columns):
         raise ValueError(f'Driving Distance File ({driving_distance_file_path}) '
                          'must contain id_orig, id_dest, and distance_m columns')
 
-    df.drop(columns= ['source'])
+    df = df.drop(columns= ['source', 'distance_m'])
     combined_df = pd.merge(df, driving_distance, on=['id_orig', 'id_dest'], how='left')
 
     # raise error if there are any missing distances
@@ -298,7 +300,8 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str, 
 def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
     location = config.location
     year_list = config.year
-    driving = config.driving
+    driving = config.other_args['driving']
+    log_distance = config.other_args['log_distance']
     
     #read in data
     data_dir = os.path.join(DATASETS_DIR, 'polling', location)
@@ -307,7 +310,6 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
 
     if not os.path.isfile(file_path):
         raise ValueError(f'Do not currently have any data for {file_path} from {config.config_file_path}')
-
     df = pd.read_csv(file_path, index_col=0)
     df= df.astype({'id_orig':'str'})
 
@@ -328,7 +330,6 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
     df = df[df['population']>0]
 
     #exclude bad location types
-    
     # The bad types must be valid location types
     if not set(bad_location_list).issubset(set(unique_location_types)):
         raise ValueError(f'unrecognized bad location types types {set(bad_location_list).difference(set(unique_location_types))} in {config.config_file_path}' )
@@ -353,7 +354,14 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
         driving_file_name = location + '_driving_distances.csv'
         DRIVING_DISTANCES_FILE = os.path.join(DATASETS_DIR, 'driving', location, driving_file_name)
         df = insert_driving_distances(df, DRIVING_DISTANCES_FILE, log)
-    
+    #if log distance, modify the source and distance columns 
+    if log_distance:
+        df['source'] = 'log ' + df['source']
+        
+        #TODO: why are there 0 distances showing up?
+        df['distance_m'].mask(df['distance_m'] == 0.0, 0.001, inplace=True)
+        df['distance_m'] = np.log(df['distance_m'])
+
     #create other useful columns
     df['Weighted_dist'] = df['population'] * df['distance_m']
     return(df)
@@ -363,7 +371,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
 ##########################
 
 #determines the maximum of the minimum distances
-def get_max_min_dist(dist_df):
+def get_max_min_dist(dist_df): 
     min_dist = dist_df[['id_orig', 'distance_m']].groupby('id_orig').agg('min')
     max_min_dist = min_dist.distance_m.max()
     max_min_dist = math.ceil(max_min_dist)

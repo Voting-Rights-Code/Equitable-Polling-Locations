@@ -1,7 +1,7 @@
 library(data.table)
 library(here)
 
-wrong_county_list = c("Gwinnett_GA", "DeKalb_GA", "Cobb_GA", "Berkeley_SC", "Lexington_SC", "Greenville_SC", "Richland_SC", "York_SC")
+wrong_county_list = c("Gwinnett_GA", "DeKalb_County_GA", "Cobb_GA", "Berkeley_SC", "Lexington_SC", "Greenville_SC", "Richland_SC", "York_SC")
 right_county_list = c("Gwinnett_County_GA", "DeKalb_County_GA", "Cobb_County_GA", "Berkeley_County_SC", "Lexington_County_SC", "Greenville_County_SC", "Richland_County_SC", "York_County_SC")
 
 
