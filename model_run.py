@@ -35,7 +35,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
 
     config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
     run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
-    
+
     source_file_name = config.location + '.csv'
     source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
     if not os.path.exists(source_path):
@@ -45,10 +45,10 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
     #get main data frame
     dist_df = clean_data(config, False)
 
-    #get alpha 
+    #get alpha
     alpha_df = clean_data(config, True, log)
     alpha  = alpha_min(alpha_df)
-    
+
     #build model
     ea_model = polling_model_factory(dist_df, alpha, config)
     if log:
@@ -65,7 +65,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
 
     #calculate the new alpha given this assignment
     alpha_new = alpha_min(result_df)
-    
+
     #calculate the average distances traveled by each demographic to the assigned precinct
     demographic_prec = demographic_domain_summary(result_df, 'id_dest')
 
@@ -90,7 +90,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
     elif outtype == 'csv':
         if hasattr(config, 'result_folder'):
             out_location = config.result_folder
-        else: 
+        else:
             out_location = config.config_set
         write_results_csv(
             out_location,

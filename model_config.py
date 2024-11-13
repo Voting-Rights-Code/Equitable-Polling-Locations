@@ -7,13 +7,15 @@
 ''' Utils for configuring models '''
 from typing import List
 from dataclasses import dataclass, field
+
+import json
 import yaml
 import os
 import pandas as pd
 import datetime as dt
 import warnings
 
-from google.cloud import bigquery
+# from google.cloud import bigquery
 import gcloud_constants as gc
 
 #Define experimental and canonical fields
@@ -23,26 +25,36 @@ EXPERIMENTAL_FIELDS = ['driving', 'fixed_capacity_site_number']
 NON_CONFIG_META_DATA = ['result_folder', 'config_file_path', 'log_file_path', 'username', 'run_time', 'commit_hash']
 
 
+# TODO Remove this
+default_values = {
+}
+
+for value in CANONICAL_FIELDS:
+    default_values[value] = None
+
+
+
 def get_canonical_config_args(canonical_fields:list = CANONICAL_FIELDS):
     '''Return a list of canonical config arguments'''
 
     # These should be sourced from the server
-    if(gc.SERVER == True):
+    # if (gc.SERVER == True):
 
-        query = f'''
-        SELECT *
-        FROM {gc.PROD_DATASET}.configs
-        LIMIT 1
-        '''
+    #     query = f'''
+    #     SELECT *
+    #     FROM {gc.PROD_DATASET}.configs
+    #     LIMIT 1
+    #     '''
 
-        client = bigquery.Client(project = gc.PROJECT)
-        sample_df = client.query(query).to_dataframe()
+    #     client = bigquery.Client(project = gc.PROJECT)
+    #     sample_df = client.query(query).to_dataframe()
 
-        out = list(sample_df.columns)
-        if (out.sort() != canonical_fields.sort()):
-            warnings.warn('Hardcoded list of canonical arguments do not match the canonical fields. Validate and updated as needed.')
-    # However, if someone's running a local-only optimization, we'll return a hardcoded fallback list
-    elif(gc.SERVER == False):
+    #     out = list(sample_df.columns)
+    #     if (out.sort() != canonical_fields.sort()):
+    #         warnings.warn('Hardcoded list of canonical arguments do not match the canonical fields. Validate and updated as needed.')
+    # # However, if someone's running a local-only optimization, we'll return a hardcoded fallback list
+    # elif(gc.SERVER == False):
+    if True:
         warnings.warn('Using hardcoded list of canonical arguments; these may be wrong and should be validated.')
 
         hardcoded_fallback = canonical_fields
@@ -51,9 +63,14 @@ def get_canonical_config_args(canonical_fields:list = CANONICAL_FIELDS):
     return(out)
 
 
+
 @dataclass
 class PollingModelConfig:
-    ''' A simple config class to run models '''
+    '''
+    A simple config class to run models
+
+    Deprecation Note: This class is being replaced by the SqlAlchemy model version ModelConfig
+    '''
 
     location: str
     '''Name of the county or city of interest'''
@@ -122,11 +139,15 @@ class PollingModelConfig:
     log_file_path: str = None
     ''' If specified, the location of the file to write logs to '''
 
+    foo: str = None
+    bar: str = 'default'
     other_args: dict = None
     ''' Unspecified other args, allowed only for writing to test database or CSV (not prod database) '''
 
     other_args: dict = None
     ''' Unspecified other args, allowed only for writing to test database or CSV (not prod database) '''
+
+
 
     # username: str = None
     # '''Unique name of config.'''
@@ -141,28 +162,26 @@ class PollingModelConfig:
         ''' Return an instance of RunConfig from a yaml file '''
 
         # Get a list of canonical arguments from BigQuery
-        canonical_args = get_canonical_config_args()
+        canonical_args = [] #get_canonical_config_args()
         all_args = canonical_args + experimental_args
+
 
 
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
             config = yaml.safe_load(yaml_file)
 
+            print(f'Config: {config_yaml_path}')
+            print(json.dumps(config, indent=4))
             filtered_args = {}
-            other_args = {}
             for key, value in config.items():
                 #check that the keys are all in cananonical or experimental arguments.
                 #this logic allows for missing fields, just not fields outside of those predefined.
-                if key not in all_args:
-                    raise ValueError(f'{key} not a canonical or experimental argument. Please check name or update list of experimental arguments.')
-                if key not in canonical_args:
-                    other_args[key] = value
-                else:
-                    filtered_args[key] = value
-            filtered_args['other_args'] = other_args
+                filtered_args[key] = value
 
             result = PollingModelConfig(**filtered_args)
+            print('Result:')
+            print(result)
 
             result.config_file_path = config_yaml_path
             if not result.config_name:
