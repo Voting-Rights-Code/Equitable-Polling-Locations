@@ -140,6 +140,8 @@ class ModelRun(ModelBase):
     created_at: DateTime = Column(DateTime, nullable=False, default=current_time_utc)
     ''' The time that this model run instance was created. '''
 
+    success: bool = Column(Boolean, nullable=False, default=False)
+
     # Relations
     model_config_id = mapped_column(ForeignKey('model_configs.id'), nullable=False)
     ''' The ModelConfig id that this run is the result of '''

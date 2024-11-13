@@ -226,6 +226,7 @@ def main(args: argparse.Namespace):
     results = []
 
     for i, config_path in enumerate(config_paths):
+        success = True
         print(f'Loading [{i+1}/{num_files}] {config_path}')
         config_file_basename = os.path.basename(config_path)
         config_name = config_file_basename.replace('.yaml','')
@@ -253,10 +254,19 @@ def main(args: argparse.Namespace):
             config_set, config_name, model_run.id, file_paths[RESIDENCE_DISTANCES_PATH]
         )
 
-        results.append(edes_import_result)
-        results.append(results_import_result)
-        results.append(precinct_distances_import_result)
-        results.append(residence_distances_import_result)
+        current_run_results = [
+            edes_import_result,
+            results_import_result,
+            precinct_distances_import_result,
+            residence_distances_import_result,
+        ]
+
+        # check for any problems and add the current_run_results to the overall results
+        for current_run_result in current_run_results:
+            success = success and current_run_result.success
+            results.append(edes_import_result)
+
+        model_run.success = success
 
         print('\n\n')
 
