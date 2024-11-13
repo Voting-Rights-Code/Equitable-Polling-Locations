@@ -160,19 +160,19 @@ def validate_csv_columns(model_class: sqlalchemy_main.ModelBaseType, df: pd.Data
                 if val and not utils.is_float(val):
                     raise ValueError(
                         # pylint: disable-next=line-too-long
-                        f'Unexpexted column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
+                        f'Unexpected column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
                     )
             elif expected_type == DB_INTEGER:
                 if val and not utils.is_int(val):
                     raise ValueError(
                         # pylint: disable-next=line-too-long
-                        f'Unexpexted column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
+                        f'Unexpected column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
                     )
             elif re.match(r'^VARCHAR.*', str(expected_type)):
                 if val and not utils.is_str(val):
                     raise ValueError(
                         # pylint: disable-next=line-too-long
-                        f'Unexpexted column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
+                        f'Unexpected column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
                     )
             else:
                 raise ValueError(
