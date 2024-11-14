@@ -193,26 +193,28 @@ def csv_to_bigquery(
     Loads in a csv file, alterns columns as needed, and builk uploads the values to bigquery.  Note: this is done
     as a bulk upload since SQLAlchemy inserts are not performant enough to do it via models or raw queries.
     '''
-    df = pd.read_csv(csv_path) #, na_filter=False, keep_default_na=False)
-
-    table_name = model_class.__tablename__
-
-    source_column_names = df.columns.tolist()
-
-    # Delete columns as needed to match the model
-    for source_column_name in source_column_names:
-        if source_column_name in ignore_columns:
-            del df[source_column_name]
-
-    if column_renames:
-        df = df.rename(columns=column_renames)
-
-    for new_column, value in add_columns.items():
-        df[new_column] = value
-
-    print(f'--\nImporting into table `{table_name}` from {csv_path}')
 
     try:
+        table_name = model_class.__tablename__
+
+        df = pd.read_csv(csv_path) #, na_filter=False, keep_default_na=False)
+
+        source_column_names = df.columns.tolist()
+
+        # Delete columns as needed to match the model
+        for source_column_name in source_column_names:
+            if source_column_name in ignore_columns:
+                del df[source_column_name]
+
+        if column_renames:
+            df = df.rename(columns=column_renames)
+
+        for new_column, value in add_columns.items():
+            df[new_column] = value
+
+        print(f'--\nImporting into table `{table_name}` from {csv_path}')
+
+
         validate_csv_columns(model_class, df)
 
         rows_written = bigquery_bluk_insert_dataframe(table_name, df)
