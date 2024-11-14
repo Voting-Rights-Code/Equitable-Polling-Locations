@@ -24,8 +24,13 @@ source('result_analysis/graph_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
+<<<<<<< HEAD:result analysis/FFA_graphs.r
+LOCATION = 'DeKalb_County_GA'
+CONFIG_FOLDER = 'DeKalb_GA_no_bg_school_configs_driving'
+=======
 LOCATION = 'Chatham_County_GA'
 CONFIG_FOLDER = 'Chatham_County_GA_original_configs'
+>>>>>>> feature/config_automation_with_sqlalchemy:result_analysis/FFA_graphs.r
 
 #Run-type specific constants
 IDEAL_POLL_NUMBER  = 9 #the optimal number of polls desired for this county
@@ -35,8 +40,12 @@ IDEAL_POLL_NUMBER  = 9 #the optimal number of polls desired for this county
 #and other related constants
 #######
 
+<<<<<<< HEAD:result analysis/FFA_graphs.r
+original_locations = paste(LOCATION, 'original', 'configs', 'driving', sep = '_')
+=======
 original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
 #original_locations = 'Engage_VA_2024_configs'
+>>>>>>> feature/config_automation_with_sqlalchemy:result_analysis/FFA_graphs.r
 
 #######
 #Check that location and folders valid
@@ -45,8 +54,15 @@ original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
 
 #Does the config folder 
 check_config_folder_valid(CONFIG_FOLDER)
+check_config_folder_valid(original_locations)
+
 #Does the config folder contain files associated to the location
+<<<<<<< HEAD:result analysis/FFA_graphs.r
+check_location_valid(LOCATION, CONFIG_FOLDER)
+check_location_valid(LOCATION, original_locations)
+=======
 #check_location_valid(LOCATION, CONFIG_FOLDER)
+>>>>>>> feature/config_automation_with_sqlalchemy:result_analysis/FFA_graphs.r
 
 
 #######

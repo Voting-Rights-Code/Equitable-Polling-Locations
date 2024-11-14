@@ -1,13 +1,12 @@
 #change folder names to eliminate spaces
-mv "./result_analysis" "./result_analysis"
-mv "./result_analysis/map_work" "./result_analysis/map_work"
+mv "./result analysis" "./result_analysis"
+mv "./result_analysis/map work" "./result_analysis/map_work"
 
 #list of locations where "County" needs to be added
 declare -a add_county=("Gwinnett_GA" "DeKalb_GA" "Cobb_GA" "Berkeley_SC" "Lexington_SC" "Greenville_SC" "Richland_SC" "York_SC")
 
 #list of locations where "City" needs to go to "city"
 declare -a change_city=("Norfolk_City_VA" "Virginia_Beach_City_VA" )
-
 
 #change files manually in ., census/* and result_analysis
 #for the City -> city change

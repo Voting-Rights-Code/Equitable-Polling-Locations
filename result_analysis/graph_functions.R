@@ -175,6 +175,58 @@ assign_descriptor <- function(file_path, descriptor_dt, config_folder, result_ty
 	#add the desrcriptor from the descriptor_dt dataset to each of the datasets corresponding to the
 	#config_folder and result_type
 
+<<<<<<< HEAD:result analysis/graph_functions.R
+
+#####Formatting notes:
+	# Historical analysis
+	   # One config file contains multiple locations or multiple years
+ 	   # (E.G. Engage_VA or CLC analysis)
+	   # N.B. Year must be in the config file name for this to work, 
+		 # it must be the ONLY numbers in the file name
+	# Placement analysis
+	   # One config file contains single location and either
+	      # multiple optimized placement
+	   # (E.g. FFA analysis)
+	   # N.B. Number of polls must be in the config file name for this to work, 
+		 # it must be the ONLY numbers in the file name
+
+combine_results<- function(location, config_folder, result_type, analysis_type = 'placement'){
+	#determined what type of analysis is to be done, and call the appropriate function
+	#currently valid types: historical (see CLC work); placement (see FFA work)
+	if (analysis_type == 'historical'){
+		#select which results we want (potentially from a list of folders)
+		result_folder_list <-sapply(location, function(x){paste(x, 'results/', sep = '_')})
+		files <- lapply(result_folder_list, list.files)
+		files <- sapply(location, function(x){files[[x]][grepl(config_folder, files[[x]]) &grepl(result_type, files[[x]])]})
+		file_path <- mapply(function(folder, file){paste0(folder, file)}, result_folder_list, files)
+
+		#pull the historical year from the file names
+		years <-  gsub('.*?([0-9]+).*', '\\1', files)
+		descriptor <- mapply(function(x,y){paste(x, y, sep='_')}, location, years)} #county and year
+	else if (analysis_type == 'placement'){
+		result_folder <-paste(location, 'results/', sep = '_')
+		files <- list.files(result_folder)
+		files <- files[grepl(config_folder, files) &grepl(result_type, files)]
+		file_path <- paste0(result_folder, files)
+
+		#pull number of polls data from the file names
+		files<- gsub(paste0(config_folder, '.'), '', files)
+		num_polls <-  gsub('.*?([0-9]+).*', '\\1', files)
+		descriptor <- sapply(num_polls, function(x){paste('Optimized', x, 'polls', sep='_')})} #number of polls
+	else if (analysis_type == 'other'){
+		result_folder <-paste(location, 'results/', sep = '_')
+		files <- list.files(result_folder)
+		files <- files[grepl(config_folder, files) &grepl(result_type, files)]
+		file_path <- paste0(result_folder, files)
+		
+		extraction_instructions <- paste0("(?<=config_).*(?=_", result_type,')')
+		descriptor <- stringr::str_extract(files, extraction_instructions)
+	}
+	else{
+		stop("Incorrect analysis_type provided. Analysis type must be historical or placement or other")}
+	#read data
+	df_list <- lapply(file_path, fread)
+=======
 	#TODO: Likely needs to be cleaned up after the database migration. This is slightly ugly still. 
 	#extract the file name of the config file
 	config_file_name <- gsub(paste0('.*', config_folder, '\\.'), '', file_path)
@@ -192,6 +244,7 @@ assign_descriptor <- function(file_path, descriptor_dt, config_folder, result_ty
 	dt <- dt[, descriptor := descriptor_value]
 	return(dt)
 }
+>>>>>>> feature/config_automation_with_sqlalchemy:result_analysis/graph_functions.R
 
 combine_results<- function(location, config_folder, result_type, field_of_interest){
 	#read in and format all the results data assocaited to a 
@@ -237,10 +290,17 @@ read_result_data<- function(location, config_folder, field_of_interest = ''){
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
 	
 	#combine all files with a descriptor column attached
+<<<<<<< HEAD:result analysis/graph_functions.R
+	ede_df<- combine_results(location, config_folder, 'edes', analysis_type)
+	precinct_df<- combine_results(location, config_folder, 'precinct_distances', analysis_type)
+	residence_df<- combine_results(location, config_folder, 'residence_distances', analysis_type)
+	result_df<- combine_results(location, config_folder, 'result', analysis_type)
+=======
 	ede_df<- combine_results(location, config_folder, 'edes', field_of_interest)
 	precinct_df<- combine_results(location, config_folder, 'precinct_distances', field_of_interest)
 	residence_df<- combine_results(location, config_folder, 'residence_distances',field_of_interest)
 	result_df<- combine_results(location, config_folder, 'result', field_of_interest)
+>>>>>>> feature/config_automation_with_sqlalchemy:result_analysis/graph_functions.R
 	
 	#label descriptors with polls and residences
 	num_polls <- precinct_df[ , .(num_polls = .N/6), by = descriptor]
@@ -489,7 +549,11 @@ plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_f
 	optimization_num_polls<- max(intersect(orig_num_polls, config_num_polls))
 	optimized_run_dfs <- config_ede[num_polls == optimization_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
+<<<<<<< HEAD:result analysis/graph_functions.R
+	plot_historic_edes(config_folder, orig_and_optimal, paste0('and_optimal', suffix))
+=======
 	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), driving_flag)
+>>>>>>> feature/config_automation_with_sqlalchemy:result_analysis/graph_functions.R
 
 }
 

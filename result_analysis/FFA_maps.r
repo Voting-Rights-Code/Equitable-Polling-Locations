@@ -18,10 +18,15 @@ source('result_analysis/graph_functions.R')
 #Set Constants
 #######
 #Location must be part of config folder string
+<<<<<<< HEAD:result analysis/FFA_maps.r
+LOCATION = 'DeKalb_County_GA'
+CONFIG_FOLDER = 'DeKalb_GA_no_school_penalize_bg_configs_driving_pre_EV_2024'
+=======
 
 
 LOCATION = 'Chatham_County_GA'
 CONFIG_FOLDER = 'Chatham_County_GA_original_configs'
+>>>>>>> feature/config_automation_with_sqlalchemy:result_analysis/FFA_maps.r
 
 
 #original_locations = paste(LOCATION, 'original', 'configs', sep = '_')
