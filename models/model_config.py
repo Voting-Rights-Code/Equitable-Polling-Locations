@@ -141,6 +141,7 @@ class ModelRun(ModelBase):
     ''' The time that this model run instance was created. '''
 
     success: bool = Column(Boolean, nullable=False, default=False)
+    ''' True if this run completed successfully. '''
 
     # Relations
     model_config_id = mapped_column(ForeignKey('model_configs.id'), nullable=False)

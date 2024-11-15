@@ -20,7 +20,7 @@ class Result(ModelBase):
         nullable=False
     )
     model_run_id: str = Column(String(36), nullable=False)
-    id_orig: str = Column(Integer)
+    id_orig: str = Column(String(256))
     id_dest: str = Column(String(256))
     distance_m: float = Column(Float)
     haversine_m: float = Column(Float)

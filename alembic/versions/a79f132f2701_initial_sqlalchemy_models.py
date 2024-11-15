@@ -1,8 +1,8 @@
 """Initial SQLAlchemy models
 
-Revision ID: 054832fa38ef
+Revision ID: a79f132f2701
 Revises: 
-Create Date: 2024-11-13 14:37:39.626802
+Create Date: 2024-11-14 13:39:11.015876
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '054832fa38ef'
+revision: str = 'a79f132f2701'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -67,7 +67,7 @@ def upgrade() -> None:
     op.create_table('residence_distances',
     sa.Column('id', sa.String(length=36), server_default=sa.text('GENERATE_UUID()'), nullable=False),
     sa.Column('model_run_id', sa.String(length=36), nullable=False),
-    sa.Column('id_orig', sa.Integer(), nullable=True),
+    sa.Column('id_orig', sa.String(length=256), nullable=True),
     sa.Column('demographic', sa.String(length=256), nullable=True),
     sa.Column('weighted_dist', sa.Float(), nullable=True),
     sa.Column('demo_pop', sa.Integer(), nullable=True),
@@ -78,7 +78,7 @@ def upgrade() -> None:
     op.create_table('results',
     sa.Column('id', sa.String(length=36), server_default=sa.text('GENERATE_UUID()'), nullable=False),
     sa.Column('model_run_id', sa.String(length=36), nullable=False),
-    sa.Column('id_orig', sa.Integer(), nullable=True),
+    sa.Column('id_orig', sa.String(length=256), nullable=True),
     sa.Column('id_dest', sa.String(length=256), nullable=True),
     sa.Column('distance_m', sa.Float(), nullable=True),
     sa.Column('haversine_m', sa.Float(), nullable=True),

@@ -220,7 +220,8 @@ def main(args: argparse.Namespace):
 
     num_files = len(config_paths)
 
-    print(f'Importing {num_files} file(s)\n')
+    print('------------------------------------------')
+    print(f'Importing {num_files} file(s) for config set {config_set}\n')
 
 
     results = []
@@ -264,7 +265,7 @@ def main(args: argparse.Namespace):
         # check for any problems and add the current_run_results to the overall results
         for current_run_result in current_run_results:
             success = success and current_run_result.success
-            results.append(edes_import_result)
+            results.append(current_run_result)
 
         model_run.success = success
 

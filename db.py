@@ -9,6 +9,7 @@ import re
 
 import pandas as pd
 
+import sqlalchemy
 from sqlalchemy import inspect
 from sqlalchemy.orm import sessionmaker as SessionMaker
 
@@ -113,6 +114,7 @@ def create_model_run(
     return model_run
 
 def bigquery_client() -> bigquery.Client:
+    ''' Returns an instance of bigquery.Client, handling all needed credentials. '''
     credentials = Credentials.from_service_account_file(sqlalchemy_main.CREDENTIALS_PATH)
     return bigquery.Client(
         project=sqlalchemy_main.PROJECT,
@@ -121,7 +123,9 @@ def bigquery_client() -> bigquery.Client:
 
 
 def bigquery_bluk_insert_dataframe(table_name, df: pd.DataFrame) -> int:
-
+    '''
+    Uploads a dataframe into a bigquery table in bulk using the bigquery client library.
+    '''
     client = bigquery_client()
     destination = f'{sqlalchemy_main.DATASET}.{table_name}'
 
@@ -133,6 +137,7 @@ def bigquery_bluk_insert_dataframe(table_name, df: pd.DataFrame) -> int:
     job.result()
     print(f'Wrote {job.output_rows} rows to table {destination}')
     return job.output_rows
+
 
 def validate_csv_columns(model_class: sqlalchemy_main.ModelBaseType, df: pd.DataFrame):
     '''
@@ -197,6 +202,9 @@ def csv_to_bigquery(
     try:
         table_name = model_class.__tablename__
 
+        # We are intentionally not using the pd.read_csv dtype here since we want to use our
+        # own validations to generate more info instead of depending on pandas ability to cast
+        # from float to int, etc.
         df = pd.read_csv(csv_path) #, na_filter=False, keep_default_na=False)
 
         source_column_names = df.columns.tolist()
@@ -209,15 +217,28 @@ def csv_to_bigquery(
         if column_renames:
             df = df.rename(columns=column_renames)
 
+        # Force convert all df columns to string type if they are a type string the SQLAlchemy model
+        # This is important since columns such as orig_id that get loaded as an int by pd.read_csv.
+        inspector = inspect(model_class)
+        string_columns = [
+            column.name
+            for column in inspector.columns
+            if isinstance(column.type, sqlalchemy.String) and column.name in df.columns
+        ]
+        df[string_columns] = df[string_columns].astype(str)
+
+        # Add any additional columns needed from the add_columns paramater
         for new_column, value in add_columns.items():
             df[new_column] = value
 
         print(f'--\nImporting into table `{table_name}` from {csv_path}')
 
-
+        # Throw an error if there are any values in the df that do not meet expected types
         validate_csv_columns(model_class, df)
 
+        # Upload the data to bigquery in builk
         rows_written = bigquery_bluk_insert_dataframe(table_name, df)
+
         return ImportResult(
             config_set=config_set,
             config_name=config_name,
@@ -243,6 +264,10 @@ def csv_to_bigquery(
 
 
 def commit():
+    '''
+    Commits the current SQLAlchemy session and sets the current one to None. If db.get_session()
+    is called after this function then a new session will be created.
+    '''
     global _session
     session = _session
     _session = None

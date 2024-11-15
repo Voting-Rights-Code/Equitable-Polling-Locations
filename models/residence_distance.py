@@ -19,7 +19,7 @@ class ResidenceDistance(ModelBase):
         nullable=False
     )
     model_run_id: str = Column(String(36), nullable=False)
-    id_orig: str = Column(Integer)
+    id_orig: str = Column(String(256))
     demographic: str = Column(String(256))
     weighted_dist: float = Column(Float)
     demo_pop: int = Column(Integer)
