@@ -71,7 +71,7 @@ precinct_distances_extra_view = ReplaceableObject(
             c.config_set,
             c.config_name
         FROM {DATASET}.precinct_distances p
-        LEFT JOIN {DATASET}.model_config_runs_test c
+        LEFT JOIN {DATASET}.model_config_runs c
             ON p.model_run_id = c.model_run_id;
     ''')
 
@@ -87,7 +87,7 @@ residence_distances_extra_view = ReplaceableObject(
             c.config_set,
             c.config_name
         FROM {DATASET}.residence_distances r
-        LEFT JOIN {DATASET}.model_config_runs_test c
+        LEFT JOIN {DATASET}.model_config_runs c
             ON r.model_run_id = c.model_run_id
     ''')
 
@@ -103,7 +103,7 @@ result_extra_view = ReplaceableObject(
             c.config_set,
             c.config_name
         FROM {DATASET}.results r
-        LEFT JOIN {DATASET}.model_config_runs_test c
+        LEFT JOIN {DATASET}.model_config_runs c
             ON r.model_run_id = c.model_run_id
     ''')
 
