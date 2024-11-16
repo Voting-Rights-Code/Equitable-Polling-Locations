@@ -2,8 +2,7 @@
 
 from logging.config import fileConfig
 
-# pylint: disable-next=unused-import
-from sqlalchemy_main import ModelBase
+
 # pylint: disable-next=wildcard-import,unused-wildcard-import
 from models import *
 
@@ -12,9 +11,18 @@ from sqlalchemy import pool
 
 from alembic import context
 
+# pylint: disable-next=unused-import
+from sqlalchemy_main import ModelBase
+from sqlalchemy_main import DATASET, PROJECT
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Allow the values in alembic.ini to be programmatically set
+section = config.config_ini_section
+config.set_section_option(section, "DB_PROJECT", PROJECT)
+config.set_section_option(section, "DB_DATASET", DATASET)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
