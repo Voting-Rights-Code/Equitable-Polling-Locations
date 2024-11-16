@@ -1,5 +1,8 @@
 '''
 DB Convenience methods
+
+Credentials are assumed to be setup by the user by using the glcloud cli.
+    e.g. "gcloud auth application-default login"
 '''
 
 from dataclasses import dataclass
@@ -17,7 +20,6 @@ import sqlalchemy_main
 import models as Models
 from utils import generate_uuid
 
-from google.oauth2.service_account import Credentials
 from google.cloud import bigquery
 
 import utils
@@ -44,7 +46,9 @@ class ImportResult:
             self.timestamp = utils.current_time_utc()
 
 def get_session() -> SessionMaker:
-    ''' Returns the existing SQLAlchemy session, if one does not exist then one will be created. '''
+    '''
+    Returns the existing SQLAlchemy session, if one does not exist then one will be created.
+    '''
     global _session
     if not _session:
         engine = sqlalchemy_main.setup()
@@ -115,11 +119,7 @@ def create_model_run(
 
 def bigquery_client() -> bigquery.Client:
     ''' Returns an instance of bigquery.Client, handling all needed credentials. '''
-    credentials = Credentials.from_service_account_file(sqlalchemy_main.CREDENTIALS_PATH)
-    return bigquery.Client(
-        project=sqlalchemy_main.PROJECT,
-        credentials=credentials,
-    )
+    return bigquery.Client(project=sqlalchemy_main.PROJECT)
 
 
 def bigquery_bluk_insert_dataframe(table_name, df: pd.DataFrame) -> int:
