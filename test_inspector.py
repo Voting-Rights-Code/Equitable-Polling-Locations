@@ -18,5 +18,7 @@ from google.cloud import bigquery
 
 import utils
 
-inspector = inspect(Models.model_config)
+inspector = inspect(Models.ModelConfig)
+columns = [column.name for column in inspector.columns]
+breakpoint()
 print(inpsector)
