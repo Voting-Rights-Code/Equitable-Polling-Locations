@@ -20,8 +20,6 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 PRINT_QUERY_DEBUG=False
 ''' If set to true, SQLAlchemy will print sql queries. '''
 
-CREDENTIALS_PATH = f'{dir_path}/equitable-polling-locations-d5341aaac2fa.json'
-
 PROJECT = 'equitable-polling-locations'
 DATASET = 'scratch_chad2'
 
@@ -36,7 +34,8 @@ bq_engine: Engine = None
 def setup(): #config: Dict[str,  str]):
     global bq_engine
     if not bq_engine:
-        bq_engine = create_engine(url=DATABASE_URL, credentials_path=CREDENTIALS_PATH, echo=PRINT_QUERY_DEBUG)
+        bq_engine = create_engine(url=DATABASE_URL, echo=PRINT_QUERY_DEBUG)
+
 
     return bq_engine
 
