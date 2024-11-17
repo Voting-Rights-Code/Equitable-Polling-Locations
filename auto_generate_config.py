@@ -27,10 +27,10 @@ def check_model_fields_match_input(input_config, model_inspect):
     extra_fields = set(input_fields).difference(set(model_fields))
     
     #raise error as necessary
-    if len(model_fields) != set(model_fields):
+    if len(model_fields) != len(set(model_fields)):
         raise ValueError('There are repeated fields in the defined config model')
-    if len(input_fields) != set(input_fields):
-        raise ValueError('There are repeated fields in the config file given as input')
+    if len(input_fields) != len(set(input_fields)):
+       raise ValueError('There are repeated fields in the config file given as input')
     if len(missing_fields) >0:
         raise ValueError(f'missing required fields: {missing_fields}')
     if len(extra_fields) >0:
@@ -40,8 +40,9 @@ def check_model_fields_match_input(input_config, model_inspect):
 def check_model_and_input_types_match(input_config, model_inspect):
     '''Check that the types of the input config are of the correct type for the sql_alchemy model'''
 
-    model_types = {column.name:column.type for column in sql_alchemy_config_model.columns} 
-    base_config_types = {key:type(value) for key, value in base_config.items()} 
+    model_types = {column.name:column.type for column in model_inspect.columns} 
+    input_config_types = {key:type(value) for key, value in input_config.items()} 
+    breakpoint()
     #TODO: @Chad, how do I check that the types of entries in the base_config file are the same as the types of the entries in the sql_alchemy model.
     return
 
