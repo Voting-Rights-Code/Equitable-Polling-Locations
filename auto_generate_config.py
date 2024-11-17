@@ -2,7 +2,7 @@ import yaml
 import os
 #from model_config import (get_canonical_config_args, EXPERIMENTAL_FIELDS, NON_CONFIG_META_DATA)
 import models as Models
-from sqlalchemy import inspect
+from sqlalchemy import inspect, sql
 
 
 def load_base_config(config_file):
@@ -41,9 +41,22 @@ def check_model_and_input_types_match(input_config, model_inspect):
     '''Check that the types of the input config are of the correct type for the sql_alchemy model'''
 
     model_types = {column.name:column.type for column in model_inspect.columns} 
-    input_config_types = {key:type(value) for key, value in input_config.items()} 
-    breakpoint()
-    #TODO: @Chad, how do I check that the types of entries in the base_config file are the same as the types of the entries in the sql_alchemy model.
+    for key in input_config.keys():
+        if input_config[key] is None:
+            continue
+        if isinstance(input_config[key], str) and isinstance(model_types[key], sql.sqltypes.String):
+            continue
+        if isinstance(input_config[key], list) and isinstance(model_types[key], sql.sqltypes.ARRAY):
+            if len(input_config[key]) == 0:
+                continue
+            elif all(isinstance(x, str) for x in input_config[key]) and isinstance(model_types[key].item_type, sql.sqltypes.String):
+                continue
+        if isinstance(input_config[key], (int, float)) and isinstance(model_types[key], (sql.sqltypes.Float, sql.sqltypes.Integer)):
+            continue
+        if isinstance(input_config[key], bool) and isinstance(model_types[key], sql.sqltypes.Boolean):
+            continue
+        else:
+            raise ValueError(f'{key} is of wrong type. See models.model_config.py for correct types.')
     return
 
 def generate_configs(base_config_file:str, field_to_vary:str, desired_range: list):
@@ -61,7 +74,6 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
     
     #check that the fields of the same type
     check_model_and_input_types_match(base_config, sql_alchemy_config_model)
-    
 
     #validate config name and set
     config_set = base_config['config_set']
@@ -105,7 +117,7 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
         #    outfile.write(yaml_content)
 
 #generate files 
-generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', ['2014', '2016', ['2018', '2020']])
+generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', [['2014'], ['2016'], ['2018', '2020']])
 #generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['14', '15', '16', '17', '18'])
 # generate_configs('test_configs\Richmond_city_original_2024.yaml', 'capacity', [1.2, 1.4, 1.6, 1.8])
 # generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['10', '11'])
