@@ -4,8 +4,11 @@ import requests
 import subprocess
 import argparse
 import pandas as pd
+try:
+    from authentication_files.census_key import census_key
+except:
+    census_key = None
 from pathlib import Path
-
 
 STATE_LOOKUP = {
     'AK': 'Alaska',
@@ -201,19 +204,20 @@ def pull_tiger_file(state, fips, county_ST, county_code, geo):
     return base_url, output_directory
 
 
-def pull_census_data(statecode, county, APIKEY, state_lookup=STATE_LOOKUP):
+def pull_census_data(statecode, county, apikey = census_key, state_lookup=STATE_LOOKUP):
     """
     Given a statecode (i.e. MD or NY),
     and county (full name, must be capitalized properly),
     pull P3 and P4 data and tiger files
 
     """
-
+    if apikey is None:
+        raise ValueError('No census key available. Please request one from the census to download census data. See README.')
     state = state_lookup.get(statecode)
-    states_fips = get_all_states_fips_codes(APIKEY)  # get all fips codes for all states
+    states_fips = get_all_states_fips_codes(apikey)  # get all fips codes for all states
     fipscode = states_fips[state]
 
-    counties_codes = get_all_state_county_codes(fipscode, APIKEY)  # get all county codes
+    counties_codes = get_all_state_county_codes(fipscode, apikey)  # get all county codes
     countycode = get_county_code(county, counties_codes)
 
     # pull and save block-level data and block group data
@@ -223,7 +227,7 @@ def pull_census_data(statecode, county, APIKEY, state_lookup=STATE_LOOKUP):
         for pnum in ('P3', 'P4'):
             print(f"Now pulling {pnum} data for {geo} geography")
             # pull data
-            data, metadata = pull_ptable_data(geo, pnum, fipscode, countycode, APIKEY)
+            data, metadata = pull_ptable_data(geo, pnum, fipscode, countycode, apikey)
             # save off dataframe and metadata
             county_ST = county.replace(' ','_')+ '_' + statecode
             save_pdata(data, county_ST, geo, pnum)
@@ -244,9 +248,10 @@ if __name__ == '__main__':
     parser.add_argument(
         'county', help="County of interest. Full name, with proper capitalization"
     )
-    parser.add_argument(
-        'apikey', help="Census API key"
-    )
+    #parser.add_argument(
+    #    'apikey', help="Census API key"
+    #)
     args = parser.parse_args()
     print(args)
-    pull_census_data(args.state, args.county, args.apikey)
+    #pull_census_data(args.state, args.county, args.apikey)
+    pull_census_data(args.state, args.county)
