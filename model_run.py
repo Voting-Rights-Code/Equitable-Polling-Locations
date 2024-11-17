@@ -21,14 +21,17 @@ from model_results import (
     demographic_domain_summary,
     demographic_summary,
     write_results_csv,
-    write_results_bigquery
+    write_results_bigquery,
 )
 from model_penalties import incorporate_penalties
+
+OUT_TYPE_DB = 'db'
+OUT_TYPE_CSV = 'csv'
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
-def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=False, outtype: str = 'prod'):
+def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OUT_TYPE_DB):
     '''
     The entry point to exectute a pyomo/scip run.
     '''
@@ -75,19 +78,15 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
     #calculate the average distances (and y_ede if beta !=0) traveled by each demographic
     demographic_ede = demographic_summary(demographic_res, result_df, config.beta, alpha_new)
 
-    if outtype in('prod', 'test'):
+    if outtype == OUT_TYPE_DB:
         write_results_bigquery(
-             config,
+             config.config_file_path,
              result_df,
              demographic_prec,
              demographic_res,
              demographic_ede,
-             replace,
-             log,
-             outttype
         )
-
-    elif outtype == 'csv':
+    elif outtype == OUT_TYPE_CSV:
         if hasattr(config, 'result_folder'):
             out_location = config.result_folder
         else:
@@ -99,8 +98,6 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
             demographic_prec,
             demographic_res,
             demographic_ede,
-            replace
-        )
-
-
-    return
+         )
+    else:
+        raise ValueError(f'Unknown out type {outtype}')

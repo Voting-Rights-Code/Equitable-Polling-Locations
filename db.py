@@ -1,6 +1,8 @@
 '''
 DB Convenience methods
 
+Note: these methods are not intended to be thread safe.
+
 Credentials are assumed to be setup by the user by using the glcloud cli.
     e.g. "gcloud auth application-default login"
 '''
@@ -149,9 +151,12 @@ def validate_csv_columns(model_class: sqlalchemy_main.ModelBaseType, df: pd.Data
     for column in inspector.columns:
         column_type_map[column.name] = str(column.type)
 
-    for row_num, row in df.iterrows():
-        # The row number of the source csv file, 1-index and adjust for header
-        row_num += 2
+    print(f'validate_csv_columns df:\n{df}')
+    # 1-index and adjust for header
+    row_num = 2
+    for _, row in df.iterrows():
+        # The row number of the source csv file
+        row_num += 1
 
         for expected_name, expected_type in column_type_map.items():
             if expected_name == 'id':
@@ -189,23 +194,31 @@ def csv_to_bigquery(
         config_set: str,
         config_name: str,
         model_class: sqlalchemy_main.ModelBaseType,
-        csv_path: str,
         ignore_columns: List[str],
         column_renames: Dict[str, str],
         add_columns: Dict[str, str],
+        csv_path: str = None,
+        df: pd.DataFrame = None,
+
 ):
     '''
-    Loads in a csv file, alterns columns as needed, and builk uploads the values to bigquery.  Note: this is done
-    as a bulk upload since SQLAlchemy inserts are not performant enough to do it via models or raw queries.
+    Loads in a csv file or DataFrame, alterns columns as needed, and builk uploads the values to bigquery.
+    Note: this is done as a bulk upload since SQLAlchemy inserts are not performant enough to do it via
+    models or raw queries.
     '''
 
     try:
         table_name = model_class.__tablename__
 
-        # We are intentionally not using the pd.read_csv dtype here since we want to use our
-        # own validations to generate more info instead of depending on pandas ability to cast
-        # from float to int, etc.
-        df = pd.read_csv(csv_path) #, na_filter=False, keep_default_na=False)
+
+        # IF a dataframe is not already provided, load from the csv_path param
+        if df is None:
+            # We are intentionally not using the pd.read_csv dtype here since we want to use our
+            # own validations to generate more info instead of depending on pandas ability to cast
+            # from float to int, etc.
+            df = pd.read_csv(csv_path) #, na_filter=False, keep_default_na=False)
+        else:
+            csv_path = '[From DataFrame]'
 
         source_column_names = df.columns.tolist()
 

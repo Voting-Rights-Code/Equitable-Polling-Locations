@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 import datetime
+import os
 import re
 from time import time
 import uuid
@@ -69,3 +70,24 @@ def is_int(value):
 
 def is_str(value):
     return isinstance(value, str)
+
+
+def get_env_var_or_prompt(var_name: str, default_value: str=None) -> str:
+    '''
+    Gets an environment variable or prompts the user for input.
+
+    Args:
+        var_name (str): The name of the environment variable.
+
+    Returns:
+        str: The value of the environment variable or the user's input.
+    '''
+
+    value = os.environ.get(var_name)
+    if not value:
+        if default_value:
+            prompt_default = f' [Default: {default_value}]'
+        else:
+            prompt_default = ''
+        value = input(f'Environment variable not found for {var_name}\nPlease enter the value{prompt_default}: ')
+    return value or default_value

@@ -22,7 +22,7 @@ import utils
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 
-def load_configs(config_paths: List[str], logdir: str, allow_other_args: bool=False, outtype: str = 'prod') -> (bool, List[PollingModelConfig]):
+def load_configs(config_paths: List[str], logdir: str) -> tuple[bool, List[PollingModelConfig]]:
     ''' Look through the list of files and confim they exist on disk, print any missing files or errors. '''
     valid = True
     results: List[PollingModelConfig] = []
@@ -35,7 +35,7 @@ def load_configs(config_paths: List[str], logdir: str, allow_other_args: bool=Fa
             valid = False
         else:
             try:
-                config = PollingModelConfig.load_config(config_path, outtype)
+                config = PollingModelConfig.load_config(config_path)
                 if logdir:
                     config_file_basename = os.path.basename(config.config_file_path)
                     log_file_name = f'{log_date_prefix}_{config_file_basename}.log'
@@ -44,8 +44,6 @@ def load_configs(config_paths: List[str], logdir: str, allow_other_args: bool=Fa
                        log_file_name,
                     )
                 results.append(config)
-                if (bool(config.other_args) == True) & (allow_other_args == False): # An empty dict evalutes to false
-                    print(f'Invalid arguments detected in config file. To allow arbitrary arguments, set outtype to "csv"')
 
             # pylint: disable-next=broad-exception-caught
             except Exception as exception:
@@ -54,16 +52,16 @@ def load_configs(config_paths: List[str], logdir: str, allow_other_args: bool=Fa
 
     return (valid, results)
 
-def run_config(config: PollingModelConfig, log: bool=False, replace: bool=False, outtype: str = 'prod', verbose=False):
+def run_config(config: PollingModelConfig, log: bool=False, outtype: str='db', verbose=False):
     ''' run a config file '''
 
-    # pylint: disable-next=line-too-long
-    if verbose & (outtype in ['prod']):
+    if verbose and outtype == model_run.OUT_TYPE_DB:
+        # pylint: disable-next=line-too-long
         print(f'Starting config: {config.config_file_path} -> BigQuery {outtype} output with config set {config.config_set} and name {config.config_name}')
-    elif verbose & (outtype == 'csv'):
+    elif verbose and outtype == model_run.OUT_TYPE_CSV:
         print(f'Starting config: {config.config_file_path} -> CSV output to directory {config.result_folder}')
 
-    model_run.run_on_config(config, log, replace, outtype)
+    model_run.run_on_config(config, log, outtype)
     if verbose:
         print(f'Finished config: {config.config_file_path}')
 
@@ -72,7 +70,6 @@ def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
     logdir = args.logdir
-    replace = args.replace
     outtype = args.outtype
 
     if logdir:
@@ -82,21 +79,12 @@ def main(args: argparse.Namespace):
         else:
             print(f'Writing logs to dir: {logdir}')
 
-    if outtype not in ['csv', 'prod']:
-        print(f'Invalid outtype: {outtype}')
-        sys.exit(1)
-
-    if outtype in ['csv']:
-        allow_other_args = True
-    else:
-        allow_other_args = False
-
     # Handle wildcards in Windows properly
     glob_paths = [ glob(item) for item in args.configs ]
     config_paths: List[str] = [ item for sublist in glob_paths for item in sublist ]
 
     # Check that all files are valid, exist if they do not exist
-    valid, configs = load_configs(config_paths, logdir, allow_other_args, outtype)
+    valid, configs = load_configs(config_paths, logdir)
     if not valid:
         sys.exit(1)
 
@@ -108,7 +96,7 @@ def main(args: argparse.Namespace):
     if args.concurrent > 1:
         print(f'Running concurrent with a pool size of {args.concurrent} against {total_files} config file(s)')
         with Pool(args.concurrent) as pool:
-            for _ in tqdm(pool.imap_unordered(lambda x: run_config(x, replace, outtype), configs), total=total_files):
+            for _ in tqdm(pool.imap_unordered(lambda x: run_config(x, log, outtype), configs), total=total_files):
                 pass
     else:
         # Disable function timers messages unless verbosity 2 or higher is set
@@ -118,12 +106,13 @@ def main(args: argparse.Namespace):
         print(f'Running single process against {total_files} config file(s)')
 
         for config_file in configs:
-            run_config(config_file, log, replace, outtype)
+            run_config(config_file, log, outtype)
             print('--------------------------------------------------------------------------------')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        # pylint: disable-next=line-too-long
         description='A commandline tool that chooses an optimal set of polling locations from a set of potential locations.',
         epilog='''
 Examples:
@@ -143,13 +132,24 @@ Examples:
         '''
     )
     parser.add_argument('configs', nargs='+', help='One or more yaml configuration files to run.')
-    parser.add_argument('-c', '--concurrent', default=DEFAULT_MULTI_PROCESS_CONCURRENT, type=int,
-                        help='How many concurrent optimization processes to run at the same time.  ' +
-                        'Be mindful of ram availability - full runs can use in excess of 40 GB' +
-                        ' for each concurrent process.')
+    parser.add_argument(
+        '-c',
+        '--concurrent',
+        default=DEFAULT_MULTI_PROCESS_CONCURRENT,
+        type=int,
+        help='How many concurrent optimization processes to run at the same time.  ' +
+            'Be mindful of ram availability - full runs can use in excess of 40 GB' +
+            ' for each concurrent process.')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
     parser.add_argument('-l', '--logdir', type=str, help='The directory to output log files to')
-    parser.add_argument('-r', '--replace', action='store_true', help = 'Replace existing output data for a given config name and set')
-    parser.add_argument('-o', '--outtype', type=str, default = 'prod', help = 'Output location, one of "prod" (production database) or "csv" (local CSV)')
+    parser.add_argument(
+        '-o',
+        '--outtype',
+        choices=[model_run.OUT_TYPE_DB, model_run.OUT_TYPE_CSV],
+        default = model_run.OUT_TYPE_DB,
+        # pylint: disable-next=line-too-long
+        help = f'Output location, one of "{model_run.OUT_TYPE_DB}" (database) or "{model_run.OUT_TYPE_CSV}" (local CSV)',
+    )
+
 
     main(parser.parse_args())

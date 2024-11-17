@@ -61,7 +61,11 @@ def output_file_paths(config: PollingModelConfig) -> dict[str, str]:
 
     return results
 
-def import_model_config(config_set: str, config_name: str, path: str) -> Tuple[Models.ModelConfig, dict[str, str]]:
+def import_model_config(
+        path: str,
+        config_set_override: str=None,
+        config_name_override: str=None,
+) -> Tuple[Models.ModelConfig, dict[str, str]]:
     '''
     Imports a model config into the database.  If this model config already exists then a duplicate will not be created.
 
@@ -74,8 +78,8 @@ def import_model_config(config_set: str, config_name: str, path: str) -> Tuple[M
     paths = output_file_paths(config_source)
 
     config_data = {
-        'config_set': config_set,
-        'config_name': config_name,
+        'config_set': config_set_override or config_source.config_set,
+        'config_name': config_name_override or config_source.config_name,
     }
 
     for column in Models.ModelConfig.__table__.columns:
@@ -96,7 +100,13 @@ def import_model_config(config_set: str, config_name: str, path: str) -> Tuple[M
 
 
 
-def import_edes_csv(config_set: str, config_name: str, model_run_id: str, csv_path: str) -> db.ImportResult:
+def import_edes(
+        config_set: str,
+        config_name: str,
+        model_run_id: str,
+        csv_path: str = None,
+        df: pd.DataFrame = None,
+) -> db.ImportResult:
     ''' Imports an existing EDEs csv into the database for a given mode_run_id. '''
 
     column_renames = {}
@@ -107,17 +117,19 @@ def import_edes_csv(config_set: str, config_name: str, model_run_id: str, csv_pa
         config_set=config_set,
         config_name=config_name,
         model_class=Models.EDES,
-        csv_path=csv_path,
         ignore_columns=ignore_columns,
         column_renames=column_renames,
-        add_columns=add_columns
+        add_columns=add_columns,
+        csv_path=csv_path,
+        df=df,
     )
 
-def import_precinct_distances_csv(
+def import_precinct_distances(
         config_set: str,
         config_name: str,
         model_run_id: str,
-        csv_path: str
+        csv_path: str = None,
+        df: pd.DataFrame = None,
 ) -> db.ImportResult:
     ''' Imports an existing precinct distances csv into the database for a given mode_run_id. '''
 
@@ -129,17 +141,19 @@ def import_precinct_distances_csv(
         config_set=config_set,
         config_name=config_name,
         model_class=Models.PrecintDistance,
-        csv_path=csv_path,
         ignore_columns=ignore_columns,
         column_renames=column_renames,
-        add_columns=add_columns
+        add_columns=add_columns,
+        csv_path=csv_path,
+        df=df,
     )
 
-def import_residence_distances_csv(
+def import_residence_distances(
         config_set: str,
         config_name: str,
         model_run_id: str,
-        csv_path: str
+        csv_path: str = None,
+        df: pd.DataFrame = None,
 ) -> db.ImportResult:
     ''' Imports an existing residence distances csv into the database for a given mode_run_id. '''
 
@@ -151,13 +165,20 @@ def import_residence_distances_csv(
         config_set=config_set,
         config_name=config_name,
         model_class=Models.ResidenceDistance,
-        csv_path=csv_path,
         ignore_columns=ignore_columns,
         column_renames=column_renames,
-        add_columns=add_columns
+        add_columns=add_columns,
+        csv_path=csv_path,
+        df=df,
     )
 
-def import_results_csv(config_set: str, config_name: str, model_run_id: str, csv_path: str) -> db.ImportResult:
+def import_results(
+        config_set: str,
+        config_name: str,
+        model_run_id: str,
+        csv_path: str = None,
+        df: pd.DataFrame = None,
+) -> db.ImportResult:
     ''' Imports an existing precinct distances csv into the database for a given mode_run_id. '''
 
     column_renames = {
@@ -172,25 +193,26 @@ def import_results_csv(config_set: str, config_name: str, model_run_id: str, csv
         config_set=config_set,
         config_name=config_name,
         model_class=Models.Result,
-        csv_path=csv_path,
         ignore_columns=ignore_columns,
         column_renames=column_renames,
-        add_columns=add_columns
+        add_columns=add_columns,
+        csv_path=csv_path,
+        df=df,
     )
 
 
-def print_all_import_results(import_results: List[db.ImportResult], output_path: str=None):
+def print_all_import_results(import_results_list: List[db.ImportResult], output_path: str=None):
     ''' Prints to the screen a summary of all import results. '''
 
     data = {
-        'timestamp': [ r.timestamp for r in import_results ],
-        'config_set': [ r.config_set for r in import_results ],
-        'config_name': [ r.config_name for r in import_results ],
-        'success': [ r.success for  r in import_results ],
-        'table_name': [ r.table_name for r in import_results ],
-        'source_file': [ r.source_file for r in import_results ],
-        'rows_written': [ r.rows_written for  r in import_results ],
-        'error': [ str(r.exception or '') for  r in import_results ],
+        'timestamp': [ r.timestamp for r in import_results_list ],
+        'config_set': [ r.config_set for r in import_results_list ],
+        'config_name': [ r.config_name for r in import_results_list ],
+        'success': [ r.success for  r in import_results_list ],
+        'table_name': [ r.table_name for r in import_results_list ],
+        'source_file': [ r.source_file for r in import_results_list ],
+        'rows_written': [ r.rows_written for  r in import_results_list ],
+        'error': [ str(r.exception or '') for  r in import_results_list ],
     }
 
     df = pd.DataFrame(data)
@@ -212,7 +234,6 @@ def print_all_import_results(import_results: List[db.ImportResult], output_path:
 def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
-    config_set = args.config_set_name[0]
     logdir = args.logdir
 
     glob_paths = [ glob(item) for item in args.configs ]
@@ -221,7 +242,7 @@ def main(args: argparse.Namespace):
     num_files = len(config_paths)
 
     print('------------------------------------------')
-    print(f'Importing {num_files} file(s) for config set {config_set}\n')
+    print(f'Importing {num_files} file(s)\n')
 
 
     results = []
@@ -229,10 +250,10 @@ def main(args: argparse.Namespace):
     for i, config_path in enumerate(config_paths):
         success = True
         print(f'Loading [{i+1}/{num_files}] {config_path}')
-        config_file_basename = os.path.basename(config_path)
-        config_name = config_file_basename.replace('.yaml','')
 
-        (model_config, file_paths) = import_model_config(config_set, config_name, config_path)
+        (model_config, file_paths) = import_model_config(config_path)
+        config_set = model_config.config_set
+        config_name = model_config.config_name
 
         model_config = db.find_or_create_model_config(model_config)
         print(f'Importing result files from {model_config}')
@@ -242,17 +263,17 @@ def main(args: argparse.Namespace):
         print(f'Created {model_run}')
 
         # Import each csv file for this run
-        edes_import_result = import_edes_csv(
-            config_set, config_name, model_run.id, file_paths[EDE_PATH]
+        edes_import_result = import_edes(
+            config_set, config_name, model_run.id, csv_path=file_paths[EDE_PATH]
         )
-        results_import_result = import_results_csv(
-            config_set, config_name, model_run.id, file_paths[RESULTS_PATH]
+        results_import_result = import_results(
+            config_set, config_name, model_run.id, csv_path=file_paths[RESULTS_PATH]
         )
-        precinct_distances_import_result = import_precinct_distances_csv(
-            config_set, config_name, model_run.id, file_paths[PRECINCT_DISTANCES_PATH]
+        precinct_distances_import_result = import_precinct_distances(
+            config_set, config_name, model_run.id, csv_path=file_paths[PRECINCT_DISTANCES_PATH]
         )
-        residence_distances_import_result = import_residence_distances_csv(
-            config_set, config_name, model_run.id, file_paths[RESIDENCE_DISTANCES_PATH]
+        residence_distances_import_result = import_residence_distances(
+            config_set, config_name, model_run.id, csv_path=file_paths[RESIDENCE_DISTANCES_PATH]
         )
 
         current_run_results = [
@@ -299,17 +320,16 @@ def main(args: argparse.Namespace):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        # pylint: disable-next=line-too-long
         description='A command line utility to read in legacy (pre-db) CSVs into the bigquery database from past model runs.',
         epilog='''
 Examples:
     To import all model data from the config set named Chesterfield_County_VA_potential_configs:
 
-        python ./db_import_cli.py Chesterfield_County_VA_potential_configs ./Chesterfield_County_VA_potential_configs/*yaml
+        python ./db_import_cli.py ./Chesterfield_County_VA_potential_configs/*yaml
         '''
     )
-    parser.add_argument('config_set_name', nargs=1, help='the config set name')
     parser.add_argument('configs', nargs='+', help='One or more yaml configuration files to run.')
     parser.add_argument('-l', '--logdir', default=DEFAULT_LOG_DIR, type=str, help='The directory to erros files to ')
-
 
     main(parser.parse_args())

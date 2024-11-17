@@ -14,14 +14,18 @@ from sqlalchemy.engine.base import Engine
 from sqlalchemy.ext.declarative import declarative_base
 from alembic.operations import Operations, MigrateOperation
 
+import utils
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
+DEFAULT_PROJECT = 'equitable-polling-locations'
 
 PRINT_QUERY_DEBUG=False
 ''' If set to true, SQLAlchemy will print sql queries. '''
 
-PROJECT = 'equitable-polling-locations'
-DATASET = 'scratch_chad2'
+
+PROJECT = utils.get_env_var_or_prompt('DB_PROJECT', DEFAULT_PROJECT)
+DATASET = utils.get_env_var_or_prompt('DB_DATASET')
 
 DATABASE_URL = f'bigquery://{PROJECT}/{DATASET}'
 
