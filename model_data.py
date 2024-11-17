@@ -12,8 +12,10 @@ from pathlib import Path
 from haversine import haversine
 import geopandas as gpd
 from model_config import PollingModelConfig
-from authentication_files.census_key import census_key
+#from authentication_files.census_key import census_key
 from pull_census_data import pull_census_data
+
+
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
@@ -46,21 +48,21 @@ def build_source(location):
     if not os.path.exists(demographics_dir):
         statecode = location[-2:]
         locality = location[:-3].replace('_',' ')
-        pull_census_data(statecode,locality,census_key)
+        pull_census_data(statecode, locality)
     if os.path.exists(P3_SOURCE_FILE):
         p3_df = pd.read_csv(P3_SOURCE_FILE,
             header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
             low_memory=False, # files are too big, set this to False to prevent errors
             )
     else:
-        raise ValueError(f'Census data from table P3 not found. Reinstall using api or manually following download instruction from README.')
+        raise ValueError(f'Census data from table P3 not found. Download using api or manually following download instruction from README.')
     if os.path.exists(P4_SOURCE_FILE):
         p4_df = pd.read_csv(P4_SOURCE_FILE,
             header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
             low_memory=False, # files are too big, set this to False to prevent errors
             )
     else:
-        raise ValueError(f'Census data from table P4 not found. Reinstall using api or manually following download instruction from README.')
+        raise ValueError(f'Census data from table P4 not found. Download using api or manually following download instruction from README.')
     
     #3. Census geographic data
     geography_dir = os.path.join(DATASETS_DIR, 'census', 'tiger', location)
