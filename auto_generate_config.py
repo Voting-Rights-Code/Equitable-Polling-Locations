@@ -92,10 +92,20 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
     for new_value in desired_range:
         config = base_config.copy()
         location = base_config['location']
-        if field_to_vary != 'location':
-            new_config_name = f'{location}_{field_to_vary}_{new_value}'
+
+        #change the naming convention if the desired range is a list
+        if isinstance(new_value, list):
+            new_value_suffix = '_'.join(new_value)
+            if len(new_value_suffix) > 40:
+                new_value_suffix = f'{field_to_vary}_list_{desired_range.index(new_value)}'
         else:
-            new_config_name = f'{new_value}'
+            new_value_suffix = new_value
+ 
+        #change the naming convention if the varying field is "location"
+        if field_to_vary != 'location':
+            new_config_name = f'{location}_{field_to_vary}_{new_value_suffix}'
+        else:
+            new_config_name = f'{new_value_suffix}'
         new_config_file_name = f'{new_config_name}.yaml'
         #update values
         config['config_name'] = new_config_file_name
