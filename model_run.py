@@ -21,21 +21,24 @@ from model_results import (
     demographic_domain_summary,
     demographic_summary,
     write_results_csv,
-    write_results_bigquery
+    write_results_bigquery,
 )
 from model_penalties import incorporate_penalties
+
+OUT_TYPE_DB = 'db'
+OUT_TYPE_CSV = 'csv'
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
-def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=False, outtype: str = 'prod'):
+def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OUT_TYPE_DB):
     '''
     The entry point to exectute a pyomo/scip run.
     '''
 
     config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
     run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
-    
+
     source_file_name = config.location + '.csv'
     source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
     if not os.path.exists(source_path):
@@ -46,10 +49,10 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
     #get main data frame
     dist_df = clean_data(config, False)
 
-    #get alpha 
+    #get alpha
     alpha_df = clean_data(config, True, log)
     alpha  = alpha_min(alpha_df)
-    
+
     #build model
     ea_model = polling_model_factory(dist_df, alpha, config)
     if log:
@@ -66,7 +69,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
 
     #calculate the new alpha given this assignment
     alpha_new = alpha_min(result_df)
-    
+
     #calculate the average distances traveled by each demographic to the assigned precinct
     demographic_prec = demographic_domain_summary(result_df, 'id_dest')
 
@@ -76,22 +79,18 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
     #calculate the average distances (and y_ede if beta !=0) traveled by each demographic
     demographic_ede = demographic_summary(demographic_res, result_df, config.beta, alpha_new)
 
-    if outtype in('prod', 'test'):
+    if outtype == OUT_TYPE_DB:
         write_results_bigquery(
-             config,
+             config.config_file_path,
              result_df,
              demographic_prec,
              demographic_res,
              demographic_ede,
-             replace,
-             log,
-             outttype
         )
-
-    elif outtype == 'csv':
+    elif outtype == OUT_TYPE_CSV:
         if hasattr(config, 'result_folder'):
             out_location = config.result_folder
-        else: 
+        else:
             out_location = config.config_set
         write_results_csv(
             out_location,
@@ -100,8 +99,6 @@ def run_on_config(config: PollingModelConfig, log: bool=False, replace: bool=Fal
             demographic_prec,
             demographic_res,
             demographic_ede,
-            replace
-        )
-
-
-    return
+         )
+    else:
+        raise ValueError(f'Unknown out type {outtype}')

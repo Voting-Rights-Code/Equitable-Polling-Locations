@@ -4,6 +4,7 @@ SQLAlchemy initial setup
 This file contains constumizations and adds funconality to alembic, such
 as the ability to create views.
 '''
+from typing import Type
 
 import os
 
@@ -13,19 +14,32 @@ from sqlalchemy.engine.base import Engine
 from sqlalchemy.ext.declarative import declarative_base
 from alembic.operations import Operations, MigrateOperation
 
+import utils
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
-CREDENTIALS_PATH = f'{dir_path}/equitable-polling-locations-d5341aaac2fa.json'
 
-PROJECT = 'equitable-polling-locations'
-DATASET = 'scratch_chad2'
+DEFAULT_PROJECT = 'equitable-polling-locations'
 
+PRINT_QUERY_DEBUG=False
+''' If set to true, SQLAlchemy will print sql queries. '''
+
+
+PROJECT = utils.get_env_var_or_prompt('DB_PROJECT', DEFAULT_PROJECT)
+DATASET = utils.get_env_var_or_prompt('DB_DATASET')
+
+DATABASE_URL = f'bigquery://{PROJECT}/{DATASET}'
 
 ModelBase = declarative_base()
-bq_engine: Engine
+
+ModelBaseType = Type[ModelBase]
+
+bq_engine: Engine = None
 
 def setup(): #config: Dict[str,  str]):
     global bq_engine
-    bq_engine = create_engine(f'bigquery://{PROJECT}/{DATASET}', credentials_path=CREDENTIALS_PATH)
+    if not bq_engine:
+        bq_engine = create_engine(url=DATABASE_URL, echo=PRINT_QUERY_DEBUG)
+
 
     return bq_engine
 

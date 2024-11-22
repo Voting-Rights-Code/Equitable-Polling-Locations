@@ -3,21 +3,34 @@
 '''
 # pylint: disable=invalid-name
 
-from sqlalchemy import Column, String, Integer, Float
+from sqlalchemy import Column, String, Integer, Float, text
+
 from sqlalchemy_main import ModelBase
+from utils import generate_uuid
 
 class EDES(ModelBase):
-    ''' Configuration record  '''
+    ''' EDES SQLAlchemy record. '''
 
     __tablename__ = 'edes'
 
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    demographic = Column(String(256))
-    weighted_dist = Column(Float)
-    avg_dist = Column(Float)
-    demo_res_obj_summand = Column(Float)
-    demo_pop = Column(Integer)
-    avg_kp_weight = Column(Float)
-    y_ede = Column(Float)
-    config_name = Column(String(256))
-    config_set = Column(String(256))
+    id: str = Column(
+        String(36),
+        primary_key=True,
+        default=generate_uuid,
+        server_default=text('GENERATE_UUID()'),
+        nullable=False
+    )
+
+    model_run_id: str = Column(String(36), nullable=False)
+    demographic: str = Column(String(256))
+    weighted_dist: float = Column(Float)
+    avg_dist: float = Column(Float)
+    demo_res_obj_summand: float = Column(Float)
+    demo_pop: int = Column(Integer)
+    avg_kp_weight: float = Column(Float)
+    y_ede: float = Column(Float)
+    source: str = Column(String(256))
+
+    def __repr__(self):
+        return f"EDES(id={self.id}, model_run_id='{self.model_run_id}', demographic='{self.demographic}')"
+
