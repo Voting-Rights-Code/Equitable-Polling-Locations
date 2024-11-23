@@ -20,7 +20,7 @@ source('result_analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'DeKalb_GA' #needed only for reading from csv and writing outputs 
+LOCATION = 'DeKalb_GA' #needed only for reading from csv and writing outputs
 ORIG_CONFIG_FOLDER = "DeKalb_GA_original_configs"
 POTENTIAL_CONFIG_FOLDER = "DeKalb_GA_no_bg_school_configs"
 
@@ -62,7 +62,7 @@ DRIVING_FLAG <- set_global_driving_flag(config_dt_list)
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
 
-#names of the output data in these lists 
+#names of the output data in these lists
 #come from TABLES above
 orig_output_df_list <- read_result_data(orig_config_dt)
 
@@ -100,15 +100,8 @@ global_color_bounds <- distance_bounds(all_res_output)
 #######
 #Plot potential data
 #######
-<<<<<<< HEAD:result analysis/Basic_analysis.r
-plot_folder = paste0('result analysis/', POTENTIAL_CONFIG_FOLDER)
-if (!file.exists(file.path(here(), plot_folder))){
-=======
 plot_folder = paste0('result_analysis/', POTENTIAL_CONFIG_FOLDER)
-if (file.exists(file.path(here(), plot_folder))){
-    setwd(file.path(here(), plot_folder))    
-} else{
->>>>>>> feature/config_automation_with_sqlalchemy:result_analysis/Basic_analysis.r
+if (!file.exists(file.path(here(), plot_folder))){
     dir.create(file.path(here(), plot_folder))
 }
 setwd(file.path(here(), plot_folder))
@@ -151,7 +144,7 @@ sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
 #######
 plot_folder = paste0('result_analysis/', ORIG_CONFIG_FOLDER)
 if (file.exists(file.path(here(), plot_folder))){
-    setwd(file.path(here(), plot_folder))    
+    setwd(file.path(here(), plot_folder))
 } else{
     dir.create(file.path(here(), plot_folder))
     setwd(file.path(here(), plot_folder))
