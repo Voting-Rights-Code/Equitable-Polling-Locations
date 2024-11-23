@@ -1,3 +1,7 @@
+# fields for the database
+config_set: 'DeKalb_County_GA_no_school_penalize_bg_configs_driving_pre_EV_2024'
+config_name: 'DeKalb_GA_no_school_15'
+
 # Constants for the optimization function
 location: DeKalb_County_GA
 year:
@@ -8,9 +12,10 @@ bad_types:
 beta: -1
 time_limit: 360000 #100 hours minutes
 capacity: 5
+fixed_capacity_site_number: null
 
 ####Optional#####
-precincts_open: 26
+precincts_open: 15
 max_min_mult: 5 #scalar >= 1
 maxpctnew: 1 # in interval [0,1]
 minpctold: .75 # in interval [0,1]
@@ -553,3 +558,4 @@ penalized_sites:
     - 130890238033
     - 130890238034
     - 130899800001
+    

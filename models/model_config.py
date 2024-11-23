@@ -81,6 +81,8 @@ class ModelConfig(ModelBase):
     If default number of open precincts if one wants to hold the number
     of people that can go to a location constant (as opposed to a function of the number of locations).
     '''
+    log_distance: bool = Column(Boolean)
+    '''Flag indicating whether or not the log of the distances is to be used in the optimization'''
 
     created_at: DateTime = Column(DateTime, nullable=False, default=current_time_utc)
     ''' The DateTime this model config was created. '''

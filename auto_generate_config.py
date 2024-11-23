@@ -1,8 +1,10 @@
 import yaml
 import os
-#from model_config import (get_canonical_config_args, EXPERIMENTAL_FIELDS, NON_CONFIG_META_DATA)
-import models as Models
+import argparse
+
 from sqlalchemy import inspect, sql
+
+import models as Models
 
 
 def load_base_config(config_file):
@@ -63,6 +65,7 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
     """
     Generate YAML configurations by varying specified parameters while keeping others constant.
     """
+
     # Load the base configuration from the file
     base_config = load_base_config(base_config_file)
     
@@ -119,15 +122,30 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
         with open(file_path, 'w') as outfile:
             yaml.dump(config, outfile, default_flow_style=False, sort_keys= False)
 
-        # Create YAML content dynamically based on the base_config
-        #yaml_content = generate_yaml_content(config)
-        
-        # Write the custom content to the YAML file
-        #with open(file_path, 'w') as outfile:
-        #    outfile.write(yaml_content)
+
+#Note this doesn't work
+# if __name__ == '__main__':
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument(
+#         'base_config_path', help="File path of the .yaml file to use as the template config"
+#     )
+#     parser.add_argument(
+#         'field_to_change', help="The config field that is to vary in for this config_set"
+#     )
+#     parser.add_argument(
+#         'new_range', help="The set of values that field_to_change should take for this config_set"
+#     )
+#     args = parser.parse_args()
+#     print(args)
+#     generate_configs(args.base_config_path, args.field_to_change, args.new_range)
+
+
 
 #generate files 
-generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', [['2014'], ['2016'], ['2018', '2020']])
+
+generate_configs('DeKalb_County_GA_no_school_penalize_bg_configs_driving_pre_EV_2024\DeKalb_GA_no_school_15.yaml', 'precincts_open', [range(15,30)])
+
+#generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', [['2014'], ['2016'], ['2018', '2020']])
 #generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['14', '15', '16', '17', '18'])
 # generate_configs('test_configs\Richmond_city_original_2024.yaml', 'capacity', [1.2, 1.4, 1.6, 1.8])
 # generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['10', '11'])
