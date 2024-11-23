@@ -142,9 +142,11 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
 
 
 #generate files 
-
-generate_configs('DeKalb_County_GA_no_school_penalize_bg_configs_driving_pre_EV_2024\DeKalb_GA_no_school_15.yaml', 'precincts_open', [range(15,30)])
-
+precinct_range = [i for i in range(15, 31)]
+#generate_configs('DeKalb_County_GA_no_school_penalize_bg_configs_driving_pre_EV_2024\DeKalb_GA_no_school_15.yaml', 'precincts_open', precinct_range)
+#generate_configs('DeKalb_County_GA_no_school_penalize_bg_configs_log_driving_pre_EV_2024\DeKalb_GA_no_school_15.yaml', 'precincts_open', precinct_range)
+generate_configs('DeKalb_County_GA_no_bg_school_configs_driving_pre_EV_2024\DeKalb_GA_no_school_15.yaml', 'precincts_open', precinct_range)
+generate_configs('DeKalb_County_GA_no_bg_school_configs_log_driving_pre_EV_2024\DeKalb_GA_no_school_15.yaml', 'precincts_open', precinct_range)
 #generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', [['2014'], ['2016'], ['2018', '2020']])
 #generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['14', '15', '16', '17', '18'])
 # generate_configs('test_configs\Richmond_city_original_2024.yaml', 'capacity', [1.2, 1.4, 1.6, 1.8])

@@ -78,7 +78,6 @@ def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, confi
 
     # 8. continue to result_df with solution to model 3
     result_df = incorporate_result(dist_df, ea_model_penalized)
-    
 
     #selected_sites = set(result_df.id_dest)
     penalized_selections = set(dist_df.loc[dist_df['location_type'].isin(config.penalized_sites), 'id_dest'].unique())
