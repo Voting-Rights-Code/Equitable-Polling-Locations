@@ -48,7 +48,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
 
     #get main data frame
     dist_df = clean_data(config, False)
-
+    breakpoint()
     #get alpha
     alpha_df = clean_data(config, True, log)
     alpha  = alpha_min(alpha_df)

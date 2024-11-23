@@ -302,8 +302,8 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str, 
 def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
     location = config.location
     year_list = config.year
-    driving = config.other_args['driving']
-    log_distance = config.other_args['log_distance']
+    driving = config.driving
+    log_distance = config.log_distance
     
     #read in data
     data_dir = os.path.join(DATASETS_DIR, 'polling', location)
