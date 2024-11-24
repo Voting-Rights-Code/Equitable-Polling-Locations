@@ -7,7 +7,7 @@ year:
 bad_types:
 - Elec Day School - Potential
 - bg_centroid
-beta: -1
+beta: -2
 time_limit: 360000
 capacity: 5
 fixed_capacity_site_number: null

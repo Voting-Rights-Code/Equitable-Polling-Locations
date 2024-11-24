@@ -1,6 +1,6 @@
 # fields for the database
 config_set: 'DeKalb_County_GA_no_bg_school_configs_log_driving_pre_EV_2024'
-config_name: 'DeKalb_GA_no_school_15'
+config_name: 'DeKalb_GA_no_bg_school_15'
 
 # Constants for the optimization function
 location: DeKalb_County_GA
@@ -10,7 +10,7 @@ year:
 bad_types: 
     - 'Elec Day School - Potential'
     - 'bg_centroid'
-beta: -1
+beta: -2
 time_limit: 360000 #100 hours minutes
 capacity: 5
 fixed_capacity_site_number: null

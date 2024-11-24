@@ -9,7 +9,7 @@ year:
     - '2022'
 bad_types: 
     - 'Elec Day School - Potential'
-beta: -1
+beta: -2
 time_limit: 360000 #100 hours minutes
 capacity: 5
 fixed_capacity_site_number: null

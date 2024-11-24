@@ -248,7 +248,10 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
     #residence, precint pairs
     model.pairs = model.residences * model.precincts
     #penalized sites
-    penalized_sites = list(set(dist_df.loc[dist_df['location_type'].isin(config.penalized_sites), 'id_dest'].unique()))
+    if config.penalized_sites:
+        penalized_sites = list(set(dist_df.loc[dist_df['location_type'].isin(config.penalized_sites), 'id_dest'].unique()))
+    else:
+        penalized_sites = []
     model.penalized_sites = pyo.Set(initialize=penalized_sites)
 
     ####define model parameters####
@@ -299,7 +302,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
         penalty_rule = build_penalty_rule(alpha, config.beta, site_penalty)
         model.penalty_constraint = pyo.Constraint(rule=penalty_rule)
 
-        num_penalized_sites = len(set(dist_df.loc[dist_df['location_type'].isin(config.penalized_sites), 'id_dest'].unique()))
+        num_penalized_sites = len(model.penalized_sites)
         linearization_points = [-alpha*config.beta*i*site_penalty for i in range(num_penalized_sites+1)]
         penalty_approximation_rule = build_penalty_approximation_rule()
         model.penalty_approximation_constraint = pyo.Constraint(linearization_points, rule=penalty_approximation_rule)
@@ -332,7 +335,6 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
         total_pop=total_pop,
         precincts_open=precincts_open,
     )
-
     model.capacity_constraint = pyo.Constraint(model.precincts, rule=capacity_rule)
 
     #model.obj.pprint()
