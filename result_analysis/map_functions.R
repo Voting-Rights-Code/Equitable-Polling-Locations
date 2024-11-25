@@ -9,7 +9,7 @@ library(cartogram)
 ######
 
 # The mapping files are set to run independently of the graph files.
-# These functions associate demographics and average distances to each 
+# These functions associate demographics and average distances to each
 # county and optimization run separately
 # NOTE: Right now, the these maps are not completely adapted to denote when
 #		the incoming data includes driving distances. This is a future feature
@@ -17,8 +17,8 @@ library(cartogram)
 # Work flow:
 ###########
 # 1. make_or_load_maps:
-#	 * creates a base map or cartogram with associated census demographic data. 
-#		* Only Census data used for this. 
+#	 * creates a base map or cartogram with associated census demographic data.
+#		* Only Census data used for this.
 #		* No optimization data involved
 #    	* WARNING: If making cartograms, make certain that the final error is acceptable. This is not currently automated
 #	 * process_demographics puts together a single datatable of relevant P3 and P4 census data
@@ -38,12 +38,12 @@ library(cartogram)
 #	 * only a map, not a cartogram
 # 	 * same as above, but places a dot in each block representing a demographic group
 #	 * the color is as above
-#	 * the size of the dot corresponds to population. 
+#	 * the size of the dot corresponds to population.
 # 	 	* the size scale is determined by the total populations of the block groups
 
 add_location <- function(data, config_dt){
 	#adds location field from config_dt to output data
-	
+
 	#get config meta data and locations
 	config_set_location <- config_dt[ , .(location, config_set, config_name)]
 
@@ -58,7 +58,7 @@ distance_bounds <- function(residence_df){
 
 	#select total population residence data
 	pop_res_dist <- residence_df[demographic == 'population', ]
-	
+
 	# pull out min and max average distances by location
 	bound_dt <- pop_res_dist[, .(min_avg_dist = min(avg_dist), max_avg_dist = max(avg_dist)), by = location]
 
@@ -75,7 +75,7 @@ distance_bounds <- function(residence_df){
 
 
 process_maps <- function(file_name){
-	#reads in map data, ads an area column and returns only 
+	#reads in map data, ads an area column and returns only
 	#polygon id (GEOID20), the area, lat, lon and polygon geometry
 
     #read in map data as data table
@@ -114,16 +114,16 @@ process_demographics <-function(folder_name){
 }
 
 aggregate_residence_demo <- function(res_dist_df){
-	#aggregate residence data from the model output, which is at the block 
+	#aggregate residence data from the model output, which is at the block
 	#level, to the block group level
 
 	#the last 3 digits of id_orig are the block, remove these for block group
 	#GEOID20 is the BG column name from the census
 	res_dist_df <- res_dist_df[ , id_orig := as.character(id_orig)
 		][ , GEOID20 := gsub('.{3}$', '', id_orig)]
-	
+
 	#aggregate by block group, demographic and config_name
-	bg_res_dist <- res_dist_df[ , .(demo_pop = sum(demo_pop),weighted_dist = sum(weighted_dist)), 
+	bg_res_dist <- res_dist_df[ , .(demo_pop = sum(demo_pop),weighted_dist = sum(weighted_dist)),
 						by = c('GEOID20', 'demographic', 'config_set','config_name', 'descriptor')][ , avg_dist := weighted_dist/demo_pop]
 
 	return(bg_res_dist)
@@ -133,7 +133,7 @@ prepare_outputs_for_maps <- function(residence_data, result_data, config_data){
 
 	#aggregate block level demographic data to block group level
 	res_dist_demo <- aggregate_residence_demo(residence_data)
-	
+
 	#get lat/ lon coords from results
 	dest_lat_lon <- result_data[ ,.(lon = unique(dest_lon), lat = unique(dest_lat), type = unique(dest_type)), by = c('id_dest', 'config_set', 'config_name')]
 
@@ -142,11 +142,11 @@ prepare_outputs_for_maps <- function(residence_data, result_data, config_data){
 	res_dist_demo_dest <- merge(dest_lat_lon, res_dist_demo, by = c('config_set', 'config_name'), allow.cartesian = TRUE)
 
 	#add location to above
-	combined_data_with_loc <- add_location(res_dist_demo_dest, config_data) 
+	combined_data_with_loc <- add_location(res_dist_demo_dest, config_data)
 
 	#split by config_name
 	data_list <- split(combined_data_with_loc, combined_data_with_loc$config_name)
-	
+
 	return(data_list)
 }
 
@@ -171,23 +171,23 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 	} else{
 		stop('map_type must be either map, boundries or cartogram')
 	}
-	
-	map_folder <- 'result analysis/map work'
-	
+
+	map_folder <- 'result_analysis/map_work'
+
 	#2. load if it exists, else make
 	print(map_name)
 	if (file.exists(file.path(here(), map_folder, map_name))){
 		map <- st_read(file.path(here(), map_folder, map_name))
 		#name resetting needed because of st_write truncating names
 		names(map) <- c("GEOID20", "AREA20", "INTPTLAT20", "INTPTLON20", "Geographic Area Name", "population", "white", "black", "native", "asian", "pacific_islander", "other", "multiple_races", "hispanic", "non_hispanic", "geometry")
-	} else { 
+	} else {
 		#2a. get block group demographics
 		if (map_type == 'boundries') { #associate block group demographics based on included blocks only
 
 		#get block level demographics
 		block_demo <- process_demographics(paste0(here(), '/datasets/census/redistricting/', location))
 		#define columns for aggregation
-		demo_names <- names(block_demo)[sapply(block_demo,is.integer) ==TRUE]		
+		demo_names <- names(block_demo)[sapply(block_demo,is.integer) ==TRUE]
 		#aggregate up to block group level
 		bg_demo <- block_demo[ , Geography := gsub('.{3}$', '', Geography)
 							][ ,`Geographic Area Name` := gsub('^.{12}', '',`Geographic Area Name` )
@@ -211,7 +211,7 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 		#make it an sf object for mapping
 		bg_demo_sf <- st_as_sf(bg_demo_shape)
 		#assign it a projection
-		if (map_type %in% c('map','boundries')){ 
+		if (map_type %in% c('map','boundries')){
 			projection = 4326 #must use this projection if you want to add points to map
 		} else {
 			projection = 3857 #correct projection for merc
@@ -232,7 +232,7 @@ make_bg_maps <-function(prepped_data, map_type, result_folder_name = result_fold
 
 	#get the location from the data
 	location <- unique(prepped_data$location)
-	
+
 	#select only the desired demographic
 	prepped_data_demo <- prepped_data[demographic == demo_str, ]
 
@@ -254,7 +254,7 @@ make_bg_maps <-function(prepped_data, map_type, result_folder_name = result_fold
 	geom_cols <- c('GEOID20', 'geometry')
 	map_sf <- map_demo[, geom_cols]
 	demo_dist_shape<- merge(map_sf, prepped_data_demo, all.y = T)
-	
+
 	#make maps
 	if (driving_flag){
 		title_str = 'Average driving distance to poll (m)'
@@ -267,13 +267,13 @@ make_bg_maps <-function(prepped_data, map_type, result_folder_name = result_fold
 	county = gsub('.{3}$','', location)
 	descriptor = paste(county, unique(demo_dist_shape$descriptor), sep ='_')
 	plotted <- ggplot() +
-		geom_sf(data = demo_dist_shape, aes(fill = avg_dist)) + 
-		scale_fill_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = fill_str) 
+		geom_sf(data = demo_dist_shape, aes(fill = avg_dist)) +
+		scale_fill_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = fill_str)
 	if (map_type != 'cartogram'){
-		plotted = plotted + 
-		geom_point(data = demo_dist_shape, aes(x = lon, y = lat, color = type))+ 
-		scale_color_manual(breaks = c('polling', 'potential', 'bg_centroid'), values = c('red', 'black', 'dimgrey'), name = 'Poll Type') +  xlab('') + ylab('') 
-	} else{ 
+		plotted = plotted +
+		geom_point(data = demo_dist_shape, aes(x = lon, y = lat, color = type))+
+		scale_color_manual(breaks = c('polling', 'potential', 'bg_centroid'), values = c('red', 'black', 'dimgrey'), name = 'Poll Type') +  xlab('') + ylab('')
+	} else{
 		plotted = plotted + theme(axis.text.x=element_blank(), axis.text.y=element_blank(), axis.ticks = element_blank())
 	}
 	plotted = plotted + ggtitle(title_str, paste('Block group map', 'of', gsub('_', ' ', descriptor) ))
@@ -283,11 +283,11 @@ make_bg_maps <-function(prepped_data, map_type, result_folder_name = result_fold
 	}
 
 make_demo_dist_map <-function(prepped_data, demo_str, map_type = 'map', result_folder_name = result_folder,  driving_flag = DRIVING_FLAG, color_bounds = global_color_bounds){
-	#use demographic residence_distances to put a dot in  the map colored by distance and sized by population 
+	#use demographic residence_distances to put a dot in  the map colored by distance and sized by population
 
 	#get the location from the data
 	location <- unique(prepped_data$location)
-	
+
 	#select only the desired demographic
 	prepped_data_demo <- prepped_data[demographic == demo_str, ]
 	#get map
@@ -319,11 +319,11 @@ make_demo_dist_map <-function(prepped_data, demo_str, map_type = 'map', result_f
 	max_pop <- max(prepped_data$demo_pop)
 
 	plotted <- ggplot() +
-		geom_sf(data = demo_dist_shape) +  
+		geom_sf(data = demo_dist_shape) +
 		geom_point(data = demo_dist_shape, aes(x = INTPTLON20, y = INTPTLAT20, size= demo_pop, color = avg_dist)) +
-		scale_color_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = color_str) + 
-		labs(size = paste(demographic_legend_dict[demo_str], 'population') ) + 
-		xlab('') + ylab('') + scale_size(limits= c(0, max_pop)) + 
+		scale_color_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = color_str) +
+		labs(size = paste(demographic_legend_dict[demo_str], 'population') ) +
+		xlab('') + ylab('') + scale_size(limits= c(0, max_pop)) +
 		ggtitle(paste(demographic_legend_dict[demo_str], title_str), paste('Block groups in', gsub('_', ' ', descriptor)))
 
 	#write to file

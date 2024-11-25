@@ -37,6 +37,7 @@ TABLES = c("edes", "precinct_distances", "residence_distances", "result")
 #only need to define if READ_FROM_CSV = TRUE
 PROJECT = "equitable-polling-locations"
 DATASET = "polling"
+BILLING = PROJECT
 
 #Connect to database if needed
 #returns NULL if READ_FROM_CSV = TRUE
@@ -67,7 +68,7 @@ DRIVING_FLAG <- set_global_driving_flag(config_dt_list)
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
 
-#names of the output data in these lists 
+#names of the output data in these lists
 #come from TABLES above
 contained_in_orig_output_df_list <- read_result_data(contained_in_orig_config_dt)
 intersecting_orig_output_df_list <- read_result_data(intersecting_orig_config_dt)

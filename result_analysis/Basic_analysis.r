@@ -20,18 +20,19 @@ source('result_analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'DeKalb_GA' #needed only for reading from csv and writing outputs
-ORIG_CONFIG_FOLDER = "DeKalb_GA_original_configs"
-POTENTIAL_CONFIG_FOLDER = "DeKalb_GA_no_bg_school_configs"
+LOCATION = 'DeKalb_County_GA' #needed only for reading from csv and writing outputs
+ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs"
+POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_bg_school_configs"
 
 #constants for reading data
-READ_FROM_CSV = TRUE
-TABLES = c("edes", "precinct_distances", "residence_distances", "result")
+READ_FROM_CSV = FALSE
+PRINT_SQL = TRUE
 
 #constants for database queries
 #only need to define if READ_FROM_CSV = TRUE
 PROJECT = "equitable-polling-locations"
-DATASET = "polling"
+DATASET = "scratch_chad2"
+BILLING = PROJECT
 
 #Run-type specific constants
 IDEAL_POLL_NUMBER  = 9 #the optimal number of polls desired for this county
