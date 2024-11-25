@@ -20,51 +20,54 @@ source('result_analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = c('Contained_in_Madison_City_of_WI', 'Intersecting_Madison_City_of_WI')
+LOCATION = c('Contained_in_Madison_City_of_WI', 'Intersecting_Madison_City_of_WI') #needed only for reading from csv and writing outputs
 CONFIG_FOLDER = 'Compare_Madison_City_of_WI_original_configs'
 
 CONTAINED_IN_CONFIG_FOLDER = 'Contained_in_Madison_City_of_WI_potential_configs'
 INTERSECTING_CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_potential_configs'
 
+#constants for reading data
+READ_FROM_CSV = TRUE
+TABLES = c("edes", "precinct_distances", "residence_distances", "result")
+
+#constants for database queries
+#only need to define if READ_FROM_CSV = TRUE
+PROJECT = "equitable-polling-locations"
+DATASET = "polling"
+
+#Connect to database if needed
+#returns NULL if READ_FROM_CSV = TRUE
+POLLING_CON <- define_connection()
 
 #######
 #Check that location and folders valid
-#this also ensures that you are in the right folder to read data
+#Load configs and get driving flags
 #######
 
-#Does the config folder exist?
-check_config_folder_valid(CONFIG_FOLDER)
-#Does the config folder contain files associated to the location
-check_location_valid(LOCATION, CONFIG_FOLDER)
+#Load config data
+#checking if the config folder is valid
+#and that the location is in the indicated dataset
+config_dt <- load_config_data(LOCATION, CONFIG_FOLDER)
+contained_in_config_dt <- load_config_data(LOCATION[1], CONTAINED_IN_CONFIG_FOLDER)
+intersecting_config_dt <- load_config_data(LOCATION[2], INTERSECTING_CONFIG_FOLDER)
 
-#Does the config folder exist?
-check_config_folder_valid(CONTAINED_IN_CONFIG_FOLDER)
-#Does the config folder contain files associated to the location
-check_location_valid(LOCATION[1], CONTAINED_IN_CONFIG_FOLDER)
-
-#Does the config folder exist?
-check_config_folder_valid(INTERSECTING_CONFIG_FOLDER)
-#Does the config folder contain files associated to the location
-check_location_valid(LOCATION[2], INTERSECTING_CONFIG_FOLDER)
+#get driving flags
+config_dt_list<-c(orig_config_dt, contained_in_config_df_list_config_dt, intersecting_config_dt)
+DRIVING_FLAG <- set_global_driving_flag(config_dt_list)
 
 #######
 #Read in data
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
-#driving flags
-config_list<-c(CONFIG_FOLDER, CONTAINED_IN_CONFIG_FOLDER, INTERSECTING_CONFIG_FOLDER)
-DRIVING_FLAG <- set_global_driving_flag(config_list)
 
+#names of the output data in these lists 
+#come from TABLES above
+config_output_df_list <- read_result_data(config_dt)
 
-config_df_list <- read_result_data(LOCATION, CONFIG_FOLDER)
-#config_ede_df<- config_df_list[[1]]
-#config_precinct_df<- config_df_list[[2]]
-#config_residence_df<- config_df_list[[3]]
-#config_result_df<- config_df_list[[4]]
+intersecting_output_df_list <- read_result_data(intersecting_config_dt)
 
-intersecting_config_df_list <- read_result_data(LOCATION[2], INTERSECTING_CONFIG_FOLDER)
-contained_in_config_df_list <- read_result_data(LOCATION[1], CONTAINED_IN_CONFIG_FOLDER)
+contained_in_output_df_list <- read_result_data(contained_in_config_dt)
 
 #change descriptors
 change_descriptors <- function(df){
@@ -73,11 +76,11 @@ change_descriptors <- function(df){
             ]
 return(df)
 }
-config_df_list = lapply(config_df_list, change_descriptors)
+config_output_df_list = lapply(config_output_df_list, change_descriptors)
 
 #change num_polls and descriptor
-contained_in_config_df_list <- lapply(contained_in_config_df_list, function(x) {x[ , num_polls:= round(as.numeric(gsub('maxpctnew_', '', descriptor))*30)][ , descriptor := 'Contained']})
-intersecting_config_df_list <- lapply(intersecting_config_df_list, function(x) {x[ , num_polls:= round(as.numeric(gsub('maxpctnew_', '', descriptor))*30)][ , descriptor := 'Intersecting']})
+contained_in_output_df_list <- lapply(contained_in_output_df_list, function(x) {x[ , num_polls:= round(as.numeric(gsub('maxpctnew_', '', descriptor))*30)][ , descriptor := 'Contained']})
+intersecting_output_df_list <- lapply(intersecting_output_df_list, function(x) {x[ , num_polls:= round(as.numeric(gsub('maxpctnew_', '', descriptor))*30)][ , descriptor := 'Intersecting']})
 
 #########
 #Set up maps and cartograms
@@ -86,48 +89,42 @@ intersecting_config_df_list <- lapply(intersecting_config_df_list, function(x) {
 result_folder = paste(LOCATION, 'results', sep = '_')
 
 #get all file names the result_folder with the strings config_folder and 'residence_distances'
-res_dist_list = list.files(result_folder)[grepl('residence_distances', list.files(result_folder))]
-orig_res_dist_list = res_dist_list[grepl(CONFIG_FOLDER, res_dist_list)]
-#potential_res_dist_list = res_dist_list[grepl(POTENTIAL_CONFIG_FOLDER, res_dist_list)]
+config_list_prepped <- prepare_outputs_for_maps(config_output_df_list$residence_distances, config_output_df_list$result, config_dt)
 
 #get avg distance bounds for map coloring
-color_bounds <- distance_bounds(LOCATION, CONFIG_FOLDER)
-#orig_color_bounds <- distance_bounds(LOCATION, CONFIG_FOLDER)
-#potential_color_bounds <- distance_bounds(LOCATION, POTENTIAL_CONFIG_FOLDER)
-#global_min <- min(orig_color_bounds[[1]], potential_color_bounds[[1]])
-#global_max <- max(orig_color_bounds[[2]], potential_color_bounds[[2]])
-#color_bounds <- list(global_min, global_max)
+all_res_output <- do.call(rbind, config_list_prepped)
+
+global_color_bounds <- distance_bounds(all_res_output)
 
 
 #######
 #Plot data
 #######
-plot_folder = paste0('result_analysis/', CONFIG_FOLDER)
-if (file.exists(file.path(here(), plot_folder))){
-    setwd(file.path(here(), plot_folder))
-} else{
+plot_folder = paste0('result analysis/', CONFIG_FOLDER)
+if (!file.exists(file.path(here(), plot_folder))){
     dir.create(file.path(here(), plot_folder))
-    setwd(file.path(here(), plot_folder))
 }
+setwd(file.path(here(), plot_folder))
 
 ###graphs####
 
 #Add percent population to data ede data for graph scaling for all general config folder and orig
-pop_scaled_edes <- ede_with_pop(config_df_list)
+pop_scaled_edes <- ede_with_pop(config_output_df_list)
 #Plot the edes for all runs in original_location and equivalent optimization runs by demographic
 plot_historic_edes(pop_scaled_edes, suffix = 'pop_scaled')
 
-edes_to_compare <- list(contained_in_config_df_list[[1]], intersecting_config_df_list[[1]])
+edes_to_compare <- list(contained_in_output_df_list$edes, intersecting_output_df_list$edes)
 plot_multiple_edes(edes_to_compare, 'asian')
 plot_multiple_edes(edes_to_compare, 'population')
 plot_multiple_edes(edes_to_compare, 'black')
 plot_multiple_edes(edes_to_compare, 'white')
 
 ###maps####
-make_bg_maps(orig_res_dist_list[1], 'boundries', result_folder_name = result_folder[1], this_location = LOCATION[1])
-make_bg_maps(orig_res_dist_list[2], 'map', result_folder_name = result_folder[2], this_location = LOCATION[2])
 
-make_demo_dist_map(orig_res_dist_list[1], 'population', map_type = 'boundries', result_folder_name =  result_folder[1], this_location = LOCATION[1])
-make_demo_dist_map(orig_res_dist_list[2], 'population', map_type = 'map', result_folder_name = result_folder[2], this_location = LOCATION[2])
+make_bg_maps(config_list_prepped[[1]], 'boundries', result_folder_name = result_folder[1])
+make_bg_maps(config_list_prepped[[2]], 'boundries', result_folder_name = result_folder[2])
+
+make_demo_dist_map(config_list_prepped[[1]], 'population', map_type = 'boundries', result_folder_name =  result_folder[1])
+make_demo_dist_map(config_list_prepped[[2]], 'population', map_type = 'boundries', result_folder_name = result_folder[2])
 
 

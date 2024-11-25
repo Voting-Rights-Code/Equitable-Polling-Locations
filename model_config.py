@@ -13,6 +13,9 @@ import os
 import datetime as dt
 
 
+MODEL_CONFIG_ARRAY_NAMES = ['year', 'bad_types', 'penalized_sites']
+''' These PollingModelConfig variables are expected to be arrays, not None '''
+
 @dataclass
 class PollingModelConfig:
     '''
@@ -108,8 +111,14 @@ class PollingModelConfig:
                 #check that the keys are all in cananonical or experimental arguments.
                 #this logic allows for missing fields, just not fields outside of those predefined.
                 filtered_args[key] = value
-
             result = PollingModelConfig(**filtered_args)
+
+            # Ensure that any None values found in arrays are set as an empty array instead
+            for array_value_name in MODEL_CONFIG_ARRAY_NAMES:
+                value = getattr(result, array_value_name)
+                if value is None:
+                    setattr(result, array_value_name, [])
+
             print('Result:')
             print(result)
 
