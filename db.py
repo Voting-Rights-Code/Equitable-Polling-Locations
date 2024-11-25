@@ -121,7 +121,7 @@ def create_model_run(
 
 def bigquery_client() -> bigquery.Client:
     ''' Returns an instance of bigquery.Client, handling all needed credentials. '''
-    return bigquery.Client(project=sqlalchemy_main.PROJECT)
+    return bigquery.Client(project=sqlalchemy_main.get_db_project())
 
 
 def bigquery_bluk_insert_dataframe(table_name, df: pd.DataFrame) -> int:
@@ -129,7 +129,7 @@ def bigquery_bluk_insert_dataframe(table_name, df: pd.DataFrame) -> int:
     Uploads a dataframe into a bigquery table in bulk using the bigquery client library.
     '''
     client = bigquery_client()
-    destination = f'{sqlalchemy_main.DATASET}.{table_name}'
+    destination = f'{sqlalchemy_main.get_db_dataset()}.{table_name}'
 
     job = client.load_table_from_dataframe(
         df,

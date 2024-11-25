@@ -13,7 +13,7 @@ from alembic import context
 
 # pylint: disable-next=unused-import
 from sqlalchemy_main import ModelBase
-from sqlalchemy_main import DATASET, PROJECT
+from sqlalchemy_main import get_db_project, get_db_dataset
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -21,8 +21,8 @@ config = context.config
 
 # Allow the values in alembic.ini to be programmatically set
 section = config.config_ini_section
-config.set_section_option(section, "DB_PROJECT", PROJECT)
-config.set_section_option(section, "DB_DATASET", DATASET)
+config.set_section_option(section, "DB_PROJECT", get_db_project())
+config.set_section_option(section, "DB_DATASET", get_db_dataset())
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

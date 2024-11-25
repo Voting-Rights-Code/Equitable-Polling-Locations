@@ -9,7 +9,9 @@ from typing import Sequence, Union
 
 from alembic import op
 
-from sqlalchemy_main import ReplaceableObject, DATASET
+from sqlalchemy_main import ReplaceableObject, get_db_dataset
+
+DATASET = get_db_dataset()
 
 # revision identifiers, used by Alembic.
 revision: str = 'd747d5c0f003'
