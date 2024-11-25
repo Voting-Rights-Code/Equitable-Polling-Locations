@@ -163,7 +163,7 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# API keys 
+# API keys
 /authentication_files
 
 # Misc
@@ -171,3 +171,7 @@ logs
 .DS_Store
 
 
+# R
+.Rhistory
+.Rproj.user
+Equitable-Polling-Locations.Rproj
