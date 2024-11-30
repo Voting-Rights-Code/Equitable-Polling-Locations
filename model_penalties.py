@@ -98,6 +98,5 @@ def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, confi
     penalty_log.write(f'Penalized KP Optimal = {kp_pen:.2f}\n')
     penalty_log.write(f'KP Optimal = {kp:.2f}\n')
     penalty_log.write(f'Penalty = {kp_pen-kp:.2f}\n')
-    breakpoint()
 
     return result_df
