@@ -1,5 +1,5 @@
 '''
-    models/user.py
+    models/precint_distance.py
 '''
 
 from sqlalchemy import Column, String, Integer, Float, text
