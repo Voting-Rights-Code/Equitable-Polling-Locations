@@ -1,6 +1,5 @@
 library(data.table)
 library(ggplot2)
-library(lubridate)
 library(sf)
 library(cartogram)
 

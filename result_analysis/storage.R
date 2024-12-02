@@ -1,4 +1,5 @@
 library(here)
+library(lubridate)
 
 options(googleAuthR.scopes.selected = "https://www.googleapis.com/auth/cloud-platform")
 library(googleCloudStorageR)
@@ -24,7 +25,7 @@ create_graph_file_manifest <- function() {
 	list(
 		model_run_ids = c(),
 		graph_files = c(),
-        created_at = Sys.time()
+        created_at = now(tzone = "UTC")
 	)
 }
 
@@ -94,8 +95,12 @@ upload_graph_files_to_cloud_storage <- function() {
         stop("Invalid STORAGE_BUCKET")
     }
 
+    if (is.null(CLOUD_STORAGE_ANALYSIS_NAME) || nchar(CLOUD_STORAGE_ANALYSIS_NAME) == 0) {
+        stop("Invalid CLOUD_STORAGE_ANALYSIS_NAME")
+    }
+
     date_stamp = format(manifest$created_at, "%Y%m%d-%H%M%S")
-    cloud_storage_base_path <- paste(STORAGE_BASE_DIR, date_stamp, sep="/")
+    cloud_storage_base_path <- paste(STORAGE_BASE_DIR, CLOUD_STORAGE_ANALYSIS_NAME, date_stamp, sep="/")
 
     for (graph_file in manifest$graph_files) {
         local_file_path <- paste(.result_analysis_dir, graph_file, sep="/")
