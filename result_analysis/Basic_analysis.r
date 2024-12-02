@@ -9,6 +9,7 @@ setwd(here())
 #source functions
 #######
 
+source('result_analysis/storage.R')
 source('result_analysis/graph_functions.R')
 source('result_analysis/map_functions.R')
 
@@ -23,6 +24,10 @@ source('result_analysis/map_functions.R')
 LOCATION = 'DeKalb_County_GA' #needed only for reading from csv and writing outputs
 ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs"
 POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_bg_school_configs"
+
+# This is where this analysis will be stored
+STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
+CLOUD_STORAGE_ANALYSIS_NAME = paste0(ORIG_CONFIG_FOLDER, '_AND_', POTENTIAL_CONFIG_FOLDER)
 
 #constants for reading data
 READ_FROM_CSV = FALSE
@@ -161,3 +166,4 @@ sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'white'))
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'hispanic'))
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
 
+upload_graph_files_to_cloud_storage()

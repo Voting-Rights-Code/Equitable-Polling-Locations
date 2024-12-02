@@ -4,6 +4,8 @@ library(lubridate)
 library(sf)
 library(cartogram)
 
+source('result_analysis/storage.R')
+
 ######
 #General process
 ######
@@ -279,8 +281,10 @@ make_bg_maps <-function(prepped_data, map_type, result_folder_name = result_fold
 	plotted = plotted + ggtitle(title_str, paste('Block group map', 'of', gsub('_', ' ', descriptor) ))
 
 	#write to file
-	ggsave(paste0(here(), '/', plot_folder, '/',map_name, '_',descriptor, '_','polls.png'), plotted)
-	}
+	graph_file_path = paste0(here(), '/', plot_folder, '/',map_name, '_',descriptor, '_','polls.png')
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path, plotted)
+}
 
 make_demo_dist_map <-function(prepped_data, demo_str, map_type = 'map', result_folder_name = result_folder,  driving_flag = DRIVING_FLAG, color_bounds = global_color_bounds){
 	#use demographic residence_distances to put a dot in  the map colored by distance and sized by population
@@ -327,7 +331,9 @@ make_demo_dist_map <-function(prepped_data, demo_str, map_type = 'map', result_f
 		ggtitle(paste(demographic_legend_dict[demo_str], title_str), paste('Block groups in', gsub('_', ' ', descriptor)))
 
 	#write to file
-	ggsave(paste0(here(), '/', plot_folder, '/', demo_str, '_','pop_and_dist','_',descriptor, '_','polls.png'), plotted)
+	graph_file_path = paste0(here(), '/', plot_folder, '/', demo_str, '_','pop_and_dist','_',descriptor, '_','polls.png')
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path, plotted)
 
 }
 

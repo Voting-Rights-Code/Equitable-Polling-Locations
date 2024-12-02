@@ -7,6 +7,8 @@ library(DBI)
 library(bigrquery)
 library(yaml)
 
+source('result_analysis/storage.R')
+
 TABLES = c("edes", "precinct_distances", "residence_distances", "results")
 
 PRINT_SQL = FALSE
@@ -295,7 +297,6 @@ set_results_column_names <- function(results_dt) {
 	}
 }
 
-
 load_results_from_db <-function(table_name, model_run_ids, con = POLLING_CON){
 	if (length(model_run_ids) < 1) {
 		return(NULL)
@@ -413,7 +414,10 @@ plot_poll_edes<-function(ede_df){
 		geom_line()+ geom_point()+
 		labs(x = 'Number of polls', y = 'Equity weighted distance (m)', color = 'Demographic')+
 		scale_color_discrete(labels = demographic_legend_dict)
-	ggsave('demographic_edes.png')
+
+	graph_file_path = 'demographic_edes.png'
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
 }
 
 plot_multiple_edes<-function(ede_list, demo_grp){
@@ -424,7 +428,10 @@ plot_multiple_edes<-function(ede_list, demo_grp){
 		labs(x = 'Number of polls', y = 'Equity weighted distance (m)', color = "Run Type", shape = 'Demographic')+
 		scale_shape_discrete(labels = demographic_legend_dict) +
 		scale_color_manual(breaks = c('Intersecting', 'Contained'), values = c('red','darkviolet'))
-	ggsave(paste0(demo_grp, '_compare_demographic_edes.png'))
+
+	graph_file_path = paste0(demo_grp, '_compare_demographic_edes.png')
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
 }
 
 #makes two plots, one showing the y_ede the other avg distance
@@ -472,8 +479,9 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 	y_EDE = y_EDE +	ylim(y_min, y_max) + ggtitle(paste('Equity weighted', title_str)) +
 		scale_color_discrete(labels = demographic_legend_dict)
 
-	name = paste('orig', suffix, 'y_EDE.png', sep = '_')
-	ggsave(name, y_EDE)
+	graph_file_path = paste('orig', suffix, 'y_EDE.png', sep = '_')
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path, y_EDE)
 
 	#plot with avg_dist
 	avg = ggplot(orig_ede, aes(x = descriptor, y = avg_dist,
@@ -487,8 +495,10 @@ if (scale_bool){
 	}
 	avg = avg + ylim(y_min, y_max) + ggtitle(paste('Average', title_str)) +
 		scale_color_discrete(labels = demographic_legend_dict)
-	name = paste('orig', suffix, 'avg.png', sep = '_')
-	ggsave(name, avg)
+
+	graph_file_path = paste('orig', suffix, 'avg.png', sep = '_')
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path, avg)
 }
 
 #join population data to ede graphs in order to get population scaled graphs
@@ -526,7 +536,9 @@ plot_population_edes <- function(ede_df){
 		geom_line()+ geom_point()+
 		labs(x = 'Number of polls', y = 'Equity weighted distance (m)')
 
-	ggsave('population_edes.png')
+	graph_file_path = 'population_edes.png'
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
 }
 
 #a plot showing which precincts are used for which number of polls
@@ -537,7 +549,9 @@ plot_precinct_persistence <- function(precinct_df){
 		geom_point(aes(size = demo_pop)) +
 		labs(x = 'Number of polls', y = 'EV location', size = paste(demographic_legend_dict['population'], 'population'))
 
-	ggsave('precinct_persistence.png')
+	graph_file_path = 'precinct_persistence.png'
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
 
 	ggplot(precinct_df[demographic != 'population',
 		], aes(x = num_polls, y = id_dest)) +
@@ -545,7 +559,9 @@ plot_precinct_persistence <- function(precinct_df){
 		labs(x = 'Number of polls', y = 'EV location', size = 'Population') + facet_wrap(~ demographic) +
 		theme(legend.position = c(0.9, 0.2))
 
-	ggsave('precinct_persistence_demographic.png')
+	graph_file_path = 'precinct_persistence_demographic.png'
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
 }
 
 #make boxplots of the average distances traveled and the y_edes at each run
@@ -560,8 +576,11 @@ plot_boxplots <- function(residence_df){
 		geom_boxplot(outlier.shape = NA) +
 		scale_y_log10(limits = c(500,10500)) +
 		labs(x = 'Number of polls', y = 'Average distance (m)')
-	ggsave('avg_dist_distribution_boxplots.png')
-	}
+
+	graph_file_path = 'avg_dist_distribution_boxplots.png'
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
+}
 
 #make histogram of the average distances traveled in the historical and ideal situations
 
@@ -575,8 +594,9 @@ plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_n
 	ggplot(res_pop_orig_and_ideal, aes(x = avg_dist, fill = descriptor)) +
 		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
 		labs(x = 'Average distance traveled to poll (m)', y = 'Number of people', fill = 'Optimization Run')
-		ggsave('avg_dist_distribution_hist.png')
-
+	graph_file_path = 'avg_dist_distribution_hist.png'
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
 }
 
 #####CAUTION: USED FOR DELIVERY, BUT EXPERIMENTAL######
@@ -666,7 +686,10 @@ plot_predicted_distances<- function(regression_data, model){
 		ggplot(model_dt[pop_density == pctile, ], aes(x = sim_pct_black, y = predicted_dist, group = descriptor, color = descriptor)) +
 		geom_line() + ggtitle(paste0("Predicted distance traveled at ", names, "-ile density")) +
 		ylim(dist_bounds[1],dist_bounds[2])
-		ggsave(paste0("Pred_dist_at_",  names, ".png"))
+
+		graph_file_path = paste0("Pred_dist_at_",  names, ".png")
+		add_graph_to_graph_file_manifest(graph_file_path)
+		ggsave(graph_file_path)
 	}
 
 	good_names <- gsub('%', '', names(pop_density_quantile), fixed = T)
@@ -677,7 +700,10 @@ plot_distance_by_density_black <- function(data, this_descriptor){
 	ggplot(data[descriptor == this_descriptor, ], aes(x= pct_black, y = density_pctile)) +
 	geom_point(aes(color = distance_m, size = population)) +
 	scale_color_viridis_c(limits = c(color_bounds[[1]], color_bounds[[2]]), name = "Distance to poll (m)") + xlim(c(0, 100)) + ylim(c(0,1)) + ggtitle('Distance to poll by Pct Black and Population Density Percentile')
-	ggsave(paste0(this_descriptor, '_dist_by_density_black.png'))
+
+	graph_file_path = paste0(this_descriptor, '_dist_by_density_black.png')
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
 }
 
 plot_distance_by_density_black_3d <- function(data, this_descriptor){
