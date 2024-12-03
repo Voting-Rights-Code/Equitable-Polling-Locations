@@ -26,14 +26,17 @@ CONFIG_FOLDER = 'Compare_Madison_City_of_WI_original_configs'
 CONTAINED_IN_CONFIG_FOLDER = 'Contained_in_Madison_City_of_WI_potential_configs'
 INTERSECTING_CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_potential_configs'
 
+# This is where this analysis will be stored in the cloud
+STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
+CLOUD_STORAGE_ANALYSIS_NAME = 'Madison_2024_compared.r'
+
 #constants for reading data
-READ_FROM_CSV = TRUE
-TABLES = c("edes", "precinct_distances", "residence_distances", "result")
+READ_FROM_CSV = FALSE
 
 #constants for database queries
 #only need to define if READ_FROM_CSV = TRUE
 PROJECT = "equitable-polling-locations"
-DATASET = "polling"
+DATASET = "scratch_chad2"
 BILLING = PROJECT
 
 #Connect to database if needed
@@ -128,4 +131,4 @@ make_bg_maps(config_list_prepped[[2]], 'boundries', result_folder_name = result_
 make_demo_dist_map(config_list_prepped[[1]], 'population', map_type = 'boundries', result_folder_name =  result_folder[1])
 make_demo_dist_map(config_list_prepped[[2]], 'population', map_type = 'boundries', result_folder_name = result_folder[2])
 
-
+upload_graph_files_to_cloud_storage()

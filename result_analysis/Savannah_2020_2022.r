@@ -25,14 +25,17 @@ CONFIG_FOLDER = 'Contained_in_Savannah_City_of_GA_original_configs'
 
 POTENTIAL_CONFIG_FOLDER = 'Contained_in_Savannah_City_of_GA_no_bg_school_configs'
 
+# This is where this analysis will be stored in the cloud
+STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
+CLOUD_STORAGE_ANALYSIS_NAME = 'Savannah_2020_2022.r'
+
 #constants for reading data
-READ_FROM_CSV = TRUE
-TABLES = c("edes", "precinct_distances", "residence_distances", "result")
+READ_FROM_CSV = FALSE
 
 #constants for database queries
 #only need to define if READ_FROM_CSV = TRUE
 PROJECT = "equitable-polling-locations"
-DATASET = "polling"
+DATASET = "scratch_chad2"
 BILLING = PROJECT
 
 #Connect to database if needed
@@ -82,7 +85,7 @@ potential_list_prepped <- prepare_outputs_for_maps(potential_output_df_list$resi
 #######
 #Plot data
 #######
-plot_folder = paste0('result analysis/', CONFIG_FOLDER)
+plot_folder = paste0('result_analysis/', CONFIG_FOLDER)
 if (!file.exists(file.path(here(), plot_folder))){
     dir.create(file.path(here(), plot_folder))
 }
@@ -131,3 +134,5 @@ sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'black', map_typ
 sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'white', map_type = 'boundries'))
 sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'hispanic', map_type = 'boundries'))
 sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'asian', map_type = 'boundries'))
+
+upload_graph_files_to_cloud_storage()

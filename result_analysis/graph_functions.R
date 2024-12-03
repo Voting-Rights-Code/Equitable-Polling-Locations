@@ -112,7 +112,7 @@ read_config_set_from_db <- function(config_set, columns, con=POLLING_CON){
 #Check that location and folders valid
 #Load the data if they are
 #######
-check_config_folder_valid <- function(config_folder, read_from_csv, con = POLLING_CON){
+check_config_folder_valid <- function(config_folder, read_from_csv = READ_FROM_CSV, con = POLLING_CON){
 	#chech that the config folder / set is valid
 	if (read_from_csv){
 		#raise error if config folder not a directory
