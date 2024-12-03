@@ -367,6 +367,17 @@ read_result_data<- function(config_dt, field_of_interest = '', tables = TABLES){
 
 	appended_df_list <- lapply(df_list, function(df){merge(df, nums_to_join, by = 'descriptor', all.x = T)})
 
+	# Track information about configs used in this analsysis
+	for (i in 1:nrow(config_dt)) {
+		config_id = config_dt[i, id]
+		config_set = config_dt[i, config_set]
+		config_name = config_dt[i, config_name]
+		model_run_id = config_dt[i, model_run_id]
+
+		add_config_info_to_graph_file_manifest(config_id=config_id, config_set=config_set, config_name=config_name)
+		add_model_run_id_to_graph_file_manifest(model_run_id)
+	}
+
 	return(appended_df_list)
 }
 
