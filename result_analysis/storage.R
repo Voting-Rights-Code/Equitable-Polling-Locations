@@ -23,7 +23,7 @@ STORAGE_BASE_DIR = "equitable-polling-locations-analyses"
 CLOUD_STORAGE_ANALYSIS_NAME = NULL
 
 # The name to use for manifest files
-ANALYSIS_MANIFEST = "analysis_manifest.yml"
+ANALYSIS_MANIFEST = "analysis_manifest.yaml"
 
 
 # Create a manifest on sources for data as well as outputed graphs
