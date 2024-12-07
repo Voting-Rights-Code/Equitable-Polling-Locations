@@ -23,9 +23,9 @@ def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, confi
         return result_df
     
     # 1. if none of the penalized sites were selected by model 1 (no penalties), we're done
-    #selected_sites = set(result_df.id_dest)
-    penalized_selections = set(dist_df.loc[dist_df['location_type'].isin(config.penalized_sites), 'id_dest'].unique())
-    #penalized_selections = {x for x in selected_sites if x in config.penalized_sites}
+    selected_sites = set(result_df.id_dest)
+    penalized_sites = set(dist_df.loc[dist_df['location_type'].isin(config.penalized_sites), 'id_dest'].unique())
+    penalized_selections = selected_sites.intersection(penalized_sites)
     if not penalized_selections:
         print('No penalized sites selected')
         return result_df
@@ -79,9 +79,9 @@ def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, confi
     # 8. continue to result_df with solution to model 3
     result_df = incorporate_result(dist_df, ea_model_penalized)
 
-    #selected_sites = set(result_df.id_dest)
-    penalized_selections = set(dist_df.loc[dist_df['location_type'].isin(config.penalized_sites), 'id_dest'].unique())
-    #penalized_selections = {x for x in selected_sites if x in config.penalized_sites}
+    selected_sites = set(result_df.id_dest)
+    penalized_sites = set(dist_df.loc[dist_df['location_type'].isin(config.penalized_sites), 'id_dest'].unique())
+    penalized_selections = penalized_sites.intersection(selected_sites)
     penalty_log.write('\nModel 3: penalized model\n')
     penalty_log.write(f'Penalty applied to each site = {penalty:.2f}\n')
     if penalized_selections:
@@ -98,6 +98,5 @@ def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, confi
     penalty_log.write(f'Penalized KP Optimal = {kp_pen:.2f}\n')
     penalty_log.write(f'KP Optimal = {kp:.2f}\n')
     penalty_log.write(f'Penalty = {kp_pen-kp:.2f}\n')
-
 
     return result_df
