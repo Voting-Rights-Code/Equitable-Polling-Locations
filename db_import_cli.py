@@ -106,6 +106,7 @@ def import_edes(
         model_run_id: str,
         csv_path: str = None,
         df: pd.DataFrame = None,
+        log: bool = False,
 ) -> db.ImportResult:
     ''' Imports an existing EDEs csv into the database for a given mode_run_id. '''
 
@@ -122,6 +123,7 @@ def import_edes(
         add_columns=add_columns,
         csv_path=csv_path,
         df=df,
+        log=log,
     )
 
 def import_precinct_distances(
@@ -130,6 +132,7 @@ def import_precinct_distances(
         model_run_id: str,
         csv_path: str = None,
         df: pd.DataFrame = None,
+        log: bool = False,
 ) -> db.ImportResult:
     ''' Imports an existing precinct distances csv into the database for a given mode_run_id. '''
 
@@ -146,6 +149,7 @@ def import_precinct_distances(
         add_columns=add_columns,
         csv_path=csv_path,
         df=df,
+        log=log,
     )
 
 def import_residence_distances(
@@ -154,6 +158,7 @@ def import_residence_distances(
         model_run_id: str,
         csv_path: str = None,
         df: pd.DataFrame = None,
+        log: bool = False,
 ) -> db.ImportResult:
     ''' Imports an existing residence distances csv into the database for a given mode_run_id. '''
 
@@ -170,6 +175,7 @@ def import_residence_distances(
         add_columns=add_columns,
         csv_path=csv_path,
         df=df,
+        log=log,
     )
 
 def import_results(
@@ -178,6 +184,7 @@ def import_results(
         model_run_id: str,
         csv_path: str = None,
         df: pd.DataFrame = None,
+        log: bool = False,
 ) -> db.ImportResult:
     ''' Imports an existing precinct distances csv into the database for a given mode_run_id. '''
 
@@ -198,6 +205,7 @@ def import_results(
         add_columns=add_columns,
         csv_path=csv_path,
         df=df,
+        log=log,
     )
 
 
@@ -264,16 +272,16 @@ def main(args: argparse.Namespace):
 
         # Import each csv file for this run
         edes_import_result = import_edes(
-            config_set, config_name, model_run.id, csv_path=file_paths[EDE_PATH]
+            config_set, config_name, model_run.id, csv_path=file_paths[EDE_PATH], log=True,
         )
         results_import_result = import_results(
-            config_set, config_name, model_run.id, csv_path=file_paths[RESULTS_PATH]
+            config_set, config_name, model_run.id, csv_path=file_paths[RESULTS_PATH], log=True,
         )
         precinct_distances_import_result = import_precinct_distances(
-            config_set, config_name, model_run.id, csv_path=file_paths[PRECINCT_DISTANCES_PATH]
+            config_set, config_name, model_run.id, csv_path=file_paths[PRECINCT_DISTANCES_PATH], log=True,
         )
         residence_distances_import_result = import_residence_distances(
-            config_set, config_name, model_run.id, csv_path=file_paths[RESIDENCE_DISTANCES_PATH]
+            config_set, config_name, model_run.id, csv_path=file_paths[RESIDENCE_DISTANCES_PATH], log=True,
         )
 
         current_run_results = [

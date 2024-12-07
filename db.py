@@ -79,7 +79,7 @@ def create_model_config(model_config: Models.ModelConfig) -> Models.ModelConfig:
 
     return model_config
 
-def find_or_create_model_config(model_config: Models.ModelConfig) -> Models.ModelConfig:
+def find_or_create_model_config(model_config: Models.ModelConfig, log: bool = False) -> Models.ModelConfig:
     '''
     Looks for an existing ModelConfig object in the database, if one does not already
     exist then one will be created.  Note: db.commit() must be
@@ -89,10 +89,12 @@ def find_or_create_model_config(model_config: Models.ModelConfig) -> Models.Mode
     model_info = f'{model_config.config_set} {model_config.config_name}'
 
     if not result:
-        print(f'creating model {model_info}')
+        if log:
+            print(f'creating model {model_info}')
         result = create_model_config(model_config)
     else:
-        print(f'found model {model_info}')
+        if log:
+            print(f'found model {model_info}')
     return result
 
 def create_model_run(
@@ -124,7 +126,7 @@ def bigquery_client() -> bigquery.Client:
     return bigquery.Client(project=sqlalchemy_main.get_db_project())
 
 
-def bigquery_bluk_insert_dataframe(table_name, df: pd.DataFrame) -> int:
+def bigquery_bluk_insert_dataframe(table_name, df: pd.DataFrame, log: bool = False) -> int:
     '''
     Uploads a dataframe into a bigquery table in bulk using the bigquery client library.
     '''
@@ -137,11 +139,12 @@ def bigquery_bluk_insert_dataframe(table_name, df: pd.DataFrame) -> int:
     )
 
     job.result()
-    print(f'Wrote {job.output_rows} rows to table {destination}')
+    if log:
+        print(f'Wrote {job.output_rows} rows to table {destination}')
     return job.output_rows
 
 
-def validate_csv_columns(model_class: sqlalchemy_main.ModelBaseType, df: pd.DataFrame):
+def validate_csv_columns(model_class: sqlalchemy_main.ModelBaseType, df: pd.DataFrame, log: bool = False):
     '''
     Raises an error if the value loaded from the df does not match what is expected in the model
     schema.
@@ -151,7 +154,8 @@ def validate_csv_columns(model_class: sqlalchemy_main.ModelBaseType, df: pd.Data
     for column in inspector.columns:
         column_type_map[column.name] = str(column.type)
 
-    print(f'validate_csv_columns df:\n{df}')
+    if log:
+        print(f'validate_csv_columns df:\n{df}')
     # 1-index and adjust for header
     row_num = 2
     for _, row in df.iterrows():
@@ -199,7 +203,7 @@ def csv_to_bigquery(
         add_columns: Dict[str, str],
         csv_path: str = None,
         df: pd.DataFrame = None,
-
+        log: bool = False,
 ):
     '''
     Loads in a csv file or DataFrame, alterns columns as needed, and builk uploads the values to bigquery.
@@ -244,7 +248,8 @@ def csv_to_bigquery(
         for new_column, value in add_columns.items():
             df[new_column] = value
 
-        print(f'--\nImporting into table `{table_name}` from {csv_path}')
+        if log:
+            print(f'--\nImporting into table `{table_name}` from {csv_path}')
 
         # Throw an error if there are any values in the df that do not meet expected types
         validate_csv_columns(model_class, df)

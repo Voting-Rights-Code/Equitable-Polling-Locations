@@ -85,6 +85,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
              demographic_prec,
              demographic_res,
              demographic_ede,
+             log=log,
         )
     elif outtype == OUT_TYPE_CSV:
         if hasattr(config, 'result_folder'):

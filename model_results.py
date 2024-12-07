@@ -166,6 +166,7 @@ def write_results_bigquery(
     demographic_prec: pd.DataFrame,
     demographic_res: pd.DataFrame,
     demographic_ede: pd.DataFrame,
+    log: bool = False,
 ):
     '''Write result, demographic_prec, demographic_res and demographic_ede to BigQuery SQL tables'''
 
@@ -174,7 +175,8 @@ def write_results_bigquery(
     with lock:
         (model_config, _) = db_import_cli.import_model_config(source_config)
         model_config = db.find_or_create_model_config(model_config)
-        print(f'Importing result from {model_config}')
+        if log:
+            print(f'Importing result from {model_config}')
 
         # TODO Add user and commit hash
         model_run = db.create_model_run(model_config.id, '', '', current_time_utc())
@@ -184,16 +186,16 @@ def write_results_bigquery(
 
         # Import each DF for this run
         edes_import_result = db_import_cli.import_edes(
-            config_set, config_name, model_run.id, df=demographic_ede
+            config_set, config_name, model_run.id, df=demographic_ede, log=log,
         )
         results_import_result = db_import_cli.import_results(
-            config_set, config_name, model_run.id, df=result_df
+            config_set, config_name, model_run.id, df=result_df, log=log,
         )
         precinct_distances_import_result = db_import_cli.import_precinct_distances(
-            config_set, config_name, model_run.id, df=demographic_prec
+            config_set, config_name, model_run.id, df=demographic_prec, log=log,
         )
         residence_distances_import_result = db_import_cli.import_residence_distances(
-            config_set, config_name, model_run.id, df=demographic_res
+            config_set, config_name, model_run.id, df=demographic_res, log=log,
         )
 
         current_run_results = [
@@ -208,12 +210,13 @@ def write_results_bigquery(
         # check for any problems and add the current_run_results to the overall results
         for current_run_result in current_run_results:
             success = success and current_run_result.success
-            print(current_run_result)
+            if log:
+                print(current_run_result)
 
         model_run.success = success
         db.commit()
 
-        if success:
+        if success and log:
             print(f'\nResults for config set {config_set}, config {config_name} successfuly written to db.')
 
 
