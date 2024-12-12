@@ -32,7 +32,7 @@ STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
 CLOUD_STORAGE_ANALYSIS_NAME = paste0(ORIG_CONFIG_FOLDER, '_AND_', POTENTIAL_CONFIG_FOLDER)
 
 #constants for reading data
-READ_FROM_CSV = FALSE
+READ_FROM_CSV = TRUE
 PRINT_SQL = TRUE
 
 #constants for database queries
