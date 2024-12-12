@@ -176,8 +176,6 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 		stop('map_type must be either map, or boundries')
 	}
 
-	map_folder <- 'result_analysis/map_work'
-
 	#2. Make map
 	#2a. get block group demographics
 	if (map_type == 'boundries') { #associate block group demographics based on included blocks only
