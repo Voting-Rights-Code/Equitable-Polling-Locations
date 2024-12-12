@@ -225,8 +225,18 @@ process_configs_dt <- function(config_dt, field_of_interest){
 	if (nrow(config_dt)>1){
 		varying_dt <- select_varying_fields(config_dt)
 	} else if (nrow(config_dt)==1){
-		varying_cols <- c(field_of_interest, 'config_name')
-		varying_dt <- config_dt[ , ..varying_cols]
+		#if there is only one row, and field of interest isn't specified, raise an error
+		if (field_of_interest == ''){
+			stop('only one config_name in config_set, but no field of interest specified')
+		} 
+		#otherwise, check that that the field of interest is in the config data, 
+		#and create varying_dt. Else, throw error
+		if (field_of_interest %in% names(config_dt)){
+			varying_cols <- c(field_of_interest, 'config_name')
+			varying_dt <- config_dt[ , ..varying_cols]}
+		else{
+			stop('FIELD_OF_INTEREST value is not a valid config field')
+		}
 	} else {
 		stop('there are no config files in the config folder')
 	}
@@ -366,17 +376,18 @@ read_result_data<- function(config_dt, field_of_interest = '', tables = TABLES){
 	nums_to_join <- merge(num_polls, num_residences, all = T)
 
 	appended_df_list <- lapply(df_list, function(df){merge(df, nums_to_join, by = 'descriptor', all.x = T)})
-
 	# Track information about configs used in this analsysis
-	for (i in 1:nrow(config_dt)) {
-		config_id = config_dt[i, id]
-		config_set = config_dt[i, config_set]
-		config_name = config_dt[i, config_name]
-		model_run_id = config_dt[i, model_run_id]
+	mapply(add_config_info_to_graph_file_manifest, config_dt$id, config_dt$config_set, config_dt$config_name)
+	sapply(config_dt$model_run_id, add_model_run_id_to_graph_file_manifest)
+	# for (i in 1:nrow(config_dt)) {
+	# 	config_id = config_dt[i, id]
+	# 	config_set = config_dt[i, config_set]
+	# 	config_name = config_dt[i, config_name]
+	# 	model_run_id = config_dt[i, model_run_id]
 
-		add_config_info_to_graph_file_manifest(config_id=config_id, config_set=config_set, config_name=config_name)
-		add_model_run_id_to_graph_file_manifest(model_run_id)
-	}
+	# 	add_config_info_to_graph_file_manifest(config_id=config_id, config_set=config_set, config_name=config_name)
+	# 	add_model_run_id_to_graph_file_manifest(model_run_id)
+	# }
 
 	return(appended_df_list)
 }

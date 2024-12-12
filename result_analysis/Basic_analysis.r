@@ -21,9 +21,11 @@ source('result_analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'DeKalb_County_GA' #needed only for reading from csv and writing outputs
-ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs"
-POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_bg_school_configs"
+LOCATION = 'Henrico_County_VA' #needed only for reading from csv and writing outputs
+ORIG_CONFIG_FOLDER = "Henrico_County_VA_original_configs"
+POTENTIAL_CONFIG_FOLDER = "Henrico_County_VA_potential_configs"
+ORIG_FIELD_OF_INTEREST = 'year' #must not leave empty if config set has only one element
+POTENTIAL_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 
 # This is where this analysis will be stored in the cloud
 STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
@@ -70,9 +72,9 @@ DRIVING_FLAG <- set_global_driving_flag(config_dt_list)
 
 #names of the output data in these lists
 #come from TABLES above
-orig_output_df_list <- read_result_data(orig_config_dt)
+orig_output_df_list <- read_result_data(orig_config_dt, ORIG_FIELD_OF_INTEREST)
 
-potential_output_df_list <- read_result_data(potential_config_dt)
+potential_output_df_list <- read_result_data(potential_config_dt, POTENTIAL_FIELD_OF_INTEREST)
 
 #change descriptor
 #function to set certain descriptors as desired
