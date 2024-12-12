@@ -301,7 +301,11 @@ And at the end of the R file, add the following line:
 upload_graph_files_to_cloud_storage()
 ```
 
-Authentication will happen automatically via the [`googleCloudStorageR` R library](https://CRAN.R-project.org/package=googleCloudStorageR).
+Authentication will happen via the [`googleCloudStorageR` R library](https://CRAN.R-project.org/package=googleCloudStorageR).  Before running the R analysis, you must login via the [gcloud command line tool](https://cloud.google.com/sdk/docs/install-sdk).  One installed, run the following:
+
+```
+gcloud auth application-default login
+```
 
 
 Example:
