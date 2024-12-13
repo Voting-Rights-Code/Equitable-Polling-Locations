@@ -21,6 +21,7 @@ source('result_analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
+
 LOCATION = 'Henrico_County_VA' #needed only for reading from csv and writing outputs
 ORIG_CONFIG_FOLDER = "Henrico_County_VA_original_configs"
 POTENTIAL_CONFIG_FOLDER = "Henrico_County_VA_potential_configs"
@@ -30,7 +31,7 @@ STORAGE_BUCKET = 'equitable-polling-analysis'
 CLOUD_STORAGE_ANALYSIS_NAME = paste0(ORIG_CONFIG_FOLDER, '_AND_', POTENTIAL_CONFIG_FOLDER)
 
 #constants for reading data
-READ_FROM_CSV = FALSE
+READ_FROM_CSV = TRUE
 PRINT_SQL = TRUE
 
 #constants for database queries
@@ -55,6 +56,7 @@ POLLING_CON <- define_connection()
 #Load config data
 #checking if the config folder is valid
 #and that the location is in the indicated dataset
+
 orig_config_dt <- load_config_data(LOCATION, ORIG_CONFIG_FOLDER)
 potential_config_dt <- load_config_data(LOCATION, POTENTIAL_CONFIG_FOLDER)
 
@@ -70,9 +72,9 @@ DRIVING_FLAG <- set_global_driving_flag(config_dt_list)
 
 #names of the output data in these lists
 #come from TABLES above
-orig_output_df_list <- read_result_data(orig_config_dt)
+orig_output_df_list <- read_result_data(orig_config_dt, ORIG_FIELD_OF_INTEREST)
 
-potential_output_df_list <- read_result_data(potential_config_dt)
+potential_output_df_list <- read_result_data(potential_config_dt, POTENTIAL_FIELD_OF_INTEREST)
 
 #change descriptor
 #function to set certain descriptors as desired
