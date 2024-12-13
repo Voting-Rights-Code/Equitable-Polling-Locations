@@ -27,7 +27,7 @@ LOCATION = 'York_County_SC'
 CONFIG_FOLDER = 'York_County_SC_original_configs'
 
 # This is where this analysis will be stored
-STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
+STORAGE_BUCKET = 'equitable-polling-analysis'
 CLOUD_STORAGE_ANALYSIS_NAME = deparse(substitute(current_file))
 
 #Run-type specific constants

@@ -26,7 +26,7 @@ CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_original_configs'
 POTENTIAL_CONFIG_FOLDER = 'Intersecting_Madison_City_of_WI_potential_configs'
 
 # This is where this analysis will be stored in the cloud
-STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
+STORAGE_BUCKET = 'equitable-polling-analysis'
 CLOUD_STORAGE_ANALYSIS_NAME = 'Madison_2024.r'
 
 #constants for reading data

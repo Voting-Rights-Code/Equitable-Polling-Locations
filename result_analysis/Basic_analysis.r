@@ -21,14 +21,13 @@ source('result_analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'Chatham_County_GA' #needed only for reading from csv and writing outputs
-ORIG_CONFIG_FOLDER = "Chatham_County_GA_original_configs"
-POTENTIAL_CONFIG_FOLDER = "Chatham_County_GA_no_bg_school_configs"
-ORIG_FIELD_OF_INTEREST = 'year' #must not leave empty if config set has only one element
-POTENTIAL_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
+
+LOCATION = 'Henrico_County_VA' #needed only for reading from csv and writing outputs
+ORIG_CONFIG_FOLDER = "Henrico_County_VA_original_configs"
+POTENTIAL_CONFIG_FOLDER = "Henrico_County_VA_potential_configs"
 
 # This is where this analysis will be stored in the cloud
-STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
+STORAGE_BUCKET = 'equitable-polling-analysis'
 CLOUD_STORAGE_ANALYSIS_NAME = paste0(ORIG_CONFIG_FOLDER, '_AND_', POTENTIAL_CONFIG_FOLDER)
 
 #constants for reading data

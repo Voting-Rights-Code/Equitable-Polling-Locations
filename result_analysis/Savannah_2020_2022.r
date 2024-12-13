@@ -26,7 +26,7 @@ CONFIG_FOLDER = 'Contained_in_Savannah_City_of_GA_original_configs'
 POTENTIAL_CONFIG_FOLDER = 'Contained_in_Savannah_City_of_GA_no_bg_school_configs'
 
 # This is where this analysis will be stored in the cloud
-STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
+STORAGE_BUCKET = 'equitable-polling-analysis'
 CLOUD_STORAGE_ANALYSIS_NAME = 'Savannah_2020_2022.r'
 
 #constants for reading data
