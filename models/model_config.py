@@ -1,5 +1,5 @@
 '''
-    models/user.py
+    models/model_config.py
 '''
 from typing import List
 import hashlib

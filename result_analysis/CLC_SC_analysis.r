@@ -26,9 +26,26 @@ source('result_analysis/map_functions.R')
 LOCATION = 'York_County_SC'
 CONFIG_FOLDER = 'York_County_SC_original_configs'
 
+# This is where this analysis will be stored
+STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
+CLOUD_STORAGE_ANALYSIS_NAME = deparse(substitute(current_file))
 
 #Run-type specific constants
 REFERENCE_TAG = '2022' #Reference year for analysis
+
+#constants for reading data
+READ_FROM_CSV = FALSE
+
+#constants for database queries
+#only need to define if READ_FROM_CSV = TRUE
+PROJECT = "equitable-polling-locations"
+DATASET = "scratch_chad2"
+BILLING = PROJECT
+
+#Connect to database if needed
+#returns NULL if READ_FROM_CSV = TRUE
+POLLING_CON <- define_connection()
+
 
 #######
 #Check that location and folders valid
@@ -38,7 +55,7 @@ REFERENCE_TAG = '2022' #Reference year for analysis
 #Does the config folder exist?
 check_config_folder_valid(CONFIG_FOLDER)
 #Does the config folder contain files associated to the location
-check_location_valid(LOCATION, CONFIG_FOLDER)
+# check_location_valid(LOCATION, CONFIG_FOLDER)
 
 
 #######
@@ -74,7 +91,7 @@ color_bounds <- distance_bounds(LOCATION, CONFIG_FOLDER)
 #######
 plot_folder = paste0('result_analysis/', CONFIG_FOLDER)
 if (file.exists(file.path(here(), plot_folder))){
-    setwd(file.path(here(), plot_folder))    
+    setwd(file.path(here(), plot_folder))
 } else{
     dir.create(file.path(here(), plot_folder))
     setwd(file.path(here(), plot_folder))
@@ -119,6 +136,7 @@ regression_data <- calculate_pct_change(regression_data, reference)
 
 sapply(descriptor_list[descriptor_list != reference], function(x){plot_pct_change_by_density_black_3d(regression_data, x)})
 
+upload_graph_files_to_cloud_storage()
 
 #####STOP HERE######
 #####REGRESSION FUNCTIONS AFTER THIS MAY NOT WORK AS DESIRED######
@@ -154,7 +172,7 @@ sapply(descriptor_list[descriptor_list != reference], function(x){plot_pct_chang
 # #sapply(descriptor_list, function(x){plot_distance_by_density_black_3d(regression_data, x)})
 
 
-    
+
 
 # location_list = c('Berkeley', 'Greenville', 'Lexington', 'Richland', 'York')
 # file_list = sapply(location_list, function(x)paste0('../', x, '_SC_original_configs/', x, '_pct_change_model.csv'))

@@ -29,14 +29,18 @@ INTERSECTING_POT_CONFIG_FOLDER = 'Intersecting_Savannah_City_of_GA_no_bg_school_
 
 COMPARISON_FOLDER = 'Compare_Savannah_City_of_GA_configs' #only for putting files away
 
+# This is where this analysis will be stored in the cloud
+STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
+CLOUD_STORAGE_ANALYSIS_NAME = 'Savannah_2020_2022_compared.r'
+
 #constants for reading data
-READ_FROM_CSV = TRUE
-TABLES = c("edes", "precinct_distances", "residence_distances", "result")
+READ_FROM_CSV = FALSE
 
 #constants for database queries
 #only need to define if READ_FROM_CSV = TRUE
 PROJECT = "equitable-polling-locations"
-DATASET = "polling"
+DATASET = "scratch_chad2"
+BILLING = PROJECT
 
 #Connect to database if needed
 #returns NULL if READ_FROM_CSV = TRUE
@@ -67,7 +71,7 @@ DRIVING_FLAG <- set_global_driving_flag(config_dt_list)
 #Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
 #######
 
-#names of the output data in these lists 
+#names of the output data in these lists
 #come from TABLES above
 contained_in_orig_output_df_list <- read_result_data(contained_in_orig_config_dt)
 intersecting_orig_output_df_list <- read_result_data(intersecting_orig_config_dt)
@@ -103,7 +107,7 @@ global_color_bounds <- distance_bounds(all_res_output)
 #Plot data
 #######
 
-plot_folder = paste0('result analysis/', COMPARISON_FOLDER)
+plot_folder = paste0('result_analysis/', COMPARISON_FOLDER)
 if (!file.exists(file.path(here(), plot_folder))){
     dir.create(file.path(here(), plot_folder))
 }
@@ -133,5 +137,4 @@ sapply(intersecting_orig_list_prepped, function(x){make_bg_maps(x, 'boundries', 
 sapply(contained_in_orig_list_prepped, function(x){make_demo_dist_map(x, 'population', map_type = 'boundries', result_folder_name =  result_folder[1])})
 sapply(intersecting_orig_list_prepped, function(x){make_demo_dist_map(x, 'population', map_type = 'boundries', result_folder_name =  result_folder[2])})
 
-
-
+upload_graph_files_to_cloud_storage()

@@ -7,15 +7,22 @@ library(DBI)
 library(bigrquery)
 library(yaml)
 
+source('result_analysis/storage.R')
+
+TABLES = c("edes", "precinct_distances", "residence_distances", "result")
+
+PRINT_SQL = FALSE
+
 #######
 #DB connection
 #######
-define_connection<- function(read_from_csv = READ_FROM_CSV, project = PROJECT, dataset = DATASET){
+define_connection<- function(read_from_csv = READ_FROM_CSV, project = PROJECT, dataset = DATASET, billing = BILLING){
 	if (!READ_FROM_CSV){
     	con <- dbConnect(
         	bigrquery::bigquery(),
         	project = PROJECT,
-        	dataset = DATASET
+        	dataset = DATASET,
+			billing = BILLING
     	)
 	} else{ con = NULL}
 	return(con)
@@ -35,9 +42,9 @@ config_to_list <- function(config_folder, config_name){
 }
 
 read_config <- function(config_folder){
-	#returns a list of lists of all config files in config folder, 
+	#returns a list of lists of all config files in config folder,
 	#with the file name added as a field
-		
+
 	#get file names
 	file_names <- list.files(config_folder)
 
@@ -55,14 +62,14 @@ config_file_fields <- function(config_list){
 	#raise error if each config file does not have the same content
 	if (length(fields)!= 1){
 		stop('Config files have different fields')
-	} 
-	return(fields)	
+	}
+	return(fields)
 }
 
 collapse_fields <- function(config){
 	#In order to put the configs into a list, for each config field that is a list
-	#turn it into a pipe separated string, also change NULLs to NAs 
-	
+	#turn it into a pipe separated string, also change NULLs to NAs
+
 	#change nulls to NAs
 	config <- lapply(config, function(x) {if(is.null(x)){x <- NA}else{x}})
 	#collapse lists
@@ -91,7 +98,10 @@ read_config_folder_from_file <- function(config_folder){
 read_config_set_from_db <- function(config_set, columns, con=POLLING_CON){
 	#read indicated columns from config set data in database
 	comma_sep_colls = paste(columns, collapse = ',')
-	sql <- paste0("SELECT ", comma_sep_colls, " FROM configs WHERE config_set =  '", config_set, "'")
+	sql <- paste0("SELECT ", comma_sep_colls, " FROM model_config_runs WHERE config_set =  '", config_set, "'")
+
+	if (PRINT_SQL) print(sql)
+
 	config_tbl <- dbGetQuery(con, sql)
 	config_dt <- as.data.table(config_tbl)
 	return(config_dt)
@@ -102,7 +112,7 @@ read_config_set_from_db <- function(config_set, columns, con=POLLING_CON){
 #Check that location and folders valid
 #Load the data if they are
 #######
-check_config_folder_valid <- function(config_folder, read_from_csv, con){
+check_config_folder_valid <- function(config_folder, read_from_csv = READ_FROM_CSV, con = POLLING_CON){
 	#chech that the config folder / set is valid
 	if (read_from_csv){
 		#raise error if config folder not a directory
@@ -111,7 +121,7 @@ check_config_folder_valid <- function(config_folder, read_from_csv, con){
 		}
 	} else{
 		#raise error if config set not in database
-		config_dt <- read_config_set_from_db(config_folder, 'config_set')
+		config_dt <- read_config_set_from_db(config_set=config_folder, columns='config_set')
 		if (nrow(config_dt) == 0){
 			stop('Config set does not exist in database')
 		}
@@ -119,7 +129,7 @@ check_config_folder_valid <- function(config_folder, read_from_csv, con){
 }
 
 check_location_valid <- function(location, config_dt){
-	#raise error if config folder does not contain a file with 
+	#raise error if config folder does not contain a file with
 	#given location or config set does not contain data with
 	#given location
 	locations_in_config_folder <- unique(config_dt$location)
@@ -131,13 +141,9 @@ check_location_valid <- function(location, config_dt){
 
 #Read in config data
 load_config_data <- function(location, config_folder, read_from_csv = READ_FROM_CSV, con = POLLING_CON){
-	#check that the config folder is valid, and contains data for the location, then loads data.
-
-	#check that config folder valid
-	check_config_folder_valid(config_folder, read_from_csv, con)
-
-	#if it is, load the data
 	if(read_from_csv){
+		#check that config folder valid
+		check_config_folder_valid(config_folder, read_from_csv, con)
 		config_dt <- read_config_folder_from_file(config_folder)
 	} else{
 		config_dt <- read_config_set_from_db(config_folder, '*')
@@ -192,16 +198,21 @@ select_varying_fields <- function(config_dt){
 	#constant: file_name, and the field that varies in the folder
 	#return a data.table with just these two.
 
+	# Remove the database related columns that don't count as varying, if they exist
+	config_dt_filtered <- copy(config_dt)
+	cols_to_remove <- c("id", "created_at", "model_run_id", "run_at")
+	config_dt_filtered[, (cols_to_remove) := NULL]
+
 	#determine non-unique field
-	unique_values_of_fields <- sapply(config_dt, function(x){length(unique(x))})
+	unique_values_of_fields <- sapply(config_dt_filtered, function(x){length(unique(x))})
 	varying_cols <- names(unique_values_of_fields)[unique_values_of_fields >1]
 	#raise error if more than 2 non-unique fields (1 in addition to file_name / config_name)
 	if (length(varying_cols) != 2){
 		stop(paste('Too many fields vary across collection of config files:', paste(varying_cols, collapse = ', ')))
-	} 
-	
+	}
+
 	#select the parameter of interest
-	result_dt <- config_dt[ , ..varying_cols]
+	result_dt <- config_dt_filtered[ , ..varying_cols]
 	return(result_dt)
 }
 
@@ -209,13 +220,23 @@ process_configs_dt <- function(config_dt, field_of_interest){
 	#1) identify the (unique) field that changes
 	#1a) if the config folder has a single file in it, the string "field_of_interest"
 	#2) add a descriptor field and return the three columns in a data.table
-	
+
 	#1) get name of varying field
 	if (nrow(config_dt)>1){
 		varying_dt <- select_varying_fields(config_dt)
 	} else if (nrow(config_dt)==1){
-		varying_cols <- c(field_of_interest, 'config_name')
-		varying_dt <- config_dt[ , ..varying_cols]
+		#if there is only one row, and field of interest isn't specified, raise an error
+		if (field_of_interest == ''){
+			stop('only one config_name in config_set, but no field of interest specified')
+		} 
+		#otherwise, check that that the field of interest is in the config data, 
+		#and create varying_dt. Else, throw error
+		if (field_of_interest %in% names(config_dt)){
+			varying_cols <- c(field_of_interest, 'config_name')
+			varying_dt <- config_dt[ , ..varying_cols]}
+		else{
+			stop('FIELD_OF_INTEREST value is not a valid config field')
+		}
 	} else {
 		stop('there are no config files in the config folder')
 	}
@@ -237,14 +258,14 @@ load_output_from_csv <-function(config_dt, result_type){
 	#select which results we want
 	#TODO: Check that this works for multiple locations
 	# get location(s) and config folder
-	location <- unique(config_dt$location) 
+	location <- unique(config_dt$location)
 	config_folder <- unique(config_dt$config_set)
 	#get result folder(s)
 	result_folder <-paste(location, 'results/', sep = '_')
 	#extract files
 	files <- list.files(result_folder)
 	#select files containing config_folder and result_type in name
-	files <- files[grepl(paste0(config_folder, '\\.'), files) &grepl(result_type, files)] 
+	files <- files[grepl(paste0(config_folder, '\\.'), files) &grepl(result_type, files)]
 	#label with config name
 	config_names <- gsub(paste0('.*', config_folder, '\\.'), '', files)
 	config_names <- gsub(paste0('_', result_type, '\\.csv'), '', config_names)
@@ -252,7 +273,7 @@ load_output_from_csv <-function(config_dt, result_type){
 	#put together to form a file path
 	file_path <- paste0(result_folder, files)
 	names(file_path) <- names(files)
-	
+
 	#read data, add config_set and config_name columns
 	#note, this needs a local function
 	dt_list <- lapply(file_path, fread)
@@ -264,51 +285,87 @@ load_output_from_csv <-function(config_dt, result_type){
 	return(big_dt)
 }
 
-load_output_from_db <-function(config_dt, result_type, con = POLLING_CON){
+load_output_from_db <-function(config_dt, table_name, con = POLLING_CON){
 	config_set <- unique(config_dt$config_set)
 	sql <- paste0("SELECT * FROM ", result_type," WHERE config_set = '", config_set, "'")
+
+	if (PRINT_SQL) print(sql)
+
 	big_tbl <- dbGetQuery(con, sql)
 	big_dt <- as.data.table(big_tbl)
 	return(big_dt)
 }
 
+set_results_column_names <- function(results_dt) {
+	mappings <- list(y_ede = "y_EDE")
+
+	# Rename columns based on mappings
+	for (src in names(mappings)) {
+		if (src %in% colnames(results_dt)) {
+			setnames(results_dt, src, mappings[[src]])
+		}
+	}
+}
+
+load_results_from_db <-function(table_name, model_run_ids, con = POLLING_CON){
+	if (length(model_run_ids) < 1) {
+		return(NULL)
+	}
+
+	model_run_ids_string <- paste0("'", model_run_ids, "'", collapse = ", ")
+
+	sql <- paste0("SELECT * FROM ", table_name, " WHERE model_run_id IN (", model_run_ids_string, ")")
+
+	if (PRINT_SQL) print(sql)
+
+	big_tbl <- dbGetQuery(con, sql)
+	big_dt <- as.data.table(big_tbl)
+
+	# Set the correct case instead of database case for column names
+	set_results_column_names(big_dt)
+	return(big_dt)
+}
+
 assign_descriptor<- function(config_dt, result_type, field_of_interest, read_from_csv = READ_FROM_CSV){
-	#read in and format all the results data assocaited to a 
+	#read in and format all the results data assocaited to a
 	#given config data
 	#result_type: in c((ede, precinct, residence, results)
 	#field_of_interest: string indicating the field to be used for a descriptor (in case the config folder has only 1 file)
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
-	
+
 	#read in descriptor data
 	vary_dt <- process_configs_dt(config_dt, field_of_interest)
 	#drop varying field (because this changes across config_set)
 	vary_dt <- vary_dt [ , .(config_name, descriptor)]
-	
+
 	#read in output data
 	if (read_from_csv){
-		result_type_dt <- load_output_from_csv(config_dt, result_type) 
+		result_type_dt <- load_output_from_csv(config_dt, result_type)
 	} else {
-		result_type_dt <- load_output_from_db(config_dt, result_type)
+		model_run_ids <- unique(config_dt$model_run_id)
+		extras_table_name = paste0(result_type, '_extras')
+
+		result_type_dt <- load_results_from_db(table_name=extras_table_name, model_run_ids)
 	}
-	
+
 	#merge data
-	complete_dt <- merge(vary_dt, result_type_dt)	
-	
+	complete_dt <- merge(vary_dt, result_type_dt)
+
 	#fix data types (only needed for csv)
 	if ('id_dest' %in% names(complete_dt)){
 		complete_dt[ , id_dest:= as.character(id_dest)]}
 	if ('id_orig' %in% names(complete_dt)){
 		complete_dt[ , id_orig:= as.character(id_orig)]}
-	
+
 	return(complete_dt)
 }
 
 read_result_data<- function(config_dt, field_of_interest = '', tables = TABLES){
-	#read in and format all the results data assocaited to a 
+	#read in and format all the results data assocaited to a
 	#given config data.
 	#field_of_interest: string indicating the field to be used for a descriptor (in case the config folder has only 1 file)
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
-	
+
 	#read output data into a list with a descriptor column attached
 	df_list<- lapply(tables, function(x){assign_descriptor(config_dt, x, field_of_interest)})
 	names(df_list) <- tables
@@ -319,6 +376,18 @@ read_result_data<- function(config_dt, field_of_interest = '', tables = TABLES){
 	nums_to_join <- merge(num_polls, num_residences, all = T)
 
 	appended_df_list <- lapply(df_list, function(df){merge(df, nums_to_join, by = 'descriptor', all.x = T)})
+	# Track information about configs used in this analsysis
+	mapply(add_config_info_to_graph_file_manifest, config_dt$id, config_dt$config_set, config_dt$config_name)
+	sapply(config_dt$model_run_id, add_model_run_id_to_graph_file_manifest)
+	# for (i in 1:nrow(config_dt)) {
+	# 	config_id = config_dt[i, id]
+	# 	config_set = config_dt[i, config_set]
+	# 	config_name = config_dt[i, config_name]
+	# 	model_run_id = config_dt[i, model_run_id]
+
+	# 	add_config_info_to_graph_file_manifest(config_id=config_id, config_set=config_set, config_name=config_name)
+	# 	add_model_run_id_to_graph_file_manifest(model_run_id)
+	# }
 
 	return(appended_df_list)
 }
@@ -330,9 +399,9 @@ read_result_data<- function(config_dt, field_of_interest = '', tables = TABLES){
 #######
 
 demographic_legend_dict <- c(
-	'asian' = 'Asian (not PI)', 
-	'black' = 'African American', 
-	'white' = 'White', 
+	'asian' = 'Asian (not PI)',
+	'black' = 'African American',
+	'white' = 'White',
 	'hispanic' = 'Latine',
 	'native' = 'First Nations',
 	'population' = 'Total')
@@ -342,11 +411,11 @@ demographic_legend_dict <- c(
 #######
 #functions to make plots
 #######
-#helper function to combine ede data from different config folders 
+#helper function to combine ede data from different config folders
 combine_different_runs<- function(df_list){
 	#takes a list of ede data generated from config folders and, if the descriptors
 	#are unique, combines them into one dataframe for plotting
-	
+
     #check for descriptor uniqueness
     all_descriptors <- unlist(lapply(df_list, function(x){unique(x$descriptor)}))
     if(length(unique(all_descriptors))< length(all_descriptors)){
@@ -357,28 +426,34 @@ combine_different_runs<- function(df_list){
     return(df)
 }
 
-#makes a plot showing how y_EDEs change for each demographic group as the 
+#makes a plot showing how y_EDEs change for each demographic group as the
 #number of polls is increased
 
 #DOES NOT ACCOMODATE DRIVING DISTANCES
 plot_poll_edes<-function(ede_df){
-	ggplot(ede_df, aes(x = num_polls, y = y_EDE, 
+	ggplot(ede_df, aes(x = num_polls, y = y_EDE,
 		group = demographic, color = demographic)) +
-		geom_line()+ geom_point()+ 
-		labs(x = 'Number of polls', y = 'Equity weighted distance (m)', color = 'Demographic')+ 
+		geom_line()+ geom_point()+
+		labs(x = 'Number of polls', y = 'Equity weighted distance (m)', color = 'Demographic')+
 		scale_color_discrete(labels = demographic_legend_dict)
-	ggsave('demographic_edes.png')
+
+	graph_file_path = 'demographic_edes.png'
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
 }
 
 plot_multiple_edes<-function(ede_list, demo_grp){
 	ede_df <- do.call(rbind, ede_list)
-	ggplot(ede_df[demographic == demo_grp, ], aes(x = num_polls, y = y_EDE, 
+	ggplot(ede_df[demographic == demo_grp, ], aes(x = num_polls, y = y_EDE,
 		group = descriptor, color =  descriptor, shape = demo_grp)) +
-		geom_line()+ geom_point()+ 
-		labs(x = 'Number of polls', y = 'Equity weighted distance (m)', color = "Run Type", shape = 'Demographic')+ 
-		scale_shape_discrete(labels = demographic_legend_dict) + 
+		geom_line()+ geom_point()+
+		labs(x = 'Number of polls', y = 'Equity weighted distance (m)', color = "Run Type", shape = 'Demographic')+
+		scale_shape_discrete(labels = demographic_legend_dict) +
 		scale_color_manual(breaks = c('Intersecting', 'Contained'), values = c('red','darkviolet'))
-	ggsave(paste0(demo_grp, '_compare_demographic_edes.png'))
+
+	graph_file_path = paste0(demo_grp, '_compare_demographic_edes.png')
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
 }
 
 #makes two plots, one showing the y_ede the other avg distance
@@ -389,8 +464,8 @@ plot_multiple_edes<-function(ede_list, demo_grp){
 
 #ACCOMODATES DRIVING DISTANCES
 
-plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLAG){	
-	
+plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLAG){
+
 	#set x axis label order
 	descriptor_order <- unique(orig_ede$descriptor)
 
@@ -402,7 +477,7 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 	#set point size
 	#does data contain scaling data
 	scale_bool = 'pct_demo_population' %in% names(orig_ede)
-	
+
 	#is this driving distance data
 	if (driving_flag){
 		y_EDE_label = 'Equity weighted driving distance (m)'
@@ -414,35 +489,38 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 		title_str = "distance by demographic and optimization run"
 	}
 	#plot with y_EDE
-	y_EDE = ggplot(orig_ede, aes(x = descriptor, y = y_EDE, 
-		group = demographic, color = demographic)) 
+	y_EDE = ggplot(orig_ede, aes(x = descriptor, y = y_EDE,
+		group = demographic, color = demographic))
 	if (scale_bool){
 		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) +
 			labs(x = 'Optimization run', y = y_EDE_label, color = 'Demographic', size = 'Percent Total Population')
 	} else{
-		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order)),size = 5 )+ 
+		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order)),size = 5 )+
 			labs(x = 'Optimization run', y = y_EDE_label, color = 'Demographic')
 	}
 	y_EDE = y_EDE +	ylim(y_min, y_max) + ggtitle(paste('Equity weighted', title_str)) +
 		scale_color_discrete(labels = demographic_legend_dict)
 
-	name = paste('orig', suffix, 'y_EDE.png', sep = '_')
-	ggsave(name, y_EDE)
-	
+	graph_file_path = paste('orig', suffix, 'y_EDE.png', sep = '_')
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path, y_EDE)
+
 	#plot with avg_dist
-	avg = ggplot(orig_ede, aes(x = descriptor, y = avg_dist, 
-		group = demographic, color = demographic)) 
+	avg = ggplot(orig_ede, aes(x = descriptor, y = avg_dist,
+		group = demographic, color = demographic))
 if (scale_bool){
-		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) + 
+		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) +
 			labs(x = 'Optimization run', y = y_avg_label, color = 'Demographic', size = 'Percent Total Population')
 	} else{
-		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order) ),size = 5) + 
+		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order) ),size = 5) +
 			labs(x = 'Optimization run', y = y_avg_label, color = 'Demographic')
 	}
-	avg = avg + ylim(y_min, y_max) + ggtitle(paste('Average', title_str)) + 
+	avg = avg + ylim(y_min, y_max) + ggtitle(paste('Average', title_str)) +
 		scale_color_discrete(labels = demographic_legend_dict)
-	name = paste('orig', suffix, 'avg.png', sep = '_')
-	ggsave(name, avg)
+
+	graph_file_path = paste('orig', suffix, 'avg.png', sep = '_')
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path, avg)
 }
 
 #join population data to ede graphs in order to get population scaled graphs
@@ -456,11 +534,11 @@ ede_with_pop<- function(config_df_list){
 	return(edes_with_pop)
 }
 
-#compares optimized runs with historical runs having the same number of 
+#compares optimized runs with historical runs having the same number of
 #polls (via plot_historical_edes)
 
 #ACCOMODATES DRIVING DISTANCES
-plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_flag = DRIVING_FLAG){	
+plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_flag = DRIVING_FLAG){
 	#select the relevant optimized runs
 	orig_num_polls <- unique(orig_ede$num_polls)
 	config_num_polls <- unique(config_ede$num_polls)
@@ -475,12 +553,14 @@ plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_f
 # population as a whole, and not demographic groups
 
 #DOES NOT ACCOMODATE DRIVING DISTANCES
-plot_population_edes <- function(ede_df){	
+plot_population_edes <- function(ede_df){
 	ggplot(ede_df[demographic == 'population', ], aes(x =  num_polls, y = y_EDE))+
 		geom_line()+ geom_point()+
 		labs(x = 'Number of polls', y = 'Equity weighted distance (m)')
 
-	ggsave('population_edes.png')
+	graph_file_path = 'population_edes.png'
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
 }
 
 #a plot showing which precincts are used for which number of polls
@@ -488,21 +568,25 @@ plot_population_edes <- function(ede_df){
 plot_precinct_persistence <- function(precinct_df){
 	ggplot(precinct_df[demographic == 'population',
 		], aes(x = num_polls, y = id_dest)) +
-		geom_point(aes(size = demo_pop)) + 
+		geom_point(aes(size = demo_pop)) +
 		labs(x = 'Number of polls', y = 'EV location', size = paste(demographic_legend_dict['population'], 'population'))
 
-	ggsave('precinct_persistence.png')
+	graph_file_path = 'precinct_persistence.png'
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
 
 	ggplot(precinct_df[demographic != 'population',
 		], aes(x = num_polls, y = id_dest)) +
-		geom_point(aes(size = demo_pop)) + 
+		geom_point(aes(size = demo_pop)) +
 		labs(x = 'Number of polls', y = 'EV location', size = 'Population') + facet_wrap(~ demographic) +
 		theme(legend.position = c(0.9, 0.2))
 
-	ggsave('precinct_persistence_demographic.png')
+	graph_file_path = 'precinct_persistence_demographic.png'
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
 }
 
-#make boxplots of the average distances traveled and the y_edes at each run 
+#make boxplots of the average distances traveled and the y_edes at each run
 
 #DOES NOT ACCOMODATE DRIVING DISTANCES
 plot_boxplots <- function(residence_df){
@@ -511,13 +595,16 @@ plot_boxplots <- function(residence_df){
 	#avg distance
 	ggplot(res_pop, aes(x = num_polls, y = avg_dist, group = descriptor)) +
 		stat_boxplot(geom = "errorbar")+
-		geom_boxplot(outlier.shape = NA) + 
+		geom_boxplot(outlier.shape = NA) +
 		scale_y_log10(limits = c(500,10500)) +
 		labs(x = 'Number of polls', y = 'Average distance (m)')
-	ggsave('avg_dist_distribution_boxplots.png')
-	}
 
-#make histogram of the average distances traveled in the historical and ideal situations 
+	graph_file_path = 'avg_dist_distribution_boxplots.png'
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
+}
+
+#make histogram of the average distances traveled in the historical and ideal situations
 
 #DOES NOT ACCOMODATE DRIVING DISTANCES
 plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_num){
@@ -526,11 +613,12 @@ plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_n
 	res_pop_orig_and_ideal <- rbind( ideal_residence_df, orig_residence_df)
 
 	#avg_distance
-	ggplot(res_pop_orig_and_ideal, aes(x = avg_dist, fill = descriptor)) + 
+	ggplot(res_pop_orig_and_ideal, aes(x = avg_dist, fill = descriptor)) +
 		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
-		labs(x = 'Average distance traveled to poll (m)', y = 'Number of people', fill = 'Optimization Run') 
-		ggsave('avg_dist_distribution_hist.png')
-
+		labs(x = 'Average distance traveled to poll (m)', y = 'Number of people', fill = 'Optimization Run')
+	graph_file_path = 'avg_dist_distribution_hist.png'
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
 }
 
 #####CAUTION: USED FOR DELIVERY, BUT EXPERIMENTAL######
@@ -558,7 +646,7 @@ calculate_pct_change <- function(data, reference_descriptor){
 
 	data_wide <- dcast(data, id_orig ~descriptor, value.var = 'fuzzy_dist')
 	cols <- names(data_wide)[names(data_wide) != 'id_orig']
-	
+
 	data_wide[, (cols) := lapply(.SD, function(x)(get(reference_descriptor) - x)/x), .SDcols = cols]
 
 	dif_data<- melt(data_wide, id = c('id_orig'), variable = 'descriptor', value = 'pct_extra_in_2022')
@@ -568,19 +656,19 @@ calculate_pct_change <- function(data, reference_descriptor){
 }
 
 plot_pct_change_by_density_black_3d <- function(data, this_descriptor){
-	
-	fig <- plot_ly(data[descriptor == this_descriptor, ], 
-				x= ~pct_black, 
-				y = ~density_pctile, 
+
+	fig <- plot_ly(data[descriptor == this_descriptor, ],
+				x= ~pct_black,
+				y = ~density_pctile,
 				z = ~pct_extra_in_2022,
-				size = ~I(population*.3), 
+				size = ~I(population*.3),
 				text = ~paste('<br>Percent extra in 2022:', pct_extra_in_2022,
-							'<br>Distance (m) :', fuzzy_dist, 
-							'<br>Percent Black :', pct_black, 
-							'<br>Population Density / km^2 :', pop_density_km, 
-							'<br>Population Density Percentile :', density_pctile, '<br>Population :', population), 
-				hoverinfo = "text", 
-				mode = 'markers')%>% 
+							'<br>Distance (m) :', fuzzy_dist,
+							'<br>Percent Black :', pct_black,
+							'<br>Population Density / km^2 :', pop_density_km,
+							'<br>Population Density Percentile :', density_pctile, '<br>Population :', population),
+				hoverinfo = "text",
+				mode = 'markers')%>%
 		layout(title = paste("Percent change in distance", gsub('_', ' ', this_descriptor),  "to 2022"),
 				scene = list(xaxis = list(title = 'Percent African American'),
 				yaxis = list(title = 'Population Density (percentile)'),
@@ -617,10 +705,13 @@ plot_predicted_distances<- function(regression_data, model){
 	dist_bounds <- c(.95*min(model_dt$predicted_dist), 1.05*max(model_dt$predicted_dist))
 	#plot
 	plot_pctile_pred<- function(pctile, names){
-		ggplot(model_dt[pop_density == pctile, ], aes(x = sim_pct_black, y = predicted_dist, group = descriptor, color = descriptor)) + 
+		ggplot(model_dt[pop_density == pctile, ], aes(x = sim_pct_black, y = predicted_dist, group = descriptor, color = descriptor)) +
 		geom_line() + ggtitle(paste0("Predicted distance traveled at ", names, "-ile density")) +
 		ylim(dist_bounds[1],dist_bounds[2])
-		ggsave(paste0("Pred_dist_at_",  names, ".png"))
+
+		graph_file_path = paste0("Pred_dist_at_",  names, ".png")
+		add_graph_to_graph_file_manifest(graph_file_path)
+		ggsave(graph_file_path)
 	}
 
 	good_names <- gsub('%', '', names(pop_density_quantile), fixed = T)
@@ -629,23 +720,26 @@ plot_predicted_distances<- function(regression_data, model){
 
 plot_distance_by_density_black <- function(data, this_descriptor){
 	ggplot(data[descriptor == this_descriptor, ], aes(x= pct_black, y = density_pctile)) +
-	geom_point(aes(color = distance_m, size = population)) + 
+	geom_point(aes(color = distance_m, size = population)) +
 	scale_color_viridis_c(limits = c(color_bounds[[1]], color_bounds[[2]]), name = "Distance to poll (m)") + xlim(c(0, 100)) + ylim(c(0,1)) + ggtitle('Distance to poll by Pct Black and Population Density Percentile')
-	ggsave(paste0(this_descriptor, '_dist_by_density_black.png'))
+
+	graph_file_path = paste0(this_descriptor, '_dist_by_density_black.png')
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
 }
 
 plot_distance_by_density_black_3d <- function(data, this_descriptor){
-	plot_ly(data[descriptor == this_descriptor, ], 
-				x= ~pct_black, 
-				y = ~density_pctile, 
-				z = ~distance_m, 
-				size = ~I(population*.3), 
-				text = ~paste('Distance (m) :', distance_m, 
-							'<br>Percent Black :', pct_black, 
-							'<br>Population Density / km^2 :', pop_density_km, 
-							'<br>Population Density Percentile :', density_pctile, '<br>Population :', population), 
-				hoverinfo = "text", 
-				mode = 'markers')%>% 
+	plot_ly(data[descriptor == this_descriptor, ],
+				x= ~pct_black,
+				y = ~density_pctile,
+				z = ~distance_m,
+				size = ~I(population*.3),
+				text = ~paste('Distance (m) :', distance_m,
+							'<br>Percent Black :', pct_black,
+							'<br>Population Density / km^2 :', pop_density_km,
+							'<br>Population Density Percentile :', density_pctile, '<br>Population :', population),
+				hoverinfo = "text",
+				mode = 'markers')%>%
 		layout(title = paste(this_descriptor, "Distance to Polls for Census Blocks"),
 				scene = list(xaxis = list(title = 'Percent African American'),
 				yaxis = list(title = 'Population Density (percentile)'),

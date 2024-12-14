@@ -24,10 +24,6 @@ PRINT_QUERY_DEBUG=False
 ''' If set to true, SQLAlchemy will print sql queries. '''
 
 
-PROJECT = utils.get_env_var_or_prompt('DB_PROJECT', DEFAULT_PROJECT)
-DATASET = utils.get_env_var_or_prompt('DB_DATASET')
-
-DATABASE_URL = f'bigquery://{PROJECT}/{DATASET}'
 
 ModelBase = declarative_base()
 
@@ -35,11 +31,33 @@ ModelBaseType = Type[ModelBase]
 
 bq_engine: Engine = None
 
+
+_project = None
+_datset = None
+
+
+def get_db_project() -> str:
+    global _project
+    if not _project:
+        _project = utils.get_env_var_or_prompt('DB_PROJECT', DEFAULT_PROJECT)
+    return _project
+
+def get_db_dataset() -> str:
+    global _datset
+    if not _datset:
+        _datset = utils.get_env_var_or_prompt('DB_DATASET')
+    return _datset
+
+def get_database_url() -> str:
+    return f'bigquery://{get_db_project()}/{get_db_dataset()}'
+
 def setup(): #config: Dict[str,  str]):
     global bq_engine
-    if not bq_engine:
-        bq_engine = create_engine(url=DATABASE_URL, echo=PRINT_QUERY_DEBUG)
 
+    database_url = get_database_url()
+
+    if not bq_engine:
+        bq_engine = create_engine(url=database_url, echo=PRINT_QUERY_DEBUG)
 
     return bq_engine
 

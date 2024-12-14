@@ -1,5 +1,5 @@
 '''
-    models/user.py
+    models/residence_distance.py
 '''
 
 from sqlalchemy import Column, String, Integer, Float, text

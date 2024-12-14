@@ -9,7 +9,9 @@ from typing import Sequence, Union
 
 from alembic import op
 
-from sqlalchemy_main import ReplaceableObject, DATASET
+from sqlalchemy_main import ReplaceableObject, get_db_dataset
+
+DATASET = get_db_dataset()
 
 # revision identifiers, used by Alembic.
 revision: str = 'd747d5c0f003'
@@ -21,25 +23,36 @@ depends_on: Union[str, Sequence[str], None] = None
 model_config_runs = ReplaceableObject(
     'model_config_runs',
     f'''
+        WITH latest_configs AS (
+            SELECT
+                *,
+                ROW_NUMBER() OVER (PARTITION BY config_set, config_name ORDER BY created_at DESC) AS rn
+            FROM
+                {DATASET}.model_configs
+        )
         SELECT
-            c.*,
+            lc.*,
             r.id as model_run_id,
             r.created_at as run_at
-        FROM `{DATASET}.model_configs` c
+        FROM
+            latest_configs lc
         INNER JOIN (
             SELECT
                 r.model_config_id,
                 MAX(r.created_at) AS max_timestamp
             FROM
                 {DATASET}.model_runs r
-            WHERE r.success = TRUE
+            WHERE
+                r.success = TRUE
             GROUP BY
                 r.model_config_id
         ) AS latest_run
-            ON c.id = latest_run.model_config_id
+            ON lc.id = latest_run.model_config_id
         INNER JOIN {DATASET}.model_runs r ON
-            c.id = r.model_config_id AND
+            lc.id = r.model_config_id AND
             r.created_at = latest_run.max_timestamp
+        WHERE
+            lc.rn = 1
     '''
 )
 

@@ -9,6 +9,7 @@ setwd(here())
 #source functions
 #######
 
+source('result_analysis/storage.R')
 source('result_analysis/graph_functions.R')
 source('result_analysis/map_functions.R')
 
@@ -20,18 +21,25 @@ source('result_analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'DeKalb_GA' #needed only for reading from csv and writing outputs
-ORIG_CONFIG_FOLDER = "DeKalb_GA_original_configs"
-POTENTIAL_CONFIG_FOLDER = "DeKalb_GA_no_bg_school_configs"
+LOCATION = 'Chatham_County_GA' #needed only for reading from csv and writing outputs
+ORIG_CONFIG_FOLDER = "Chatham_County_GA_original_configs"
+POTENTIAL_CONFIG_FOLDER = "Chatham_County_GA_no_bg_school_configs"
+ORIG_FIELD_OF_INTEREST = 'year' #must not leave empty if config set has only one element
+POTENTIAL_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
+
+# This is where this analysis will be stored in the cloud
+STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
+CLOUD_STORAGE_ANALYSIS_NAME = paste0(ORIG_CONFIG_FOLDER, '_AND_', POTENTIAL_CONFIG_FOLDER)
 
 #constants for reading data
 READ_FROM_CSV = TRUE
-TABLES = c("edes", "precinct_distances", "residence_distances", "result")
+PRINT_SQL = TRUE
 
 #constants for database queries
 #only need to define if READ_FROM_CSV = TRUE
 PROJECT = "equitable-polling-locations"
-DATASET = "polling"
+DATASET = "scratch_chad2"
+BILLING = PROJECT
 
 #Run-type specific constants
 IDEAL_POLL_NUMBER  = 9 #the optimal number of polls desired for this county
@@ -49,6 +57,7 @@ POLLING_CON <- define_connection()
 #Load config data
 #checking if the config folder is valid
 #and that the location is in the indicated dataset
+
 orig_config_dt <- load_config_data(LOCATION, ORIG_CONFIG_FOLDER)
 potential_config_dt <- load_config_data(LOCATION, POTENTIAL_CONFIG_FOLDER)
 
@@ -64,9 +73,9 @@ DRIVING_FLAG <- set_global_driving_flag(config_dt_list)
 
 #names of the output data in these lists
 #come from TABLES above
-orig_output_df_list <- read_result_data(orig_config_dt)
+orig_output_df_list <- read_result_data(orig_config_dt, ORIG_FIELD_OF_INTEREST)
 
-potential_output_df_list <- read_result_data(potential_config_dt)
+potential_output_df_list <- read_result_data(potential_config_dt, POTENTIAL_FIELD_OF_INTEREST)
 
 #change descriptor
 #function to set certain descriptors as desired
@@ -160,3 +169,4 @@ sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'white'))
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'hispanic'))
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
 
+upload_graph_files_to_cloud_storage()
