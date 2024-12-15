@@ -37,7 +37,9 @@ config_to_list <- function(config_folder, config_name){
 	#Reads yamls in config_folder, apppends config name as a field to yaml data
 	config_file <- paste(config_folder, config_name, sep = '/')
 	config_list <- read_yaml(config_file)
-	config_list <- c(config_list, config_name = sub('.yaml', '', config_name))
+	if (!('config_name' %in% names(config_list))){ #without this if, config_name may appear twice
+		config_list <- c(config_list, config_name = sub('.yaml', '', config_name))
+	}
 	return(config_list)
 }
 

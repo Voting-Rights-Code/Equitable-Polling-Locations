@@ -111,7 +111,7 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
             new_config_name = f'{new_value_suffix}'
         new_config_file_name = f'{new_config_name}.yaml'
         #update values
-        config['config_name'] = new_config_file_name
+        config['config_name'] = new_config_name
         config[field_to_vary] = new_value
 
         #yaml path    
