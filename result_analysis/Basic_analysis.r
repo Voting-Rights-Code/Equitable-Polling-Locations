@@ -24,7 +24,7 @@ source('result_analysis/map_functions.R')
 LOCATION = 'DeKalb_County_GA' #needed only for reading from csv and writing outputs
 ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs_driving"
 POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_bg_school_configs_driving_pre_EV_2024"
-ORIG_FIELD_OF_INTEREST = 'year' #must not leave empty if config set has only one element
+ORIG_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 POTENTIAL_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 
 # This is where this analysis will be stored in the cloud
@@ -63,7 +63,7 @@ potential_config_dt <- load_config_data(LOCATION, POTENTIAL_CONFIG_FOLDER)
 
 #get driving flags
 config_dt_list<-c(orig_config_dt, potential_config_dt)
-DRIVING_FLAG <- set_global_driving_flag(config_dt_list) #TODO: start here. This is takes the wrong shape of object
+DRIVING_FLAG <- set_global_driving_flag(config_dt_list) 
 
 #######
 #Read in data

@@ -257,7 +257,7 @@ load_output_from_csv <-function(config_dt, result_type){
 	#extract files
 	files <- list.files(result_folder)
 	#select files containing config_folder and result_type in name
-	files <- files[grepl(paste0(config_folder, '\\.'), files) &grepl(result_type, files)]
+	files <- files[grepl(paste0(config_folder, '.'), files) &grepl(result_type, files)]
 	#label with config name
 	config_names <- gsub(paste0('.*', config_folder, '\\.'), '', files)
 	config_names <- gsub(paste0('_', result_type, '\\.csv'), '', config_names)
