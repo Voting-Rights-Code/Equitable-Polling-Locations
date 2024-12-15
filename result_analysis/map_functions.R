@@ -253,12 +253,15 @@ make_bg_maps <-function(prepped_data, map_type, result_folder_name = result_fold
 
 	county = gsub('.{3}$','', location)
 	descriptor = paste(county, unique(demo_dist_shape$descriptor), sep ='_')
+	#color by distance
 	plotted <- ggplot() +
 		geom_sf(data = demo_dist_shape, aes(fill = avg_dist)) +
 		scale_fill_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = fill_str)
-
-	plotted = plotted + theme(axis.text.x=element_blank(), axis.text.y=element_blank(), axis.ticks = element_blank())
-	
+	#place polling locations
+	plotted = plotted +
+		geom_point(data = demo_dist_shape, aes(x = lon, y = lat, color = type))+
+		scale_color_manual(breaks = c('polling', 'potential', 'bg_centroid'), values = c('red', 'black', 'dimgrey'), name = 'Poll Type') +  xlab('') + ylab('')	
+	#add title
 	plotted = plotted + ggtitle(title_str, paste('Block group map', 'of', gsub('_', ' ', descriptor) ))
 
 	#write to file

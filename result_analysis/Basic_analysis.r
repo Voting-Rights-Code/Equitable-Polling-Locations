@@ -22,8 +22,8 @@ source('result_analysis/map_functions.R')
 #CONFIG_FOLDER must be a string
 
 LOCATION = 'DeKalb_County_GA' #needed only for reading from csv and writing outputs
-ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs_driving"
-POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_bg_school_configs_driving_pre_EV_2024"
+ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs_log_driving"
+POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_bg_school_configs_log_driving_pre_EV_2024"
 ORIG_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 POTENTIAL_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 
@@ -57,7 +57,6 @@ POLLING_CON <- define_connection()
 #Load config data
 #checking if the config folder is valid
 #and that the location is in the indicated dataset
-browser()
 orig_config_dt <- load_config_data(LOCATION, ORIG_CONFIG_FOLDER)
 potential_config_dt <- load_config_data(LOCATION, POTENTIAL_CONFIG_FOLDER)
 
@@ -73,13 +72,13 @@ DRIVING_FLAG <- set_global_driving_flag(config_dt_list)
 
 #names of the output data in these lists
 #come from TABLES above
+
 orig_output_df_list <- read_result_data(orig_config_dt, ORIG_FIELD_OF_INTEREST)
 
 potential_output_df_list <- read_result_data(potential_config_dt, POTENTIAL_FIELD_OF_INTEREST)
 
 #change descriptor
 #function to set certain descriptors as desired
-
 #change_descriptors <- function(df){
 #    df <- df[descriptor == "location_Contained_in_Madison_City_of_WI", descriptor := "Contained"
 #            ][descriptor == "location_Intersecting_Madison_City_of_WI", descriptor := "Intersecting"
@@ -98,7 +97,6 @@ result_folder = paste(LOCATION, 'results', sep = '_')
 orig_list_prepped <- prepare_outputs_for_maps(orig_output_df_list$residence_distances, orig_output_df_list$result, orig_config_dt)
 
 potential_list_prepped <- prepare_outputs_for_maps(potential_output_df_list$residence_distances, potential_output_df_list$result, potential_config_dt)
-
 
 #get avg distance bounds for map coloring
 #same scale for orig and potential

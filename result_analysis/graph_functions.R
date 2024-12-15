@@ -49,7 +49,7 @@ read_config <- function(config_folder){
 
 	#get file names
 	file_names <- list.files(config_folder)
-
+	file_names<- file_names[grepl(".yaml$", file_names)]
 	#then create a list of list
 	config_list <- lapply(file_names, function(x){config_to_list(config_folder, x)})
 	return(config_list)
