@@ -24,7 +24,7 @@ source('result_analysis/map_functions.R')
 LOCATION = 'DeKalb_County_GA' #needed only for reading from csv and writing outputs
 ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs_driving"
 POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_bg_school_configs_driving_pre_EV_2024"
-ORIG_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
+ORIG_FIELD_OF_INTEREST = 'year' #must not leave empty if config set has only one element
 POTENTIAL_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 
 # This is where this analysis will be stored in the cloud
@@ -57,7 +57,7 @@ POLLING_CON <- define_connection()
 #Load config data
 #checking if the config folder is valid
 #and that the location is in the indicated dataset
-
+browser()
 orig_config_dt <- load_config_data(LOCATION, ORIG_CONFIG_FOLDER)
 potential_config_dt <- load_config_data(LOCATION, POTENTIAL_CONFIG_FOLDER)
 

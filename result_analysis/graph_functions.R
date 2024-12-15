@@ -162,29 +162,19 @@ load_config_data <- function(location, config_folder, read_from_csv = READ_FROM_
 #########
 #Get a driving flag from the config folders
 #########
-get_driving_flag <- function(config_dt){
-	#given a config folder, return the overall driving field value for the folder
-	#If driving field is missing, return false.
-	#If driving field varies in the config file, return an error
-	#Otherwise, return the unique value in the field.
-	if (!('driving' %in% names(config_dt))){ #if the flag not present, false
-		driving_flag <- FALSE
-	} else if(length(unique(config_dt$driving))>1){#if this is the flag that varies, not sure how to handle
-		stop('Driving flag not consistent in config set')
-	} else{#otherwise pull driving flag from unique value in this field
-		driving_flag <- unique(config_dt$driving)
-	}
-	return(driving_flag)
-}
-
 set_global_driving_flag<- function(config_dt_list){
-	#takes a list of config folders and checked that they all have the same driving flag in them
+	#takes a list of list of config data (where the names are fields)
+	#and checks that they all have the same driving flag in them
 	#If they do, this is the global driving flag. If not, returns an error
-	driving_flag_list <- sapply(config_dt_list, get_driving_flag)
-	if (length(unique(driving_flag_list))==1){
-    	global_driving_flag = unique(driving_flag_list)
-	}else{
-    	stop('driving flags different in different files. Cannot set global value')
+	if ('driving' %in% names(config_dt_list)){
+		driving_flag_list <- sapply(config_dt_list$driving, as.logical)
+		if (length(unique(driving_flag_list))==1){
+			global_driving_flag = unique(driving_flag_list)
+		}else{
+			stop('driving flags different in different files. Cannot set global value')
+		}
+	} else{
+		global_driving_flag = FALSE
 	}
 	return(global_driving_flag)
 }
