@@ -30,7 +30,7 @@ STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
 CLOUD_STORAGE_ANALYSIS_NAME = 'Madison_2024.r'
 
 #constants for reading data
-READ_FROM_CSV = FALSE
+READ_FROM_CSV = TRUE
 
 #constants for database queries
 #only need to define if READ_FROM_CSV = TRUE
@@ -72,8 +72,8 @@ potential_output_df_list <- read_result_data(potential_config_dt)
 
 #change descriptors
 change_descriptors <- function(df){
-    df <- df[descriptor == "original_all_2024", descriptor := "All locations"
-            ][descriptor == "original_walkin_2024", descriptor := "Walk ins"
+    df <- df[descriptor == "bad_types_bg_centroid", descriptor := "All locations"
+            ][descriptor == "bad_types_bg_centroid|EV_2024_appointment_only", descriptor := "Walk ins"
             ]
 return(df)
 }
