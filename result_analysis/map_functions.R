@@ -220,7 +220,7 @@ make_bg_maps <-function(prepped_data, map_type, result_folder_name = result_fold
 	#Note: No longer supports cartograms. 
 	#use residence_distances to color the map by distance to matched location, for the indicated demographic
 	#If the map type is "map", then also plot the polling locations
-
+	
 	#get the location from the data
 	location <- unique(prepped_data$location)
 
@@ -240,7 +240,7 @@ make_bg_maps <-function(prepped_data, map_type, result_folder_name = result_fold
 	#combine map data with output data, keeping only polygons for which we have distances
 	geom_cols <- c('GEOID20', 'geometry')
 	map_sf <- map_demo[, geom_cols]
-	demo_dist_shape<- merge(map_sf, prepped_data_demo, all.y = T)
+	demo_dist_shape<- merge(map_sf, prepped_data_demo) #TODO: ideally want a right join here. Unclear what that isn't working
 
 	#make maps
 	if (driving_flag){
@@ -272,7 +272,7 @@ make_bg_maps <-function(prepped_data, map_type, result_folder_name = result_fold
 
 make_demo_dist_map <-function(prepped_data, demo_str, map_type = 'map', result_folder_name = result_folder,  driving_flag = DRIVING_FLAG, color_bounds = global_color_bounds){
 	#use demographic residence_distances to put a dot in  the map colored by distance and sized by population
-
+	
 	#get the location from the data
 	location <- unique(prepped_data$location)
 
@@ -288,7 +288,7 @@ make_demo_dist_map <-function(prepped_data, demo_str, map_type = 'map', result_f
 	map_sf$INTPTLON20 <- as.numeric(map_sf$INTPTLON20)
 	map_sf$INTPTLAT20 <- as.numeric(map_sf$INTPTLAT20)
 	#merge
-	demo_dist_shape<- merge(map_sf, prepped_data_demo, all.y = T)
+	demo_dist_shape<- merge(map_sf, prepped_data_demo)#TODO: ideally want a right join here. Unclear what that isn't working
 
 	#plot map with a point at the centroid, colored by distance, sized by size
 	#set names

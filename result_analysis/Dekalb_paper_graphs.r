@@ -9,7 +9,7 @@ setwd(here())
 #source functions
 #######
 
-source('result analysis/graph_functions.R')
+source('result_analysis/graph_functions.R')
 
 
 #######

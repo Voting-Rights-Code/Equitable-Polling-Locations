@@ -31,7 +31,7 @@ STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
 CLOUD_STORAGE_ANALYSIS_NAME = 'Madison_2024_compared.r'
 
 #constants for reading data
-READ_FROM_CSV = FALSE
+READ_FROM_CSV = TRUE
 
 #constants for database queries
 #only need to define if READ_FROM_CSV = TRUE
@@ -51,12 +51,12 @@ POLLING_CON <- define_connection()
 #Load config data
 #checking if the config folder is valid
 #and that the location is in the indicated dataset
-config_dt <- load_config_data(LOCATION, CONFIG_FOLDER)
+orig_config_dt <- load_config_data(LOCATION, CONFIG_FOLDER)
 contained_in_config_dt <- load_config_data(LOCATION[1], CONTAINED_IN_CONFIG_FOLDER)
 intersecting_config_dt <- load_config_data(LOCATION[2], INTERSECTING_CONFIG_FOLDER)
 
 #get driving flags
-config_dt_list<-c(orig_config_dt, contained_in_config_df_list_config_dt, intersecting_config_dt)
+config_dt_list<-c(orig_config_dt, contained_in_config_dt, intersecting_config_dt)
 DRIVING_FLAG <- set_global_driving_flag(config_dt_list)
 
 #######
@@ -67,7 +67,7 @@ DRIVING_FLAG <- set_global_driving_flag(config_dt_list)
 
 #names of the output data in these lists
 #come from TABLES above
-config_output_df_list <- read_result_data(config_dt)
+config_output_df_list <- read_result_data(orig_config_dt)
 
 intersecting_output_df_list <- read_result_data(intersecting_config_dt)
 
@@ -93,7 +93,7 @@ intersecting_output_df_list <- lapply(intersecting_output_df_list, function(x) {
 result_folder = paste(LOCATION, 'results', sep = '_')
 
 #get all file names the result_folder with the strings config_folder and 'residence_distances'
-config_list_prepped <- prepare_outputs_for_maps(config_output_df_list$residence_distances, config_output_df_list$result, config_dt)
+config_list_prepped <- prepare_outputs_for_maps(config_output_df_list$residence_distances, config_output_df_list$result, orig_config_dt)
 
 #get avg distance bounds for map coloring
 all_res_output <- do.call(rbind, config_list_prepped)
@@ -104,7 +104,8 @@ global_color_bounds <- distance_bounds(all_res_output)
 #######
 #Plot data
 #######
-plot_folder = paste0('result analysis/', CONFIG_FOLDER)
+
+plot_folder = paste0('result_analysis/', CONFIG_FOLDER)
 if (!file.exists(file.path(here(), plot_folder))){
     dir.create(file.path(here(), plot_folder))
 }
