@@ -265,7 +265,7 @@ make_bg_maps <-function(prepped_data, map_type, result_folder_name = result_fold
 	plotted = plotted + ggtitle(title_str, paste('Block group map', 'of', gsub('_', ' ', descriptor) ))
 
 	#write to file
-	graph_file_path = paste0(here(), '/', plot_folder, '/',map_name, '_',descriptor, '_','polls.png')
+	graph_file_path = paste0(map_name, '_',descriptor, '_','polls.png')
 	add_graph_to_graph_file_manifest(graph_file_path)
 	ggsave(graph_file_path, plotted)
 }
@@ -315,7 +315,7 @@ make_demo_dist_map <-function(prepped_data, demo_str, map_type = 'map', result_f
 		ggtitle(paste(demographic_legend_dict[demo_str], title_str), paste('Block groups in', gsub('_', ' ', descriptor)))
 
 	#write to file
-	graph_file_path = paste0(here(), '/', plot_folder, '/', demo_str, '_','pop_and_dist','_',descriptor, '_','polls.png')
+	graph_file_path = paste0(demo_str, '_','pop_and_dist','_',descriptor, '_','polls.png')
 	add_graph_to_graph_file_manifest(graph_file_path)
 	ggsave(graph_file_path, plotted)
 

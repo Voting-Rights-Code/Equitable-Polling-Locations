@@ -118,17 +118,12 @@ add_config_info_to_graph_file_manifest <- function(config_id, config_set, config
 # graph_file: string of the path to the graph file, relative paths will be
 #    automatically resolved.
 add_graph_to_graph_file_manifest <- function(graph_file) {
-    if (nchar(graph_file) == 0 || graph_file == "/") {
+    if (nchar(graph_file) <=1) {
 		# Handle null or empty string cases
 		stop(paste0("add_graph_to_graph_file_manifest got an invalid graph_file_path ", graph_file))
 	}
-
-    if (startsWith(graph_file, "/")) {
-        graph_file_path = graph_file
-    } else {
-        graph_file_path <- file.path(getwd(), graph_file)
-    }
-
+    graph_file_path <- file.path(getwd(), graph_file)
+    
     if (startsWith(graph_file_path, .result_analysis_dir)) {
         # Strip off ../result_analysis graph_file_path
         # but keep any subsequent sub-directories after it.
