@@ -146,5 +146,4 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     print(args)
-    breakpoint()
     generate_configs(args.base_config_path, args.field_to_change, args.new_range)
