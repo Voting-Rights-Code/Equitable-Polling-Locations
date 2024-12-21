@@ -1,11 +1,16 @@
+#Example call:
+# python auto_generate_config.py -b 'test_configs\Richmond_city_original_2024.yaml' -f 'year' -n '2014' -n '2016' -n '2018' '2020'
+#note that if there is a list of lists to be entered for the last argument, each list needs to be entered separately.
+
 import yaml
 import os
 import argparse
 
 from sqlalchemy import inspect, sql
 
+import db
+import db_import_cli
 import models as Models
-
 
 def load_base_config(config_file):
     '''Load the base configuration from the provided YAML file.'''
@@ -122,38 +127,24 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
         with open(file_path, 'w') as outfile:
             yaml.dump(config, outfile, default_flow_style=False, sort_keys= False)
 
+        (model_config, _) = db_import_cli.import_model_config(file_path)
+        model_config = db.find_or_create_model_config(model_config)
+        db.commit()
+
 
 #Note this doesn't work
-# if __name__ == '__main__':
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument(
-#         'base_config_path', help="File path of the .yaml file to use as the template config"
-#     )
-#     parser.add_argument(
-#         'field_to_change', help="The config field that is to vary in for this config_set"
-#     )
-#     parser.add_argument(
-#         'new_range', help="The set of values that field_to_change should take for this config_set"
-#     )
-#     args = parser.parse_args()
-#     print(args)
-#     generate_configs(args.base_config_path, args.field_to_change, args.new_range)
-
-
-
-#generate files
-year_range = [['2020'], ['2022'], ['2024']] 
-generate_configs('DeKalb_County_GA_original_configs_log_driving\DeKalb_GA_years.yaml_template', 'year', year_range)
-
-#precinct_range = [i for i in range(15, 31)]
-#generate_configs('DeKalb_County_GA_no_school_penalize_bg_configs_driving_pre_EV_2024\DeKalb_GA_no_school_15.yaml_template', 'precincts_open', precinct_range)
-#generate_configs('DeKalb_County_GA_no_school_penalize_bg_configs_log_driving_pre_EV_2024\DeKalb_GA_no_school_15.yaml_template', 'precincts_open', precinct_range)
-#generate_configs('DeKalb_County_GA_no_bg_school_configs_driving_pre_EV_2024\DeKalb_GA_no_bg_school_15.yaml_template', 'precincts_open', precinct_range)
-#generate_configs('DeKalb_County_GA_no_bg_school_configs_log_driving_pre_EV_2024\DeKalb_GA_no_bg_school_15.yaml_template', 'precincts_open', precinct_range)
-
-
-#generate_configs('test_configs\Richmond_city_original_2024.yaml', 'year', [['2014'], ['2016'], ['2018', '2020']])
-#generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['14', '15', '16', '17', '18'])
-# generate_configs('test_configs\Richmond_city_original_2024.yaml', 'capacity', [1.2, 1.4, 1.6, 1.8])
-# generate_configs('test_configs\Richmond_city_original_2024.yaml', 'precincts_open', ['10', '11'])
-# generate_configs('test_configs\Richmond_city_original_2024.yaml', 'fixed_capacity_site_number', [10, 11, 12])
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument( 
+        '-b','--base_config_path', help="File path of the .yaml file to use as the template config",
+    )
+    parser.add_argument(
+        '-f', '--field_to_change', help="The config field that is to vary in for this config_set",
+    )
+    parser.add_argument(
+        '-n', '--new_range', help="The list of values that field_to_change should take for this config_set. If this is a list of lists, add each list separately", nargs='+', action= 'append'
+    )
+    args = parser.parse_args()
+    print(args)
+    breakpoint()
+    generate_configs(args.base_config_path, args.field_to_change, args.new_range)
