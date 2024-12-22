@@ -573,27 +573,41 @@ tail -f ./logs/20231207151550_Gwinnett_config_original_2020.yaml.log
 ```
 
 # Intermediate dataset
+Currently, the optimizer checks for the existence of a specific dataset before running. A few notes:
+* This dataset is currently created and stored locally. 
+    * `datasets/polling/County_ST/County_ST.csv`
+    * This will change in the future
+* Currently, this dataset creates a column with the haversine distance (which is the default distance for the optimizer). 
+    * In future, this functionality will change,
+    * Likely will allow for other columns to be created and stored, rather than run real time.
 
-### **datasets/polling/County_ST/County_ST.csv**:
+### County_ST.csv
 This is the main data set that the optimizer uses. It includes polling locations from previous years, potential polling locations, and block group centroids, as well as distances from block centroids to the above.
-Example file name: datasets/polling/Gwinett_GA/Gwinnett_County_GA.csv
+
+Example file name: datasets/polling/Gwinett_County_GA/Gwinnett_County_GA.csv
 
 The columns of this data set are as follows:
 |Column Name | Definition | Derivation | Example / Type |
 | ----- | ------ | ----- | ----- |
+|Fields for matching destinations and origins|
+|  |
 |id_orig | Census block code | GEOID20 from block shape file | 131350501051000 |
 |id_dest | Name of the actual or potential polling location | 'Location' from County_ST_location_only.csv | 'Bethesda Senior Center' |
-| | Census block group code | GEOID20 from block group shape file | 131350501051 |
-| distance_m | distance in meters from the centroid of the block (id_orig) to id_dest | haversine distance from (orig_lat, orig_lon) to (dest_lat, dest_lon) | FLOAT |
 | county | name of county and two letter state abbreviation | location from the config file | 'Gwinnett_County_GA' |
 | address | If a physical polling location, street address | 'Address' from County_ST_location_only.csv  | '788 Hillcrest Rd NW, Lilburn, GA 20047'|
-| | If not a potential coordinate, name of the associated census block group |  | NA |
+| | If not a physical location, name of the associated census block group | | STRING |
 | dest_lat | latitude of the address or census block group centroid of the destination | google maps or INTPTLAT20 of id_dest from block group shape file| FLOAT |
 | dest_lon | longitude of the address or census block group centroid of the destination | google maps or INTPTLON20 of id_dest from block group shape file| FLOAT |
 | orig_lat | latitude of census block centroid of the origin | INTPTLAT20 of id_orig from block shape file| FLOAT |
 | orig_lon | longitude of census block centroid of the origin | INTPTLON20 of id_orig from block shape file| FLOAT |
 |location_type | A description of the id_dest location | 'Location Type' from County_ST_location_only.csv or 'bg_centroid' | 'EV_2022_2020' or 'Library - Potential' or 'bg_centroid'|
 | dest_type | A coarser description of the id_dest that given in location type | Either 'polling' (if previous polling location), potential (if a building that is a potential polling location), 'bg_centroid' (if a census block centroid) |
+|Distance fields|
+|| 
+|distance_m | distance in meters from the centroid of the block (id_orig) to id_dest | distance from (orig_lat, orig_lon) to (dest_lat, dest_lon) | FLOAT |
+|source| type of distance, currently supported: (log) haversine, (log) driving | from log_distance and driving flag in config file |STRING |
+|Demographic fields|
+|| 
 | population | total population of census block | 'P3_001N' of P3 data or 'P4_001N' of P4 data| INT |
 | hispanic | total hispanic population of census block | 'P4_002N' of P4 data| INT |
 | non_hispanic | total non-hispanic population of census block | 'P4_003N' of P4 data| INT |
@@ -602,52 +616,52 @@ The columns of this data set are as follows:
 | native | single race native population of census block | 'P3_005N' of P3 data | INT |
 | asian | single race asian population of census block | 'P3_006N' of P3 data | INT |
 | pacific_islander | single race pacific_islander population of census block | 'P3_007N' of P3 data | INT |
-| other | single race other population of census block | 'P3_008N' of P3 data | INT |
 | multiple_races | total multi-racial population of census block | 'P3_009N' of P3 data | INT |
+| other | single race other population of census block | 'P3_008N' of P3 data | INT |
 
 # Output datasets
 
-For each set of parameters specified in a config file (CONFIG_FOLDER/County_config_DESCRIPTOR.yaml), the program produces 4 output files.
-* If the file was run via Google Colab, the outputs are written in the folder Colab_results/County_ST_DESCRIPTOR_result
-    * The output files have the names:
-        * County_config_DESCRIPTOR_edes.csv
-        * County_config_DESCRIPTOR_precinct_distances.csv
-        * County_config_DESCRIPTOR_residence_distances.csv
-        * County_config_DESCRIPTOR_result.csv
+For each `config_set` and `config_name` pair, the optimizer produces 4 output files.
+* The output files have the names:
+    * County_config_DESCRIPTOR_edes.csv
+    * County_config_DESCRIPTOR_precinct_distances.csv
+    * County_config_DESCRIPTOR_residence_distances.csv
+    * County_config_DESCRIPTOR_result.csv
 
-* If the file was run via command line, the outputs are written in the folder Gwinnett_County_GA_results/
-    * The output files have the names:
-        * CONFIG_FOLDER.County_config_DESCRIPTOR_edes.csv
-        * CONFIG_FOLDER.County_config_DESCRIPTOR_precinct_distances.csv
-        * CONFIG_FOLDER.County_config_DESCRIPTOR_residence_distances.csv
-        * CONFIG_FOLDER.County_config_DESCRIPTOR_result.csv
+* If the file was run with the `-o 'csv'` flag, the outputs are written in the folder County_ST_results/ with the following names:
+    * CONFIG_FOLDER.County_config_DESCRIPTOR_edes.csv
+    * CONFIG_FOLDER.County_config_DESCRIPTOR_precinct_distances.csv
+    * CONFIG_FOLDER.County_config_DESCRIPTOR_residence_distances.csv
+    * CONFIG_FOLDER.County_config_DESCRIPTOR_result.csv
+* Otherwise, the most recent data can be pulled from the `*_extras` table, where * is one of `edes`, `precinct_distances`, `residence_distanes` or `result`.
 
-The four files can be described as follow:
-* *_edes.csv (demographic level ede scores)
-    * For each demographic group (asian, black, hispanic, native, population, white), this table records the
-        * demo_pop, the total population of that demographic in the county
-        * average distance traveled by the members of that demographic: average_distance = weighted_distance / demo_pop
-        * the y_EDE for the demographic: y_EDE = -1/(beta * alpha)*log(avg_KP_weight)
-            * where avg_KP_weight= (\sum demo_res_obj_summand)/demo_pop
-* *_precinct_distances.csv (distances traveled to each precinct by demographic)
-    * For each demographic group (asian, black, hispanic, native, population, white), and identified polling location (id_dest), this table records the
-        * demo_pop, the total population of that demographic matched to that location
-        * average distance traveled by the members of that demographic: average_distance = weighted_distance / demo_pop
-* *_demographic_distances.csv (distances traveled by members of a census block to each polling location by demographic)
-    * This is an interim table needed to create the *_ede.csv table
-    * For each demographic group (asian, black, hispanic, native, population, white), and census block (id_orig), this table records the
-        * demo_pop, the total population of that demographic matched to that location
-        * average distance traveled by the members of that demographic: average_distance = weighted_distance / demo_pop
-* *_result.csv (a combined table of census block, matched polling location, distance, and demographic information)
-    * This is a source table for the above three
-    * For each census block (id_orig), this table records the
-        * polling location (id_dest) to which the census block is matched
-        * the distance to this polling location
-        * The County_ST of the run
-        * the address of the the polling location (if it exists)
-        * the coordinates of the block centroid (orig_lat and orig_lon) and the coordinates of the destination (dest_lat and dest_lon)
-        * population of each of the demographic groups per census block
-        * It also reports weighted distance and KP factor, which are population level variables, but these columns are never used and should be removed in a future release.
+* The four files can be described as follow:
+    * *_edes (demographic level ede scores)
+        * For each demographic group (asian, black, hispanic, native, population, white), this table records the
+            * demo_pop, the total population of that demographic in the county
+            * average distance traveled by the members of that demographic: average_distance = weighted_distance / demo_pop
+            * the y_EDE for the demographic: y_EDE = -1/(beta * alpha)*log(avg_KP_weight)
+                * where avg_KP_weight= (\sum demo_res_obj_summand)/demo_pop
+    * *_precinct_distances.csv (distances traveled to each precinct by demographic)
+        * For each demographic group (asian, black, hispanic, native, population, white), and identified polling location (id_dest), this table records the
+            * demo_pop, the total population of that demographic matched to that location
+            * average distance traveled by the members of that demographic: average_distance = weighted_distance / demo_pop
+    * *_demographic_distances.csv (distances traveled by members of a census block to each polling location by demographic)
+        * This is an interim table needed to create the *_ede.csv table
+        * For each demographic group (asian, black, hispanic, native, population, white), and census block (id_orig), this table records the
+            * demo_pop, the total population of that demographic matched to that location
+            * average distance traveled by the members of that demographic: average_distance = weighted_distance / demo_pop
+    * *_result.csv (a combined table of census block, matched polling location, distance, and demographic information)
+        * This is a source table for the above three
+        * For each census block (id_orig), this table records the
+            * polling location (id_dest) to which the census block is matched
+            * the distance to this polling location
+            * the source of this distance measure
+            * The County_ST of the run
+            * the address of the the polling location (if it exists)
+            * the coordinates of the block centroid (orig_lat and orig_lon) and the coordinates of the destination (dest_lat and dest_lon)
+            * population of each of the demographic groups per census block
+            * It also reports weighted distance and KP factor, which are population level variables, but these columns are never used and should be removed in a future release.
 
 # result_analysis
 TBW
