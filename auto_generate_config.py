@@ -136,7 +136,7 @@ def generate_configs(base_config_file:str, field_to_vary:str, desired_range: lis
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument( 
-        '-b','--base_config_path', help="File path of the .yaml file to use as the template config",
+        '-b','--base_config_path', help="File path of the file to use as the template for the necessary .yaml files. This should not end in .yaml",
     )
     parser.add_argument(
         '-f', '--field_to_change', help="The config field that is to vary in for this config_set",

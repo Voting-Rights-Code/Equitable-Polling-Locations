@@ -36,8 +36,7 @@ class ModelConfig(ModelBase):
 
     beta: float = Column(Float)
     '''
-    level of inequality aversion: [-10,0], where 0 indicates indifference, and thus uses the
-    mean. -2 isa good number.
+    level of inequality aversion: [-2,0], where 0 indicates indifference, and thus uses the mean. -1 is a good number.
     '''
 
     time_limit: float = Column(Float)
