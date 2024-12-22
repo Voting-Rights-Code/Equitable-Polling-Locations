@@ -88,7 +88,7 @@ potential_output_df_list <- read_result_data(potential_config_dt, POTENTIAL_FIEL
 #config_df_list = lapply(config_df_list, change_descriptors)
 
 #########
-#Set up maps and cartograms
+#Set up maps
 #########
 #set result folder
 result_folder = paste(LOCATION, 'results', sep = '_')
