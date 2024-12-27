@@ -143,7 +143,7 @@ def write_results_csv(
     #check if the directory exists
     if not os.path.exists(result_folder):
         os.makedirs(result_folder)
-    result_file = f'{run_prefix}_result.csv'
+    result_file = f'{run_prefix}_results.csv'
     precinct_summary = f'{run_prefix}_precinct_distances.csv'
     residence_summary = f'{run_prefix}_residence_distances.csv'
     y_ede_summary = f'{run_prefix}_edes.csv'

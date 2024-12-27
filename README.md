@@ -651,7 +651,7 @@ For each `config_set` and `config_name` pair, the optimizer produces 4 output fi
         * For each demographic group (asian, black, hispanic, native, population, white), and census block (id_orig), this table records the
             * demo_pop, the total population of that demographic matched to that location
             * average distance traveled by the members of that demographic: average_distance = weighted_distance / demo_pop
-    * *_result.csv (a combined table of census block, matched polling location, distance, and demographic information)
+    * *_results.csv (a combined table of census block, matched polling location, distance, and demographic information)
         * This is a source table for the above three
         * For each census block (id_orig), this table records the
             * polling location (id_dest) to which the census block is matched

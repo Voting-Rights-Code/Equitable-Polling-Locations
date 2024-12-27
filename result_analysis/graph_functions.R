@@ -9,7 +9,7 @@ library(yaml)
 
 source('result_analysis/storage.R')
 
-TABLES = c("edes", "precinct_distances", "residence_distances", "result")
+TABLES = c("edes", "precinct_distances", "residence_distances", "results")
 
 PRINT_SQL = FALSE
 
