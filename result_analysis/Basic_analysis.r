@@ -22,7 +22,7 @@ source('result_analysis/map_functions.R')
 #CONFIG_FOLDER must be a string
 
 LOCATION = 'DeKalb_County_GA' #needed only for reading from csv and writing outputs
-ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs_log_driving"
+ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs_driving_beta-2"
 POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_school_penalize_bg_configs_log_driving_pre_EV_2024"
 ORIG_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 POTENTIAL_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
