@@ -35,7 +35,7 @@ READ_FROM_CSV = FALSE
 #constants for database queries
 #only need to define if READ_FROM_CSV = TRUE
 PROJECT = "equitable-polling-locations"
-DATASET = "scratch_chad2"
+DATASET = "equitable_polling_locations_prod"
 BILLING = PROJECT
 
 #Connect to database if needed

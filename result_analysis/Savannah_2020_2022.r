@@ -26,7 +26,7 @@ CONFIG_FOLDER = 'Contained_in_Savannah_City_of_GA_original_configs'
 POTENTIAL_CONFIG_FOLDER = 'Contained_in_Savannah_City_of_GA_no_bg_school_configs'
 
 # This is where this analysis will be stored in the cloud
-STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
+STORAGE_BUCKET = 'equitable-polling-analysis'
 CLOUD_STORAGE_ANALYSIS_NAME = 'Savannah_2020_2022.r'
 
 #constants for reading data
@@ -35,7 +35,7 @@ READ_FROM_CSV = FALSE
 #constants for database queries
 #only need to define if READ_FROM_CSV = TRUE
 PROJECT = "equitable-polling-locations"
-DATASET = "scratch_chad2"
+DATASET = "equitable_polling_locations_prod"
 BILLING = PROJECT
 
 #Connect to database if needed

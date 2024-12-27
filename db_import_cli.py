@@ -111,7 +111,7 @@ def import_edes(
     ''' Imports an existing EDEs csv into the database for a given mode_run_id. '''
 
     column_renames = {}
-    ignore_columns = []
+    ignore_columns = ['V1']
     add_columns = { 'model_run_id': model_run_id }
 
     return db.csv_to_bigquery(
@@ -137,7 +137,7 @@ def import_precinct_distances(
     ''' Imports an existing precinct distances csv into the database for a given mode_run_id. '''
 
     column_renames = {}
-    ignore_columns = []
+    ignore_columns = ['V1']
     add_columns = { 'model_run_id': model_run_id }
 
     return db.csv_to_bigquery(
@@ -163,7 +163,7 @@ def import_residence_distances(
     ''' Imports an existing residence distances csv into the database for a given mode_run_id. '''
 
     column_renames = {}
-    ignore_columns = []
+    ignore_columns = ['V1']
     add_columns = { 'model_run_id': model_run_id }
 
     return db.csv_to_bigquery(
@@ -195,6 +195,8 @@ def import_results(
     }
     ignore_columns = ['V1']
     add_columns = { 'model_run_id': model_run_id }
+    if df is not None: #if csv path given, then df should be null. when reading from csv, there is no index.
+        df.reset_index(drop=True, inplace=True)
 
     return db.csv_to_bigquery(
         config_set=config_set,

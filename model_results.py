@@ -43,7 +43,7 @@ def incorporate_result(dist_df, model):
     if any(result_df['matching'].isnull()):
         raise ValueError('The model has some unmatched precincts')
     result_df = result_df.loc[result_df['matching'] ==1]
-
+    
     return result_df
 
 @timer

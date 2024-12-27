@@ -22,23 +22,23 @@ source('result_analysis/map_functions.R')
 #CONFIG_FOLDER must be a string
 
 LOCATION = 'DeKalb_County_GA' #needed only for reading from csv and writing outputs
-ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs_driving_beta-2"
+ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs_log_driving"
 POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_school_penalize_bg_configs_log_driving_pre_EV_2024"
 ORIG_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 POTENTIAL_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 
 # This is where this analysis will be stored in the cloud
-STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
+STORAGE_BUCKET = 'equitable-polling-analysis'
 CLOUD_STORAGE_ANALYSIS_NAME = paste0(ORIG_CONFIG_FOLDER, '_AND_', POTENTIAL_CONFIG_FOLDER)
 
 #constants for reading data
-READ_FROM_CSV = TRUE
+READ_FROM_CSV = FALSE
 PRINT_SQL = TRUE
 
 #constants for database queries
 #only need to define if READ_FROM_CSV = TRUE
 PROJECT = "equitable-polling-locations"
-DATASET = "scratch_chad2"
+DATASET = "equitable_polling_locations_prod"
 BILLING = PROJECT
 
 #Run-type specific constants

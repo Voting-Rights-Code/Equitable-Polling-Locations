@@ -125,9 +125,9 @@ class PollingModelConfig:
             result.config_file_path = config_yaml_path
             if not result.config_name:
                 result.config_name = os.path.splitext(os.path.basename(config_yaml_path))[0]
-                print(f'Config name not specified, so taking from config YAML filepath {result.config_name}; this is not recommended')
+                #print(f'Config name not specified, so taking from config YAML filepath {result.config_name}; this is not recommended')
             if not result.config_set:
                 result.config_set = os.path.basename(os.path.dirname(config_yaml_path))
-                print(f'Config set not specified, so taking from config YAML filepath {result.config_set}; this is not recommended')
+                #print(f'Config set not specified, so taking from config YAML filepath {result.config_set}; this is not recommended')
 
             return result

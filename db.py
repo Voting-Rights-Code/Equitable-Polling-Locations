@@ -244,6 +244,20 @@ def csv_to_bigquery(
         ]
         df[string_columns] = df[string_columns].astype(str)
 
+        double_columns = [
+            column.name
+            for column in inspector.columns
+            if isinstance(column.type, sqlalchemy.Double) and column.name in df.columns
+        ]
+        df[double_columns] = df[double_columns].astype(float)
+
+        float_columns = [
+            column.name
+            for column in inspector.columns
+            if isinstance(column.type, sqlalchemy.Float) and column.name in df.columns
+        ]
+        df[float_columns] = df[float_columns].astype(float)
+
         # Add any additional columns needed from the add_columns paramater
         for new_column, value in add_columns.items():
             df[new_column] = value
