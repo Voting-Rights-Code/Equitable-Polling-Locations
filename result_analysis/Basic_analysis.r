@@ -23,7 +23,7 @@ source('result_analysis/map_functions.R')
 
 LOCATION = 'DeKalb_County_GA' #needed only for reading from csv and writing outputs
 ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs_driving_beta-2"
-POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_school_penalize_bg_configs_driving_pre_EV_2024"
+POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_bg_school_configs_driving_pre_EV_2024"
 ORIG_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 POTENTIAL_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 
@@ -42,7 +42,7 @@ DATASET = "equitable_polling_locations_prod"
 BILLING = PROJECT
 
 #Run-type specific constants
-IDEAL_POLL_NUMBER  = 9 #the optimal number of polls desired for this county
+IDEAL_POLL_NUMBER  = 15 #the optimal number of polls desired for this county
 
 #Connect to database if needed
 #returns NULL if READ_FROM_CSV = TRUE
