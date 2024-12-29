@@ -22,3 +22,8 @@ minpctold: .75 # in interval [0,1]
 driving: True
 log_distance: False
 penalized_sites: null
+
+######auto_generate_args#########
+base_path: 'DeKalb_County_GA_no_bg_school_configs_driving_2020/DeKalb_GA_no_bg_school_15.yaml_template'
+field_to_vary: 'precinct_open'
+new_range: [11, 12, 13]

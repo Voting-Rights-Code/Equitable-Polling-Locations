@@ -145,5 +145,6 @@ if __name__ == '__main__':
         '-n', '--new_range', help="The list of values that field_to_change should take for this config_set. If this is a list of lists, add each list separately", nargs='+', action= 'append'
     )
     args = parser.parse_args()
-    print(args)
+    print(args.new_range)
     generate_configs(args.base_config_path, args.field_to_change, args.new_range)
+

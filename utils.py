@@ -71,6 +71,7 @@ def is_int(value):
 def is_str(value):
     return isinstance(value, str)
 
+MEMORIZED_ENV_VALUES = None
 
 def get_env_var_or_prompt(var_name: str, default_value: str=None) -> str:
     '''
@@ -82,12 +83,15 @@ def get_env_var_or_prompt(var_name: str, default_value: str=None) -> str:
     Returns:
         str: The value of the environment variable or the user's input.
     '''
-
-    value = os.environ.get(var_name)
+    global MEMORIZED_ENV_VALUES
+    if not MEMORIZED_ENV_VALUES:
+        MEMORIZED_ENV_VALUES = {}
+    value = MEMORIZED_ENV_VALUES.get(var_name) or os.environ.get(var_name)
     if not value:
         if default_value:
             prompt_default = f' [Default: {default_value}]'
         else:
             prompt_default = ''
         value = input(f'Environment variable not found for {var_name}\nPlease enter the value{prompt_default}: ')
+        MEMORIZED_ENV_VALUES[var_name] = value
     return value or default_value

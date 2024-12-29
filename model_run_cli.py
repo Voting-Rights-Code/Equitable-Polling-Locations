@@ -71,6 +71,10 @@ def main(args: argparse.Namespace):
 
     logdir = args.logdir
     outtype = args.outtype
+    if outtype == model_run.OUT_TYPE_DB: 
+        #Force the database prompt immediately upon run, if running on DB
+        utils.get_env_var_or_prompt('DB_PROJECT', default_value='equitable-polling-locations')
+        utils.get_env_var_or_prompt('DB_DATASET')
 
     if logdir:
         if not os.path.exists(logdir):
