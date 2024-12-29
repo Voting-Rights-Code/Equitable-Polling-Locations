@@ -354,7 +354,7 @@ To create config data, create an examplar config file and put it in the desired 
 
 Then run
 
- `python auto_generate_configs.py -b 'config_folder/exemplar_config.yaml_template' -f 'field_to_change' -n list of values field_to_change should take`
+ `python auto_generate_config.py -b 'config_folder/exemplar_config.yaml_template' -f 'field_to_change' -n list of values field_to_change should take`
 
 This will create a set of .yaml files in the indicaded `config_folder`, each with a different name (that is a combination of the indicated `field_to_change` and a value from the provided list.) It will also write these configs to the database.
 
