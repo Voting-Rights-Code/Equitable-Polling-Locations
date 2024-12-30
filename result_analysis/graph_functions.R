@@ -485,10 +485,10 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 	y_EDE = ggplot(orig_ede, aes(x = descriptor, y = y_EDE,
 		group = demographic, color = demographic))
 	if (scale_bool){
-		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) +
+		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) , alpha = .5) +
 			labs(x = 'Optimization run', y = y_EDE_label, color = 'Demographic', size = 'Percent Total Population')
 	} else{
-		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order)),size = 5 )+
+		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order)),size = 5, alpha = .5)+
 			labs(x = 'Optimization run', y = y_EDE_label, color = 'Demographic')
 	}
 	y_EDE = y_EDE +	ylim(y_min, y_max) + ggtitle(paste('Equity weighted', title_str)) +
@@ -502,10 +502,10 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 	avg = ggplot(orig_ede, aes(x = descriptor, y = avg_dist,
 		group = demographic, color = demographic))
 if (scale_bool){
-		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) ) +
+		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population), alpha = .5 ) +
 			labs(x = 'Optimization run', y = y_avg_label, color = 'Demographic', size = 'Percent Total Population')
 	} else{
-		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order) ),size = 5) +
+		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order) ),size = 5, alpha = .5) +
 			labs(x = 'Optimization run', y = y_avg_label, color = 'Demographic')
 	}
 	avg = avg + ylim(y_min, y_max) + ggtitle(paste('Average', title_str)) +
