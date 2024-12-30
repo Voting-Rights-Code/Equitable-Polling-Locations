@@ -198,6 +198,7 @@ select_varying_fields <- function(config_dt){
 	#determine non-unique field
 	unique_values_of_fields <- sapply(config_dt_filtered, function(x){length(unique(x))})
 	varying_cols <- names(unique_values_of_fields)[unique_values_of_fields >1]
+
 	#raise error if more than 2 non-unique fields (1 in addition to file_name / config_name)
 	if (length(varying_cols) != 2){
 		stop(paste('Too many fields vary across collection of config files:', paste(varying_cols, collapse = ', ')))

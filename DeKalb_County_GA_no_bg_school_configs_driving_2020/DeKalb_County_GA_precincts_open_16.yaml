@@ -1,5 +1,5 @@
 config_set: DeKalb_County_GA_no_bg_school_configs_driving_2020
-config_name: DeKalb_County_GA_precincts_open_11
+config_name: DeKalb_County_GA_precincts_open_16
 location: DeKalb_County_GA
 year:
 - '2020'
