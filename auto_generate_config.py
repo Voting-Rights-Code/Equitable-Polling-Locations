@@ -66,13 +66,21 @@ def check_model_and_input_types_match(input_config, model_inspect):
             raise ValueError(f'{key} is of wrong type. See models.model_config.py for correct types.')
     return
 
-def generate_configs(base_config_file:str, field_to_vary:str, desired_range: list):
+def generate_configs(base_config_file:str):#, field_to_vary:str, desired_range: list):
     """
     Generate YAML configurations by varying specified parameters while keeping others constant.
     """
 
     # Load the base configuration from the file
     base_config = load_base_config(base_config_file)
+    
+    #read arguments for new configs
+    field_to_vary = base_config['field_to_vary']
+    desired_range = base_config['new_range']
+
+    #remove the two above fields for copying
+    del base_config['field_to_vary']
+    del base_config['new_range']
     
     #get sql_alchemy model for config data
     sql_alchemy_config_model = inspect(Models.ModelConfig)
@@ -138,13 +146,7 @@ if __name__ == '__main__':
     parser.add_argument( 
         '-b','--base_config_path', help="File path of the file to use as the template for the necessary .yaml files. This should not end in .yaml",
     )
-    parser.add_argument(
-        '-f', '--field_to_change', help="The config field that is to vary in for this config_set",
-    )
-    parser.add_argument(
-        '-n', '--new_range', help="The list of values that field_to_change should take for this config_set. If this is a list of lists, add each list separately", nargs='+', action= 'append'
-    )
+
     args = parser.parse_args()
-    print(args.new_range)
-    generate_configs(args.base_config_path, args.field_to_change, args.new_range)
+    generate_configs(args.base_config_path)
 

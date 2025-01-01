@@ -350,11 +350,15 @@ In the database, config data is stored with a unique `config_set` and `config_na
 There may be multiple `config_name`s sharing the same `config_set`. However, each of these datasets can only differ from each other by a single field (aside from `config_name`, `id` and `created_at` fields). **If this property does not hold, the analysis files will not run.**
 
 ### Creating config data
-To create config data, create an examplar config file and put it in the desired folder. The exemplar config file should not end in `.yaml`. In these example, the exemplar files ends in `.yaml_template`
+To create config data, create an examplar config file and put it in the desired folder. The exemplar config file 
+* must contain two extra fields that are not in the config file itself: 
+    * field to vary: str; the name of the field in the config file that is allowed to vary in this config set
+    * new_range: list; the list of desired values that this field should take. Note, this can be a list of lists
+* should not end in `.yaml`. In these example, the exemplar files ends in `.yaml_template`
 
 Then run
 
- `python auto_generate_config.py -b 'config_folder/exemplar_config.yaml_template' -f 'field_to_change' -n list of values field_to_change should take`
+ `python auto_generate_config.py -b 'config_folder/exemplar_config.yaml_template' 
 
 This will create a set of .yaml files in the indicaded `config_folder`, each with a different name (that is a combination of the indicated `field_to_change` and a value from the provided list.) It will also write these configs to the database.
 
