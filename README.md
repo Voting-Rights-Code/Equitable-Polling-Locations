@@ -368,14 +368,33 @@ This will create a set of .yaml files in the indicaded `config_folder`, each wit
 * The fields of the exemplar_config MUST match the fields in the sql_alchemy model. Otherwise, this script will not run.
 
 **Example:**
-
-To generate a set of configs for DuPage County, IL where the number of precincts open varies from 15 to 20, run
+To generate a set of configs for DuPage County, IL where the number of precincts open varies from 15 to 20, define 
+`field_to_change: 'precints open'`
+`new_range: 
+    - 15
+    - 16
+    - 17
+    - 18
+    - 19
+    - 20`
+in the `.yaml_template` file and then run
 ```
-python auto_generate_config.py -f 'DuPage_County_IL_potential_configs/example_config.yaml_template' -b 'precincts_open' -n 15 16 17 18 19 20
+python auto_generate_config.py -f 'DuPage_County_IL_potential_configs/example_config.yaml_template' 
 ```
-To generate a set of configs for DuPage County, IL where the set of bad locations varies are ['Elec Day School - Potential', 'Elec Day Church - Potential', 'bg_centroid'],  ['Elec Day Church - Potential', 'bg_centroid'], ['Elec Day School - Potential',  'bg_centroid'], and [ 'bg_centroid'] run 
+To generate a set of configs for DuPage County, IL where the set of bad locations varies are ['Elec Day School - Potential', 'Elec Day Church - Potential', 'bg_centroid'],  ['Elec Day Church - Potential', 'bg_centroid'], ['Elec Day School - Potential',  'bg_centroid'], and [ 'bg_centroid'] define
+`field_to_change: 'bad_locations'`
+`new_range: 
+    - - 'Elec Day School - Potential'
+      - 'Elec Day Church - Potential'
+      - 'bg_centroid'
+    - - 'Elec Day Church - Potential'
+      - 'bg_centroid'
+    - - 'Elec Day School - Potential'
+      - 'bg_centroid'
+    - - 'bg_centroid'`
+in the `.yaml_template` file and then run
 ```
-python auto_generate_config.py -f 'DuPage_County_IL_potential_configs/example_config.yaml_template' -b 'bad_locations' -n 'Elec Day School - Potential' 'Elec Day Church - Potential', 'bg_centroid' -n  'Elec Day Church - Potential' 'bg_centroid' -n 'Elec Day School - Potential' 'bg_centroid' -n 'bg_centroid'
+python auto_generate_config.py -f 'DuPage_County_IL_potential_configs/example_config.yaml_template'
 ```
 ### Config fields
 These fields are determined by the sql_alchemy config model. See `models/model_config.py`. In addition to the fields listed below, and `id`, and `created_at` field are generated when uploaded to the database.
