@@ -160,18 +160,18 @@ load_config_data <- function(location, config_folder, read_from_csv = READ_FROM_
 }
 
 #########
-#Get a driving flag from the config folders
+#Get a driving/log_distance/ etc flag from the config folders
 #########
-set_global_driving_flag<- function(config_dt_list){
+set_global_flag<- function(config_dt_list, flag_type){
 	#takes a list of list of config data (where the names are fields)
 	#and checks that they all have the same driving flag in them
 	#If they do, this is the global driving flag. If not, returns an error
-	if ('driving' %in% names(config_dt_list)){
-		driving_flag_list <- sapply(config_dt_list$driving, as.logical)
-		if (length(unique(driving_flag_list))==1){
-			global_driving_flag = unique(driving_flag_list)
+	if (flag_type %in% names(config_dt_list)){
+		flag_list <- sapply(config_dt_list[[flag_type]], as.logical)
+		if (length(unique(flag_list))==1){
+			global_driving_flag = unique(flag_list)
 		}else{
-			stop('driving flags different in different files. Cannot set global value')
+			stop(paste0(flag_type, ' flags different in different files. Cannot set global value'))
 		}
 	} else{
 		global_driving_flag = FALSE
@@ -457,7 +457,7 @@ plot_multiple_edes<-function(ede_list, demo_grp){
 
 #ACCOMODATES DRIVING DISTANCES
 
-plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLAG){
+plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
 
 	#set x axis label order
 	descriptor_order <- unique(orig_ede$descriptor)
@@ -470,17 +470,20 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 	#set point size
 	#does data contain scaling data
 	scale_bool = 'pct_demo_population' %in% names(orig_ede)
-
-	#is this driving distance data
-	if (driving_flag){
-		y_EDE_label = 'Equity weighted driving distance (m)'
-		y_avg_label = 'Average driving distance (m)'
-		title_str = "driving distance by demographic and optimization run"
+	
+	if (driving_flag)
+		{distance_type = 'driving'
+	} else 
+		{distance_type = ''}
+	if (log_flag)
+		{unit = 'log'
 	} else {
-		y_EDE_label = 'Equity weighted distance (m)'
-		y_avg_label = 'Average distance (m)'
-		title_str = "distance by demographic and optimization run"
+		unit = ''
 	}
+	#is this driving distance data
+	y_EDE_label = paste0('Equity weighted ', unit, 'distance (', unit, 'm)')
+	y_avg_label = paste0('Average ', unit, 'distance (', unit, 'm)')
+	title_str = paste0(unit, ' distance by demographic and optimization run')
 	#plot with y_EDE
 	y_EDE = ggplot(orig_ede, aes(x = descriptor, y = y_EDE,
 		group = demographic, color = demographic))
@@ -610,6 +613,18 @@ plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_n
 		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
 		labs(x = 'Average distance traveled to poll (m)', y = 'Number of people', fill = 'Optimization Run')
 	graph_file_path = 'avg_dist_distribution_hist.png'
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
+}
+
+plot_population_densities <- function(density_df){
+	ggplot(density_df[population != 0, ]) + 
+	   geom_point(aes(reorder(id_orig, pop_density_km), y = pop_density_km)) +
+	   labs(title = 'Block group population density / km', 'Density ordered Census Blocks', y = 'Population density / km') +
+	   theme(
+		axis.text.x = element_blank(),
+        axis.ticks.x=element_blank())
+	graph_file_path = 'population_density.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
 	ggsave(graph_file_path)
 }

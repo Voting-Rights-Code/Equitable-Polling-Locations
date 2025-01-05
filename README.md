@@ -364,7 +364,6 @@ This will create a set of .yaml files in the indicaded `config_folder`, each wit
 
 **Note:** 
 * If a file by the config name already exists in the config_folder, the script will not run
-* If the list of values following -n is a list of list, each sublist need to be entered separately.
 * The fields of the exemplar_config MUST match the fields in the sql_alchemy model. Otherwise, this script will not run.
 
 **Example:**

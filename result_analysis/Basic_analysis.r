@@ -22,8 +22,8 @@ source('result_analysis/map_functions.R')
 #CONFIG_FOLDER must be a string
 
 LOCATION = 'DeKalb_County_GA' #needed only for reading from csv and writing outputs
-ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs_driving_beta-2"
-POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_bg_school_configs_driving_pre_EV_2024"
+ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs_log_driving"
+POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_bg_school_configs_log_driving_pre_EV_2024"
 ORIG_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 POTENTIAL_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 
@@ -48,6 +48,10 @@ IDEAL_POLL_NUMBER  = 15 #the optimal number of polls desired for this county
 #returns NULL if READ_FROM_CSV = TRUE
 POLLING_CON <- define_connection()
 
+#######
+#refresh google cloud connection
+#######
+system("gcloud auth application-default login")
 
 #######
 #Check that location and folders valid
@@ -62,7 +66,9 @@ potential_config_dt <- load_config_data(LOCATION, POTENTIAL_CONFIG_FOLDER)
 
 #get driving flags
 config_dt_list<-c(orig_config_dt, potential_config_dt)
-DRIVING_FLAG <- set_global_driving_flag(config_dt_list) 
+DRIVING_FLAG <- set_global_flag(config_dt_list, 'driving') 
+LOG_FLAG <- set_global_flag(config_dt_list, 'log_distance') 
+
 
 #######
 #Read in data
@@ -93,6 +99,7 @@ potential_output_df_list <- read_result_data(potential_config_dt, POTENTIAL_FIEL
 #set result folder
 result_folder = paste(LOCATION, 'results', sep = '_')
 
+
 #add location to residence data, aggregate to block level, merge with polling locations and split
 orig_list_prepped <- prepare_outputs_for_maps(orig_output_df_list$residence_distances, orig_output_df_list$result, orig_config_dt)
 
@@ -102,7 +109,6 @@ potential_list_prepped <- prepare_outputs_for_maps(potential_output_df_list$resi
 #same scale for orig and potential
 all_res_output <- do.call(rbind, c(orig_list_prepped, potential_list_prepped))
 global_color_bounds <- distance_bounds(all_res_output)
-
 
 #######
 #Plot potential data
@@ -158,6 +164,8 @@ if (file.exists(file.path(here(), plot_folder))){
 }
 
 ###maps####
+density_data <- get_regression_data(LOCATION, orig_output_df_list$results)
+plot_population_densities(density_data)
 
 sapply(orig_list_prepped, function(x)make_bg_maps(x, 'map'))
 
