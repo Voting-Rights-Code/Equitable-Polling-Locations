@@ -18,8 +18,8 @@ capacity: 5
 fixed_capacity_site_number: null
 precincts_open: null
 max_min_mult: 5
-maxpctnew: 1
-minpctold: 0.75
+maxpctnew: 0
+minpctold: 1
 driving: true
 log_distance: true
 penalized_sites: null

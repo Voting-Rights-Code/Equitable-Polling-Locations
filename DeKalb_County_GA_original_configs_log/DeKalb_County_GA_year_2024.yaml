@@ -1,8 +1,8 @@
-config_set: DeKalb_County_GA_original_configs_log_driving
-config_name: DeKalb_County_GA_year_2022
+config_set: DeKalb_County_GA_original_configs_log
+config_name: DeKalb_County_GA_year_2024
 location: DeKalb_County_GA
 year:
-- '2022'
+- '2024'
 bad_types:
 - Elec Day School - Potential
 - Elec Day Church - Potential
@@ -20,6 +20,6 @@ precincts_open: null
 max_min_mult: 5
 maxpctnew: 0
 minpctold: 1
-driving: true
+driving: false
 log_distance: true
 penalized_sites: null

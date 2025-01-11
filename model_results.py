@@ -76,6 +76,8 @@ def demographic_domain_summary(result_df, domain):
 
     #add source data back in
     demographic_prec['source'] = source_value[0]
+    #reset index for reading into r
+    demographic_prec = demographic_prec.reset_index()
 
     return demographic_prec
 
@@ -90,10 +92,10 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
     source_value = result_df['source'].unique()
 
     #calculate the total distance traveled by each demographic group
-    demographic_dist = demographic_df['weighted_dist'].groupby('demographic').agg('sum')
+    demographic_dist = demographic_df[['demographic', 'weighted_dist']].groupby('demographic').agg('sum')
 
     #calculate the total population of each demographic sent to each precinct
-    demographic_population = demographic_df['demo_pop'].groupby('demographic').agg('sum')
+    demographic_population = demographic_df[['demographic','demo_pop']].groupby('demographic').agg('sum')
 
     #merge the datasets
     demographic_summary = pd.concat([demographic_dist, demographic_population], axis = 1)
@@ -104,8 +106,8 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
     if beta !=0:
 
         #add the distance_m column back in from dist_df
-        #1) first make demographics a column, not an index
-        demographic_by_res = demographic_df.reset_index(['demographic'])
+        #1) set index of demographic_df to 'id_orig'
+        demographic_by_res = demographic_df.set_index('id_orig')
         #2) set index for results to 'id_orig'
         distances = result_df[['id_orig', 'distance_m']].set_index('id_orig')
         #3) merge on id_orig (index for both)

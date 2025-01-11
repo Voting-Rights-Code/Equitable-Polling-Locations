@@ -166,17 +166,21 @@ set_global_flag<- function(config_dt_list, flag_type){
 	#takes a list of list of config data (where the names are fields)
 	#and checks that they all have the same driving flag in them
 	#If they do, this is the global driving flag. If not, returns an error
-	if (flag_type %in% names(config_dt_list)){
-		flag_list <- sapply(config_dt_list[[flag_type]], as.logical)
+	flag_type_exist <- sapply(config_dt_list, function(x){flag_type %in% names(x)})
+	if (all(flag_type_exist)){ #all flags exist
+		flag_list <- unlist(lapply(config_dt_list, function(x){as.logical(x[[flag_type]])}))
 		if (length(unique(flag_list))==1){
-			global_driving_flag = unique(flag_list)
-		}else{
+			global_flag = unique(flag_list)
+		}
+		else{
 			stop(paste0(flag_type, ' flags different in different files. Cannot set global value'))
 		}
+	} else if (any(flag_type_exist)){#some flags exist
+		stop(paste0(flag_type, ' flags not defined in all files. Cannot set global value'))
 	} else{
-		global_driving_flag = FALSE
+		global_flag = FALSE
 	}
-	return(global_driving_flag)
+	return(global_flag)
 }
 
 #######

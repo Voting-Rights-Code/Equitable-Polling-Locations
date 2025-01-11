@@ -20,3 +20,6 @@ precincts_open: null
 max_min_mult: 5 #scalar >= 1
 maxpctnew: 0 # in interval [0,1]
 minpctold: 1 # in interval [0,1]
+driving: false
+log_distance: false
+penalized_sites: null

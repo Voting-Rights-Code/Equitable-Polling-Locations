@@ -23,8 +23,15 @@ fixed_capacity_site_number: null
 ####Optional#####
 precincts_open: null
 max_min_mult: 5 #scalar >= 1
-maxpctnew: 1 # in interval [0,1]
-minpctold: .75 # in interval [0,1]
+maxpctnew: 0 # in interval [0,1]
+minpctold: 1 # in interval [0,1]
 driving: True
 log_distance: True
 penalized_sites: null
+
+###### For config generation ######
+field_to_vary: 'year'
+new_range:
+    - - '2020'
+    - - '2022'
+    - - '2024'
