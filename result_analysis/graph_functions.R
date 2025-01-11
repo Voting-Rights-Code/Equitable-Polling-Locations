@@ -166,19 +166,19 @@ set_global_flag<- function(config_dt_list, flag_type){
 	#takes a list of list of config data (where the names are fields)
 	#and checks that they all have the same driving flag in them
 	#If they do, this is the global driving flag. If not, returns an error
-	flag_type_exist <- sapply(config_dt_list, function(x){flag_type %in% names(x)})
-	if (all(flag_type_exist)){ #all flags exist
-		flag_list <- unlist(lapply(config_dt_list, function(x){as.logical(x[[flag_type]])}))
-		if (length(unique(flag_list))==1){
-			global_flag = unique(flag_list)
+	check_flag <- function(flag_type, dt){
+		if (!(flag_type %in% names(dt))){
+			dt[ , eval(flag_type) := FALSE]
 		}
-		else{
-			stop(paste0(flag_type, ' flags different in different files. Cannot set global value'))
-		}
-	} else if (any(flag_type_exist)){#some flags exist
-		stop(paste0(flag_type, ' flags not defined in all files. Cannot set global value'))
-	} else{
-		global_flag = FALSE
+		return(dt)
+	}
+	config_dt_list <- lapply(config_dt_list, function(x){check_flag(flag_type, x)})
+	flag_list <- unlist(lapply(config_dt_list, function(x){as.logical(x[[flag_type]])}))
+	if (length(unique(flag_list))==1){
+		global_flag = unique(flag_list)
+	}
+	else{
+		stop(paste0(flag_type, ' flags different in different files. Cannot set global value'))
 	}
 	return(global_flag)
 }
@@ -262,7 +262,7 @@ load_output_from_csv <-function(config_dt, result_type){
 	#extract files
 	files <- list.files(result_folder)
 	#select files containing config_folder and result_type in name
-	files <- files[grepl(paste0(config_folder, '.'), files, ignore.case = TRUE) &grepl(result_type, files, ignore.case = TRUE)]
+	files <- files[grepl(paste0(config_folder, '\\.'), files, ignore.case = TRUE) &grepl(result_type, files, ignore.case = TRUE)]
 	#label with config name
 	config_names <- gsub(paste0('.*', config_folder, '\\.'), '', files)
 	config_names <- gsub(paste0('_', result_type, '\\.csv'), '', config_names)
@@ -332,6 +332,7 @@ assign_descriptor<- function(config_dt, result_type, field_of_interest, read_fro
 
 	#read in descriptor data
 	vary_dt <- process_configs_dt(config_dt, field_of_interest)
+	
 	#drop varying field (because this changes across config_set)
 	vary_dt <- vary_dt [ , .(config_name, descriptor)]
 
@@ -366,7 +367,6 @@ read_result_data<- function(config_dt, field_of_interest = '', tables = TABLES){
 	#read output data into a list with a descriptor column attached
 	df_list<- lapply(tables, function(x){assign_descriptor(config_dt, x, field_of_interest)})
 	names(df_list) <- tables
-
 	#label descriptors with polls and residences
 	num_polls <- df_list$precinct_distances[ , .(num_polls = .N/6), by = descriptor]
 	num_residences <- df_list$residence_distances[ , .(num_residences = .N/6), by = descriptor]

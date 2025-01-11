@@ -29,7 +29,7 @@ LOCATION = 'DeKalb_County_GA' #needed only for reading from csv and writing outp
 #list of config folders to compare.
 #MUST 
 # * be of the same locations
-CONFIG_FOLDER_LIST = c("DeKalb_County_GA_original_configs_log", "DeKalb_County_GA_original_configs")
+CONFIG_FOLDER_LIST = c("DeKalb_County_GA_no_bg_school_configs_log", "DeKalb_County_GA_no_bg_school_configs")
 FIELDS_OF_INTEREST_LIST = c('', '') #must not leave empty if config set has only one element
 
 # This is where this analysis will be stored in the cloud
@@ -80,6 +80,7 @@ config_dt_list <- lapply(CONFIG_FOLDER_LIST, function(x){load_config_data(LOCATI
 output_df_list <- mapply(function(config_dt, field_of_interest){read_result_data(config_dt, field_of_interest)}, config_dt_list, FIELDS_OF_INTEREST_LIST, SIMPLIFY = FALSE)
 names(output_df_list) <- CONFIG_FOLDER_LIST
 output_df_list <- unlist(output_df_list, recursive = FALSE)
+
 #change descriptor
 #function to set certain descriptors as desired
 #change_descriptors <- function(df){
@@ -117,6 +118,7 @@ if (DRIVING_FLAG){
 split_by_descriptor <- lapply(results_updated, function(x){split(x, x$descriptor)})
 split_by_descriptor <- unlist(split_by_descriptor, recursive = FALSE)
 #melt to make precinct_distances file and label
+browser()
 residence_distance_df_list <- lapply(split_by_descriptor, function(x){demographic_domain_summary(x, 'id_orig')})
 residence_distance_df_list <- lapply(residence_distance_df_list, function(x)as.data.table(x))
 residence_distance_df_list <- Map(cbind.data.frame, residence_distance_df_list, name = gsub('.results', '' , names(residence_distance_df_list)))
@@ -139,7 +141,7 @@ residence_distance_df_list <- Map(cbind.data.frame, residence_distance_df_list, 
 # }
 
 #residence_distance_df_simplified_list <- lapply(residence_distance_df_list, function(x)select_columns(x, 'num_polls', 15))
-data_to_combine <- residence_distance_df_list[grepl('year_2020', names(residence_distance_df_list))]
+data_to_combine <- residence_distance_df_list[grepl('year_2024', names(residence_distance_df_list))]
 combine_result_df <- as.data.table(do.call(rbind, data_to_combine))
 
 foo_hist <- ggplot(combine_result_df[demographic == 'population', ], aes(x = avg_dist, fill = name)) + 
