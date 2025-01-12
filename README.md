@@ -333,6 +333,85 @@ upload_graph_files_to_cloud_storage()
 By setting the above, any graph file written to using the functions found in `.../result_analysis/graph_functions.R` and `.../result_analysis/graph_functions.R` will be written locally in the `.../result_analysis/` as well as to Cloud Storage under the folder `equitable-polling-analysis:result_analysis/Basic_analysis.r/[DATESTAMP]/...`.
 
 
+Here is an example of importing all results from Berkeley_County_SC_original_configs:
+
+```
+python db_import_cli.py ./Berkeley_County_SC_original_configs/*.yaml
+```
+
+Any errors importing will be written to the screen as well as the logs directory (by default) to the file `.../logs/import_errors.csv`.
+
+# Analysis and Google Cloud Storage
+
+By default output from R analysis will be written to Google Cloud Storage under the bucket `equitable-polling-analysis` under the folder `result_analysis`. This bucket can be browsed in the [Google Cloud Storage](https://console.cloud.google.com/storage/browser/equitable-polling-analysis;tab=objects?forceOnBucketsSortingFiltering=true&project=equitable-polling-locations&prefix=&forceOnObjectsSortingFiltering=false) console, if access is grated.
+
+## Database
+
+When running analsyis in R, such as the `.../result_analysis/Basic_analsysis.r`, data can be read from the local csv files or from
+a BigQuery dataset.  If data is desired from the database, set READ_FROM_CSV to FALSE, such as:
+
+```R
+READ_FROM_CSV = FALSE
+```
+
+Database authentication will happen automatically via the [`bigrquery` R library](https://bigrquery.r-dbi.org/).
+
+To set which database to use, set the `PROJECT`, `DATASET`, and `BILLING` variables, such as the following:
+
+```R
+PROJECT = "equitable-polling-locations"
+DATASET = "equitable_polling_locations_prod"
+BILLING = PROJECT
+```
+
+## Google CloudStorage
+
+To write the output of analysis to the Google Cloud Cloud storage, at the end of the analysis file make sure the following variables are set.
+
+| Variable Name               | Description                                                                                 |
+|-----------------------------|---------------------------------------------------------------------------------------------|
+| STORAGE_BUCKET              | The google cloud storage bucket to write to.                                                |
+| CLOUD_STORAGE_ANALYSIS_NAME | The name of the folder to write all the analysis to under the folder `.../result_analysis/` |
+
+
+And at the end of the R file, add the following line:
+
+```R
+upload_graph_files_to_cloud_storage()
+```
+
+Authentication will happen via the [`googleCloudStorageR` R library](https://CRAN.R-project.org/package=googleCloudStorageR).  Before running the R analysis, you must login via the [gcloud command line tool](https://cloud.google.com/sdk/docs/install-sdk).  One installed, run the following:
+
+```
+gcloud auth application-default login
+```
+
+
+Example:
+```R
+# ...
+
+STORAGE_BUCKET = "equitable-polling-analysis"
+CLOUD_STORAGE_ANALYSIS_NAME = "Basic_analysis.r"
+
+# ...
+
+###maps####
+
+sapply(orig_list_prepped, function(x)make_bg_maps(x, 'map'))
+
+sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'population'))
+sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'black'))
+sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'white'))
+sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'hispanic'))
+sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
+
+upload_graph_files_to_cloud_storage()
+```
+
+By setting the above, any graph file written to using the functions found in `.../result_analysis/graph_functions.R` and `.../result_analysis/graph_functions.R` will be written locally in the `.../result_analysis/` as well as to Cloud Storage under the folder `equitable-polling-analysis:result_analysis/Basic_analysis.r/[DATESTAMP]/...`.
+
+
 <!-- # Google Colab
 
 **NOTE:** Google Colab notebooks are currently out of date as the team has transitioned to running locally.  The following will need to be revisited.

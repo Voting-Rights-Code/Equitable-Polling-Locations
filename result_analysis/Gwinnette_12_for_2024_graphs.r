@@ -26,7 +26,7 @@ CONFIG_FOLDER = 'Gwinnett_County_GA_12_for_2024_configs'
 PENALIZED_CONFIG_FOLDER = 'Gwinnett_County_GA_12_for_2024_penalized_configs'
 
 # This is where this analysis will be stored in the cloud
-STORAGE_BUCKET = 'equitable-polling-analysis-scratch'
+STORAGE_BUCKET = 'equitable-polling-analysis'
 CLOUD_STORAGE_ANALYSIS_NAME = 'Gwinnette_12_for_2024_graphs.r'
 
 #constants for reading data

@@ -1,6 +1,6 @@
 library(here)
 library(reticulate)
-use_condaenv('C:/Users/ganga/anaconda3/envs/equitable-polls', required = TRUE)
+use_condaenv('C:/Users/danie/MiniConda3/envs/Equitable-Polls', required = TRUE)
 
 #######
 #Change directory
@@ -118,7 +118,7 @@ if (DRIVING_FLAG){
 split_by_descriptor <- lapply(results_updated, function(x){split(x, x$descriptor)})
 split_by_descriptor <- unlist(split_by_descriptor, recursive = FALSE)
 #melt to make precinct_distances file and label
-browser()
+
 residence_distance_df_list <- lapply(split_by_descriptor, function(x){demographic_domain_summary(x, 'id_orig')})
 residence_distance_df_list <- lapply(residence_distance_df_list, function(x)as.data.table(x))
 residence_distance_df_list <- Map(cbind.data.frame, residence_distance_df_list, name = gsub('.results', '' , names(residence_distance_df_list)))
@@ -141,7 +141,7 @@ residence_distance_df_list <- Map(cbind.data.frame, residence_distance_df_list, 
 # }
 
 #residence_distance_df_simplified_list <- lapply(residence_distance_df_list, function(x)select_columns(x, 'num_polls', 15))
-data_to_combine <- residence_distance_df_list[grepl('year_2024', names(residence_distance_df_list))]
+data_to_combine <- residence_distance_df_list[grepl('precincts_open_30', names(residence_distance_df_list))]
 combine_result_df <- as.data.table(do.call(rbind, data_to_combine))
 
 foo_hist <- ggplot(combine_result_df[demographic == 'population', ], aes(x = avg_dist, fill = name)) + 
@@ -150,3 +150,5 @@ foo_hist <- ggplot(combine_result_df[demographic == 'population', ], aes(x = avg
 foo_hist_black <- ggplot(combine_result_df[demographic == 'black'], aes(x = avg_dist, fill = name)) + 
     geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)
 
+foo_hist_white <- ggplot(combine_result_df[demographic == 'white'], aes(x = avg_dist, fill = name)) + 
+    geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)
