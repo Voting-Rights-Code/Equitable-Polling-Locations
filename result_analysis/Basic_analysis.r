@@ -74,7 +74,7 @@ LOG_FLAG <- set_global_flag(config_dt_list, 'log_distance')
 #######
 #Read in data
 #Run this for each of the folders under consideration
-#Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
+#Recall, output of form: list(ede_df, precinct_df, residence_df, results_df)
 #######
 
 #names of the output data in these lists
@@ -103,7 +103,6 @@ result_folder = paste(LOCATION, 'results', sep = '_')
 
 #add location to residence data, aggregate to block level, merge with polling locations and split
 orig_list_prepped <- prepare_outputs_for_maps(orig_output_df_list$residence_distances, orig_output_df_list$result, orig_config_dt)
-
 potential_list_prepped <- prepare_outputs_for_maps(potential_output_df_list$residence_distances, potential_output_df_list$result, potential_config_dt)
 
 #get avg distance bounds for map coloring
