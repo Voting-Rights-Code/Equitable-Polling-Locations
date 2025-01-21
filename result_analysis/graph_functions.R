@@ -646,7 +646,7 @@ get_regression_data<-function(location, result_df){
 	if (length(block_areas)> 1){
 		block_areas <- do.call(rbind, block_areas)
 	}
-
+	
 	#merge block area data with result data
 	#calculate population density (people/ km^2), pct white, pct black, population density quantile, and a fuzzy distance (max(distance_m, 100))
 	regression_data <- merge(result_df, block_areas, by.x = 'id_orig', by.y = 'GEOID20', all.x = T)

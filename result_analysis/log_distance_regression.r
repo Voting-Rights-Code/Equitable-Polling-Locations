@@ -14,8 +14,6 @@ setwd(here())
 source('result_analysis/storage.R')
 source('result_analysis/graph_functions.R')
 source('result_analysis/map_functions.R')
-source_python('model_data.py')
-source_python('model_results.py')
 
 #######
 #Set Constants
@@ -25,11 +23,11 @@ source_python('model_results.py')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'DeKalb_County_GA' #needed only for reading from csv and writing outputs
+LOCATION = 'Richland_County_SC' #needed only for reading from csv and writing outputs
 #list of config folders to compare.
 #MUST 
 # * be of the same locations
-CONFIG_FOLDER = "Berkeley_County_SC_original_configs_log"
+CONFIG_FOLDER = "Richland_County_SC_original_configs_log"
 FIELDS_OF_INTEREST_LIST = '' #must not leave empty if config set has only one element
 
 # This is where this analysis will be stored in the cloud
@@ -66,8 +64,10 @@ if (!READ_FROM_CSV){
 #Load config data
 #checking if the config folder is valid
 #and that the location is in the indicated dataset
-config_dt_list <- lapply(CONFIG_FOLDER_LIST, function(x){load_config_data(LOCATION, x)})
+config_dt_list <- lapply(CONFIG_FOLDER, function(x){load_config_data(LOCATION, x)})
 
+
+foo <- load_config_data(LOCATION, CONFIG_FOLDER)
 #######
 #Read in data
 #Run this for each of the folders under consideration
@@ -78,13 +78,13 @@ config_dt_list <- lapply(CONFIG_FOLDER_LIST, function(x){load_config_data(LOCATI
 #come from TABLES above
 
 output_df_list <- mapply(function(config_dt, field_of_interest){read_result_data(config_dt, field_of_interest)}, config_dt_list, FIELDS_OF_INTEREST_LIST, SIMPLIFY = FALSE)
-names(output_df_list) <- CONFIG_FOLDER_LIST
+names(output_df_list) <- CONFIG_FOLDER
 output_df_list <- unlist(output_df_list, recursive = FALSE)
 
 
 #get data to run regression
 
-regression_data <- get_regression_data(LOCATION, output_df_list$results)
+regression_data <- get_regression_data(LOCATION, output_df_list[[4]])
 browser()
 descriptor_list <- unique(regression_data$descriptor)
 reference <- descriptor_list[grepl(REFERENCE_TAG, descriptor_list)]
