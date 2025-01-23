@@ -636,7 +636,6 @@ plot_population_densities <- function(density_df){
 #####CAUTION: USED FOR DELIVERY, BUT EXPERIMENTAL######
 
 get_regression_data<-function(location, result_df){
-
 	#get map data
 	map_folders <- paste0(here(),'/datasets/census/tiger/', location, '/')
 	map_files <- paste0(map_folders, list.files(map_folders)[endsWith(list.files(map_folders), 'tabblock20.shp')])
