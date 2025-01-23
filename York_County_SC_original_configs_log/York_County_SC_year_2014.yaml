@@ -1,0 +1,18 @@
+config_set: York_County_SC_original_configs_log
+config_name: York_County_SC_year_2014
+location: York_County_SC
+year:
+- '2014'
+bad_types:
+- bg_centroid
+beta: -1
+time_limit: 360000
+capacity: 1.5
+fixed_capacity_site_number: null
+precincts_open: null
+max_min_mult: 5
+maxpctnew: 0
+minpctold: 1
+driving: false
+log_distance: true
+penalized_sites: null
