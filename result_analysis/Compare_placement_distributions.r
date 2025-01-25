@@ -1,6 +1,11 @@
 library(here)
 library(reticulate)
+<<<<<<< HEAD
 #use_condaenv('C:/Users/ganga/anaconda3/envs/equitable-polls', required = TRUE)
+=======
+#use_condaenv('C:/Users/danie/MiniConda3/envs/Equitable-Polls', required = TRUE)
+use_condaenv('C:/Users/ganga/anaconda3/envs/Equitable-Polls', required = TRUE)
+>>>>>>> feature/log_comparison
 
 #######
 #Change directory
@@ -14,8 +19,8 @@ setwd(here())
 source('result_analysis/storage.R')
 source('result_analysis/graph_functions.R')
 source('result_analysis/map_functions.R')
-#source_python('model_data.py')
-#source_python('model_results.py')
+source_python('model_data.py')
+source_python('model_results.py')
 
 #######
 #Set Constants
@@ -25,19 +30,22 @@ source('result_analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'Berkeley_County_SA' #needed only for reading from csv and writing outputs
+LOCATION = 'Berkeley_County_SC' #needed only for reading from csv and writing outputs
 #list of config folders to compare.
 #MUST 
 # * be of the same locations
-CONFIG_FOLDER = Berkeley_County_SC_original_configs_log
+CONFIG_FOLDER_LIST = c('Berkeley_County_SC_original_configs_log', 'Berkeley_County_SC_original_configs')
+
+#'Greenville_County_SC_original_configs_log', 'Lexington_County_SC_original_configs_log','Richland_County_SC_original_configs_log', 'York_County_SC_original_configs_log')
 FIELDS_OF_INTEREST_LIST = c('', '') #must not leave empty if config set has only one element
+
 
 # This is where this analysis will be stored in the cloud
 STORAGE_BUCKET = 'equitable-polling-analysis'
 CLOUD_STORAGE_ANALYSIS_NAME = paste0(CONFIG_FOLDER_LIST, collapse = '_AND_')
 
 #constants for reading data
-READ_FROM_CSV = TRUE
+READ_FROM_CSV = FALSE
 PRINT_SQL = FALSE
 DRIVING_DISTANCES_FILE = paste0('datasets/driving/', LOCATION,'/', LOCATION, '_driving_distances.csv')
 
@@ -118,7 +126,7 @@ if (DRIVING_FLAG){
 split_by_descriptor <- lapply(results_updated, function(x){split(x, x$descriptor)})
 split_by_descriptor <- unlist(split_by_descriptor, recursive = FALSE)
 #melt to make precinct_distances file and label
-browser()
+
 residence_distance_df_list <- lapply(split_by_descriptor, function(x){demographic_domain_summary(x, 'id_orig')})
 residence_distance_df_list <- lapply(residence_distance_df_list, function(x)as.data.table(x))
 residence_distance_df_list <- Map(cbind.data.frame, residence_distance_df_list, name = gsub('.results', '' , names(residence_distance_df_list)))
@@ -141,7 +149,7 @@ residence_distance_df_list <- Map(cbind.data.frame, residence_distance_df_list, 
 # }
 
 #residence_distance_df_simplified_list <- lapply(residence_distance_df_list, function(x)select_columns(x, 'num_polls', 15))
-data_to_combine <- residence_distance_df_list[grepl('year_2024', names(residence_distance_df_list))]
+data_to_combine <- residence_distance_df_list[grepl('year_2022', names(residence_distance_df_list))]
 combine_result_df <- as.data.table(do.call(rbind, data_to_combine))
 
 foo_hist <- ggplot(combine_result_df[demographic == 'population', ], aes(x = avg_dist, fill = name)) + 
@@ -149,4 +157,3 @@ foo_hist <- ggplot(combine_result_df[demographic == 'population', ], aes(x = avg
 
 foo_hist_black <- ggplot(combine_result_df[demographic == 'black'], aes(x = avg_dist, fill = name)) + 
     geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)
-

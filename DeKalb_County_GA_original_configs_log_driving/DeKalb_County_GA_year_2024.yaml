@@ -1,0 +1,25 @@
+config_set: DeKalb_County_GA_original_configs_log_driving
+config_name: DeKalb_County_GA_year_2024
+location: DeKalb_County_GA
+year:
+- '2024'
+bad_types:
+- Elec Day School - Potential
+- Elec Day Church - Potential
+- Elec Day Other - Potential
+- College Campus - Potential
+- Community Center - Potential
+- Library - Potential
+- Other - Potential
+- bg_centroid
+beta: -2
+time_limit: 360000
+capacity: 5
+fixed_capacity_site_number: null
+precincts_open: null
+max_min_mult: 5
+maxpctnew: 0
+minpctold: 1
+driving: true
+log_distance: true
+penalized_sites: null
