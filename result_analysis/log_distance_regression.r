@@ -27,7 +27,8 @@ LOCATION = c('Berkeley_County_SC','Greenville_County_SC', 'Lexington_County_SC',
 #list of config folders to compare.
 #MUST 
 # * be of the same locations
-CONFIG_FOLDER = c('Berkeley_County_SC_original_configs_log','Greenville_County_SC_original_configs_log', 'Lexington_County_SC_original_configs_log','Richland_County_SC_original_configs_log', 'York_County_SC_original_configs_log')FIELDS_OF_INTEREST_LIST = c('', '', '', '', '') #must not leave empty if config set has only one element
+CONFIG_FOLDER = c('Berkeley_County_SC_original_configs_log','Greenville_County_SC_original_configs_log', 'Lexington_County_SC_original_configs_log','Richland_County_SC_original_configs_log', 'York_County_SC_original_configs_log')
+FIELDS_OF_INTEREST_LIST = c('', '', '', '', '') #must not leave empty if config set has only one element
 
 # This is where this analysis will be stored in the cloud
 STORAGE_BUCKET = 'equitable-polling-analysis'
