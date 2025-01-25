@@ -133,16 +133,13 @@ ede_df_list <- Map(cbind.data.frame, ede_df_list, name = gsub('.results', '' , n
 #to_select = c('id_orig', 'id_dest', 'distance_m.x', 'distance_m.y')
 #bad_distance = distance_compare[distance_m.y < .9*distance_m.x, ][ , ..to_select]
 #browser()
+
 #######
-#Make histograms
+#Make plots
 #######
 
-# select_columns <- function(df, field, value){
-#     df <- df[eval(as.name(field)) == value, .(config_set, demographic, demo_pop, avg_dist)]
-#     df[ , avg_pctile := (avg_dist-min(df$avg_dist, na.rm = TRUE))/(max(df$avg_dist, na.rm = TRUE) - min(df$avg_dist, na.rm = TRUE))]
-# }
 
-#residence_distance_df_simplified_list <- lapply(residence_distance_df_list, function(x)select_columns(x, 'num_polls', 15))
+
 descriptor = 'year_2018'
 res_combined <- residence_distance_df_list[grepl(descriptor, names(residence_distance_df_list))]
 combine_res_df <- as.data.table(do.call(rbind, res_combined))
