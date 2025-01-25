@@ -1,11 +1,6 @@
 library(here)
 library(reticulate)
-<<<<<<< HEAD
-#use_condaenv('C:/Users/ganga/anaconda3/envs/equitable-polls', required = TRUE)
-=======
-#use_condaenv('C:/Users/danie/MiniConda3/envs/Equitable-Polls', required = TRUE)
 use_condaenv('C:/Users/ganga/anaconda3/envs/Equitable-Polls', required = TRUE)
->>>>>>> feature/log_comparison
 
 #######
 #Change directory
@@ -89,15 +84,6 @@ output_df_list <- mapply(function(config_dt, field_of_interest){read_result_data
 names(output_df_list) <- CONFIG_FOLDER_LIST
 output_df_list <- unlist(output_df_list, recursive = FALSE)
 
-#change descriptor
-#function to set certain descriptors as desired
-#change_descriptors <- function(df){
-#    df <- df[descriptor == "location_Contained_in_Madison_City_of_WI", descriptor := "Contained"
-#            ][descriptor == "location_Intersecting_Madison_City_of_WI", descriptor := "Intersecting"
-#            ]
-#return(df)
-#}
-#config_df_list = lapply(config_df_list, change_descriptors)
 
 #######
 #convert all data to same distance metric
@@ -127,9 +113,17 @@ split_by_descriptor <- lapply(results_updated, function(x){split(x, x$descriptor
 split_by_descriptor <- unlist(split_by_descriptor, recursive = FALSE)
 #melt to make precinct_distances file and label
 
-residence_distance_df_list <- lapply(split_by_descriptor, function(x){demographic_domain_summary(x, 'id_orig')})
-residence_distance_df_list <- lapply(residence_distance_df_list, function(x)as.data.table(x))
+residence_distance_df_list <- lapply(split_by_descriptor, function(x){as.data.frame(demographic_domain_summary(x, 'id_orig'))})
 residence_distance_df_list <- Map(cbind.data.frame, residence_distance_df_list, name = gsub('.results', '' , names(residence_distance_df_list)))
+
+precinct_distance_df_list <- lapply(split_by_descriptor, function(x){as.data.frame(demographic_domain_summary(x, 'id_dest'))})
+precinct_distance_df_list <- Map(cbind.data.frame, precinct_distance_df_list, name = gsub('.results', '' , names(precinct_distance_df_list)))
+
+alpha_new_list <- lapply(split_by_descriptor, function(x){alpha_min(x)})
+beta <- unique(unlist(lapply(config_dt_list, function(x)x$beta)))
+ede_df_list <- mapply(function(residence, result, alpha_new){as.data.frame(demographic_summary(residence, result, beta, alpha_new))}, residence_distance_df_list, split_by_descriptor, alpha_new_list, SIMPLIFY = FALSE)
+ede_df_list <- Map(cbind.data.frame, ede_df_list, name = gsub('.results', '' , names(ede_df_list)))
+
 
 #######
 #Test differences in haversine and driving distance
@@ -149,11 +143,19 @@ residence_distance_df_list <- Map(cbind.data.frame, residence_distance_df_list, 
 # }
 
 #residence_distance_df_simplified_list <- lapply(residence_distance_df_list, function(x)select_columns(x, 'num_polls', 15))
-data_to_combine <- residence_distance_df_list[grepl('year_2022', names(residence_distance_df_list))]
-combine_result_df <- as.data.table(do.call(rbind, data_to_combine))
+descriptor = 'year_2018'
+res_combined <- residence_distance_df_list[grepl(descriptor, names(residence_distance_df_list))]
+combine_res_df <- as.data.table(do.call(rbind, res_combined))
 
-foo_hist <- ggplot(combine_result_df[demographic == 'population', ], aes(x = avg_dist, fill = name)) + 
+compare_hist <- ggplot(combine_res_df[demographic == 'population', ], aes(x = avg_dist, fill = name)) + 
     geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)
 
-foo_hist_black <- ggplot(combine_result_df[demographic == 'black'], aes(x = avg_dist, fill = name)) + 
-    geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)
+
+ede_combined <- ede_df_list[grepl(descriptor, names(ede_df_list))]
+combine_ede_df <- as.data.table(do.call(rbind, ede_combined))
+y_EDE = ggplot(combine_ede_df, aes(x = name, y = y_EDE,
+		group = demographic, color = demographic)) + 
+        geom_point(aes(x = factor(name)),size = 5, alpha = .5)
+avg = ggplot(combine_ede_df, aes(x = name, y = avg_dist,
+		group = demographic, color = demographic))+ 
+        geom_point(aes(x = factor(name)),size = 5, alpha = .5)

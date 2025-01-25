@@ -129,6 +129,10 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
         #add source data back in
         demographic_summary['source'] = source_value[0]
 
+        #reset index for reading into r
+        demographic_summary = demographic_summary.reset_index()
+
+
     return demographic_summary
 
 @timer
