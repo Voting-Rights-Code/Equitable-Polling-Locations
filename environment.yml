@@ -8,7 +8,7 @@ dependencies:
   - numpy=1.24.3
   - haversine=2.8.0
   - pandas=2.0.1
-  - pyomo=6.5.0
+  - pyomo=6.5.0gi
   - pyscipopt=4.3.0
   - pyyaml=6.0
   - pytest=7.4.3
