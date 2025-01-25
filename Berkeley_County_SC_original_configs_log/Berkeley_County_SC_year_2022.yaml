@@ -1,0 +1,18 @@
+config_set: Berkeley_County_SC_original_configs_log
+config_name: Berkeley_County_SC_year_2022
+location: Berkeley_County_SC
+year:
+- '2022'
+bad_types:
+- bg_centroid
+beta: -1
+time_limit: 360000
+capacity: 1.5
+fixed_capacity_site_number: null
+precincts_open: null
+max_min_mult: 5
+maxpctnew: 0
+minpctold: 1
+driving: false
+log_distance: true
+penalized_sites: null

@@ -22,8 +22,8 @@ source('result_analysis/map_functions.R')
 #CONFIG_FOLDER must be a string
 
 LOCATION = 'DeKalb_County_GA' #needed only for reading from csv and writing outputs
-ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs_log_driving"
-POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_bg_school_configs_log_driving_pre_EV_2024"
+ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs_driving_beta-2"
+POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_school_penalize_bg_configs_driving_pre_EV_2024"
 ORIG_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 POTENTIAL_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 
@@ -32,8 +32,8 @@ STORAGE_BUCKET = 'equitable-polling-analysis'
 CLOUD_STORAGE_ANALYSIS_NAME = paste0(ORIG_CONFIG_FOLDER, '_AND_', POTENTIAL_CONFIG_FOLDER)
 
 #constants for reading data
-READ_FROM_CSV = FALSE
-PRINT_SQL = TRUE
+READ_FROM_CSV = TRUE
+PRINT_SQL = FALSE
 
 #constants for database queries
 #only need to define if READ_FROM_CSV = TRUE
@@ -51,8 +51,9 @@ POLLING_CON <- define_connection()
 #######
 #refresh google cloud connection
 #######
-system("gcloud auth application-default login")
-
+if (!READ_FROM_CSV){
+    system("gcloud auth application-default login")
+}
 #######
 #Check that location and folders valid
 #Load configs and get driving flags
@@ -73,7 +74,7 @@ LOG_FLAG <- set_global_flag(config_dt_list, 'log_distance')
 #######
 #Read in data
 #Run this for each of the folders under consideration
-#Recall, output of form: list(ede_df, precinct_df, residence_df, result_df)
+#Recall, output of form: list(ede_df, precinct_df, residence_df, results_df)
 #######
 
 #names of the output data in these lists
@@ -102,7 +103,6 @@ result_folder = paste(LOCATION, 'results', sep = '_')
 
 #add location to residence data, aggregate to block level, merge with polling locations and split
 orig_list_prepped <- prepare_outputs_for_maps(orig_output_df_list$residence_distances, orig_output_df_list$result, orig_config_dt)
-
 potential_list_prepped <- prepare_outputs_for_maps(potential_output_df_list$residence_distances, potential_output_df_list$result, potential_config_dt)
 
 #get avg distance bounds for map coloring
