@@ -145,7 +145,7 @@ residence_distance_df_list <- Map(cbind.data.frame, residence_distance_df_list, 
 # }
 
 #residence_distance_df_simplified_list <- lapply(residence_distance_df_list, function(x)select_columns(x, 'num_polls', 15))
-data_to_combine <- residence_distance_df_list[grepl('year_2018', names(residence_distance_df_list))]
+data_to_combine <- residence_distance_df_list[grepl('year_2022', names(residence_distance_df_list))]
 combine_result_df <- as.data.table(do.call(rbind, data_to_combine))
 
 foo_hist <- ggplot(combine_result_df[demographic == 'population', ], aes(x = avg_dist, fill = name)) + 
