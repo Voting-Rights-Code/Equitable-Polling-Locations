@@ -1,6 +1,7 @@
 library(here)
 library(reticulate)
-use_condaenv('C:/Users/danie/MiniConda3/envs/Equitable-Polls', required = TRUE)
+#use_condaenv('C:/Users/danie/MiniConda3/envs/Equitable-Polls', required = TRUE)
+use_condaenv('C:/Users/ganga/anaconda3/envs/Equitable-Polls', required = TRUE)
 
 #######
 #Change directory
@@ -25,19 +26,22 @@ source_python('model_results.py')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'DeKalb_County_GA' #needed only for reading from csv and writing outputs
+LOCATION = 'Berkeley_County_SC' #needed only for reading from csv and writing outputs
 #list of config folders to compare.
 #MUST 
 # * be of the same locations
-CONFIG_FOLDER_LIST = c("DeKalb_County_GA_no_bg_school_configs_log", "DeKalb_County_GA_no_bg_school_configs")
+CONFIG_FOLDER_LIST = c('Berkeley_County_SC_original_configs_log', 'Berkeley_County_SC_original_configs')
+
+#'Greenville_County_SC_original_configs_log', 'Lexington_County_SC_original_configs_log','Richland_County_SC_original_configs_log', 'York_County_SC_original_configs_log')
 FIELDS_OF_INTEREST_LIST = c('', '') #must not leave empty if config set has only one element
+
 
 # This is where this analysis will be stored in the cloud
 STORAGE_BUCKET = 'equitable-polling-analysis'
 CLOUD_STORAGE_ANALYSIS_NAME = paste0(CONFIG_FOLDER_LIST, collapse = '_AND_')
 
 #constants for reading data
-READ_FROM_CSV = TRUE
+READ_FROM_CSV = FALSE
 PRINT_SQL = FALSE
 DRIVING_DISTANCES_FILE = paste0('datasets/driving/', LOCATION,'/', LOCATION, '_driving_distances.csv')
 
@@ -141,11 +145,12 @@ residence_distance_df_list <- Map(cbind.data.frame, residence_distance_df_list, 
 # }
 
 #residence_distance_df_simplified_list <- lapply(residence_distance_df_list, function(x)select_columns(x, 'num_polls', 15))
-data_to_combine <- residence_distance_df_list[grepl('precincts_open_30', names(residence_distance_df_list))]
+data_to_combine <- residence_distance_df_list[grepl('year_2018', names(residence_distance_df_list))]
 combine_result_df <- as.data.table(do.call(rbind, data_to_combine))
 
 foo_hist <- ggplot(combine_result_df[demographic == 'population', ], aes(x = avg_dist, fill = name)) + 
     geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)
+
 
 foo_hist_black <- ggplot(combine_result_df[demographic == 'black'], aes(x = avg_dist, fill = name)) + 
     geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)
