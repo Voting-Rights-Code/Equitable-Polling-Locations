@@ -138,16 +138,17 @@ ede_df_list <- Map(cbind.data.frame, ede_df_list, name = gsub('.results', '' , n
 #Make plots
 #######
 
-
-
+#select the descriptor you want plots for
 descriptor = 'year_2018'
+
+#histograms
 res_combined <- residence_distance_df_list[grepl(descriptor, names(residence_distance_df_list))]
 combine_res_df <- as.data.table(do.call(rbind, res_combined))
 
 compare_hist <- ggplot(combine_res_df[demographic == 'population', ], aes(x = avg_dist, fill = name)) + 
     geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)
 
-
+#ede plots
 ede_combined <- ede_df_list[grepl(descriptor, names(ede_df_list))]
 combine_ede_df <- as.data.table(do.call(rbind, ede_combined))
 y_EDE = ggplot(combine_ede_df, aes(x = name, y = y_EDE,
@@ -156,3 +157,9 @@ y_EDE = ggplot(combine_ede_df, aes(x = name, y = y_EDE,
 avg = ggplot(combine_ede_df, aes(x = name, y = avg_dist,
 		group = demographic, color = demographic))+ 
         geom_point(aes(x = factor(name)),size = 5, alpha = .5)
+
+prec_combined <- precinct_distance_df_list[grepl(descriptor, names(precinct_distance_df_list))]
+combine_prec_df <- as.data.table(do.call(rbind, prec_combined))
+distance_population <- ggplot(combine_prec_df[demographic == 'population'], aes(x = weighted_dist, y = demo_pop,
+		group = name,shape = name, color = name)) + 
+        geom_point(size = 5, alpha = .5)
