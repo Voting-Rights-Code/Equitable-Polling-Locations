@@ -7,7 +7,7 @@ Credentials are assumed to be setup by the user by using the glcloud cli.
     e.g. "gcloud auth application-default login"
 '''
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Dict, Optional, List
 from datetime import datetime
 import re
@@ -15,9 +15,10 @@ import re
 import pandas as pd
 
 import sqlalchemy
-from sqlalchemy import inspect
+from sqlalchemy import desc, func, inspect, select, text
 from sqlalchemy.orm import sessionmaker as SessionMaker
 
+from model_config import PollingModelConfig
 import sqlalchemy_main
 import models as Models
 from utils import generate_uuid
@@ -64,6 +65,108 @@ def find_model_config(config_id: str) -> Optional[Models.ModelConfig]:
     result = session.query(Models.ModelConfig).filter(Models.ModelConfig.id == config_id).first()
 
     return result
+
+def find_model_configs_by_config_set(config_set: str) -> List[Models.ModelConfig]:
+    ''' Returns all of the latest configs by a given config_set. '''
+    session = get_session()
+
+    subquery = select(
+        Models.ModelConfig,
+        func.
+            row_number().
+            over(
+                partition_by=[Models.ModelConfig.config_set, Models.ModelConfig.config_name],
+                order_by=desc(Models.ModelConfig.created_at)).
+            label('rn')
+    ).subquery()
+
+    query = select(subquery).where(
+        subquery.c.config_set == config_set,
+        subquery.c.rn == 1
+    ).order_by(subquery.c.config_set, subquery.c.config_name)
+
+    rows = session.execute(query).fetchall()
+
+    results: List[Models.ModelConfig] = []
+    for row in rows:
+        columns = row._asdict()
+        del columns['rn']
+        results.append(Models.ModelConfig(**columns))
+
+    return results
+
+def find_model_configs_by_config_set_and_config_name(config_set: str, config_name: str) -> Optional[Models.ModelConfig]:
+    ''' Returns the latest config by a given config_set and config_name. '''
+    session = get_session()
+
+    subquery = select(
+        Models.ModelConfig,
+        func.
+            row_number().
+            over(
+                partition_by=[Models.ModelConfig.config_set, Models.ModelConfig.config_name],
+                order_by=desc(Models.ModelConfig.created_at)).
+            label('rn')
+    ).subquery()
+
+    query = select(subquery).where(
+        subquery.c.config_set == config_set,
+        subquery.c.config_name == config_name,
+        subquery.c.rn == 1
+    )
+
+    row = session.execute(query).fetchone()
+    if not row:
+        return None
+
+    columns = row._asdict()
+    del columns['rn']
+    return Models.ModelConfig(**columns)
+
+
+def create_db_model_config(
+        config_source: PollingModelConfig,
+        config_set_override: str=None,
+        config_name_override: str=None,
+    ) -> Models.ModelConfig:
+    ''' Converts a PollingModelConfig config into a DB Models.ModelConfig '''
+
+
+    config_data = {
+        'config_set': config_set_override or config_source.config_set,
+        'config_name': config_name_override or config_source.config_name,
+    }
+
+    for column in Models.ModelConfig.__table__.columns:
+        column_name = column.name
+        if column_name in ['id', 'created_at']:
+            continue
+
+        value = getattr(config_source, column_name)
+        # print(f'{column_name} -> {value}')
+
+        config_data[column_name] = value
+
+    result = Models.ModelConfig(**config_data)
+
+    result.id = result.generate_id()
+
+    return result
+
+def create_polling_model_config(config: Models.ModelConfig) -> PollingModelConfig:
+        ''' Converts a SQLAlchemy config into the legacy PollingModelConfig dataclass '''
+
+        column_names = [column.name for column in config.__table__.columns]
+        column_names.sort()
+
+        model_config_dict = {
+            field.name: getattr(config, field.name) for field in fields(PollingModelConfig) if field.name in column_names
+        }
+
+        polling_model_config = PollingModelConfig(**model_config_dict)
+        polling_model_config.db_id = config.id
+
+        return polling_model_config
 
 def create_model_config(model_config: Models.ModelConfig) -> Models.ModelConfig:
     '''
@@ -261,6 +364,9 @@ def csv_to_bigquery(
         # Add any additional columns needed from the add_columns paramater
         for new_column, value in add_columns.items():
             df[new_column] = value
+
+        # Delete any unamed columns
+        df = df.loc[:, ~df.columns.str.startswith('Unnamed')]
 
         if log:
             print(f'--\nImporting into table `{table_name}` from {csv_path}')
