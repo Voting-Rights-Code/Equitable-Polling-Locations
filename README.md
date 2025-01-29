@@ -80,22 +80,23 @@ First activate the environment if not done so already:
 
 ```conda activate equitable-polls```
 
-* In the directory of the Equitable-Polling-Locations git repo:
-    * python ./model_run_cli.py -c NUM -l LOG_DIR ./path/to/config/file.yaml
+In the directory of the Equitable-Polling-Locations git repo:
+* There are two command line options, one to write data locally, and the other to write data to the database
+    * Read/write locally: python ./model_run_cli.py -c NUM -l LOG_DIR ./path/to/config/file.yaml
+    * Read/write from/to database: 
+        * python model_run_db_cli.py -c NUM -l LOG_DIR config_set/config_name1 config_set2/config_name
+        * python model_run_db_cli.py -c NUM -l LOG_DIR config_set
+    * Parameters
         * NUM = number of cores to use for simultaneous runs (recommend <=4 for most laptops)
         * LOG_DIR = Where to put log files. The directory must exist, or will not run
         * path to config file accepts wild cards to set of sequential runs
-        * For extra logging include the flag -vv
-        * **Examples**
-            * See ```python ./model_run_cli.py -h```
-            * To run all configs in a folder, parallel processing 4 at a time, write log files out to the logs
-    directory, and data to the database, run (note that `-o db` is optional as this is the default):
-    ```python ./model_run_cli.py -c4 -l logs -o db ./Gwinnett_County_GA_full_configs/*.yaml```
-            * To run all full configs run one at a time, extra logging printed to the console, and write log files out to the logs directory, and data to csv:
-                ```python ./model_run_cli.py -vv -l logs -o csv ./Gwinnett_County_GA_full_configs/*.yaml```
-            * To run only the a single file and write log files out to the logs directory:
-        ```python ./model_run_cli.py -l logs ./Gwinnett_County_GA_full_configs/Gwinnett_config_full_11.yaml```
-        * NOTE: BEWARE OF CAPITALIZATION. Both ./Gwinnett_County_GA_configs/Gwinnett* and ./Gwinnett_Ga_configs/Gwinnett* (note capitalization) will run on Windows. However, due to string replacement work in other parts of the programs, the former is preferred.
+        * config_set and config_name refer to the fields in the config data.
+            * To run all the config_names associated to a config_set, just enter the config_set
+    * For extra logging include the flag -vv
+        
+* **Examples**
+    * See ```python ./model_run_cli.py -h``` and ```python ./model_run_db_cli.py -h```
+* NOTE: BEWARE OF CAPITALIZATION. Both ./Gwinnett_County_GA_configs/Gwinnett* and ./Gwinnett_Ga_configs/Gwinnett* (note capitalization) will run on Windows. However, due to string replacement work in other parts of the programs, the former is preferred.
 
 
 # Database
@@ -229,13 +230,13 @@ If these variables are not set then you will be prompted to chooose which projec
 Setting Project and dataset for Linux/MacOS
 ```bash
 export DB_PROJECT=equitable-polling-locations
-export DB_DATASET=equitable_polling_locations_production
+export DB_DATASET=equitable_polling_locations_prod
 ```
 
 Setting Project and dataset for Windows
 ```bash
 set DB_PROJECT=equitable-polling-locations
-set DB_DATASET=equitable_polling_locations_production
+set DB_DATASET=equitable_polling_locations_prod
 ```
 
 
