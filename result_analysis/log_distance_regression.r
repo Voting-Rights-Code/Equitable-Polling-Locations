@@ -95,8 +95,17 @@ run_distance_model <- function(regression_data){
     # #fwrite(distance_model, paste0(COUNTY, '_distance_model.csv'))
 }
 
-foo <- lapply(regression_data, function(x)run_distance_model(x))
+foo <- lapply(regression_data, function(x) run_distance_model(x))
 
 # change_model<- regression_data[, as.list(coef(lm(pct_extra_in_2022 ~ pop_density_km  + pct_black + pop_density_km*pct_black),  weights = population )), by = descriptor]
 # setnames(change_model, c('(Intercept)', 'pop_density_km', 'pct_black','pop_density_km:pct_black'), c('intercept', 'density_coef', 'pct_black_coef', 'density_black_interaction_coef'))
 # #fwrite(change_model, paste0(COUNTY, '_pct_change_model.csv'))
+
+# #run regeression by descriptor and store coefs in a data frame
+run_naive_distance_model <- function(regression_data){
+    distance_model <- regression_data[, as.list(coef(lm(distance_m ~ pop_density_km),  weights = population )), by = descriptor]
+    setnames(distance_model, c('(Intercept)', 'pop_density_km'), c('intercept', 'density_coef'))
+    # #fwrite(distance_model, paste0(COUNTY, '_distance_model.csv'))
+}
+
+bar <- lapply(regression_data, function(x) run_naive_distance_model(x))
