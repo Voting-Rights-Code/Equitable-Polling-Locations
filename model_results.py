@@ -9,6 +9,8 @@ import math
 import os
 import threading
 
+from typing import Union
+
 import numpy as np
 import pandas as pd
 
@@ -43,7 +45,7 @@ def incorporate_result(dist_df, model):
     if any(result_df['matching'].isnull()):
         raise ValueError('The model has some unmatched precincts')
     result_df = result_df.loc[result_df['matching'] ==1]
-    
+
     return result_df
 
 @timer
@@ -176,19 +178,33 @@ def write_results_bigquery(
 ):
     '''Write result, demographic_prec, demographic_res and demographic_ede to BigQuery SQL tables'''
 
+    # TODO clean this up once PollingModelConfig is eventually removed and remplaced with
+    # the SQLAlchmey model
+
     # Setup a thread lock so that only one write to bigquery happens at a time.
     # This is to prevent problems with tqdm being used in model_run_cli.py
     with lock:
-        (model_config, _) = db_import_cli.import_model_config(source_config)
-        model_config = db.find_or_create_model_config(model_config)
+        if source_config.db_id:
+            # If we already have a database id then assume that the source_config
+            # is already written to the database and just use the existing ID
+            model_config_id = source_config.db_id
+            config_set = source_config.config_set
+            config_name = source_config.config_name
+        else:
+            # With no id, create a new database instance of the source_config
+            print(f'source_config.config_file_path: {source_config.config_file_path}')
+            model_config = db.create_db_model_config(source_config)
+            model_config = db.find_or_create_model_config(model_config)
+
+            model_config_id = model_config.id
+            config_set = model_config.config_set
+            config_name = model_config.config_name
+
         if log:
-            print(f'Importing result from {model_config}')
+            print(f'Importing result from {source_config}')
 
-        # TODO Add user and commit hash
-        model_run = db.create_model_run(model_config.id, '', '', current_time_utc())
-
-        config_set = model_config.config_set
-        config_name = model_config.config_name
+        # TODO Add user and commit hashs
+        model_run = db.create_model_run(model_config_id, '', '', current_time_utc())
 
         # Import each DF for this run
         edes_import_result = db_import_cli.import_edes(
@@ -224,6 +240,9 @@ def write_results_bigquery(
 
         if success and log:
             print(f'\nResults for config set {config_set}, config {config_name} successfuly written to db.')
+
+        if not success:
+            print(f'\nERROR: results for config set {config_set}, config {config_name} failed to write to db.')
 
 
 def _compute_kp_alpha(df):

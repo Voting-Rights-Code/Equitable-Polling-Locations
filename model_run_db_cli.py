@@ -4,7 +4,11 @@
 #@author: Voting Rights Code
 #######################################
 
-''' Command line util to run models '''
+'''
+Command line util to run models from the db.  This differs from model_run_cli.py in that all config
+files will be read from the db instead of from yaml files on disk, and all results will be written to
+the db.
+'''
 
 import argparse
 import datetime
@@ -14,56 +18,86 @@ import os
 import sys
 from typing import List
 
+
+
 from tqdm import tqdm
 
+import db
 from model_config import PollingModelConfig
 import model_run
+from models.model_config import ModelConfig
 import utils
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 
-def load_configs(config_paths: List[str], logdir: str) -> tuple[bool, List[PollingModelConfig]]:
-    ''' Look through the list of files and confim they exist on disk, print any missing files or errors. '''
-    valid = True
+def load_configs(config_args: List[str], logdir: str) -> List[PollingModelConfig]:
+    ''' Loads configs from the db '''
+    # valid = True
+    results: List[PollingModelConfig] = []
+
+    # log_date_prefix = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+
     results: List[PollingModelConfig] = []
 
     log_date_prefix = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
 
-    for config_path in config_paths:
-        if not os.path.isfile(config_path):
-            print(f'Invalid path {config_path}')
-            valid = False
+    for config_arg in config_args:
+        configs: List[ModelConfig] = None
+
+        config_arg_parts = config_arg.split('/')
+        num_config_arg_parts = len(config_arg_parts)
+
+        config_set = config_arg_parts[0]
+        if num_config_arg_parts == 1:
+            # Find all the latest configs by a config_set
+            configs = db.find_model_configs_by_config_set(config_set)
+            if not configs:
+                print(f'Invalid config: {config_arg}')
+                sys.exit(1)
+        elif num_config_arg_parts == 2:
+            # Find a single config by config_set and config_name that is the latest
+            config_name = config_arg_parts[1]
+
+            config = db.find_model_configs_by_config_set_and_config_name(config_set, config_name)
+            if config:
+                configs = [ config ]
+            else:
+                print(f'Invalid config: {config_arg}')
+                sys.exit(1)
         else:
-            try:
-                config = PollingModelConfig.load_config(config_path)
-                if logdir:
-                    config_file_basename = os.path.basename(config.config_file_path)
-                    log_file_name = f'{log_date_prefix}_{config_file_basename}.log'
-                    config.log_file_path = os.path.join(
-                       logdir,
-                       log_file_name,
-                    )
-                results.append(config)
+            print(f'Invalid config: {config_arg}')
+            sys.exit(1)
 
-            # pylint: disable-next=broad-exception-caught
-            except Exception as exception:
-                print(f'Failed to parse {config_path} due to:\n{exception}')
-                valid = False
+        for config in configs:
+            # Convert the db config into a legacy polling model config object
+            polling_model_config = db.create_polling_model_config(config)
 
-    return (valid, results)
+            if logdir:
+                # Setup logs as needed
+                # pylint: disable-next=line-too-long
+                log_file_name = f'{log_date_prefix}_db_run_{polling_model_config.db_id}_{polling_model_config.config_set}_{polling_model_config.config_name}.log'
+                polling_model_config.log_file_path = os.path.join(
+                    logdir,
+                    log_file_name,
+                )
 
-def run_config(config: PollingModelConfig, log: bool=False, outtype: str='db', verbose=False):
+            results.append(polling_model_config)
+
+            print(f'Config: {config.id} {config.config_set}/{config.config_name}')
+
+    return results
+
+
+def run_config(config: PollingModelConfig, log: bool=False, verbose=False):
     ''' run a config file '''
 
-    if verbose and outtype == model_run.OUT_TYPE_DB:
-        # pylint: disable-next=line-too-long
-        print(f'Starting config: {config.config_file_path} -> BigQuery {outtype} output with config set {config.config_set} and name {config.config_name}')
-    elif verbose and outtype == model_run.OUT_TYPE_CSV:
-        print(f'Starting config: {config.config_file_path} -> CSV output to directory {config.result_folder}')
+    config_info = f'{config.db_id} {config.config_set}/{config.config_name}'
+    # pylint: disable-next=line-too-long
+    print(f'Starting config: {config_info}')
 
-    model_run.run_on_config(config, log, outtype)
+    model_run.run_on_config(config, log, 'db')
     if verbose:
-        print(f'Finished config: {config.config_file_path}')
+        print(f'Finished config: {config_info}')
 
 
 def main(args: argparse.Namespace):
@@ -83,14 +117,9 @@ def main(args: argparse.Namespace):
         else:
             print(f'Writing logs to dir: {logdir}')
 
-    # Handle wildcards in Windows properly
-    glob_paths = [ glob(item) for item in args.configs ]
-    config_paths: List[str] = [ item for sublist in glob_paths for item in sublist ]
 
     # Check that all files are valid, exist if they do not exist
-    valid, configs = load_configs(config_paths, logdir)
-    if not valid:
-        sys.exit(1)
+    configs = load_configs(args.configs, logdir)
 
     total_files: int = len(configs)
 
@@ -120,22 +149,22 @@ if __name__ == '__main__':
         description='A commandline tool that chooses an optimal set of polling locations from a set of potential locations.',
         epilog='''
 Examples:
-    To run all configs in a given folder, parallel processing 4 at a time, and write log files out to the logs
+    To run all configs in the db from the config_set York_County_SC_original_configs_log, parallel processing 4 at a time, and write log files out to the logs
     directory:
 
-        python ./model_run_cli.py -c4 -l logs ./Gwinnett_County_GA_no_bg_school_fire_configs/*.yaml
+        python ./model_run_db_cli.py -c4 -l logs York_County_SC_original_configs_log
 
     To run all configs run one at a time, extra logging printed to the console,
     and write log files out to the logs directory:
 
-        python ./model_run_cli.py -vv -l logs ./Gwinnett_County_GA_no_bg_school_fire_configs/*.yaml
+        python ./model_run_cli.py -vv -l logs York_County_SC_original_configs_log
 
-    To run only the Gwinnett_config_no_bg_11 config and write log files out to the logs directory:
+    To run only the config York_County_SC_year_2016 under the config set York_County_SC_original_configs_log:
 
-        python ./model_run_cli.py -l logs ./Gwinnett_County_GA_no_bg_school_fire_configs/Gwinnett_config_no_bg_11.yaml
+        python ./model_run_cli.py -l logs York_County_SC_original_configs_log/York_County_SC_year_2016
         '''
     )
-    parser.add_argument('configs', nargs='+', help='One or more yaml configuration files to run.')
+    parser.add_argument('configs', nargs='+', help='One or more config sets and optionally config names. e.g. York_County_SC_original_configs_log/York_County_SC_year_2016')
     parser.add_argument(
         '-c',
         '--concurrent',

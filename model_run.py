@@ -36,8 +36,12 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
     The entry point to exectute a pyomo/scip run.
     '''
 
-    config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
-    run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
+    config_file_path = config.config_file_path
+    if config_file_path:
+        config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
+        run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
+    else:
+        run_prefix = f'{config.config_set}/{config.config_name}'
 
     source_file_name = config.location + '.csv'
     source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
@@ -48,7 +52,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
 
     #get main data frame
     dist_df = clean_data(config, False)
-    
+
     #get alpha
     alpha_df = clean_data(config, True, log)
     alpha  = alpha_min(alpha_df)
@@ -81,7 +85,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
 
     if outtype == OUT_TYPE_DB:
         write_results_bigquery(
-             config.config_file_path,
+             config,
              result_df,
              demographic_prec,
              demographic_res,

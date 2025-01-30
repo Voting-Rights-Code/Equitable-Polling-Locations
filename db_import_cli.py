@@ -74,31 +74,13 @@ def import_model_config(
 
     '''
     config_source = PollingModelConfig.load_config(path)
+    print('config source', config_source)
 
     paths = output_file_paths(config_source)
 
-    config_data = {
-        'config_set': config_set_override or config_source.config_set,
-        'config_name': config_name_override or config_source.config_name,
-    }
+    db_model_config = db.create_db_model_config(config_source, config_set_override, config_name_override)
 
-    for column in Models.ModelConfig.__table__.columns:
-        column_name = column.name
-        if column_name in ['id', 'created_at']:
-            continue
-
-        value = getattr(config_source, column_name)
-        # print(f'{column_name} -> {value}')
-
-        config_data[column_name] = value
-
-    result = Models.ModelConfig(**config_data)
-
-    result.id = result.generate_id()
-
-    return (result, paths)
-
-
+    return (db_model_config, paths)
 
 def import_edes(
         config_set: str,
