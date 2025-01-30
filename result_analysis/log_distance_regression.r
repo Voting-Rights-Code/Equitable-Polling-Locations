@@ -52,9 +52,9 @@ POLLING_CON <- define_connection()
 #######
 #refresh google cloud connection
 #######
-if (!READ_FROM_CSV){
-    system("gcloud auth application-default login")
-}
+#if (!READ_FROM_CSV){
+#    system("gcloud auth application-default login")
+#}
 
 #######
 #Check that location and folders valid
@@ -83,7 +83,6 @@ names(output_df_list) <- CONFIG_FOLDER
 #get data to run regression
 
 regression_data <- mapply(function(location, output){get_regression_data(location, output[[4]])}, LOCATION, output_df_list, SIMPLIFY = FALSE)
-browser()
 ##descriptor_list <- unique(regression_data$descriptor)
 #reference <- descriptor_list[grepl(REFERENCE_TAG, descriptor_list)]
 ##regression_data <- calculate_pct_change(regression_data, reference)
@@ -94,8 +93,7 @@ run_distance_model <- function(regression_data){
     setnames(distance_model, c('(Intercept)', 'pop_density_km', 'pct_black','pop_density_km:pct_black'), c('intercept', 'density_coef', 'pct_black_coef', 'density_black_interaction_coef'))
     # #fwrite(distance_model, paste0(COUNTY, '_distance_model.csv'))
 }
-
-foo <- lapply(regression_data, function(x) run_distance_model(x))
+distance_model_list <- lapply(regression_data, function(x) run_distance_model(x))
 
 # change_model<- regression_data[, as.list(coef(lm(pct_extra_in_2022 ~ pop_density_km  + pct_black + pop_density_km*pct_black),  weights = population )), by = descriptor]
 # setnames(change_model, c('(Intercept)', 'pop_density_km', 'pct_black','pop_density_km:pct_black'), c('intercept', 'density_coef', 'pct_black_coef', 'density_black_interaction_coef'))
@@ -108,4 +106,6 @@ run_naive_distance_model <- function(regression_data){
     # #fwrite(distance_model, paste0(COUNTY, '_distance_model.csv'))
 }
 
-bar <- lapply(regression_data, function(x) run_naive_distance_model(x))
+naive_distance_list <- lapply(regression_data, function(x) run_naive_distance_model(x))
+
+regression_data_naive_dist <- mapply(function(regression, naive) merge(regression, naive, by = c('descriptor') ), regression_data, naive_distance_list, SIMPLIFY = FALSE)
