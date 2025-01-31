@@ -71,7 +71,8 @@ A FEW THINGS TO NOTE:
 1. Create and activate conda environment. (Note, on a Windows machine, this requires using Anaconda Prompt.)
     1. `$ conda env create -f environment.yml`
     1. `$ conda activate equitable-polls`
-
+1. If updating the conda environment:
+    1. `conda env update -f environment.yml --prune`
 
 # To run
 From command line:
@@ -115,8 +116,8 @@ There are six files needed to run this program. The current Repo contains these 
 ### **Census Data (demographics and shapefiles)**:
 The sofware requires a free census API key to run new counties. You can [apply on the cenus site](https://api.census.gov/data/key_signup.html) and be approved in seconds. 
 
-    1. Create the directory authentication_documents/ 
-    2. Inside authentication_documents/ create a file called census_key.py
+    1. Create the directory authentication_files/ 
+    2. Inside authentication_files/ create a file called census_key.py
     3. The file should have a single line reading: census_key = "YOUR_KEY_VALUE"
 
 If you are only running counties already in the repo you can use the empty string for your key (census_key = "") but the censu_key.py file must still exist locally.

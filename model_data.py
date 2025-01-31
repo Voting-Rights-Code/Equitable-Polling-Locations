@@ -14,6 +14,7 @@ import geopandas as gpd
 from model_config import PollingModelConfig
 from authentication_files.census_key import census_key
 from pull_census_data import pull_census_data
+from common.distance import IsochroneDistanceGenerator, DirectDistanceGenerator, DATA_SOURCES
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
@@ -24,7 +25,7 @@ DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 #build distance data set from census data and potential pollig location data.
 #using driving distances if driving = True
 
-def build_source(location):
+def build_source(location, other_args):
     ######
     #Check that necessary files exist
     ######
@@ -192,9 +193,33 @@ def build_source(location):
     #####
     # Cross join polling locations and demographics tables and calculate distances
     #####
-    full_df = demographics_block.merge(all_locations, how= 'cross')
+    state_name = location.split("_")[1]
+    county_name = location.split("_")[0]
 
-    full_df['distance_m'] = full_df.apply(lambda row: haversine((row.INTPTLAT20, row.INTPTLON20), (row.Latitude, row.Longitude)), axis=1)*1000
+    if other_args.data_source in DATA_SOURCES["isochrone"]:
+        distance_gen = IsochroneDistanceGenerator(
+            state_name=state_name,
+            county_name=county_name,
+            origins=demographics_block,
+            destinations=all_locations,
+            other_args=other_args,
+            # TODO: add more default parameters to config
+            snap_origin=True,
+            use_minimum_time=True,
+            N_distance_minimum=4,
+        )
+    else:
+        distance_gen = DirectDistanceGenerator(
+            state_name=state_name,
+            county_name=county_name,
+            data_source=other_args.data_source,
+            origins=demographics_block,
+            destinations=all_locations,
+            other_args=other_args,
+        )
+
+    full_df = distance_gen.calc()
+
 
 
     #####
@@ -360,7 +385,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
         df = insert_driving_distances(df, DRIVING_DISTANCES_FILE, log)
 
     #create other useful columns
-    df['Weighted_dist'] = df['population'] * df['distance_m']
+    df['weighted_dist'] = df['population'] * df['distance_m']
     return(df)
 
 ##########################
