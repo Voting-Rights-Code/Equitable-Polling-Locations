@@ -31,7 +31,7 @@ The output from the optimization model runs can be found in the BigQuery dataset
   * A single model_configs record can have many associated model_runs records.
   * Each model_runs record belongs to exactly one model_configs record.
 
-### ModelRuns and Related Tables
+### model_runs and Related Tables
 * One-to-Many Relationships:
   *  A single model_runs record can have many associated records in the following tables:
     *  results
