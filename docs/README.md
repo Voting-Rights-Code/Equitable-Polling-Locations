@@ -1,6 +1,6 @@
 ___
 
-<center><img src =../assets/images/EPL_LOGO_w_NAME_nobackground.svg alt=logo> </center>
+<center><img src =docs\README_Image.jpg alt=logo> </center>
 
 ___
 
