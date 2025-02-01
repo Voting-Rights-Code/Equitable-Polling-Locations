@@ -6,14 +6,16 @@
 #######################################
 
 import pandas as pd
+import numpy as np
 import math
 import os
 from pathlib import Path
 from haversine import haversine
 import geopandas as gpd
 from model_config import PollingModelConfig
-from authentication_files.census_key import census_key
 from pull_census_data import pull_census_data
+
+
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
@@ -46,21 +48,21 @@ def build_source(location):
     if not os.path.exists(demographics_dir):
         statecode = location[-2:]
         locality = location[:-3].replace('_',' ')
-        pull_census_data(statecode,locality,census_key)
+        pull_census_data(statecode, locality)
     if os.path.exists(P3_SOURCE_FILE):
         p3_df = pd.read_csv(P3_SOURCE_FILE,
             header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
             low_memory=False, # files are too big, set this to False to prevent errors
             )
     else:
-        raise ValueError(f'Census data from table P3 not found. Reinstall using api or manually following download instruction from README.')
+        raise ValueError(f'Census data from table P3 not found. Download using api or manually following download instruction from README.')
     if os.path.exists(P4_SOURCE_FILE):
         p4_df = pd.read_csv(P4_SOURCE_FILE,
             header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
             low_memory=False, # files are too big, set this to False to prevent errors
             )
     else:
-        raise ValueError(f'Census data from table P4 not found. Reinstall using api or manually following download instruction from README.')
+        raise ValueError(f'Census data from table P4 not found. Download using api or manually following download instruction from README.')
     
     #3. Census geographic data
     geography_dir = os.path.join(DATASETS_DIR, 'census', 'tiger', location)
@@ -111,7 +113,7 @@ def build_source(location):
     'NAME',
     'P4_001N', # Total population
     'P4_002N', # Total hispanic
-    'P4_003N', # Total non-hispanic
+    'P4_003N', # Total non_hispanic
     ]
 
     BLOCK_SHAPE_COLS = [
@@ -148,7 +150,7 @@ def build_source(location):
 
     #Change column names
     demographics.drop(['P4_001N', 'Pop_diff'], axis =1, inplace = True)
-    demographics = demographics.rename(columns = {'P4_002N': 'hispanic', 'P4_003N':'non-hispanic', 'P3_001N':'population', 'P3_003N':'white', 'P3_004N':'black', 'P3_005N':'native', 'P3_006N':'asian', 'P3_007N':'pacific_islander', 'P3_008N':'other', 'P3_009N':'multiple_races'})
+    demographics = demographics.rename(columns = {'P4_002N': 'hispanic', 'P4_003N':'non_hispanic', 'P3_001N':'population', 'P3_003N':'white', 'P3_004N':'black', 'P3_005N':'native', 'P3_006N':'asian', 'P3_007N':'pacific_islander', 'P3_008N':'other', 'P3_009N':'multiple_races'})
 
     #drop geo_id_prefix
     demographics['GEO_ID'] = demographics['GEO_ID'].str.replace(GEO_ID_PREFIX, '')
@@ -201,13 +203,11 @@ def build_source(location):
     #Rename, select columns and write to file
     #####
     full_df = full_df.rename(columns = {'GEO_ID': 'id_orig', 'Address': 'address', 'Latitude':'dest_lat', 'Longitude':'dest_lon', 'INTPTLAT20':'orig_lat', 'INTPTLON20':'orig_lon', 'Location type': 'location_type', 'Location': 'id_dest'})
-    full_df['county'] = location
-
+    
     FULL_DF_COLS = [
     'id_orig',
     'id_dest',
     'distance_m',
-    'county',
     'address',
     'dest_lat',
     'dest_lon',
@@ -217,7 +217,7 @@ def build_source(location):
     'dest_type',
     'population',
     'hispanic',
-    'non-hispanic',
+    'non_hispanic',
     'white',
     'black',
     'native',
@@ -228,6 +228,7 @@ def build_source(location):
     ]
 
     full_df = full_df[FULL_DF_COLS]
+    full_df['source'] = 'haversine distance'
     
     output_file_name = location + '.csv'
     output_path = os.path.join(DATASETS_DIR, 'polling', location, output_file_name)
@@ -260,15 +261,14 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str, 
         print(f'inserting driving distances {driving_distance_file_path}')
     if os.path.exists(driving_distance_file_path):
         driving_distance = pd.read_csv(driving_distance_file_path)
+        driving_distance['id_orig'] = driving_distance.id_orig.astype(str)
     else:
         raise ValueError(f'Driving Distance File ({driving_distance_file_path}) not found.')
     if {'id_orig', 'id_dest', 'distance_m'} - set(driving_distance.columns):
         raise ValueError(f'Driving Distance File ({driving_distance_file_path}) '
                          'must contain id_orig, id_dest, and distance_m columns')
 
-    if 'distance_m' in df.columns:
-        df = df.rename(columns={'distance_m':'haversine_m'})
-
+    df = df.drop(columns= ['source', 'distance_m'])
     combined_df = pd.merge(df, driving_distance, on=['id_orig', 'id_dest'], how='left')
 
     # raise error if there are any missing distances
@@ -302,6 +302,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
     location = config.location
     year_list = config.year
     driving = config.driving
+    log_distance = config.log_distance
     
     #read in data
     data_dir = os.path.join(DATASETS_DIR, 'polling', location)
@@ -310,8 +311,8 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
 
     if not os.path.isfile(file_path):
         raise ValueError(f'Do not currently have any data for {file_path} from {config.config_file_path}')
-
     df = pd.read_csv(file_path, index_col=0)
+    df= df.astype({'id_orig':'str'})
 
     #pull out unique location types is this data
     unique_location_types = df['location_type'].unique()
@@ -330,7 +331,6 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
     df = df[df['population']>0]
 
     #exclude bad location types
-    
     # The bad types must be valid location types
     if not set(bad_location_list).issubset(set(unique_location_types)):
         raise ValueError(f'unrecognized bad location types types {set(bad_location_list).difference(set(unique_location_types))} in {config.config_file_path}' )
@@ -340,12 +340,9 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
     #select data based on year
     #select the polling locations only for the indicated years
     #keep all other locations
-    not_polling = df[(df.dest_type != 'polling')]
-    polling_year_list =  [df[df.location_type.str.contains(str(year))] for year in year_list]
-    polling_year_list.append(not_polling)
-    df = pd.concat(polling_year_list)
-    #the concatenation will create duplicates if a polling location is used multiple years
-    #drop these
+    df['dest_type'].mask(df['dest_type'] != 'bg_centroid', 'potential', inplace = True)
+    df['dest_type'].mask(df['location_type'].str.contains('|'.join(year_list)), 'polling', inplace = True)
+    #check that this hasn't created duplicates (should not have); drop these
     df = df.drop_duplicates()
     
     #check that population is unique by id_orig
@@ -358,6 +355,13 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
         driving_file_name = location + '_driving_distances.csv'
         DRIVING_DISTANCES_FILE = os.path.join(DATASETS_DIR, 'driving', location, driving_file_name)
         df = insert_driving_distances(df, DRIVING_DISTANCES_FILE, log)
+    #if log distance, modify the source and distance columns 
+    if log_distance:
+        df['source'] = 'log ' + df['source']
+        
+        #TODO: why are there 0 distances showing up?
+        df['distance_m'].mask(df['distance_m'] == 0.0, 0.001, inplace=True)
+        df['distance_m'] = np.log(df['distance_m'])
 
     #create other useful columns
     df['Weighted_dist'] = df['population'] * df['distance_m']
@@ -368,7 +372,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
 ##########################
 
 #determines the maximum of the minimum distances
-def get_max_min_dist(dist_df):
+def get_max_min_dist(dist_df): 
     min_dist = dist_df[['id_orig', 'distance_m']].groupby('id_orig').agg('min')
     max_min_dist = min_dist.distance_m.max()
     max_min_dist = math.ceil(max_min_dist)

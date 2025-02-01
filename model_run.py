@@ -5,7 +5,7 @@
 #######################################
 '''
 This file sets up a pyomo/scip run based on a config file, e.g.
-Gwinnett_GA_configs/Gwinnett_config_full_11.py
+Gwinnett_County_GA_configs/Gwinnett_config_full_11.py
 '''
 
 import os
@@ -20,31 +20,40 @@ from model_results import (
     incorporate_result,
     demographic_domain_summary,
     demographic_summary,
-    write_results
+    write_results_csv,
+    write_results_bigquery,
 )
 from model_penalties import incorporate_penalties
+
+OUT_TYPE_DB = 'db'
+OUT_TYPE_CSV = 'csv'
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
-def run_on_config(config: PollingModelConfig, log: bool=False):
+def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OUT_TYPE_DB):
     '''
-    The entry point to exectue a pyomo/scip run.
+    The entry point to exectute a pyomo/scip run.
     '''
 
-    config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
-    run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
-    
+    config_file_path = config.config_file_path
+    if config_file_path:
+        config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
+        run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
+    else:
+        run_prefix = f'{config.config_set}/{config.config_name}'
+
     source_file_name = config.location + '.csv'
     source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
     if not os.path.exists(source_path):
         warnings.warn(f'File {source_path} not found. Creating it.')
         build_source(config.location)
 
+
     #get main data frame
     dist_df = clean_data(config, False)
 
-    #get alpha 
+    #get alpha
     alpha_df = clean_data(config, True, log)
     alpha  = alpha_min(alpha_df)
 
@@ -74,19 +83,27 @@ def run_on_config(config: PollingModelConfig, log: bool=False):
     #calculate the average distances (and y_ede if beta !=0) traveled by each demographic
     demographic_ede = demographic_summary(demographic_res, result_df, config.beta, alpha_new)
 
-    result_folder = config.result_folder
-
-    write_results(
-        result_folder,
-        run_prefix,
-        result_df,
-        demographic_prec,
-        demographic_res,
-        demographic_ede,
-    )
-
-    return result_folder
-
-
-
-
+    if outtype == OUT_TYPE_DB:
+        write_results_bigquery(
+             config,
+             result_df,
+             demographic_prec,
+             demographic_res,
+             demographic_ede,
+             log=log,
+        )
+    elif outtype == OUT_TYPE_CSV:
+        if hasattr(config, 'result_folder'):
+            out_location = config.result_folder
+        else:
+            out_location = config.config_set
+        write_results_csv(
+            out_location,
+            run_prefix,
+            result_df,
+            demographic_prec,
+            demographic_res,
+            demographic_ede,
+         )
+    else:
+        raise ValueError(f'Unknown out type {outtype}')

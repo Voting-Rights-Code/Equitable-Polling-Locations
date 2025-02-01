@@ -7,11 +7,22 @@
 ''' Utils for configuring models '''
 from typing import List
 from dataclasses import dataclass, field
+
 import yaml
+import os
+import datetime as dt
+
+
+MODEL_CONFIG_ARRAY_NAMES = ['year', 'bad_types', 'penalized_sites']
+''' These PollingModelConfig variables are expected to be arrays, not None '''
 
 @dataclass
 class PollingModelConfig:
-    ''' A simple config class to run models '''
+    '''
+    A simple config class to run models
+
+    Deprecation Note: This class is being replaced by the SqlAlchemy model version ModelConfig
+    '''
 
     location: str
     '''Name of the county or city of interest'''
@@ -45,24 +56,48 @@ class PollingModelConfig:
     '''A multiplicative factor for calculating the capacity constraint. Should be >= 1.
     Default = 1.
     Note, if this is not paired with fixed_capacity_site_number, then the capacity changes as a function of number of precincts.'''
-    fixed_capacity_site_number: int = None
-    '''If default number of open precincts if one wants to hold the number
-    of people that can go to a location constant (as opposed to a function of the number of locations) '''
-    result_folder: str = None
-    ''' The location to write out results '''
-
-    config_file_path: str = None
-    ''' The path to the file that defines this config.  '''
-
-    log_file_path: str = None
-    ''' If specified, the location of the file to write logs to '''
 
     driving: bool = False
     ''' Driving distances used if True and distance file exists in correct location '''
-    
+
+    log_distance: bool = False
+    ''' Log of the distance (driving or haversine) computed and used in optimization if True '''
+
+    fixed_capacity_site_number: int = None
+    '''If default number of open precincts if one wants to hold the number
+    #of people that can go to a location constant (as opposed to a function of the number of locations) '''
+
+    config_name: str = None
+    '''Unique name of config. Will fall back to name of file if none is supplied'''
+    config_set: str = None
+    '''Set of related configs that this config belongs to'''
+
+    fixed_capacity_site_number: int = None
+    '''If default number of open precincts if one wants to hold the number
+    of people that can go to a location constant (as opposed to a function of the number of locations) '''
+
+    driving: bool = False
+    ''' Driving distances used if True and distance file exists in correct location '''
+
+    commit_hash: str = None
+    '''NOT CURRENTLY IN USE. Git commit under which this code was run'''
+    run_time: dt.datetime = None
+    '''NOT CURRENTLY IN USE. Time at which model run was initiated'''
+
+    result_folder: str = None
+    ''' The location to write out results '''
+    config_file_path: str = None
+    ''' The path to the file that defines this config.  '''
+    log_file_path: str = None
+    ''' If specified, the location of the file to write logs to '''
+
+    db_id: str = None
+    ''' Id if this PollingModelConfig initially came from the db '''
+
     def __post_init__(self):
         if not self.result_folder:
             self.result_folder = f'{self.location}_results'
+        self.varnames = list(vars(self).keys()) # Not sure if this will work, let's see
 
     @staticmethod
     def load_config(config_yaml_path: str) -> 'PollingModelConfig':
@@ -71,7 +106,31 @@ class PollingModelConfig:
         with open(config_yaml_path, 'r', encoding='utf-8') as yaml_file:
             # use safe_load instead load
             config = yaml.safe_load(yaml_file)
-            result = PollingModelConfig(**config)
-            result.config_file_path = config_yaml_path
-            return result
 
+            print(f'Config: {config_yaml_path}')
+            # print(json.dumps(config, indent=4))
+            filtered_args = {}
+            for key, value in config.items():
+                #check that the keys are all in cananonical or experimental arguments.
+                #this logic allows for missing fields, just not fields outside of those predefined.
+                filtered_args[key] = value
+            result = PollingModelConfig(**filtered_args)
+
+            # Ensure that any None values found in arrays are set as an empty array instead
+            for array_value_name in MODEL_CONFIG_ARRAY_NAMES:
+                value = getattr(result, array_value_name)
+                if value is None:
+                    setattr(result, array_value_name, [])
+
+            # print('Result:')
+            # print(result)
+
+            result.config_file_path = config_yaml_path
+            if not result.config_name:
+                result.config_name = os.path.splitext(os.path.basename(config_yaml_path))[0]
+                #print(f'Config name not specified, so taking from config YAML filepath {result.config_name}; this is not recommended')
+            if not result.config_set:
+                result.config_set = os.path.basename(os.path.dirname(config_yaml_path))
+                #print(f'Config set not specified, so taking from config YAML filepath {result.config_set}; this is not recommended')
+
+            return result

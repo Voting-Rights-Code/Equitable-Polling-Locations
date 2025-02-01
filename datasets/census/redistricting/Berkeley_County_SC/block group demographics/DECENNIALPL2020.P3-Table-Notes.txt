@@ -1,0 +1,22 @@
+=============================================================================================================
+TABLE INFO
+=============================================================================================================
+
+ID: DECENNIALPL2020.P3
+Title: RACE FOR THE POPULATION 18 YEARS AND OVER
+
+=============================================================================================================
+Notes
+=============================================================================================================
+
+For information on the statistical methods used to protect confidentiality in these tables, see <a href=\"https://www.census.gov/programs-surveys/decennial-census/decade/2020/planning-management/process/disclosure-avoidance.html\">Disclosure Avoidance and the 2020 Census<\/a>.<br/><br/>
+
+-------------------------------------------------------------------------------------------------------------
+
+Note: For information on data collection, confidentiality protection, nonsampling error, and definitions, see <a href=\"https://www2.census.gov/programs-surveys/decennial/2020/technical-documentation/complete-tech-docs/summary-file/\">2020 Census Redistricting Data (Public Law 94-171) Summary File Technical Documentation<\/a>.<br/><br/>
+
+-------------------------------------------------------------------------------------------------------------
+
+Source: U.S. Census Bureau, 2020 Census Redistricting Data (Public Law 94-171)<br/><br/>
+
+-------------------------------------------------------------------------------------------------------------
