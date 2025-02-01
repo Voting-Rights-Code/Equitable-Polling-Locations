@@ -26,7 +26,7 @@ An innovative software tool aimed at selecting an optimal set of polling sites t
    Analyze geographic and demographic data to ensure fair distribution of polling locations, focusing on underserved populations.
 
 * **Supports Fair Access to Polling Places**  
-   By choosing polling locations that reduce travel distances across neighborhoods, this tool helps ensure that everyone has a fair opportunity to vote, regardless of their location within the community.
+   By choosing polling locations that reduce distances across neighborhoods, this tool helps ensure that everyone has a fair opportunity to vote, regardless of their location within the community.
 
 * **Data-Driven Decisions**  
    By assessing both existing and potential polling sites, this tool enables cities to locate polling places where they are most needed. It takes data from previous polling locations, available buildings, and key neighborhood centers to ensure informed, data-backed site selection.
@@ -46,6 +46,7 @@ An innovative software tool aimed at selecting an optimal set of polling sites t
 * **Input Data and Initial Setup**  
 
    The approach begins by combining historical and potential polling locations with census block centroids, which represent population centers.
+   
    This methodology allows for comparisons between actual and hypothetical polling site locations, enabling analysts to assess both current and proposed site distributions for accessibility and equity in resource allocation
 
 * **Optimization Choices and Constraints**  
@@ -69,13 +70,17 @@ For detailed guides and technical information on the **Equitable Polling Locatio
 
 1. [Installation](to_install.md)  
 
-1. [Running the Program](to_run.md)  
+1. [Running the Program](to_run.md)
+
+1. [Database option for output storage](database.md)
 
 1. [Input Files](input_files.md)  
 
 1. [Output Dataset](output_datasets.md) 
 
 1. [Intermediate Dataset](intermediate_dataset.md) 
+
+1. [Data analytics](result_analysis.md) 
 
 1. [Program Logging](logging.md) 
 

@@ -339,10 +339,10 @@ By setting the above, any graph file written to using the functions found in `..
 **NOTE:** Google Colab notebooks are currently out of date as the team has transitioned to running locally.  The following will need to be revisited.
 
 From Google Colab:
-* For example, follow the the instructions in [this file](./Colab_runs/colab_Gwinnett_expanded_multi_11_12_13_14_15.ipynb) (To be accessed in the directory of the Equitable-Polling-Locations git repo)
+* For example, follow the the instructions in [this file](./Colab_runs/colab_Gwinnett_expanded_multi_11_12_13_14_15.ipynb) (To be accessed in the directory of the Equitable-Polling-Locations git repo) -->
 
 # Input data
-There are three sets of data needed to run the optimization and analysis in this program: Census data for the county, aggregated at the block and block group level; a *manually generated* dataset of past and potential polling locations, consistent with local laws; and  a config file that contains the parameters for a given optimization. Additionally, if one wishes to analyze driving distances, there is an additional input file to capture this data. -->
+There are three sets of data needed to run the optimization and analysis in this program: Census data for the county, aggregated at the block and block group level; a *manually generated* dataset of past and potential polling locations, consistent with local laws; and  a config file that contains the parameters for a given optimization. Additionally, if one wishes to analyze driving distances, there is an additional input file to capture this data. 
 
 ## Config data
 
@@ -599,10 +599,9 @@ tail -f ./logs/20231207151550_Gwinnett_config_original_2020.yaml.log
 Currently, the optimizer checks for the existence of a specific dataset before running. A few notes:
 * This dataset is currently created and stored locally. 
     * `datasets/polling/County_ST/County_ST.csv`
-    * This will change in the future
+    * This will change in the future, allowing for an option for the relevant data to be saved to the database as well
 * Currently, this dataset creates a column with the haversine distance (which is the default distance for the optimizer). 
-    * In future, this functionality will change,
-    * Likely will allow for other columns to be created and stored, rather than run real time.
+    * In future, there will be multiple different files made, one for each type of distance studied: haversine, log haversine, driving, log driving.
 
 ### County_ST.csv
 This is the main data set that the optimizer uses. It includes polling locations from previous years, potential polling locations, and block group centroids, as well as distances from block centroids to the above.
@@ -651,12 +650,12 @@ For each `config_set` and `config_name` pair, the optimizer produces 4 output fi
     * County_config_DESCRIPTOR_residence_distances.csv
     * County_config_DESCRIPTOR_result.csv
 
-* If the file was run with the `-o 'csv'` flag, the outputs are written in the folder County_ST_results/ with the following names:
+* If the model was run with `model_run_cli`, the outputs are written in the folder County_ST_results/ with the following names:
     * CONFIG_FOLDER.County_config_DESCRIPTOR_edes.csv
     * CONFIG_FOLDER.County_config_DESCRIPTOR_precinct_distances.csv
     * CONFIG_FOLDER.County_config_DESCRIPTOR_residence_distances.csv
     * CONFIG_FOLDER.County_config_DESCRIPTOR_result.csv
-* Otherwise, the most recent data can be pulled from the `*_extras` table, where * is one of `edes`, `precinct_distances`, `residence_distanes` or `result`.
+* If the model was run with `model_run_db_cli`, the outputs are written to the database. The most recent data can be pulled from the `*_extras` table, where * is one of `edes`, `precinct_distances`, `residence_distanes` or `result`.
 
 * The four files can be described as follow:
     * *_edes (demographic level ede scores)

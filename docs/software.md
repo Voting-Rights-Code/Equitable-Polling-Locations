@@ -60,8 +60,7 @@ The algorithm for this model is as follows:
     1. Each census block can only be matched to one polling location
     1. Each census block must be matched to a single open precinct
     1. A user defined overcrowding constraint
-1
-. The model returns a list of matchings between census blocks and polling locations, along with the distance between the two, and a demographic breakdown of the population.
+1. The model returns a list of matchings between census blocks and polling locations, along with the distance between the two, and a demographic breakdown of the population.
 
 1. The model then uses this matching and demographic data to compute a new data derived scaling factor (alpha), which it then uses to compute the inequity penalized score (y_EDE) for the matched system.
 

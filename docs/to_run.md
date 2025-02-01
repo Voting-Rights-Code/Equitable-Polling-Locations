@@ -7,15 +7,18 @@ First activate the environment if not done so already:
     conda activate equitable-polls
 ```
 
-In the directory of the Equitable-Polling-Locations git repo:
-```python
-    python ./model_run_cli.py -c NUM -l LOG_DIR ./path/to/config/file.yaml
-```
-where
-- NUM = number of cores to use for simultaneous runs (recommend <=4 for most laptops)
-- LOG_DIR = Where to put log files. The directory must exist, or will not run
--  path to config file accepts wild cards to set of sequential runs
--  For extra [logging](logging.md) include the flag  `-vv`
+* There are two command line options, one to write data locally, and the other to write data to the database
+    * Read/write locally: python ./model_run_cli.py -c NUM -l LOG_DIR ./path/to/config/file.yaml
+    * Read/write from/to database: 
+        * python model_run_db_cli.py -c NUM -l LOG_DIR config_set/config_name1 config_set2/config_name
+        * python model_run_db_cli.py -c NUM -l LOG_DIR config_set
+    * Parameters
+        * NUM = number of cores to use for simultaneous runs (recommend <=4 for most laptops)
+        * LOG_DIR = Where to put log files. The directory must exist, or will not run
+        * path to config file accepts wild cards to set of sequential runs
+        * config_set and config_name refer to the fields in the config data.
+            * To run all the config_names associated to a config_set, just enter the config_set
+    * For extra logging include the flag -vv
 
 
 ### Examples

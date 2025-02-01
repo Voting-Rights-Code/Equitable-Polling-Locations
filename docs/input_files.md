@@ -1,38 +1,146 @@
-## Input files
+# Input data
+There are three sets of data needed to run the optimization and analysis in this program: 
+1. Census data for the county, aggregated at the block and block group level; 
+1. a *manually generated* dataset of past and potential polling locations, consistent with local laws; 
+1.   a config file that contains the parameters for a given optimization. 
 
-There are six files needed to run this program. 
+Additionally, 
+1. if one wishes to analyze driving distances, there is an additional input file to capture this data. 
 
-* There are 4 files from the census needed for each county, These are pulled from the census the first time a county is run:
+## Config data
 
-    1. block level P3 data for a county (racial breakdown of voting age population)
+In the database, config data is stored with a unique `config_set` and `config_name` pair. When stored locally, `config_set` corresponds to the config_folder, while `config_name` corresponds to the file (.yaml) in the config_folder. 
 
-    1. block level P4 data for a county (ethnicity breakdown of voting age population)
+There may be multiple `config_name`s sharing the same `config_set`. However, each of these datasets can only differ from each other by a single field (aside from `config_name`, `id` and `created_at` fields). **If this property does not hold, the analysis files will not run.**
 
-    1. block shape files
+### Creating config data
+To create config data, create an examplar config file and put it in the desired folder. The exemplar config file 
+* must contain two extra fields that are not in the config file itself: 
+    * field to vary: str; the name of the field in the config file that is allowed to vary in this config set
+    * new_range: list; the list of desired values that this field should take. Note, this can be a list of lists
+* should not end in `.yaml`. In these example, the exemplar files ends in `.yaml_template`
 
-    1. block group shape files
+Then run
 
-* There is one *manually generated* file for each county:
+ `python auto_generate_config.py -b 'config_folder/exemplar_config.yaml_template' 
 
-    - previous and potential polling locations for a country
+This will create a set of .yaml files in the indicaded `config_folder`, each with a different name (that is a combination of the indicated `field_to_change` and a value from the provided list.) It will also write these configs to the database.
 
-* There is one config file needed as an argument to run the program
+**Note:** 
+* If a file by the config name already exists in the config_folder, the script will not run
+* The fields of the exemplar_config MUST match the fields in the sql_alchemy model. Otherwise, this script will not run.
 
-## Census Data (demographics and Shapefiles)
+**Example:**
+To generate a set of configs for DuPage County, IL where the number of precincts open varies from 15 to 20, define 
+`field_to_change: 'precints open'`
+`new_range: 
+    - 15
+    - 16
+    - 17
+    - 18
+    - 19
+    - 20`
+in the `.yaml_template` file and then run
+```
+python auto_generate_config.py -f 'DuPage_County_IL_potential_configs/example_config.yaml_template' 
+```
+To generate a set of configs for DuPage County, IL where the set of bad locations varies are ['Elec Day School - Potential', 'Elec Day Church - Potential', 'bg_centroid'],  ['Elec Day Church - Potential', 'bg_centroid'], ['Elec Day School - Potential',  'bg_centroid'], and [ 'bg_centroid'] define
+`field_to_change: 'bad_locations'`
+`new_range: 
+    - - 'Elec Day School - Potential'
+      - 'Elec Day Church - Potential'
+      - 'bg_centroid'
+    - - 'Elec Day Church - Potential'
+      - 'bg_centroid'
+    - - 'Elec Day School - Potential'
+      - 'bg_centroid'
+    - - 'bg_centroid'`
+in the `.yaml_template` file and then run
+```
+python auto_generate_config.py -f 'DuPage_County_IL_potential_configs/example_config.yaml_template'
+```
+### Config fields
+These fields are determined by the sql_alchemy config model. See `models/model_config.py`. In addition to the fields listed below, and `id`, and `created_at` field are generated when uploaded to the database.
 
-The software requires a free census API key to run new counties. You can [apply on the census site](https://api.census.gov/data/key_signup.html) and be approved in seconds. Then
+* config_set
+    * str
+    * The name of the set of configs that this config belongs to.
+* config_name 
+    * str 
+    * The name of this model config. '''
+* location 
+    * str, nullable
+    * Location for this model. Usually a county.
+* year 
+    * List[str], nullable 
+    * An array of years of historical data relevant to this model
+* bad_types
+    * List[str], nullable
+    * A list of location types not to be considered in this model
+* beta
+    * float, nullable  
+    * level of inequality aversion: [-2,0], where 0 indicates indifference, and thus uses the mean. -1 is a good number.
+* time_limit
+    * float, nullable
+    * How long the solver should try to find a solution
+*  penalized_sites
+    * List[str], nullable 
+    * A list of locations for which the preference is to only place a polling location there if absolutely necessary for coverage.  A site in this list should be selected only if it improves access by x meters, where x is calculated according to the problem data. (See https://doi.org/10.48550/arXiv.2401.15452 for more information.) This option generates three additional log files: two for additional calls to the optimization solver ("...model2.log", "...model3.log") third ("...penalty.log") providing statistics related to the penalty heuristic.
+* precincts_open
+    * int, nullable
+    * The total number of precincts to be used this year. 
+    * If no user input is given, this is calculated to be the number of
+    polling places identified in the data.
+* maxpctnew
+    * float, nullable
+    * The percent on new polling places (not already defined as a
+    polling location) permitted in the data. 
+    * Default = 1. I.e. can replace all existing locations
+* minpctold
+    * float, nullable
+    * The minimun number of polling places (those already defined as a
+    polling location) permitted in the data. 
+    * Default = 0. I.e. can replace all existing locations
+* max_min_mult
+    * float, nullable
+    * A multiplicative factor for the min_max distance caluclated
+    from the data. Should be >= 1. 
+    * Default = 1.
+* capacity
+    * float, nullable
+    * A multiplicative factor for calculating the capacity constraint. Should be >= 1.
+    * Default = 1. 
+    * Note, if this is not paired with fixed_capacity_site_number, then the capacity changes as a function of number of precincts.
+* fixed_capacity_site_number
+    * int, nullable
+    * The default number of open precincts if one wants to hold the number of people that can go to a location constant (as opposed to a function of the number of locations).
+* driving
+    * bool, nullable
+    * Driving distances used if True and distance file exists in correct location
+* log_distance
+    * bool, nullable
+    * Flag indicating whether or not the log of the distances is to be used in the optimization
 
-1. Create the directory authentication_documents/ 
+## **Census Data (demographics and shapefiles)**:
+The sofware requires a free census API key to run new counties. You can [apply on the cenus site](https://api.census.gov/data/key_signup.html) and be approved in seconds.
 
-1. Inside authentication_documents/ create a file called census_key.py
+    1. Create the directory authentication_files/
+    2. Inside authentication_files/ create a file called census_key.py
+    3. The file should have a single line reading: census_key = "YOUR_KEY_VALUE"
 
-1. The file should have a single line reading: census_key = "YOUR_KEY_VALUE"
+If you are only running counties already in the repo you skip this step. However, it is needed to run counties for which data does not exist locally.
 
-If you are only running counties already in the repo you can use the empty string for your key (census_key = "") but the censu_key.py file must still exist locally.
+The script `pull_census_data.py`, which can also be run from the command line, pulls the following files from the 2020 US Census:
+1. P3 (race) and P4 (ethnicity) files for the indicated county, at both the block and the block group level
+    1. This is saved locally in the folder `datasets/census/redistricting`
+2. Tiger shape files for the county at both the block and block group level.
+    1. This is saved locally in the folder `datasets/census/tiger`
+
+Eventually, this data will be loaded to the database as well. Until then, it is either stored locally, or needs to be downloaded for each call to `model_run_cli.py`.
 
 <!--
 
-If you are interested in only running results for  Gwinnett County, no further action is needed. If you are interested in running a county for which you do not have the above data, the software will notify you that the necessary data is missing. 
+If you are interested in only running results for  Gwinnett County, no further action is needed. If you are interested in running a county for which you do not have the above data, the software will notify you that the necessary data is missing.
 
 instructions for downloading or creating these files and their formats are given here.
 
@@ -68,7 +176,7 @@ All file paths are given relative to the git folder for Equitable-Polling-Locati
 * Columns of P4 selected by the software:
     * Total population
     * Total hispanic
-    * Total non-hispanic
+    * Total non_hispanic
 ### **datasets/census/tiger/County_ST/tl_YYYY_FIPS_tabblockYY.shp**:
 [TIGER/line Shapefiles](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) is a database of shape files for the geographic categories used by the census.
 * Documentation: https://www.census.gov/programs-surveys/geography/technical-documentation/complete-technical-documentation/tiger-geo-line/2020.html
@@ -91,27 +199,27 @@ The instructions for downloading this data is identical the instructions for the
 
 -->
 
-## Data 
+## Manually constructed data for historical and admissible polling locations
 
-### datasets/polling/County_ST/County_ST_locations_only.csv
+This is a manually constructed .csv file that contains data for existing and potential polling locations to be optimized against. In the current state, this is not on the database. Instead, it should be created locally at  `datasets/polling/County_ST/County_ST_locations_only.csv`
 
-This is a manually constructed .csv file that contains data for existing and potential polling locations to be optimized against
+Example file name: datasets/polling/Gwinnett_County_GA/Gwinnett_County_GA_locations_only.csv
 
-Example file name: datasets/polling/Gwinnett_GA/Gwinnett_GA_locations_only.csv
+
 The columns of this data set should be named and formatted as
-
 |Column Name | Definition | Example |
 | ----- | ------ | ----- |
 |Location | Name of the actual or potential polling location | 'Bethesda Senior Center' |
 | Address | Street Address of the actual or potential polling location| (format flexible) '788 Hillcrest Rd NW, Lilburn, GA 20047' |
 |Location Type | If polling location, must have a year when it was used | 'EV_2022_2020' or 'General_2020' or 'Primary_2022_2020_2018' or 'DropBox_2022'|
 | | If potential location, has a 'location type' category and the word 'Potential' (case sensitive) | 'Community Center - Potential' |
-| Lat, Long | Comma separated concatenation of latitude and longitude (can be read off of google maps by right clicking on the location marker for the address.) | '33.964717796407434, -83.85827288222517' |
+| Lat, Lon | Comma separated concatenation of latitude and longitude (can be read off of google maps by right clicking on the location marker for the address.) | '33.964717796407434, -83.85827288222517' |
 
-### datasets/driving/County_ST/County_ST_driving_distances.csv
+## OPTIONAL: Driving distances
 
-OPTIONAL file for using driving distances (that have been calculated externally) in the optimization. This file will only be accessed if the optional parameter 'driving' is set to True.
-Example file name: datasets/driving/Gwinnett_GA/Gwinnett_GA_driving_distances.csv
+If you are using driving distances (that have been calculated externally) in the optimization, place a file at `datasets/driving/County_ST/County_ST_driving_distances.csv`.  This file will only be accessed if the optional parameter 'driving' is set to True. 
+
+Example file name: datasets/driving/Gwinnett_County_GA/Gwinnett_County_GA_driving_distances.csv
 The columns are as follows:
 |Column Name | Definition | Example |
 | ----- | ----- | ----- |
@@ -119,37 +227,3 @@ The columns are as follows:
 | id_dest | Name of potential polling location, as in the Location column of the file datasets/polling/County_ST/County_ST_locations_only.csv. | 'EV_2022_2020' or 'General_2020' or 'Primary_2022_2020_2018' or 'DropBox_2022' |
 | distance_m | Driving distance from id_orig to id_dest in meters | 10040.72 |
 
-### **CONFIG_FOLDER/County_config_DESCRIPTOR.yaml**
-These are the config files for the various runs.
-
-Example path: Gwinnett_GA_configs/Gwinnett_config_full_11.yaml
-
-Recommended convention: Each config folder should only have one parameter changing. For example, DeKalb_GA_no_bg_school_config should contain only (and all) runs with block groups and schools in the bad list, changing only the number of desired polling locations
-  * Mandatory arguments
-    
-    * location: County_ST. This variable is used throughout to name files
-    
-    * year: List of years one wants to consider actual polling locations for. E.g. ['2022', '2020']
-    
-    * bad_types: List of location types not to be considered in this model.
-        * E.g. ['Election Day Loc - Potential', 'bg_centroid' ]   
-        * Must be labels already existing in the data
-   
-    * beta: In [-2, 0]. Aversion to inequality. If 0, this computes the mean distance. The further away from 0, the greater the aversion to inequality.
-   
-    * time_limit: maximal number of minutes that the optimizer will run
-   
-    * capacity: >= 1. A multiplicative factor that indicates how much more than *population/precincts_open* a precinct is allowed to be allotted
-
-  * Optional arguments
-    * precincts_open: number of precincts to be assigned. Default: number of existing polling locations
-
-    * max_min_mult: >= 1. A scalar to limit the search radius to match polling locations. If this is too small, the optimizer may not find a solution. Default: 1
-   
-    * maxpctnew = In [0,1]. The percent of new locations allowed to be matched. Default = 1
-  
-    * minpctold = In [0,1]. The percent of existing locations allowed to be matched. Default = 0
-  
-    * penalized_sites: List of potential polling locations (subset of those considered in run) that are less desireable. A site in this list should be selected only if it improves access by x meters, where x is calculated according to the problem data. (See https://doi.org/10.48550/arXiv.2401.15452 for more information.) This option generates three additional log files: two for additional calls to the optimization solver ("...model2.log", "...model3.log") third ("...penalty.log") providing statistics related to the penalty heuristic.
-   
-    * driving = In [True,False]. If True, then driving distances (versus straight-line/Haversine distances) are used. This option requires driving distances in the datasets folder as described above. Default = False
