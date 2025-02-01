@@ -1,6 +1,6 @@
 ___
 
-<center><img src =docs\README_Image.jpg alt=logo> </center>
+<center><img src =docs/VRC-Large-PNG.png alt=logo> </center>
 
 ___
 
