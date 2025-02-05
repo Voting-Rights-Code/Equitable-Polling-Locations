@@ -8,7 +8,6 @@ from time import time
 import uuid
 
 
-
 # class RegexMatch:
 #     def __init__(self, pattern: re.Match):
 #         self.pattern = pattern
@@ -95,3 +94,20 @@ def get_env_var_or_prompt(var_name: str, default_value: str=None) -> str:
         value = input(f'Environment variable not found for {var_name}\nPlease enter the value{prompt_default}: ')
         MEMORIZED_ENV_VALUES[var_name] = value
     return value or default_value
+
+
+def build_results_file_path(result_path: str, run_prefix: str) -> str:
+    ''' Builds the path for the optimization results csv file. '''
+    return os.path.join(result_path, f'{run_prefix}_results.csv')
+
+def build_precinct_summary_file_path(result_path: str, run_prefix: str) -> str:
+    ''' Builds the path for precinct distances csv file. '''
+    return os.path.join(result_path, f'{run_prefix}_precinct_distances.csv')
+
+def build_residence_summary_file_path(result_path: str, run_prefix: str) -> str:
+    ''' Builds the path for the residence distances csv file. '''
+    return os.path.join(result_path, f'{run_prefix}_residence_distances.csv')
+
+def build_y_ede_summary_file_path(result_path: str, run_prefix: str) -> str:
+    ''' Builds the path for the y ede summary csv file. '''
+    return os.path.join(result_path, f'{run_prefix}_edes.csv')

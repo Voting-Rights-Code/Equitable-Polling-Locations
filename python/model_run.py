@@ -25,11 +25,11 @@ from model_results import (
 )
 from model_penalties import incorporate_penalties
 
+from constants import DATASETS_DIR
+
 OUT_TYPE_DB = 'db'
 OUT_TYPE_CSV = 'csv'
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
 def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OUT_TYPE_DB):
     '''

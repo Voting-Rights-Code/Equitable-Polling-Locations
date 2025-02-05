@@ -16,12 +16,10 @@ import models as Models
 import db
 
 from model_config import PollingModelConfig
-from utils import current_time_utc
+from utils import build_precinct_summary_file_path, build_residence_summary_file_path, build_results_file_path, build_y_ede_summary_file_path, current_time_utc
+from constants import DATASETS_DIR, RESULTS_BASE_DIR
 
 MODEL_RUN_ID = 'model_run_id'
-
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-DATASETS_DIR = os.path.join(CURRENT_DIR, 'datasets')
 
 RESULTS_PATH = 'results_path'
 PRECINCT_DISTANCES_PATH = 'precinct_distances_path'
@@ -38,25 +36,27 @@ def output_file_paths(config: PollingModelConfig) -> dict[str, str]:
 
     result_folder = config.result_folder
 
+    result_path = os.path.join(RESULTS_BASE_DIR, result_folder)
+
     source_file_name = config.location + '.csv'
     source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
     if not os.path.exists(source_path):
         raise FileNotFoundError(f'File {source_path} not found')
 
 
-    if not os.path.exists(result_folder):
-        raise FileNotFoundError(f'Results folder {result_folder} not found.')
+    if not os.path.exists(result_path):
+        raise FileNotFoundError(f'Results folder {result_path} not found.')
 
-    result_file = f'{run_prefix}_results.csv'
-    precinct_summary = f'{run_prefix}_precinct_distances.csv'
-    residence_summary = f'{run_prefix}_residence_distances.csv'
-    y_ede_summary = f'{run_prefix}_edes.csv'
+    result_file = build_results_file_path(result_path, run_prefix)
+    precinct_summary_file = build_precinct_summary_file_path(result_path, run_prefix)
+    residence_summary_file = build_residence_summary_file_path(result_path, run_prefix)
+    y_ede_summary_file = build_y_ede_summary_file_path(result_path, run_prefix)
 
     results = {
         RESULTS_PATH: os.path.join(result_folder, result_file),
-        PRECINCT_DISTANCES_PATH: os.path.join(result_folder, precinct_summary),
-        RESIDENCE_DISTANCES_PATH: os.path.join(result_folder, residence_summary),
-        EDE_PATH: os.path.join(result_folder, y_ede_summary),
+        PRECINCT_DISTANCES_PATH: os.path.join(result_folder, precinct_summary_file),
+        RESIDENCE_DISTANCES_PATH: os.path.join(result_folder, residence_summary_file),
+        EDE_PATH: os.path.join(result_folder, y_ede_summary_file),
     }
 
     return results
