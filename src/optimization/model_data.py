@@ -13,7 +13,7 @@ from pathlib import Path
 from haversine import haversine
 import geopandas as gpd
 from model_config import PollingModelConfig
-from pull_census_data import pull_census_data
+from src.pull_census_data import pull_census_data
 
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
