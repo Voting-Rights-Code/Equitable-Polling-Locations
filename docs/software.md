@@ -34,12 +34,12 @@ The algorithm for this model is as follows:
     - KP_factor  = $e^{(- \beta * \alpha * distance)}$
         - $\beta$ is a user defined parameter
         - $\alpha$ is a data derived normalization factor:
-        $
+        $\[
             \alpha\ = 
             {\sum (block\hspace{1ex}population * distance\hspace{1ex}to\hspace{1ex}closest\hspace{1ex}poll) 
             \over
             \sum (block\hspace{1ex}population * distance\hspace{1ex}to\hspace{1ex}closest\hspace{1ex}poll^2)}
-        $
+        \]$
 
     - The KP_factor plays the role of a weighted distance in a standard objective function.
         1. The exponential in the KP_factor penalizes inequality in distances traveled
