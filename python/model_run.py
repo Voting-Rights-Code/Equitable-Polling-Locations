@@ -43,15 +43,22 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
     else:
         run_prefix = f'{config.config_set}/{config.config_name}'
 
-    source_file_name = config.location + '.csv'
+    if not config.driving:
+        source_file_name = config.location + '.csv'
+    else: #driving is true
+        source_file_name = config.location + '_driving.csv'
+    if config.log_distance:
+        source_file_name = source_file_name.replace('.csv', '_log.csv')
+
+    
     source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
     if not os.path.exists(source_path):
         warnings.warn(f'File {source_path} not found. Creating it.')
-        build_source(config.location)
+        build_source(config, log)
 
 
     #get main data frame
-    dist_df = clean_data(config, False)
+    dist_df = clean_data(config, False, log)
 
     #get alpha
     alpha_df = clean_data(config, True, log)
