@@ -27,7 +27,7 @@ LOCATION = c('Berkeley_County_SC','Greenville_County_SC', 'Lexington_County_SC',
 #list of config folders to compare.
 #MUST 
 # * be of the same locations
-CONFIG_FOLDER = c('Berkeley_County_SC_original_configs_log','Greenville_County_SC_original_configs_log', 'Lexington_County_SC_original_configs_log','Richland_County_SC_original_configs_log', 'York_County_SC_original_configs_log')
+CONFIG_FOLDER = c('Berkeley_County_SC_original_configs','Greenville_County_SC_original_configs', 'Lexington_County_SC_original_configs','Richland_County_SC_original_configs', 'York_County_SC_original_configs')
 FIELDS_OF_INTEREST_LIST = c('', '', '', '', '') #must not leave empty if config set has only one element
 
 # This is where this analysis will be stored in the cloud
@@ -130,3 +130,28 @@ regression_data_naive_dist <- mapply(function(regression, naive) merge(regressio
 
 
 distance_model_list <- lapply(regression_data_naive_dist, function(x) run_distance_model_resid(x))
+
+bg_data <- function(density_data){
+    density_data[ , `:=`(white_weighted_dist = white*distance_m, black_weighted_dist = black *distance_m)
+                    ][, id_bg := gsub('.{3}$', '', density_data$id_orig)][, year := unlist(year)]
+    
+    bg_result_df <- density_data[ , .(population = sum(population), white = sum(white), black = sum(black), area= sum(area),
+									weighted_dist = sum(weighted_dist), white_weighted_dist = sum(white_weighted_dist), 
+                                    black_weighted_dist = sum(black_weighted_dist)), by=list(id_bg, year)
+								][ , `:=`(pop_avg_distance = weighted_dist/population, white_avg_distance = white_weighted_dist/white, black_avg_distance = black_weighted_dist/black, pop_density_km = 1e6 *population/area)
+                                ][, white_minus_black_diff := white_avg_distance - black_avg_distance]
+    melt_bg_avg_dist <- melt(bg_result_df, id.vars = c('id_bg', 'year', 'pop_density_km'), measure.vars = c( 'white_avg_distance', 'black_avg_distance'))
+    setnames(melt_bg_avg_dist, c('variable', 'value'), c('demo_avg_distance', 'avg_dist'))
+    return(melt_bg_avg_dist)
+    #return(bg_result_df)
+}
+
+bg_density_data <- lapply(regression_data, function(density){bg_data(density)})
+
+ggplot(bg_density_data$York_County_SC[year == '2022'& pop_density_km < 2000, ] , aes(x = pop_density_km, y = avg_dist, group = demo_avg_distance, color = demo_avg_distance )) +
+geom_point() + geom_smooth(method=lm, aes(group=demo_avg_distance)) + 
+labs(title = "White and Black population distance to polls by block group")
+
+
+ggplot(bg_density_data$Richland_County_SC[year == '2014' & pop_density_km >200, ] , aes(x = pop_density_km, y = white_minus_black_diff )) +
+geom_point() + geom_smooth(method=lm)
