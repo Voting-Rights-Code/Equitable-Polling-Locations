@@ -138,20 +138,33 @@ bg_data <- function(density_data){
     bg_result_df <- density_data[ , .(population = sum(population), white = sum(white), black = sum(black), area= sum(area),
 									weighted_dist = sum(weighted_dist), white_weighted_dist = sum(white_weighted_dist), 
                                     black_weighted_dist = sum(black_weighted_dist)), by=list(id_bg, year)
-								][ , `:=`(pop_avg_distance = weighted_dist/population, white_avg_distance = white_weighted_dist/white, black_avg_distance = black_weighted_dist/black, pop_density_km = 1e6 *population/area)
-                                ][, white_minus_black_diff := white_avg_distance - black_avg_distance]
-    melt_bg_avg_dist <- melt(bg_result_df, id.vars = c('id_bg', 'year', 'pop_density_km'), measure.vars = c( 'white_avg_distance', 'black_avg_distance'))
-    setnames(melt_bg_avg_dist, c('variable', 'value'), c('demo_avg_distance', 'avg_dist'))
-    return(melt_bg_avg_dist)
-    #return(bg_result_df)
+								][ , `:=`(pop_avg_dist = weighted_dist/population, white_avg_dist = white_weighted_dist/white, black_avg_dist = black_weighted_dist/black, pop_density_km = 1e6 *population/area)
+                                ][, white_minus_black_avg_diff := white_avg_dist - black_avg_dist
+                                ][, white_minus_black_wgtd_diff := white_weighted_dist - black_weighted_dist
+                                ]
+    melt_bg_avg_dist <- melt(bg_result_df, id.vars = c('id_bg', 'year', 'pop_density_km'), measure.vars = list(c( 'white_avg_dist', 'black_avg_dist', 'white_weighted_dist', 'black_weighted_dist'), c('white', 'black', 'white', 'black')), value.name = c('dist', 'demo_pop'), variable.name = 'demo_avg_dist')[, demo_avg_dist:=factor(demo_avg_dist, labels = c( 'white_avg_dist', 'black_avg_dist', 'white_weighted_dist', 'black_weighted_dist'))]
+    #setnames(melt_bg_avg_dist, c('variable'), c('demo_avg_dist'))
+    return(list(melt_bg_avg_dist, bg_result_df))
 }
 
 bg_density_data <- lapply(regression_data, function(density){bg_data(density)})
 
-ggplot(bg_density_data$York_County_SC[year == '2022'& pop_density_km < 2000, ] , aes(x = pop_density_km, y = avg_dist, group = demo_avg_distance, color = demo_avg_distance )) +
-geom_point() + geom_smooth(method=lm, aes(group=demo_avg_distance)) + 
-labs(title = "White and Black population distance to polls by block group")
+head(bg_density_data[[1]][[1]])
+county = 'Greenville_County_SC'
+year_str = '2018'
+
+ggplot(bg_density_data[[county]][[1]][year == year_str & demo_avg_dist %in% c('white_weighted_dist',
+'black_weighted_dist'), ] , aes(x = pop_density_km, y = dist, group = demo_avg_dist, color = demo_avg_dist, size = demo_pop )) +
+geom_point() + geom_smooth(method=loess, aes(group=demo_avg_dist)) + 
+labs(title = paste("Total White and Black population distance to polls by block group", county, year_str))
+
+ggplot(bg_density_data[[county]][[1]][year == year_str & demo_avg_dist %in% c('white_avg_dist', 'black_avg_dist'), ] , aes(x = pop_density_km, y = dist, group = demo_avg_dist, color = demo_avg_dist, size = demo_pop )) +
+geom_point() + geom_smooth(method=loess, aes(group=demo_avg_dist)) + 
+labs(title = paste("White and Black population distance to polls by block group", county, year_str))
 
 
-ggplot(bg_density_data$Richland_County_SC[year == '2014' & pop_density_km >200, ] , aes(x = pop_density_km, y = white_minus_black_diff )) +
-geom_point() + geom_smooth(method=lm)
+ggplot(bg_density_data[[county]][[2]][year == '2020' & pop_density_km <2000 & pop_density_km > 200, ] , aes(x = pop_density_km, y = white_minus_black_wgtd_diff )) +
+geom_point() + geom_smooth(method=lm) + labs(title = paste("Difference in total distance traveled by White and, Black population to polls by block group"), county, year_str)
+
+ggplot(bg_density_data[[county]][[2]][year == '2020' & pop_density_km <2000 & pop_density_km > 200, ] , aes(x = pop_density_km, y = white_minus_black_avg_diff )) +
+geom_point() + geom_smooth(method=lm) + labs(title = paste("Difference in avg distance traveled by White and Black population to polls by block group"), county, year_str)
