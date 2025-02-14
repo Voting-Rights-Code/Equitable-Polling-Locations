@@ -139,8 +139,10 @@ bg_data <- function(density_data){
 									weighted_dist = sum(weighted_dist), white_weighted_dist = sum(white_weighted_dist), 
                                     black_weighted_dist = sum(black_weighted_dist)), by=list(id_bg, year)
 								][ , `:=`(pop_avg_dist = weighted_dist/population, white_avg_dist = white_weighted_dist/white, black_avg_dist = black_weighted_dist/black, pop_density_km = 1e6 *population/area)
-                                ][, white_minus_black_avg_diff := white_avg_dist - black_avg_dist
-                                ][, white_minus_black_wgtd_diff := white_weighted_dist - black_weighted_dist
+                                ][, black_minus_white_avg_diff := black_avg_dist - white_avg_dist
+                                ][, black_minus_white_wgtd_diff := black_weighted_dist - white_weighted_dist
+                                ][, black_over_white_avg_ratio := black_avg_dist/white_avg_dist
+                                ][, black_over_white_wgtd_ratio := black_weighted_dist / white_weighted_dist
                                 ]
     melt_bg_avg_dist <- melt(bg_result_df, id.vars = c('id_bg', 'year', 'pop_density_km'), measure.vars = list(c( 'white_avg_dist', 'black_avg_dist', 'white_weighted_dist', 'black_weighted_dist'), c('white', 'black', 'white', 'black')), value.name = c('dist', 'demo_pop'), variable.name = 'demo_avg_dist')[, demo_avg_dist:=factor(demo_avg_dist, labels = c( 'white_avg_dist', 'black_avg_dist', 'white_weighted_dist', 'black_weighted_dist'))]
     #setnames(melt_bg_avg_dist, c('variable'), c('demo_avg_dist'))
@@ -150,21 +152,36 @@ bg_data <- function(density_data){
 bg_density_data <- lapply(regression_data, function(density){bg_data(density)})
 
 head(bg_density_data[[1]][[1]])
-county = 'Greenville_County_SC'
-year_str = '2018'
 
-ggplot(bg_density_data[[county]][[1]][year == year_str & demo_avg_dist %in% c('white_weighted_dist',
-'black_weighted_dist'), ] , aes(x = pop_density_km, y = dist, group = demo_avg_dist, color = demo_avg_dist, size = demo_pop )) +
-geom_point() + geom_smooth(method=loess, aes(group=demo_avg_dist)) + 
-labs(title = paste("Total White and Black population distance to polls by block group", county, year_str))
 
+
+make_plots <- function(bg_density_data, county, year_str){
 ggplot(bg_density_data[[county]][[1]][year == year_str & demo_avg_dist %in% c('white_avg_dist', 'black_avg_dist'), ] , aes(x = pop_density_km, y = dist, group = demo_avg_dist, color = demo_avg_dist, size = demo_pop )) +
-geom_point() + geom_smooth(method=loess, aes(group=demo_avg_dist)) + 
+geom_point() + geom_smooth(method=lm, mapping = aes(weight = demo_pop), se= F) + scale_x_continuous(trans = 'log10') + scale_y_continuous(trans = 'log10') + 
 labs(title = paste("White and Black population distance to polls by block group", county, year_str))
+output = paste(county, year_str, "avg distance.png")
+ggsave(output)
+
+ggplot(bg_density_data[[county]][[2]][year == year_str, ] , aes(x = pop_density_km, y = black_minus_white_avg_diff )) +
+geom_point() + geom_smooth(method=lm, mapping = aes(weight = population), se = F) + scale_x_continuous(trans = 'log10')+ labs(title = paste("Difference in avg distance traveled by White and Black population to polls by block group", county, year_str))
+output = paste(county, year_str, "avg distance diff.png")
+ggsave(output)
 
 
-ggplot(bg_density_data[[county]][[2]][year == '2020' & pop_density_km <2000 & pop_density_km > 200, ] , aes(x = pop_density_km, y = white_minus_black_wgtd_diff )) +
-geom_point() + geom_smooth(method=lm) + labs(title = paste("Difference in total distance traveled by White and, Black population to polls by block group"), county, year_str)
+ggplot(bg_density_data[[county]][[2]][year == year_str, ] , aes(x = pop_density_km, y = black_over_white_avg_ratio, group = year)) +
+geom_point() + geom_smooth(method=lm, mapping = aes(weight = population), se= F) + scale_x_continuous(trans = 'log10')+ scale_y_continuous(trans = 'log10') +
+labs(title = paste("Ratio of avg distance traveled by White and Black population to polls by block group", county, year_str))
+output = paste(county, year_str, "avg distance ratio.png")
+ggsave(output)
 
-ggplot(bg_density_data[[county]][[2]][year == '2020' & pop_density_km <2000 & pop_density_km > 200, ] , aes(x = pop_density_km, y = white_minus_black_avg_diff )) +
-geom_point() + geom_smooth(method=lm) + labs(title = paste("Difference in avg distance traveled by White and Black population to polls by block group"), county, year_str)
+}
+
+
+county_list = c('Berkeley_County_SC', 'Greenville_County_SC', 'Lexington_County_SC', 'Richland_County_SC', 'York_County_SC')
+year_list = c('2014', '2016', '2018', '2020', '2022')
+
+sapply(year_list, function(year){make_plots(bg_density_data, 'Berkeley_County_SC', year)})
+sapply(year_list, function(year){make_plots(bg_density_data, 'Greenville_County_SC', year)})
+sapply(year_list, function(year){make_plots(bg_density_data, 'Lexington_County_SC', year)})
+sapply(year_list, function(year){make_plots(bg_density_data, 'Richland_County_SC', year)})
+sapply(year_list, function(year){make_plots(bg_density_data, 'York_County_SC', year)})
