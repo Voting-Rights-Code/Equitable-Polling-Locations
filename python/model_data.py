@@ -68,7 +68,14 @@ BLOCK_GROUP_SHAPE_COLS = [
 #build distance data set from census data and potential pollig location data.
 #using driving distances if driving = True
 
-def build_source(location):
+def build_source(config: PollingModelConfig, log):
+    ######
+    #Pull out necessary config variables
+    ######
+    location = config.location
+    driving = config.driving
+    log_distance = config.log_distance
+
     ######
     #Check that necessary files exist
     ######
@@ -126,7 +133,6 @@ def build_source(location):
     #Clean data
     #######
 
-
     #select columns for each data set
     locations = locations[LOCATIONS_COLS]
     p3_df.columns=[multicols[0] for multicols in p3_df.columns]
@@ -161,6 +167,10 @@ def build_source(location):
     demographics_block.INTPTLAT20 = demographics_block.INTPTLAT20.astype(float)
     demographics_block.INTPTLON20 = demographics_block.INTPTLON20.astype(float)
 
+    #drop duplicates and empty block groups
+    demographics_block = demographics_block.drop_duplicates() #put in to avoid duplications down the line.
+    demographics_block = demographics_block[demographics_block['population']>0]
+    
     #####
     #Make a polling locations table (including block group centroid)
     #####
@@ -191,22 +201,19 @@ def build_source(location):
         raise ValueError('Non-unique names in Location column. This will cause errors later.')
 
     #####
-    # Cross join polling locations and demographics tables and calculate distances
+    # Cross join polling locations and demographics tables 
     #####
     full_df = demographics_block.merge(all_locations, how= 'cross')
-
-    full_df['distance_m'] = full_df.apply(lambda row: haversine((row.INTPTLAT20, row.INTPTLON20), (row.Latitude, row.Longitude)), axis=1)*1000
-
+    
 
     #####
-    #Rename, select columns and write to file
+    #Rename, select columns
     #####
     full_df = full_df.rename(columns = {'GEO_ID': 'id_orig', 'Address': 'address', 'Latitude':'dest_lat', 'Longitude':'dest_lon', 'INTPTLAT20':'orig_lat', 'INTPTLON20':'orig_lon', 'Location type': 'location_type', 'Location': 'id_dest'})
 
     FULL_DF_COLS = [
     'id_orig',
     'id_dest',
-    'distance_m',
     'address',
     'dest_lat',
     'dest_lon',
@@ -227,9 +234,41 @@ def build_source(location):
     ]
 
     full_df = full_df[FULL_DF_COLS]
-    full_df['source'] = 'haversine distance'
 
-    output_file_name = location + '.csv'
+    #####
+    # Calculate appropriate distance
+    #####
+
+    if not driving:
+        full_df['distance_m'] = full_df.apply(lambda row: haversine((row.orig_lat, row.orig_lon), (row.dest_lat, row.dest_lon)), axis=1)*1000
+        full_df['source'] = 'haversine distance'
+    else: # driving is true
+        driving_file_name = location + '_driving_distances.csv'
+        DRIVING_DISTANCES_FILE = os.path.join(DATASETS_DIR, 'driving', location, driving_file_name)
+        full_df = insert_driving_distances(full_df, DRIVING_DISTANCES_FILE, log)
+        full_df['source'] = 'driving distance'
+    #if log distance, modify the source and distance columns
+    if log_distance:
+        full_df['source'] = 'log ' + full_df['source']
+        #TODO: why are there 0 distances showing up?
+        full_df['distance_m'].mask(full_df['distance_m'] == 0.0, 0.001, inplace=True)
+        full_df['distance_m'] = np.log(full_df['distance_m'])
+
+
+    #####
+    #reformat and write to file
+    #####
+
+    full_df['id_orig'] = full_df['id_orig'].astype(str)
+    full_df['id_dest'] = full_df['id_dest'].astype(str)
+
+    if not driving:
+        output_file_name = location + '.csv'
+    else: #driving is true
+        output_file_name = location + '_driving.csv'
+    if log_distance:
+        output_file_name = output_file_name.replace('.csv', '_log.csv')
+
     output_path = os.path.join(DATASETS_DIR, 'polling', location, output_file_name)
     full_df.to_csv(output_path, index = True)
     return
@@ -267,26 +306,8 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str, 
         raise ValueError(f'Driving Distance File ({driving_distance_file_path}) '
                          'must contain id_orig, id_dest, and distance_m columns')
 
-    df = df.drop(columns= ['source', 'distance_m'])
     combined_df = pd.merge(df, driving_distance, on=['id_orig', 'id_dest'], how='left')
 
-    # raise error if there are any missing distances
-    if len(combined_df[pd.isnull(combined_df.distance_m)]) > 0:
-        if log:
-            # indicate destinations and origins that are missing driving distances
-            all_orig = set(combined_df.id_orig)
-            all_dest = set(combined_df.id_dest)
-            notna_df = combined_df[pd.notna(combined_df.distance_m)]
-            notna_orig = set(notna_df.id_orig)
-            notna_dest = set(notna_df.id_dest)
-            missing_sources = all_orig - notna_orig
-            missing_dests = all_dest - notna_dest
-            if len(missing_dests) > 0:
-                print(f'{len(missing_dests)} missing dests in driving distances: {missing_dests}')
-            if len(missing_sources) > 0:
-                print(f'{len(missing_sources)} missing orig in driving distances: {missing_sources}')
-        raise ValueError(f'Driving Distance File ({driving_distance_file_path}) '
-                         'does not contain driving distances for all id_orig/id_dest pairs.')
 
     return combined_df
 
@@ -297,7 +318,7 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str, 
 #The call for alpha should only take the original polling locations.#########
 #########
 
-def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
+def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool):
     location = config.location
     year_list = config.year
     driving = config.driving
@@ -305,6 +326,10 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
 
     #read in data
     file_path = os.path.join(DATASETS_DIR, 'polling', location, f'{location}.csv')
+    if driving:
+        file_path = file_path.replace('.csv', '_driving.csv')
+    if log_distance:
+        file_path = file_path.replace('.csv', '_log.csv')
 
     if not os.path.isfile(file_path):
         raise ValueError(f'Do not currently have any data for {file_path} from {config.config_file_path}')
@@ -323,9 +348,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
     for year in year_list:
         if not any(str(year) in poll for poll in polling_location_types):
             raise ValueError(f'Do not currently have any data for {location} for {year} from {config.config_file_path}')
-    #drop duplicates and empty block groups
-    df = df.drop_duplicates() #put in to avoid duplications down the line.
-    df = df[df['population']>0]
+    
 
     #exclude bad location types
     # The bad types must be valid location types
@@ -347,19 +370,25 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool=False):
     if any(pop_df>1):
         raise ValueError(f"Some id_orig has multiple associated populations from {config.config_file_path}")
 
-    # incorporate driving distances if desired
-    if driving:
-        driving_file_name = location + '_driving_distances.csv'
-        DRIVING_DISTANCES_FILE = os.path.join(DATASETS_DIR, 'driving', location, driving_file_name)
-        df = insert_driving_distances(df, DRIVING_DISTANCES_FILE, log)
-    #if log distance, modify the source and distance columns
-    if log_distance:
-        df['source'] = 'log ' + df['source']
+    # raise error if there are any missing distances
+    if len(df[pd.isnull(df.distance_m)]) > 0:
+        if log:
+            # indicate destinations and origins that are missing driving distances
+            all_orig = set(df.id_orig)
+            all_dest = set(df.id_dest)
+            notna_df = df[pd.notna(df.distance_m)]
+            notna_orig = set(notna_df.id_orig)
+            notna_dest = set(notna_df.id_dest)
+            missing_sources = all_orig - notna_orig
+            missing_dests = all_dest - notna_dest
+            if len(missing_dests) > 0:
+                print(f'{len(missing_dests)} missing dests in driving distances: {missing_dests}')
+            if len(missing_sources) > 0:
+                print(f'{len(missing_sources)} missing orig in driving distances: {missing_sources}')
+        raise ValueError(f'Driving Distance File ({file_path}) '
+                         'does not contain driving distances for all id_orig/id_dest pairs.')
 
-        #TODO: why are there 0 distances showing up?
-        df['distance_m'].mask(df['distance_m'] == 0.0, 0.001, inplace=True)
-        df['distance_m'] = np.log(df['distance_m'])
-
+    
     #create other useful columns
     df['Weighted_dist'] = df['population'] * df['distance_m']
     return(df)
