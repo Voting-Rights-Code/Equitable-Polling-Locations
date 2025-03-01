@@ -132,47 +132,39 @@ regression_data_naive_dist <- mapply(function(regression, naive) merge(regressio
 distance_model_list <- lapply(regression_data_naive_dist, function(x) run_distance_model_resid(x))
 
 bg_data <- function(density_data){
-    density_data[ , `:=`(white_weighted_dist = white*distance_m, black_weighted_dist = black *distance_m)
-                    ][, id_bg := gsub('.{3}$', '', density_data$id_orig)][, year := unlist(year)]
+    #density_data[ , `:=`(white_weighted_dist = white*distance_m, black_weighted_dist = black *distance_m)
+    #                ][, id_bg := gsub('.{3}$', '', density_data$id_orig)]
     
-    bg_result_df <- density_data[ , .(population = sum(population), white = sum(white), black = sum(black), area= sum(area),
-									weighted_dist = sum(weighted_dist), white_weighted_dist = sum(white_weighted_dist), 
-                                    black_weighted_dist = sum(black_weighted_dist)), by=list(id_bg, year)
-								][ , `:=`(pop_avg_dist = weighted_dist/population, white_avg_dist = white_weighted_dist/white, black_avg_dist = black_weighted_dist/black, pop_density_km = 1e6 *population/area)
-                                ][, black_minus_white_avg_diff := black_avg_dist - white_avg_dist
-                                ][, black_minus_white_wgtd_diff := black_weighted_dist - white_weighted_dist
-                                ][, black_over_white_avg_ratio := black_avg_dist/white_avg_dist
-                                ][, black_over_white_wgtd_ratio := black_weighted_dist / white_weighted_dist
-                                ]
-    melt_bg_avg_dist <- melt(bg_result_df, id.vars = c('id_bg', 'year', 'pop_density_km'), measure.vars = list(c( 'white_avg_dist', 'black_avg_dist', 'white_weighted_dist', 'black_weighted_dist'), c('white', 'black', 'white', 'black')), value.name = c('dist', 'demo_pop'), variable.name = 'demo_avg_dist')[, demo_avg_dist:=factor(demo_avg_dist, labels = c( 'white_avg_dist', 'black_avg_dist', 'white_weighted_dist', 'black_weighted_dist'))]
-    #setnames(melt_bg_avg_dist, c('variable'), c('demo_avg_dist'))
-    return(list(melt_bg_avg_dist, bg_result_df))
+    density_data[ , avg_distance := weighted_dist/population]
+    
+    density_data_long <- melt(density_data, id.vars = c('id_orig', 'descriptor', 'pop_density_km','avg_distance', 'area'), measure.vars = c("population", "hispanic","non_hispanic", "white", "black", "native", "asian", "pacific_islander", "other"), value.name ='demo_pop' , variable.name = "demographic")
+    
+    density_data_long[ , demo_weighted_dist := demo_pop * avg_distance
+                    ][, id_bg := gsub('.{3}$', '', density_data_long$id_orig)]
+    
+
+    bg_result_df <- density_data_long[ , .(demo_pop = sum(demo_pop), area= sum(area),
+									demo_weighted_dist = sum(demo_weighted_dist)),  by=list(id_bg, descriptor, demographic)
+								][ , demo_avg_dist := demo_weighted_dist/demo_pop]
+    descriptor1 <- unique(bg_result_df$descriptor)[1]
+    bg_pop_density <- bg_result_df[demographic == 'population' & descriptor ==
+                    descriptor1, ][, pop_density_km := 1e6 *demo_pop/area]
+    bg_result_df<- merge(bg_result_df, bg_pop_density[ , .(id_bg, pop_density_km)], by = c('id_bg'))
+
+    return(bg_result_df)
 }
 
-bg_density_data <- lapply(regression_data, function(density){bg_data(density)})
-
-head(bg_density_data[[1]][[1]])
+bg_density_demo <- lapply(regression_data, function(density){bg_data(density)})
 
 
 
-make_plots <- function(bg_density_data, county, year_str){
-ggplot(bg_density_data[[county]][[1]][year == year_str & demo_avg_dist %in% c('white_avg_dist', 'black_avg_dist'), ] , aes(x = pop_density_km, y = dist, group = demo_avg_dist, color = demo_avg_dist, size = demo_pop )) +
+make_plots <- function(bg_density_demo, county){
+ggplot(bg_density_data[[county]][descriptor == descriptor_str, ] , aes(x = pop_density_km, y = dist, group = demographic, color = demographic, size = demo_pop )) +
 geom_point() + geom_smooth(method=lm, mapping = aes(weight = demo_pop), se= F) + scale_x_continuous(trans = 'log10') + scale_y_continuous(trans = 'log10') + 
-labs(title = paste("White and Black population distance to polls by block group", county, year_str))
-output = paste(county, year_str, "avg distance.png")
+labs(title = paste("Demographic average distance to polls by block group", county, year_str))
+output = paste(county, descriptor_str, "avg distance.png")
 ggsave(output)
 
-ggplot(bg_density_data[[county]][[2]][year == year_str, ] , aes(x = pop_density_km, y = black_minus_white_avg_diff )) +
-geom_point() + geom_smooth(method=lm, mapping = aes(weight = population), se = F) + scale_x_continuous(trans = 'log10')+ labs(title = paste("Difference in avg distance traveled by White and Black population to polls by block group", county, year_str))
-output = paste(county, year_str, "avg distance diff.png")
-ggsave(output)
-
-
-ggplot(bg_density_data[[county]][[2]][year == year_str, ] , aes(x = pop_density_km, y = black_over_white_avg_ratio, group = year)) +
-geom_point() + geom_smooth(method=lm, mapping = aes(weight = population), se= F) + scale_x_continuous(trans = 'log10')+ scale_y_continuous(trans = 'log10') +
-labs(title = paste("Ratio of avg distance traveled by White and Black population to polls by block group", county, year_str))
-output = paste(county, year_str, "avg distance ratio.png")
-ggsave(output)
 
 }
 
