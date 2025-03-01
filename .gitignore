@@ -189,3 +189,5 @@ Equitable-Polling-Locations.Rproj
 #specific files to include
 !docs/README_Image.jpg
 !docs/VRC-Large-PNG.png
+!docs/VRC-Large-PNG.png
+!datasets/*
