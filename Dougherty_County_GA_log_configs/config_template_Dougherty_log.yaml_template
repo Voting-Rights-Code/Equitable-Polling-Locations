@@ -20,7 +20,7 @@ fixed_capacity_site_number: null
 precincts_open: null
 max_min_mult: 5 #scalar >= 1
 maxpctnew: 1 # in interval [0,1]
-minpctold: .8 # in interval [0,1]
+minpctold: .5 # in interval [0,1]
 driving: False
 log_distance: True
 penalized_sites: null

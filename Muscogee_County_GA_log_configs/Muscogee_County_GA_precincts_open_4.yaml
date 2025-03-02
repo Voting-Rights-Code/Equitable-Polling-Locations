@@ -12,9 +12,9 @@ time_limit: 360000
 capacity: 1.8
 fixed_capacity_site_number: null
 precincts_open: 4
-max_min_mult: 5
+max_min_mult: 50000
 maxpctnew: 1
-minpctold: 0.8
+minpctold: 0.5
 driving: false
 log_distance: true
 penalized_sites: null

@@ -15,7 +15,7 @@ fixed_capacity_site_number: null
 precincts_open: 3
 max_min_mult: 5
 maxpctnew: 1
-minpctold: 0.8
+minpctold: 0.5
 driving: false
 log_distance: true
 penalized_sites: null
