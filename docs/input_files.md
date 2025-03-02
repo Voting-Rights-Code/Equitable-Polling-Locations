@@ -32,7 +32,7 @@ This will create a set of .yaml files in the indicaded `config_folder`, each wit
 
 **Example:**
 To generate a set of configs for DuPage County, IL where the number of precincts open varies from 15 to 20, define 
-`field_to_change: 'precints open'`
+`field_to_change: 'precints_open'`
 `new_range: 
     - 15
     - 16
@@ -42,7 +42,7 @@ To generate a set of configs for DuPage County, IL where the number of precincts
     - 20`
 in the `.yaml_template` file and then run
 ```
-python auto_generate_config.py -f 'DuPage_County_IL_potential_configs/example_config.yaml_template' 
+python auto_generate_config.py -b 'DuPage_County_IL_potential_configs/example_config.yaml_template' 
 ```
 To generate a set of configs for DuPage County, IL where the set of bad locations varies are ['Elec Day School - Potential', 'Elec Day Church - Potential', 'bg_centroid'],  ['Elec Day Church - Potential', 'bg_centroid'], ['Elec Day School - Potential',  'bg_centroid'], and [ 'bg_centroid'] define
 `field_to_change: 'bad_locations'`

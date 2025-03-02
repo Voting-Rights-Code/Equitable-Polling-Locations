@@ -165,7 +165,7 @@ cython_debug/
 
 # API keys and other folders
 /authentication_files
-/test_configs
+#/test_configs
 
 # Misc
 logs
@@ -190,3 +190,4 @@ Equitable-Polling-Locations.Rproj
 !docs/README_Image.jpg
 !docs/VRC-Large-PNG.png
 !docs/VRC-Large-PNG.png
+
