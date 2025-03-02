@@ -6,7 +6,6 @@ year:
 - '2022'
 - '2024'
 bad_types:
-- Elec Day School - Potential
 - bg_centroid
 beta: -2
 time_limit: 360000

@@ -13,7 +13,6 @@ bad_types:
     - 'College Campus - Potential'
     - 'Community Center - Potential'
     - 'Library - Potential'
-    - 'Other - Potential'
     - 'bg_centroid'
 beta: -2
 time_limit: 360000 #100 hours minutes
