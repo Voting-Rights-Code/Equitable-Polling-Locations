@@ -11,21 +11,24 @@ Gwinnett_County_GA_configs/Gwinnett_config_full_11.py
 import os
 import warnings
 
-from model_config import PollingModelConfig
-
-from model_data import (build_source, clean_data, alpha_min)
-from model_factory import polling_model_factory
-from model_solver import solve_model
-from model_results import (
+from python.solver.model_config import PollingModelConfig
+from python.solver.model_data import (
+    build_source,
+    clean_data,
+    alpha_min,
+)
+from python.solver.model_factory import polling_model_factory
+from python.solver.model_results import (
     incorporate_result,
     demographic_domain_summary,
     demographic_summary,
     write_results_csv,
     write_results_bigquery,
 )
-from model_penalties import incorporate_penalties
+from python.solver.model_solver import solve_model
+from python.solver.model_penalties import incorporate_penalties
 
-from constants import DATASETS_DIR
+from python.utils.constants import DATASETS_DIR
 
 OUT_TYPE_DB = 'db'
 OUT_TYPE_CSV = 'csv'
@@ -50,7 +53,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
     if config.log_distance:
         source_file_name = source_file_name.replace('.csv', '_log.csv')
 
-    
+
     source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
     if not os.path.exists(source_path):
         warnings.warn(f'File {source_path} not found. Creating it.')

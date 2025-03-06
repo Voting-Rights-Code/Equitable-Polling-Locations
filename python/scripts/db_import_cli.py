@@ -9,15 +9,14 @@ from glob import glob
 import os
 import sys
 
-
 import pandas as pd
 
-import models as Models
-import db
+from python.database import models
+import python.database as db
 
-from model_config import PollingModelConfig
-from utils import build_precinct_summary_file_path, build_residence_summary_file_path, build_results_file_path, build_y_ede_summary_file_path, current_time_utc
-from constants import DATASETS_DIR, RESULTS_BASE_DIR
+from python.database.models.model_config import PollingModelConfig
+from python.utils import build_precinct_summary_file_path, build_residence_summary_file_path, build_results_file_path, build_y_ede_summary_file_path, current_time_utc
+from python.utils.constants import DATASETS_DIR, RESULTS_BASE_DIR
 
 MODEL_RUN_ID = 'model_run_id'
 
@@ -65,7 +64,7 @@ def import_model_config(
         path: str,
         config_set_override: str=None,
         config_name_override: str=None,
-) -> Tuple[Models.ModelConfig, dict[str, str]]:
+) -> Tuple[models.ModelConfig, dict[str, str]]:
     '''
     Imports a model config into the database.  If this model config already exists then a duplicate will not be created.
 
@@ -99,7 +98,7 @@ def import_edes(
     return db.csv_to_bigquery(
         config_set=config_set,
         config_name=config_name,
-        model_class=Models.EDES,
+        model_class=models.EDES,
         ignore_columns=ignore_columns,
         column_renames=column_renames,
         add_columns=add_columns,
@@ -125,7 +124,7 @@ def import_precinct_distances(
     return db.csv_to_bigquery(
         config_set=config_set,
         config_name=config_name,
-        model_class=Models.PrecintDistance,
+        model_class=models.PrecintDistance,
         ignore_columns=ignore_columns,
         column_renames=column_renames,
         add_columns=add_columns,
@@ -151,7 +150,7 @@ def import_residence_distances(
     return db.csv_to_bigquery(
         config_set=config_set,
         config_name=config_name,
-        model_class=Models.ResidenceDistance,
+        model_class=models.ResidenceDistance,
         ignore_columns=ignore_columns,
         column_renames=column_renames,
         add_columns=add_columns,
@@ -183,7 +182,7 @@ def import_results(
     return db.csv_to_bigquery(
         config_set=config_set,
         config_name=config_name,
-        model_class=Models.Result,
+        model_class=models.Result,
         ignore_columns=ignore_columns,
         column_renames=column_renames,
         add_columns=add_columns,

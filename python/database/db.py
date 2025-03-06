@@ -15,12 +15,14 @@ import re
 import pandas as pd
 
 import sqlalchemy
-from sqlalchemy import desc, func, inspect, select, text
+from sqlalchemy import desc, func, inspect, select
 from sqlalchemy.orm import sessionmaker as SessionMaker
 
-from model_config import PollingModelConfig
+from python.solver.model_config import PollingModelConfig
 import sqlalchemy_main
-import models as Models
+
+
+from python.database import models
 from utils import generate_uuid
 
 from google.cloud import bigquery
@@ -59,24 +61,24 @@ def get_session() -> SessionMaker:
 
     return _session
 
-def find_model_config(config_id: str) -> Optional[Models.ModelConfig]:
+def find_model_config(config_id: str) -> Optional[models.ModelConfig]:
     ''' Load a config model from the database if it exists, otherwise return None '''
     session = get_session()
-    result = session.query(Models.ModelConfig).filter(Models.ModelConfig.id == config_id).first()
+    result = session.query(models.ModelConfig).filter(models.ModelConfig.id == config_id).first()
 
     return result
 
-def find_model_configs_by_config_set(config_set: str) -> List[Models.ModelConfig]:
+def find_model_configs_by_config_set(config_set: str) -> List[models.ModelConfig]:
     ''' Returns all of the latest configs by a given config_set. '''
     session = get_session()
 
     subquery = select(
-        Models.ModelConfig,
+        models.ModelConfig,
         func.
             row_number().
             over(
-                partition_by=[Models.ModelConfig.config_set, Models.ModelConfig.config_name],
-                order_by=desc(Models.ModelConfig.created_at)).
+                partition_by=[models.ModelConfig.config_set, models.ModelConfig.config_name],
+                order_by=desc(models.ModelConfig.created_at)).
             label('rn')
     ).subquery()
 
@@ -87,25 +89,25 @@ def find_model_configs_by_config_set(config_set: str) -> List[Models.ModelConfig
 
     rows = session.execute(query).fetchall()
 
-    results: List[Models.ModelConfig] = []
+    results: List[models.ModelConfig] = []
     for row in rows:
         columns = row._asdict()
         del columns['rn']
-        results.append(Models.ModelConfig(**columns))
+        results.append(models.ModelConfig(**columns))
 
     return results
 
-def find_model_configs_by_config_set_and_config_name(config_set: str, config_name: str) -> Optional[Models.ModelConfig]:
+def find_model_configs_by_config_set_and_config_name(config_set: str, config_name: str) -> Optional[models.ModelConfig]:
     ''' Returns the latest config by a given config_set and config_name. '''
     session = get_session()
 
     subquery = select(
-        Models.ModelConfig,
+        models.ModelConfig,
         func.
             row_number().
             over(
-                partition_by=[Models.ModelConfig.config_set, Models.ModelConfig.config_name],
-                order_by=desc(Models.ModelConfig.created_at)).
+                partition_by=[models.ModelConfig.config_set, models.ModelConfig.config_name],
+                order_by=desc(models.ModelConfig.created_at)).
             label('rn')
     ).subquery()
 
@@ -121,15 +123,15 @@ def find_model_configs_by_config_set_and_config_name(config_set: str, config_nam
 
     columns = row._asdict()
     del columns['rn']
-    return Models.ModelConfig(**columns)
+    return models.ModelConfig(**columns)
 
 
 def create_db_model_config(
         config_source: PollingModelConfig,
         config_set_override: str=None,
         config_name_override: str=None,
-    ) -> Models.ModelConfig:
-    ''' Converts a PollingModelConfig config into a DB Models.ModelConfig '''
+    ) -> models.ModelConfig:
+    ''' Converts a PollingModelConfig config into a DB models.ModelConfig '''
 
 
     config_data = {
@@ -137,7 +139,7 @@ def create_db_model_config(
         'config_name': config_name_override or config_source.config_name,
     }
 
-    for column in Models.ModelConfig.__table__.columns:
+    for column in models.ModelConfig.__table__.columns:
         column_name = column.name
         if column_name in ['id', 'created_at']:
             continue
@@ -147,13 +149,13 @@ def create_db_model_config(
 
         config_data[column_name] = value
 
-    result = Models.ModelConfig(**config_data)
+    result = models.ModelConfig(**config_data)
 
     result.id = result.generate_id()
 
     return result
 
-def create_polling_model_config(config: Models.ModelConfig) -> PollingModelConfig:
+def create_polling_model_config(config: models.ModelConfig) -> PollingModelConfig:
         ''' Converts a SQLAlchemy config into the legacy PollingModelConfig dataclass '''
 
         column_names = [column.name for column in config.__table__.columns]
@@ -168,7 +170,7 @@ def create_polling_model_config(config: Models.ModelConfig) -> PollingModelConfi
 
         return polling_model_config
 
-def create_model_config(model_config: Models.ModelConfig) -> Models.ModelConfig:
+def create_model_config(model_config: models.ModelConfig) -> models.ModelConfig:
     '''
     Creates a new ModelConfig object in the database.  Note: db.commit() must be
     called for the object to be commited to the database.
@@ -182,7 +184,7 @@ def create_model_config(model_config: Models.ModelConfig) -> Models.ModelConfig:
 
     return model_config
 
-def find_or_create_model_config(model_config: Models.ModelConfig, log: bool = False) -> Models.ModelConfig:
+def find_or_create_model_config(model_config: models.ModelConfig, log: bool = False) -> models.ModelConfig:
     '''
     Looks for an existing ModelConfig object in the database, if one does not already
     exist then one will be created.  Note: db.commit() must be
@@ -205,13 +207,13 @@ def create_model_run(
         username: str,
         commit_hash: str,
         created_at: datetime=None,
-) -> Models.ModelRun:
+) -> models.ModelRun:
     '''
     Creates a ModelRun instance in the database. Note: db.commit() must be
     called for the object to be commited to the database.
     '''
 
-    model_run = Models.ModelRun(
+    model_run = models.ModelRun(
         id = generate_uuid(),
         model_config_id = model_config_id,
         username = username,

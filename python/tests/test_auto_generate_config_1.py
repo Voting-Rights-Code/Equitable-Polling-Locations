@@ -1,8 +1,15 @@
-import pytest
 import warnings
 import yaml
 import os
-from model_config import (get_canonical_config_args, EXPERIMENTAL_FIELDS, CANONICAL_FIELDS)
+
+import pytest
+
+from python.solver.model_config import (
+    get_canonical_config_args,
+    EXPERIMENTAL_FIELDS,
+    CANONICAL_FIELDS,
+)
+
 # from auto_generate_config import generate_configs
 tests_dir = 'tests'
 testing_config_file = os.path.join(tests_dir, 'testing_auto_generate_config.yaml')
@@ -40,10 +47,10 @@ def test_missing_required_field():
     config = load_config(testing_config_file)
     # Remove a required field
     del config['location']
-    
+
     with pytest.raises(KeyError) as excinfo:
         validate_config(config)
-    
+
     assert 'location' in str(excinfo.value)
 
 def test_extra_required_field():
@@ -51,7 +58,7 @@ def test_extra_required_field():
     config = load_config(testing_config_file)
     # Add an extra field
     config['extra_field'] = 'extra_value'
-    
+
     with pytest.raises(ValueError) as excinfo:
         validate_config(config)
 
@@ -65,7 +72,7 @@ def test_experimental_and_required_fields_mutual_exclusivity():
     all_fields = set(config.keys())
 
     combined_fields = REQUIRED_FIELDS + EXPERIMENTAL_FIELDS
-    
+
     intersection = all_fields.intersection(combined_fields)
     # print(f"Required Fields: {REQUIRED_FIELDS}")
     # print(f"Experimental Fields: {EXPERIMENTAL_FIELDS}")
@@ -74,7 +81,7 @@ def test_experimental_and_required_fields_mutual_exclusivity():
 
     # Remove the overlapping fields from the intersection
     intersection = intersection - set(REQUIRED_FIELDS) - set(EXPERIMENTAL_FIELDS)
-    
+
     assert len(intersection) == 0, "Required and experimental fields should not overlap."
 
 # A mock validate_config function for testing purposes
@@ -83,12 +90,12 @@ def validate_config(config):
     for field in REQUIRED_FIELDS:
         if field not in config:
             raise KeyError(field)
-    
+
     # Check for unexpected fields
     unexpected_fields = set(config.keys()) - set(REQUIRED_FIELDS) - set(EXPERIMENTAL_FIELDS)
     if unexpected_fields:
         raise ValueError(f"Unexpected fields found: {', '.join(unexpected_fields)}")
-    
+
     for field in EXPERIMENTAL_FIELDS:
         if field in config and field in REQUIRED_FIELDS:
             raise ValueError(f"Field '{field}' cannot be both required and experimental.")

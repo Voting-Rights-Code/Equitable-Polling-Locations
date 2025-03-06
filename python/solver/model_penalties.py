@@ -1,7 +1,7 @@
 import pyomo.environ as pyo
 import math
 
-from model_config import PollingModelConfig
+from python.solver.model_config import PollingModelConfig
 
 from model_solver import solve_model
 from model_factory import polling_model_factory
@@ -21,7 +21,7 @@ def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, confi
     # 0. if there are not penalized sites, we're done
     if not config.penalized_sites:
         return result_df
-    
+
     # 1. if none of the penalized sites were selected by model 1 (no penalties), we're done
     selected_sites = set(result_df.id_dest)
     penalized_sites = set(dist_df.loc[dist_df['location_type'].isin(config.penalized_sites), 'id_dest'].unique())
@@ -29,7 +29,7 @@ def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, confi
     if not penalized_selections:
         print('No penalized sites selected')
         return result_df
-    
+
     # otherwise, start a log and continue the algorithm
     penalty_log = open(get_log_path(config,'penalty'), 'a')
     penalty_log.write('Model 1: original model with no penalties\n')
@@ -39,7 +39,7 @@ def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, confi
 
     # 2. convert objective value to KP score (kp1)
     obj_value = pyo.value(ea_model.obj)
-    kp1 = -1/(config.beta*alpha)*math.log(obj_value) if config.beta else obj_value   
+    kp1 = -1/(config.beta*alpha)*math.log(obj_value) if config.beta else obj_value
     penalty_log.write(f'KP Objective = {kp1:.2f}\n')
 
     # 3. compute optimal solution excluding penalized sites (model 2)
@@ -54,7 +54,7 @@ def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, confi
     # 4. convert objective value to KP score (kp2)
     obj_value = pyo.value(ea_model_exclusions.obj)
     kp2 = -1/(config.beta*alpha)*math.log(obj_value) if config.beta else obj_value
-    
+
     # 5. compute penalty as (kp2-kp1)/len(selected penalized sites in model 1)
     penalty = (kp2-kp1)/len(penalized_selections)
     if log:
@@ -62,7 +62,7 @@ def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, confi
         print(f'computed penalty is {penalty:.2f}')
     penalty_log.write('\nModel 2: penalized sites excluded\n')
     penalty_log.write(f'KP Objective = {kp2:.2f}\n')
-     
+
     # 6. compute optimal solution including penalized sites applying calculate penalty (model 3)
     ea_model_penalized =  polling_model_factory(dist_df, alpha, config,
                                             exclude_penalized_sites=False,

@@ -20,7 +20,7 @@ from model_data import (
     get_max_min_dist,
 )
 
-from utils import timer
+from python.utils import timer
 
 class PollingModel(pyo.ConcreteModel):
     ''' An extention of the pyomo ConcreteModel to document variables '''
@@ -62,7 +62,7 @@ def build_objective_rule(
         alpha: float,
         *,
         site_penalty: float=0,
-        kp_penalty_parameter: float=0, 
+        kp_penalty_parameter: float=0,
     ):
     '''The function to be minimized:
     Variables: model.matching, indexed by reisidence precinct pairs'''
@@ -188,12 +188,12 @@ def build_capacity_rule(
     Respects capacity limits and prevents overcrowding by restricting the number that can go to a precinct to some scaling factor of the avg population per center
     '''
     #modify the capacity according to the user defined default precints_open
-    if config.fixed_capacity_site_number == None: 
+    if config.fixed_capacity_site_number == None:
         #capacity rule uses capacity * total_pop / precincts open
         capacity = config.capacity
     else: #calculate capacity_rule by replacing precints_open with fixed_capacity_site_number
-        capacity = config.capacity * precincts_open / config.fixed_capacity_site_number 
-    
+        capacity = config.capacity * precincts_open / config.fixed_capacity_site_number
+
     def capacity_rule(
         model: pyo.AbstractModel,
         precinct,
@@ -215,7 +215,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
 
     if site_penalty and not kp_penalty_parameter:
         raise ValueError(f'kp_penalty_parameter must be positive if site_penalty is positive ({site_penalty=}')
-        
+
     #define max_min parameter needed for certain calculations
     global_max_min_dist = get_max_min_dist(dist_df)
     max_min = config.max_min_mult* global_max_min_dist
@@ -283,7 +283,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
     if site_penalty:
         model.penalty_exp = pyo.Var(domain=pyo.NonNegativeReals)
         model.penalty = pyo.Var(domain=pyo.NonNegativeReals)
-    
+
     ####define parameter dependent indices####
     #residences in precint radius
     model.within_residence_radius = pyo.Set(model.residences, initialize = {res:[prec for prec in model.precincts if model.distance[(res,prec)] <= max_min] for res in model.residences})
@@ -306,7 +306,7 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
         linearization_points = [-alpha*config.beta*i*site_penalty for i in range(num_penalized_sites+1)]
         penalty_approximation_rule = build_penalty_approximation_rule()
         model.penalty_approximation_constraint = pyo.Constraint(linearization_points, rule=penalty_approximation_rule)
-        
+
     #percent of new precincts not to exceed maxpctnew
     max_new_rule = build_max_new_rule(config, precincts_open)
     model.max_new_constraint = pyo.Constraint(rule=max_new_rule)

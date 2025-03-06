@@ -11,9 +11,12 @@ from sqlalchemy import pool
 
 from alembic import context
 
-# pylint: disable-next=unused-import
-from sqlalchemy_main import ModelBase
-from sqlalchemy_main import get_db_project, get_db_dataset
+# py lint: disable -next=unused-import
+from python.database.sqlalchemy_main import (
+    ModelBase,
+    get_db_project,
+    get_db_dataset,
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -12,7 +12,7 @@ import googlemaps
 import json
 from haversine import haversine, Unit
 
-import address_cvs_headers as headers
+import python.utils.csv_constants as headers
 
 API_KEY_FILENAME = 'api.key'
 

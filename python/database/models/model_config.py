@@ -8,8 +8,8 @@ import json
 from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, text, ARRAY
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 
-from sqlalchemy_main import ModelBase
-from utils import current_time_utc, generate_uuid
+from python.database.sqlalchemy_main import ModelBase
+from python.utils import current_time_utc, generate_uuid
 
 class ModelConfig(ModelBase):
     ''' Model Configuration SQLAlchemy record  '''

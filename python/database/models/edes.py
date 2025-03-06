@@ -5,8 +5,8 @@
 
 from sqlalchemy import Column, String, Integer, Float, text
 
-from sqlalchemy_main import ModelBase
-from utils import generate_uuid
+from python.database.sqlalchemy_main import ModelBase
+from python.utils import generate_uuid
 
 class EDES(ModelBase):
     ''' EDES SQLAlchemy record. '''

@@ -12,21 +12,18 @@ the db.
 
 import argparse
 import datetime
-from glob import glob
 from multiprocessing import Pool
 import os
 import sys
 from typing import List
 
-
-
 from tqdm import tqdm
 
-import db
-from model_config import PollingModelConfig
-import model_run
-from models.model_config import ModelConfig
-import utils
+import python.database as db
+from python.solver.model_config import PollingModelConfig
+from python.solver import model_run
+from python.database.models.model_config import ModelConfig
+from python import utils
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 

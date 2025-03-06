@@ -1,14 +1,18 @@
 import os
+from pathlib import Path
 import shutil
 import requests
 import subprocess
 import argparse
 import pandas as pd
-try:
-    from authentication_files.census_key import census_key
-except:
-    census_key = None
-from pathlib import Path
+
+# TODO fix this
+# try:
+#     from authentication_files.census_key import census_key
+# except:
+#     census_key = None
+
+census_key = None
 
 STATE_LOOKUP = {
     'AK': 'Alaska',
@@ -130,15 +134,15 @@ def pull_ptable_data(geography, pnum, state_fips, county_code, api_key):
     )
     data = pd.DataFrame(r.json())
     metadata = pull_metadata(f"https://api.census.gov/data/2020/dec/pl/groups/{pnum}")
-    
+
     #reformat data to match manual download (for backwards compatibility)
     headers = data.iloc[0].values
     data.columns = headers
     data = data.drop(['state','county','tract',geography], axis=1)
     data = data[data.columns[~data.columns.str.endswith('NA')]]
     metadata_as_dict = metadata['Label'].to_dict()
-    row_0 = [old_name for old_name in data.iloc[0, :]]    
-    replacement = [metadata_as_dict[old_name] for old_name in row_0]  
+    row_0 = [old_name for old_name in data.iloc[0, :]]
+    replacement = [metadata_as_dict[old_name] for old_name in row_0]
     data.loc[0] = replacement
 
     return data, metadata

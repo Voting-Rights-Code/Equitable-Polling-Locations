@@ -8,9 +8,8 @@ import argparse
 
 from sqlalchemy import inspect, sql
 
-import db
-import db_import_cli
-from model_config import PollingModelConfig
+import python.database as db
+from python.solver.model_config import PollingModelConfig
 import models as Models
 
 def load_base_config(config_file):

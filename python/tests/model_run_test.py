@@ -1,15 +1,14 @@
 '''Note that this testing framework pulls a (fixed) sample dataset from an existing county, runs the model on it, and checks
 that the resulta are consistent. As such, this is a point check only, and not a proof of correctness'''
 
-import os
-import pandas as pd
-from model_config import PollingModelConfig
-import model_data
-import model_factory
-import model_solver
-import pyomo.environ as pyo
 import math
+import os
 
+import pandas as pd
+import pyomo.environ as pyo
+
+from python.solver.model_config import PollingModelConfig
+from python.solver import model_data, model_factory, model_solver
 
 #TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTS_DIR = 'tests'
@@ -64,7 +63,7 @@ def test_min_old_constraint():
 
 
 def test_res_assigned():
-    #each residence assigned to exactly one precinct 
+    #each residence assigned to exactly one precinct
     #Note: ignoring the radius calculation here
     assert MATCHED_RESIDENCES == ALL_RESIDENCES
 
@@ -102,7 +101,7 @@ EX_OBJ = pyo.value(EX_MODEL.obj)
 EX_KP = -1/(CONFIG.beta*ALPHA)*math.log(EX_OBJ) # same beta and alpha for both configs
 
 def test_exclude_penalized():
-    EX_OPEN_PRECINCTS = {key for key in EX_MODEL.open if EX_MODEL.open[key].value ==1}   
+    EX_OPEN_PRECINCTS = {key for key in EX_MODEL.open if EX_MODEL.open[key].value ==1}
     assert len(EX_OPEN_PRECINCTS - set(PENALTY_CONFIG.penalized_sites))==3
 
 def test_penalized_model():
@@ -112,7 +111,7 @@ def test_penalized_model():
                                                     site_penalty=penalty,
                                                     kp_penalty_parameter=KP)
     model_solver.solve_model(PEN_MODEL, PENALTY_CONFIG.time_limit)
-    PEN_OPEN_PRECINCTS = {key for key in PEN_MODEL.open if PEN_MODEL.open[key].value ==1} 
+    PEN_OPEN_PRECINCTS = {key for key in PEN_MODEL.open if PEN_MODEL.open[key].value ==1}
     PEN_OBJ = pyo.value(PEN_MODEL.obj)
     PEN_KP = -1/(CONFIG.beta*ALPHA)*math.log(PEN_OBJ) - penalty
     assert (PEN_KP > KP)

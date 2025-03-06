@@ -16,9 +16,9 @@ from typing import List
 
 from tqdm import tqdm
 
-from model_config import PollingModelConfig
-import model_run
-import utils
+from python.solver.model_config import PollingModelConfig
+from python.solver import model_run
+from python import utils
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 

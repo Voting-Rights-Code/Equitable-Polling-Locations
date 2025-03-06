@@ -12,9 +12,12 @@ import threading
 import numpy as np
 import pandas as pd
 
-import db
-import db_import_cli
-from model_config import PollingModelConfig
+import python.database as db
+from python.scripts import db_import_cli
+from python.solver.model_config import PollingModelConfig
+
+from python.utils.constants import RESULTS_BASE_DIR
+
 from utils import (
   timer,
   current_time_utc,
@@ -23,9 +26,6 @@ from utils import (
   build_residence_summary_file_path,
   build_y_ede_summary_file_path
 )
-
-
-from constants import RESULTS_BASE_DIR
 
 lock = threading.Lock()
 
