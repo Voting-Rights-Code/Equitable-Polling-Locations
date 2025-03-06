@@ -8,9 +8,9 @@ import argparse
 
 from sqlalchemy import inspect, sql
 
-import python.database as db
+from python.database import query
 from python.solver.model_config import PollingModelConfig
-import models as Models
+from python.database import models as Models
 
 def load_base_config(config_file):
     '''Load the base configuration from the provided YAML file.'''
@@ -136,9 +136,9 @@ def generate_configs(base_config_file:str):#, field_to_vary:str, desired_range: 
             yaml.dump(config, outfile, default_flow_style=False, sort_keys= False)
 
         source_config = PollingModelConfig.load_config(file_path)
-        model_config = db.create_db_model_config(source_config)
-        model_config = db.find_or_create_model_config(model_config)
-        db.commit()
+        model_config = query.create_db_model_config(source_config)
+        model_config = query.find_or_create_model_config(model_config)
+        query.commit()
 
 
 #Note this doesn't work

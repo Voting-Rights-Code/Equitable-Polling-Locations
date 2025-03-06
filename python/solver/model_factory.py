@@ -14,13 +14,14 @@ import warnings
 
 import pyomo.environ as pyo
 
-from model_config import PollingModelConfig
+from python.utils import timer
 
-from model_data import (
+
+from .model_config import PollingModelConfig
+from .model_data import (
     get_max_min_dist,
 )
 
-from python.utils import timer
 
 class PollingModel(pyo.ConcreteModel):
     ''' An extention of the pyomo ConcreteModel to document variables '''

@@ -4,7 +4,7 @@
 
 from sqlalchemy import Column, String, Integer, Float, text
 
-from python.database.sqlalchemy_main import ModelBase
+from ..sqlalchemy_main import ModelBase
 from python.utils import generate_uuid
 class ResidenceDistance(ModelBase):
     ''' Residence distance SQLAlchemy record. '''

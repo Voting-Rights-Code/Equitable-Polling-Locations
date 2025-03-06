@@ -19,10 +19,10 @@ from typing import List
 
 from tqdm import tqdm
 
-import python.database as db
+from python.database import query
 from python.solver.model_config import PollingModelConfig
 from python.solver import model_run
-from python.database.models.model_config import ModelConfig
+from python.database.models import ModelConfig
 from python import utils
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
@@ -47,7 +47,7 @@ def load_configs(config_args: List[str], logdir: str) -> List[PollingModelConfig
         config_set = config_arg_parts[0]
         if num_config_arg_parts == 1:
             # Find all the latest configs by a config_set
-            configs = db.find_model_configs_by_config_set(config_set)
+            configs = query.find_model_configs_by_config_set(config_set)
             if not configs:
                 print(f'Invalid config: {config_arg}')
                 sys.exit(1)
@@ -55,7 +55,7 @@ def load_configs(config_args: List[str], logdir: str) -> List[PollingModelConfig
             # Find a single config by config_set and config_name that is the latest
             config_name = config_arg_parts[1]
 
-            config = db.find_model_configs_by_config_set_and_config_name(config_set, config_name)
+            config = query.find_model_configs_by_config_set_and_config_name(config_set, config_name)
             if config:
                 configs = [ config ]
             else:
@@ -67,7 +67,7 @@ def load_configs(config_args: List[str], logdir: str) -> List[PollingModelConfig
 
         for config in configs:
             # Convert the db config into a legacy polling model config object
-            polling_model_config = db.create_polling_model_config(config)
+            polling_model_config = query.create_polling_model_config(config)
 
             if logdir:
                 # Setup logs as needed

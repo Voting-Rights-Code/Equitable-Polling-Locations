@@ -11,7 +11,6 @@ from sqlalchemy import pool
 
 from alembic import context
 
-# py lint: disable -next=unused-import
 from python.database.sqlalchemy_main import (
     ModelBase,
     get_db_project,

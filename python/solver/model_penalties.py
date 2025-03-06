@@ -1,13 +1,14 @@
 import pyomo.environ as pyo
 import math
 
-from python.solver.model_config import PollingModelConfig
+from .model_config import PollingModelConfig
 
-from model_solver import solve_model
-from model_factory import polling_model_factory
-from model_results import (
-    incorporate_result,compute_kp_score)
-
+from .model_factory import polling_model_factory
+from .model_results import (
+    incorporate_result,
+    compute_kp_score,
+)
+from .model_solver import solve_model
 
 
 def get_log_path(config: PollingModelConfig, specifier: str):

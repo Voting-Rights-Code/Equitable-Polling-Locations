@@ -14,7 +14,7 @@ from sqlalchemy.engine.base import Engine
 from sqlalchemy.ext.declarative import declarative_base
 from alembic.operations import Operations, MigrateOperation
 
-import utils
+from python import utils
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 

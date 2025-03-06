@@ -12,13 +12,10 @@ import threading
 import numpy as np
 import pandas as pd
 
-import python.database as db
-from python.scripts import db_import_cli
-from python.solver.model_config import PollingModelConfig
+from python.database import imports, query
 
 from python.utils.constants import RESULTS_BASE_DIR
-
-from utils import (
+from python.utils import (
   timer,
   current_time_utc,
   build_results_file_path,
@@ -26,6 +23,9 @@ from utils import (
   build_residence_summary_file_path,
   build_y_ede_summary_file_path
 )
+
+from .model_config import PollingModelConfig
+
 
 lock = threading.Lock()
 
@@ -196,8 +196,8 @@ def write_results_bigquery(
         else:
             # With no id, create a new database instance of the source_config
             print(f'source_config.config_file_path: {source_config.config_file_path}')
-            model_config = db.create_db_model_config(source_config)
-            model_config = db.find_or_create_model_config(model_config)
+            model_config = query.create_db_model_config(source_config)
+            model_config = query.find_or_create_model_config(model_config)
 
             model_config_id = model_config.id
             config_set = model_config.config_set
@@ -207,19 +207,19 @@ def write_results_bigquery(
             print(f'Importing result from {source_config}')
 
         # TODO Add user and commit hashs
-        model_run = db.create_model_run(model_config_id, '', '', current_time_utc())
+        model_run = query.create_model_run(model_config_id, '', '', current_time_utc())
 
         # Import each DF for this run
-        edes_import_result = db_import_cli.import_edes(
+        edes_import_result = imports.import_edes(
             config_set, config_name, model_run.id, df=demographic_ede, log=log,
         )
-        results_import_result = db_import_cli.import_results(
+        results_import_result = imports.import_results(
             config_set, config_name, model_run.id, df=result_df, log=log,
         )
-        precinct_distances_import_result = db_import_cli.import_precinct_distances(
+        precinct_distances_import_result = imports.import_precinct_distances(
             config_set, config_name, model_run.id, df=demographic_prec, log=log,
         )
-        residence_distances_import_result = db_import_cli.import_residence_distances(
+        residence_distances_import_result = imports.import_residence_distances(
             config_set, config_name, model_run.id, df=demographic_res, log=log,
         )
 
@@ -239,7 +239,7 @@ def write_results_bigquery(
                 print(current_run_result)
 
         model_run.success = success
-        db.commit()
+        query.commit()
 
         if success and log:
             print(f'\nResults for config set {config_set}, config {config_name} successfuly written to db.')

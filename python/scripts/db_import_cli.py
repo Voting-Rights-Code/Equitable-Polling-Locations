@@ -11,10 +11,10 @@ import sys
 
 import pandas as pd
 
-from python.database import models
-import python.database as db
+from python.database import models, query, imports
+from python.database.import_result import ImportResult
 
-from python.database.models.model_config import PollingModelConfig
+from python.solver.model_config import PollingModelConfig
 from python.utils import build_precinct_summary_file_path, build_residence_summary_file_path, build_results_file_path, build_y_ede_summary_file_path, current_time_utc
 from python.utils.constants import DATASETS_DIR, RESULTS_BASE_DIR
 
@@ -77,122 +77,13 @@ def import_model_config(
 
     paths = output_file_paths(config_source)
 
-    db_model_config = db.create_db_model_config(config_source, config_set_override, config_name_override)
+    db_model_config = query.create_db_model_config(config_source, config_set_override, config_name_override)
 
     return (db_model_config, paths)
 
-def import_edes(
-        config_set: str,
-        config_name: str,
-        model_run_id: str,
-        csv_path: str = None,
-        df: pd.DataFrame = None,
-        log: bool = False,
-) -> db.ImportResult:
-    ''' Imports an existing EDEs csv into the database for a given mode_run_id. '''
-
-    column_renames = {}
-    ignore_columns = ['V1']
-    add_columns = { 'model_run_id': model_run_id }
-
-    return db.csv_to_bigquery(
-        config_set=config_set,
-        config_name=config_name,
-        model_class=models.EDES,
-        ignore_columns=ignore_columns,
-        column_renames=column_renames,
-        add_columns=add_columns,
-        csv_path=csv_path,
-        df=df,
-        log=log,
-    )
-
-def import_precinct_distances(
-        config_set: str,
-        config_name: str,
-        model_run_id: str,
-        csv_path: str = None,
-        df: pd.DataFrame = None,
-        log: bool = False,
-) -> db.ImportResult:
-    ''' Imports an existing precinct distances csv into the database for a given mode_run_id. '''
-
-    column_renames = {}
-    ignore_columns = ['V1']
-    add_columns = { 'model_run_id': model_run_id }
-
-    return db.csv_to_bigquery(
-        config_set=config_set,
-        config_name=config_name,
-        model_class=models.PrecintDistance,
-        ignore_columns=ignore_columns,
-        column_renames=column_renames,
-        add_columns=add_columns,
-        csv_path=csv_path,
-        df=df,
-        log=log,
-    )
-
-def import_residence_distances(
-        config_set: str,
-        config_name: str,
-        model_run_id: str,
-        csv_path: str = None,
-        df: pd.DataFrame = None,
-        log: bool = False,
-) -> db.ImportResult:
-    ''' Imports an existing residence distances csv into the database for a given mode_run_id. '''
-
-    column_renames = {}
-    ignore_columns = ['V1']
-    add_columns = { 'model_run_id': model_run_id }
-
-    return db.csv_to_bigquery(
-        config_set=config_set,
-        config_name=config_name,
-        model_class=models.ResidenceDistance,
-        ignore_columns=ignore_columns,
-        column_renames=column_renames,
-        add_columns=add_columns,
-        csv_path=csv_path,
-        df=df,
-        log=log,
-    )
-
-def import_results(
-        config_set: str,
-        config_name: str,
-        model_run_id: str,
-        csv_path: str = None,
-        df: pd.DataFrame = None,
-        log: bool = False,
-) -> db.ImportResult:
-    ''' Imports an existing precinct distances csv into the database for a given mode_run_id. '''
-
-    column_renames = {
-        'non-hispanic': 'non_hispanic',
-        'Weighted_dist': 'weighted_dist',
-        'KP_factor': 'kp_factor',
-    }
-    ignore_columns = ['V1']
-    add_columns = { 'model_run_id': model_run_id }
-    if df is not None: #if csv path given, then df should be null. when reading from csv, there is no index.
-        df.reset_index(drop=True, inplace=True)
-
-    return db.csv_to_bigquery(
-        config_set=config_set,
-        config_name=config_name,
-        model_class=models.Result,
-        ignore_columns=ignore_columns,
-        column_renames=column_renames,
-        add_columns=add_columns,
-        csv_path=csv_path,
-        df=df,
-        log=log,
-    )
 
 
-def print_all_import_results(import_results_list: List[db.ImportResult], output_path: str=None):
+def print_all_import_results(import_results_list: List[ImportResult], output_path: str=None):
     ''' Prints to the screen a summary of all import results. '''
 
     data = {
@@ -246,24 +137,24 @@ def main(args: argparse.Namespace):
         config_set = model_config.config_set
         config_name = model_config.config_name
 
-        model_config = db.find_or_create_model_config(model_config)
+        model_config = query.find_or_create_model_config(model_config)
         print(f'Importing result files from {model_config}')
 
         # TODO Fix the hard coding
-        model_run = db.create_model_run(model_config.id, 'chad', '', current_time_utc())
+        model_run = query.create_model_run(model_config.id, 'chad', '', current_time_utc())
         print(f'Created {model_run}')
 
         # Import each csv file for this run
-        edes_import_result = import_edes(
+        edes_import_result = imports.import_edes(
             config_set, config_name, model_run.id, csv_path=file_paths[EDE_PATH], log=True,
         )
-        results_import_result = import_results(
+        results_import_result = imports.import_results(
             config_set, config_name, model_run.id, csv_path=file_paths[RESULTS_PATH], log=True,
         )
-        precinct_distances_import_result = import_precinct_distances(
+        precinct_distances_import_result = imports.import_precinct_distances(
             config_set, config_name, model_run.id, csv_path=file_paths[PRECINCT_DISTANCES_PATH], log=True,
         )
-        residence_distances_import_result = import_residence_distances(
+        residence_distances_import_result = imports.import_residence_distances(
             config_set, config_name, model_run.id, csv_path=file_paths[RESIDENCE_DISTANCES_PATH], log=True,
         )
 
@@ -283,7 +174,7 @@ def main(args: argparse.Namespace):
 
         print('\n\n')
 
-        db.commit()
+        query.commit()
 
 
     success_results = [ result for result in results if result.success ]

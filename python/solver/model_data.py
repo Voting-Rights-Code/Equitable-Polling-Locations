@@ -11,11 +11,11 @@ import math
 import os
 from haversine import haversine
 import geopandas as gpd
-from model_config import PollingModelConfig
-from pull_census_data import pull_census_data
 
-from constants import DATASETS_DIR
+from python.utils.constants import DATASETS_DIR
+from python.utils.pull_census_data import pull_census_data
 
+from .model_config import PollingModelConfig
 
 #define columns for each input data set
 LOCATIONS_COLS = [
@@ -170,7 +170,7 @@ def build_source(config: PollingModelConfig, log):
     #drop duplicates and empty block groups
     demographics_block = demographics_block.drop_duplicates() #put in to avoid duplications down the line.
     demographics_block = demographics_block[demographics_block['population']>0]
-    
+
     #####
     #Make a polling locations table (including block group centroid)
     #####
@@ -201,10 +201,10 @@ def build_source(config: PollingModelConfig, log):
         raise ValueError('Non-unique names in Location column. This will cause errors later.')
 
     #####
-    # Cross join polling locations and demographics tables 
+    # Cross join polling locations and demographics tables
     #####
     full_df = demographics_block.merge(all_locations, how= 'cross')
-    
+
 
     #####
     #Rename, select columns
@@ -348,7 +348,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool):
     for year in year_list:
         if not any(str(year) in poll for poll in polling_location_types):
             raise ValueError(f'Do not currently have any data for {location} for {year} from {config.config_file_path}')
-    
+
 
     #exclude bad location types
     # The bad types must be valid location types
@@ -388,7 +388,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool):
         raise ValueError(f'Driving Distance File ({file_path}) '
                          'does not contain driving distances for all id_orig/id_dest pairs.')
 
-    
+
     #create other useful columns
     df['Weighted_dist'] = df['population'] * df['distance_m']
     return(df)

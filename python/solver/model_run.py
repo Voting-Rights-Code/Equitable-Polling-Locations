@@ -11,24 +11,25 @@ Gwinnett_County_GA_configs/Gwinnett_config_full_11.py
 import os
 import warnings
 
-from python.solver.model_config import PollingModelConfig
-from python.solver.model_data import (
+from python.utils.constants import DATASETS_DIR
+
+from .model_config import PollingModelConfig
+from .model_data import (
     build_source,
     clean_data,
     alpha_min,
 )
-from python.solver.model_factory import polling_model_factory
-from python.solver.model_results import (
+from .model_factory import polling_model_factory
+from .model_penalties import incorporate_penalties
+from .model_results import (
     incorporate_result,
     demographic_domain_summary,
     demographic_summary,
     write_results_csv,
     write_results_bigquery,
 )
-from python.solver.model_solver import solve_model
-from python.solver.model_penalties import incorporate_penalties
+from .model_solver import solve_model
 
-from python.utils.constants import DATASETS_DIR
 
 OUT_TYPE_DB = 'db'
 OUT_TYPE_CSV = 'csv'

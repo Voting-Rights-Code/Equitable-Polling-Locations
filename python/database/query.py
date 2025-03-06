@@ -7,48 +7,31 @@ Credentials are assumed to be setup by the user by using the glcloud cli.
     e.g. "gcloud auth application-default login"
 '''
 
-from dataclasses import dataclass, fields
-from typing import Dict, Optional, List
+from dataclasses import fields
+from typing import Optional, List
 from datetime import datetime
 import re
 
 import pandas as pd
 
-import sqlalchemy
 from sqlalchemy import desc, func, inspect, select
 from sqlalchemy.orm import sessionmaker as SessionMaker
 
-from python.solver.model_config import PollingModelConfig
-import sqlalchemy_main
-
-
-from python.database import models
-from utils import generate_uuid
-
 from google.cloud import bigquery
 
-import utils
+from python.solver.model_config import PollingModelConfig
+from python import utils
+
+from . import models
+from . import sqlalchemy_main
+
 
 _session: SessionMaker = None
 
 DB_INTEGER = 'INTEGER'
 DB_FLOAT = 'FLOAT'
 
-@dataclass
-class ImportResult:
-    ''' A simple class to report results on imports and if there were any problems '''
-    config_set: str
-    config_name: str
-    table_name: str
-    success: bool
-    source_file: str
-    rows_written: int
-    exception: Optional[Exception]
-    timestamp: str = None
 
-    def __post_init__(self):
-        if not self.timestamp:
-            self.timestamp = utils.current_time_utc()
 
 def get_session() -> SessionMaker:
     '''
@@ -156,23 +139,23 @@ def create_db_model_config(
     return result
 
 def create_polling_model_config(config: models.ModelConfig) -> PollingModelConfig:
-        ''' Converts a SQLAlchemy config into the legacy PollingModelConfig dataclass '''
+    ''' Converts a SQLAlchemy config into the legacy PollingModelConfig dataclass '''
 
-        column_names = [column.name for column in config.__table__.columns]
-        column_names.sort()
+    column_names = [column.name for column in config.__table__.columns]
+    column_names.sort()
 
-        model_config_dict = {
-            field.name: getattr(config, field.name) for field in fields(PollingModelConfig) if field.name in column_names
-        }
+    model_config_dict = {
+        field.name: getattr(config, field.name) for field in fields(PollingModelConfig) if field.name in column_names
+    }
 
-        polling_model_config = PollingModelConfig(**model_config_dict)
-        polling_model_config.db_id = config.id
+    polling_model_config = PollingModelConfig(**model_config_dict)
+    polling_model_config.db_id = config.id
 
-        return polling_model_config
+    return polling_model_config
 
 def create_model_config(model_config: models.ModelConfig) -> models.ModelConfig:
     '''
-    Creates a new ModelConfig object in the database.  Note: db.commit() must be
+    Creates a new ModelConfig object in the database.  Note: query.commit() must be
     called for the object to be commited to the database.
     '''
     model_config.id = model_config.generate_id()
@@ -187,7 +170,7 @@ def create_model_config(model_config: models.ModelConfig) -> models.ModelConfig:
 def find_or_create_model_config(model_config: models.ModelConfig, log: bool = False) -> models.ModelConfig:
     '''
     Looks for an existing ModelConfig object in the database, if one does not already
-    exist then one will be created.  Note: db.commit() must be
+    exist then one will be created.  Note: query.commit() must be
     called for the object to be commited to the database.
     '''
     result = find_model_config(model_config.generate_id())
@@ -209,12 +192,12 @@ def create_model_run(
         created_at: datetime=None,
 ) -> models.ModelRun:
     '''
-    Creates a ModelRun instance in the database. Note: db.commit() must be
+    Creates a ModelRun instance in the database. Note: query.commit() must be
     called for the object to be commited to the database.
     '''
 
     model_run = models.ModelRun(
-        id = generate_uuid(),
+        id = utils.generate_uuid(),
         model_config_id = model_config_id,
         username = username,
         commit_hash = commit_hash,
@@ -231,22 +214,6 @@ def bigquery_client() -> bigquery.Client:
     return bigquery.Client(project=sqlalchemy_main.get_db_project())
 
 
-def bigquery_bluk_insert_dataframe(table_name, df: pd.DataFrame, log: bool = False) -> int:
-    '''
-    Uploads a dataframe into a bigquery table in bulk using the bigquery client library.
-    '''
-    client = bigquery_client()
-    destination = f'{sqlalchemy_main.get_db_dataset()}.{table_name}'
-
-    job = client.load_table_from_dataframe(
-        df,
-        destination
-    )
-
-    job.result()
-    if log:
-        print(f'Wrote {job.output_rows} rows to table {destination}')
-    return job.output_rows
 
 
 def validate_csv_columns(model_class: sqlalchemy_main.ModelBaseType, df: pd.DataFrame, log: bool = False):
@@ -299,113 +266,10 @@ def validate_csv_columns(model_class: sqlalchemy_main.ModelBaseType, df: pd.Data
                     f'Unknown value type for column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
                 )
 
-def csv_to_bigquery(
-        config_set: str,
-        config_name: str,
-        model_class: sqlalchemy_main.ModelBaseType,
-        ignore_columns: List[str],
-        column_renames: Dict[str, str],
-        add_columns: Dict[str, str],
-        csv_path: str = None,
-        df: pd.DataFrame = None,
-        log: bool = False,
-):
-    '''
-    Loads in a csv file or DataFrame, alterns columns as needed, and builk uploads the values to bigquery.
-    Note: this is done as a bulk upload since SQLAlchemy inserts are not performant enough to do it via
-    models or raw queries.
-    '''
-
-    try:
-        table_name = model_class.__tablename__
-
-
-        # IF a dataframe is not already provided, load from the csv_path param
-        if df is None:
-            # We are intentionally not using the pd.read_csv dtype here since we want to use our
-            # own validations to generate more info instead of depending on pandas ability to cast
-            # from float to int, etc.
-            df = pd.read_csv(csv_path) #, na_filter=False, keep_default_na=False)
-        else:
-            csv_path = '[From DataFrame]'
-
-        source_column_names = df.columns.tolist()
-
-        # Delete columns as needed to match the model
-        for source_column_name in source_column_names:
-            if source_column_name in ignore_columns:
-                del df[source_column_name]
-
-        if column_renames:
-            df = df.rename(columns=column_renames)
-
-        # Force convert all df columns to string type if they are a type string the SQLAlchemy model
-        # This is important since columns such as orig_id that get loaded as an int by pd.read_csv.
-        inspector = inspect(model_class)
-        string_columns = [
-            column.name
-            for column in inspector.columns
-            if isinstance(column.type, sqlalchemy.String) and column.name in df.columns
-        ]
-        df[string_columns] = df[string_columns].astype(str)
-
-        double_columns = [
-            column.name
-            for column in inspector.columns
-            if isinstance(column.type, sqlalchemy.Double) and column.name in df.columns
-        ]
-        df[double_columns] = df[double_columns].astype(float)
-
-        float_columns = [
-            column.name
-            for column in inspector.columns
-            if isinstance(column.type, sqlalchemy.Float) and column.name in df.columns
-        ]
-        df[float_columns] = df[float_columns].astype(float)
-
-        # Add any additional columns needed from the add_columns paramater
-        for new_column, value in add_columns.items():
-            df[new_column] = value
-
-        # Delete any unamed columns
-        df = df.loc[:, ~df.columns.str.startswith('Unnamed')]
-
-        if log:
-            print(f'--\nImporting into table `{table_name}` from {csv_path}')
-
-        # Throw an error if there are any values in the df that do not meet expected types
-        validate_csv_columns(model_class, df)
-
-        # Upload the data to bigquery in builk
-        rows_written = bigquery_bluk_insert_dataframe(table_name, df)
-
-        return ImportResult(
-            config_set=config_set,
-            config_name=config_name,
-            table_name=table_name,
-            success=True,
-            source_file=csv_path,
-            rows_written=rows_written,
-            exception=None,
-        )
-    # pylint: disable-next=broad-exception-caught
-    except Exception as e:
-        result =  ImportResult(
-            config_set=config_set,
-            config_name=config_name,
-            table_name=table_name,
-            success=False,
-            source_file=csv_path,
-            rows_written=0,
-            exception=e,
-        )
-        print(f'Import failed:\n{e}')
-        return result
-
 
 def commit():
     '''
-    Commits the current SQLAlchemy session and sets the current one to None. If db.get_session()
+    Commits the current SQLAlchemy session and sets the current one to None. If query.get_session()
     is called after this function then a new session will be created.
     '''
     global _session

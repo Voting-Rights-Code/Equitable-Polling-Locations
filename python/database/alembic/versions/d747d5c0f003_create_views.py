@@ -9,7 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 
-from sqlalchemy_main import ReplaceableObject, get_db_dataset
+from python.database.sqlalchemy_main import ReplaceableObject, get_db_dataset
 
 DATASET = get_db_dataset()
 
