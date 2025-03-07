@@ -146,7 +146,7 @@ To write ouput from the model_run_cli to Google's BigQuery instead of local csv 
 Example:
 
 ```
-python ./model_run_cli.py -c1 -o db -vv -l logs Gwinnett_County_GA_original_configs/Gwinnett_config_original_2020.yaml
+python -m python.scripts.model_run_cli -c1 -o db -vv -l logs Gwinnett_County_GA_original_configs/Gwinnett_config_original_2020.yaml
 ```
 
 
@@ -157,7 +157,7 @@ To import existing csv files into  the BigQuery database, use the db_import_cli.
 Here is an example of importing all results from Berkeley_County_SC_original_configs:
 
 ```
-python db_import_cli.py ./Berkeley_County_SC_original_configs/*.yaml
+python -m python.scripts.db_import_cli ./Berkeley_County_SC_original_configs/*.yaml
 ```
 
 Any errors importing will be written to the screen as well as the logs directory (by default) to the file `.../logs/import_errors.csv`.

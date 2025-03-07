@@ -21,8 +21,7 @@ Note: the script will not allow you to overwrite the source file but it will all
 Example:
 
 ```sh
-cd util_scripts
 conda activate equitable-polls
 
-python address_validator.py ../datasets/driving/SC/SC_destination_latlon_from_bing.csv ../datasets/driving/SC/SC_destination_latlon_from_bing_validated.csv
+python -m python.scripts.address_validator datasets/driving/SC/SC_destination_latlon_from_bing.csv datasets/driving/SC/SC_destination_latlon_from_bing_validated.csv
 ```

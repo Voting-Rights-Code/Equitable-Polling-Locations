@@ -1,39 +1,39 @@
 # Input data
-There are three sets of data needed to run the optimization and analysis in this program: 
-1. Census data for the county, aggregated at the block and block group level; 
-1. a *manually generated* dataset of past and potential polling locations, consistent with local laws; 
-1.   a config file that contains the parameters for a given optimization. 
+There are three sets of data needed to run the optimization and analysis in this program:
+1. Census data for the county, aggregated at the block and block group level;
+1. a *manually generated* dataset of past and potential polling locations, consistent with local laws;
+1.   a config file that contains the parameters for a given optimization.
 
-Additionally, 
-1. if one wishes to analyze driving distances, there is an additional input file to capture this data. 
+Additionally,
+1. if one wishes to analyze driving distances, there is an additional input file to capture this data.
 
 ## Config data
 
-In the database, config data is stored with a unique `config_set` and `config_name` pair. When stored locally, `config_set` corresponds to the config_folder, while `config_name` corresponds to the file (.yaml) in the config_folder. 
+In the database, config data is stored with a unique `config_set` and `config_name` pair. When stored locally, `config_set` corresponds to the config_folder, while `config_name` corresponds to the file (.yaml) in the config_folder.
 
 There may be multiple `config_name`s sharing the same `config_set`. However, each of these datasets can only differ from each other by a single field (aside from `config_name`, `id` and `created_at` fields). **If this property does not hold, the analysis files will not run.**
 
 ### Creating config data
-To create config data, create an examplar config file and put it in the desired folder. The exemplar config file 
-* must contain two extra fields that are not in the config file itself: 
+To create config data, create an examplar config file and put it in the desired folder. The exemplar config file
+* must contain two extra fields that are not in the config file itself:
     * field to vary: str; the name of the field in the config file that is allowed to vary in this config set
     * new_range: list; the list of desired values that this field should take. Note, this can be a list of lists
 * should not end in `.yaml`. In these example, the exemplar files ends in `.yaml_template`
 
 Then run
 
- `python auto_generate_config.py -b 'config_folder/exemplar_config.yaml_template' 
+ `python -m python.scripts.auto_generate_config -b 'config_folder/exemplar_config.yaml_template'
 
 This will create a set of .yaml files in the indicaded `config_folder`, each with a different name (that is a combination of the indicated `field_to_change` and a value from the provided list.) It will also write these configs to the database.
 
-**Note:** 
+**Note:**
 * If a file by the config name already exists in the config_folder, the script will not run
 * The fields of the exemplar_config MUST match the fields in the sql_alchemy model. Otherwise, this script will not run.
 
 **Example:**
-To generate a set of configs for DuPage County, IL where the number of precincts open varies from 15 to 20, define 
+To generate a set of configs for DuPage County, IL where the number of precincts open varies from 15 to 20, define
 `field_to_change: 'precints open'`
-`new_range: 
+`new_range:
     - 15
     - 16
     - 17
@@ -42,11 +42,11 @@ To generate a set of configs for DuPage County, IL where the number of precincts
     - 20`
 in the `.yaml_template` file and then run
 ```
-python auto_generate_config.py -f 'DuPage_County_IL_potential_configs/example_config.yaml_template' 
+python -m python.scripts.auto_generate_config -f 'DuPage_County_IL_potential_configs/example_config.yaml_template'
 ```
 To generate a set of configs for DuPage County, IL where the set of bad locations varies are ['Elec Day School - Potential', 'Elec Day Church - Potential', 'bg_centroid'],  ['Elec Day Church - Potential', 'bg_centroid'], ['Elec Day School - Potential',  'bg_centroid'], and [ 'bg_centroid'] define
 `field_to_change: 'bad_locations'`
-`new_range: 
+`new_range:
     - - 'Elec Day School - Potential'
       - 'Elec Day Church - Potential'
       - 'bg_centroid'
@@ -57,7 +57,7 @@ To generate a set of configs for DuPage County, IL where the set of bad location
     - - 'bg_centroid'`
 in the `.yaml_template` file and then run
 ```
-python auto_generate_config.py -f 'DuPage_County_IL_potential_configs/example_config.yaml_template'
+python -m python.scripts.auto_generate_config -f 'DuPage_County_IL_potential_configs/example_config.yaml_template'
 ```
 ### Config fields
 These fields are determined by the sql_alchemy config model. See `models/model_config.py`. In addition to the fields listed below, and `id`, and `created_at` field are generated when uploaded to the database.
@@ -65,51 +65,51 @@ These fields are determined by the sql_alchemy config model. See `models/model_c
 * config_set
     * str
     * The name of the set of configs that this config belongs to.
-* config_name 
-    * str 
+* config_name
+    * str
     * The name of this model config. '''
-* location 
+* location
     * str, nullable
     * Location for this model. Usually a county.
-* year 
-    * List[str], nullable 
+* year
+    * List[str], nullable
     * An array of years of historical data relevant to this model
 * bad_types
     * List[str], nullable
     * A list of location types not to be considered in this model
 * beta
-    * float, nullable  
+    * float, nullable
     * level of inequality aversion: [-2,0], where 0 indicates indifference, and thus uses the mean. -1 is a good number.
 * time_limit
     * float, nullable
     * How long the solver should try to find a solution
 *  penalized_sites
-    * List[str], nullable 
+    * List[str], nullable
     * A list of locations for which the preference is to only place a polling location there if absolutely necessary for coverage.  A site in this list should be selected only if it improves access by x meters, where x is calculated according to the problem data. (See https://doi.org/10.48550/arXiv.2401.15452 for more information.) This option generates three additional log files: two for additional calls to the optimization solver ("...model2.log", "...model3.log") third ("...penalty.log") providing statistics related to the penalty heuristic.
 * precincts_open
     * int, nullable
-    * The total number of precincts to be used this year. 
+    * The total number of precincts to be used this year.
     * If no user input is given, this is calculated to be the number of
     polling places identified in the data.
 * maxpctnew
     * float, nullable
     * The percent on new polling places (not already defined as a
-    polling location) permitted in the data. 
+    polling location) permitted in the data.
     * Default = 1. I.e. can replace all existing locations
 * minpctold
     * float, nullable
     * The minimun number of polling places (those already defined as a
-    polling location) permitted in the data. 
+    polling location) permitted in the data.
     * Default = 0. I.e. can replace all existing locations
 * max_min_mult
     * float, nullable
     * A multiplicative factor for the min_max distance caluclated
-    from the data. Should be >= 1. 
+    from the data. Should be >= 1.
     * Default = 1.
 * capacity
     * float, nullable
     * A multiplicative factor for calculating the capacity constraint. Should be >= 1.
-    * Default = 1. 
+    * Default = 1.
     * Note, if this is not paired with fixed_capacity_site_number, then the capacity changes as a function of number of precincts.
 * fixed_capacity_site_number
     * int, nullable
@@ -217,7 +217,7 @@ The columns of this data set should be named and formatted as
 
 ## OPTIONAL: Driving distances
 
-If you are using driving distances (that have been calculated externally) in the optimization, place a file at `datasets/driving/County_ST/County_ST_driving_distances.csv`.  This file will only be accessed if the optional parameter 'driving' is set to True. 
+If you are using driving distances (that have been calculated externally) in the optimization, place a file at `datasets/driving/County_ST/County_ST_driving_distances.csv`.  This file will only be accessed if the optional parameter 'driving' is set to True.
 
 Example file name: datasets/driving/Gwinnett_County_GA/Gwinnett_County_GA_driving_distances.csv
 The columns are as follows:
