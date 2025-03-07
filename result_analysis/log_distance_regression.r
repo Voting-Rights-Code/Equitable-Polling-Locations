@@ -23,12 +23,12 @@ source('result_analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = c('Berkeley_County_SC','Greenville_County_SC', 'Lexington_County_SC','Richland_County_SC', 'York_County_SC') #needed only for reading from csv and writing outputs
+LOCATION = c('Richmond_County_GA','Richmond_County_GA') #needed only for reading from csv and writing outputs
 #list of config folders to compare.
 #MUST 
 # * be of the same locations
-CONFIG_FOLDER = c('Berkeley_County_SC_original_configs','Greenville_County_SC_original_configs', 'Lexington_County_SC_original_configs','Richland_County_SC_original_configs', 'York_County_SC_original_configs')
-FIELDS_OF_INTEREST_LIST = c('', '', '', '', '') #must not leave empty if config set has only one element
+CONFIG_FOLDER = c('Richmond_County_GA_original_configs','Richmond_County_GA_log_configs')
+FIELDS_OF_INTEREST_LIST = c('', '') #must not leave empty if config set has only one element
 
 # This is where this analysis will be stored in the cloud
 STORAGE_BUCKET = 'equitable-polling-analysis'
@@ -158,22 +158,23 @@ bg_density_demo <- lapply(regression_data, function(density){bg_data(density)})
 
 
 
-make_plots <- function(bg_density_demo, county){
-ggplot(bg_density_data[[county]][descriptor == descriptor_str, ] , aes(x = pop_density_km, y = dist, group = demographic, color = demographic, size = demo_pop )) +
-geom_point() + geom_smooth(method=lm, mapping = aes(weight = demo_pop), se= F) + scale_x_continuous(trans = 'log10') + scale_y_continuous(trans = 'log10') + 
-labs(title = paste("Demographic average distance to polls by block group", county, year_str))
-output = paste(county, descriptor_str, "avg distance.png")
-ggsave(output)
+make_config_plots <- function(bg_density_data, county, demo_list){
+    #browser()
+    y_bounds = c(min(bg_density_data$demo_avg_dist, na.rm = TRUE), max(bg_density_data$demo_avg_dist, na.rm = TRUE))
+    descriptor_graph <- function(descriptor_str, demo_list, y_bounds){    
+        gsub(paste(county, descriptor_str), "_", "")
+        ggplot(bg_density_data[descriptor == descriptor_str & demographic %in% demo_list, ] , aes(x = pop_density_km, y = demo_avg_dist, group = demographic, color = demographic, size = demo_pop )) +
+            geom_point(alpha = .7) + geom_smooth(method=lm, mapping = aes(weight = demo_pop), se= F) + scale_x_continuous(trans = 'log10') + scale_y_log10(limits = y_bounds) + 
+            labs(title = "Demographic average distance to polls by block group", 
+                subtitle = gsub("_", " ", paste(county, descriptor_str)),y = "Log avg distanct (m)", x = "Block group population density (people/ km^2)")
+        output = paste(county, descriptor_str, "avg distance.png")
+        ggsave(output)
+    }
+    descriptors = unique(bg_density_data$descriptor)
+    sapply(descriptors, function(x){descriptor_graph(x, demo_list, y_bounds)})
+    }
 
+demographic_list = c('white', 'black')
+index = c(1:length(bg_density_demo))
+mapply(function(data, county){make_config_plots(data, county, demographic_list)}, bg_density_demo, names(bg_density_demo), SIMPLIFY = TRUE)
 
-}
-
-
-county_list = c('Berkeley_County_SC', 'Greenville_County_SC', 'Lexington_County_SC', 'Richland_County_SC', 'York_County_SC')
-year_list = c('2014', '2016', '2018', '2020', '2022')
-
-sapply(year_list, function(year){make_plots(bg_density_data, 'Berkeley_County_SC', year)})
-sapply(year_list, function(year){make_plots(bg_density_data, 'Greenville_County_SC', year)})
-sapply(year_list, function(year){make_plots(bg_density_data, 'Lexington_County_SC', year)})
-sapply(year_list, function(year){make_plots(bg_density_data, 'Richland_County_SC', year)})
-sapply(year_list, function(year){make_plots(bg_density_data, 'York_County_SC', year)})
