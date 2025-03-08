@@ -155,7 +155,7 @@ plot_orig_ideal_hist(orig_output_df_list$residence_distances, potential_output_d
 demographic_list = c('white', 'black')
 plot_density_v_distance_bg(potential_bg_density_demo, LOCATION, demographic_list)
 
-orig_bg_coefs <- bg_level_naive_regression(orig_bg_density_demo)
+potential_bg_coefs <- bg_level_naive_regression(potential_bg_density_demo)
 
 
 ###maps####
@@ -171,17 +171,15 @@ sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
 #######
 #Plot orig data
 #######
+
 plot_folder = paste0('result_analysis/', ORIG_CONFIG_FOLDER)
-if (file.exists(file.path(here(), plot_folder))){
-    setwd(file.path(here(), plot_folder))
-} else{
+if (!file.exists(file.path(here(), plot_folder))){
     dir.create(file.path(here(), plot_folder))
-    setwd(file.path(here(), plot_folder))
 }
+setwd(file.path(here(), plot_folder))
 
 ###maps####
-density_data <- get_regression_data(LOCATION, orig_output_df_list$results)
-plot_population_densities(density_data)
+plot_population_densities(orig_regression_data)
 
 sapply(orig_list_prepped, function(x)make_bg_maps(x, 'map'))
 
