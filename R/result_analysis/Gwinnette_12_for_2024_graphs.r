@@ -9,8 +9,8 @@ setwd(here())
 #source functions
 #######
 
-source('result_analysis/graph_functions.R')
-source('result_analysis/map_functions.R')
+source('R/result_analysis/graph_functions.R')
+source('R/result_analysis/map_functions.R')
 
 #######
 #Set Constants
