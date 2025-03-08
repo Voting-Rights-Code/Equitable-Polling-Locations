@@ -32,7 +32,7 @@ STORAGE_BUCKET = 'equitable-polling-analysis'
 CLOUD_STORAGE_ANALYSIS_NAME = paste0(ORIG_CONFIG_FOLDER, '_AND_', POTENTIAL_CONFIG_FOLDER)
 
 #constants for reading data
-READ_FROM_CSV = TRUE
+READ_FROM_CSV = FALSE
 PRINT_SQL = FALSE
 
 #constants for database queries
@@ -113,7 +113,7 @@ global_color_bounds <- distance_bounds(all_res_output)
 #######
 #Plot potential data
 #######
-plot_folder = paste0('result_analysis/', POTENTIAL_CONFIG_FOLDER)
+plot_folder = paste0('result_analysis_outputs/', POTENTIAL_CONFIG_FOLDER)
 if (!file.exists(file.path(here(), plot_folder))){
     dir.create(file.path(here(), plot_folder))
 }
@@ -155,7 +155,7 @@ sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
 #######
 #Plot orig data
 #######
-plot_folder = paste0('result_analysis/', ORIG_CONFIG_FOLDER)
+plot_folder = paste0('result_analysis_outputs/', ORIG_CONFIG_FOLDER)
 if (file.exists(file.path(here(), plot_folder))){
     setwd(file.path(here(), plot_folder))
 } else{

@@ -6,7 +6,7 @@ options(googleAuthR.scopes.selected = "https://www.googleapis.com/auth/cloud-pla
 library(googleCloudStorageR)
 
 
-.result_analysis_dir = paste0(here(), "/result_analysis")
+.result_analysis_dir = paste0(here(), "/result_analysis_outputs")
 
 .graph_file_manifest = NULL
 
