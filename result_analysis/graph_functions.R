@@ -629,7 +629,33 @@ plot_population_densities <- function(density_df){
 	ggsave(graph_file_path)
 }
 
-#####CAUTION: USED FOR DELIVERY, BUT EXPERIMENTAL######
+plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG){
+
+	#set graph y axis bounds. if min_distance == 0 m, make 1m
+	min_dist = min(bg_density_data[demographic %in% demo_list, ]$demo_avg_dist, na.rm = TRUE)
+	max_dist = max(bg_density_data[demographic %in% demo_list, ]$demo_avg_dist, na.rm = TRUE)
+	if (min_dist == 0){min_dist = min_dist + .01}
+    y_bounds = c(min_dist,max_dist)
+
+	#trim log density outliers
+	trimmed <- bg_density_data[abs(z_score_log_density)<4, ]
+
+    descriptor_graph <- function(descriptor_str, demo_list, y_bounds){   
+		if(log_flag){log_str = 'log'} else{log_str = ''}
+		if(driving_flag){driving_str = 'driving'} else{driving_str = ''}
+        ggplot(trimmed[descriptor == descriptor_str & demographic %in% demo_list, ] , aes(x = pop_density_km, y = demo_avg_dist, group = demographic, color = demographic, size = demo_pop )) +
+            geom_point(alpha = .7) + geom_smooth(method=lm, mapping = aes(weight = demo_pop), se= F) + scale_x_continuous(trans = 'log10') + scale_y_log10(limits = y_bounds) + 
+            labs(title = "Demographic average distance to polls by block group", 
+                subtitle = gsub("_", " ", paste(county, descriptor_str)),y = paste("Avg", log_str, driving_str, "distance (m)"), x = "Block group population density (people/ km^2)")
+		graph_file_path = paste(county, descriptor_str, "avg distance.png")
+		add_graph_to_graph_file_manifest(graph_file_path)
+		ggsave(graph_file_path)
+    }
+    descriptors = unique(trimmed$descriptor)
+    sapply(descriptors, function(x){descriptor_graph(x, demo_list, y_bounds)})
+    }
+
+#####Regression and density / distance functions ######
 
 get_regression_data<-function(location, result_df){
 
@@ -649,6 +675,41 @@ get_regression_data<-function(location, result_df){
 	regression_data[ , `:=`(area = ALAND20 + AWATER20, pop_density_km = 1e6 *population/(ALAND20 + AWATER20), pct_white= 100 * white/population, pct_black = 100 *black/population)][ , density_pctile := rank(pop_density_km)/length(pop_density_km)][ , fuzzy_dist :=distance_m][fuzzy_dist <100, fuzzy_dist := 100]
 	return(regression_data)
 }
+
+bg_data <- function(density_data){
+    #density_data[ , `:=`(white_weighted_dist = white*distance_m, black_weighted_dist = black *distance_m)
+    #                ][, id_bg := gsub('.{3}$', '', density_data$id_orig)]
+    
+    density_data[ , avg_distance := weighted_dist/population]
+    
+    density_data_long <- melt(density_data, id.vars = c('id_orig', 'descriptor', 'pop_density_km','avg_distance', 'area'), measure.vars = c("population", "hispanic","non_hispanic", "white", "black", "native", "asian", "pacific_islander", "other"), value.name ='demo_pop' , variable.name = "demographic")
+    
+    density_data_long[ , demo_weighted_dist := demo_pop * avg_distance
+                    ][, id_bg := gsub('.{3}$', '', density_data_long$id_orig)]
+    
+
+    bg_result_df <- density_data_long[ , .(demo_pop = sum(demo_pop), area= sum(area),
+									demo_weighted_dist = sum(demo_weighted_dist)),  by=list(id_bg, descriptor, demographic)
+								][ , demo_avg_dist := demo_weighted_dist/demo_pop]
+    descriptor1 <- unique(bg_result_df$descriptor)[1]
+    bg_pop_density <- bg_result_df[demographic == 'population' & descriptor ==
+                    descriptor1, ][, pop_density_km := 1e6 *demo_pop/area][ , z_score_log_density := scale(log(pop_density_km))]
+    bg_result_df<- merge(bg_result_df, bg_pop_density[ , .(id_bg, pop_density_km, z_score_log_density)], by = c('id_bg'))
+
+    return(bg_result_df)
+}
+
+bg_level_naive_regression <- function(regression_data, location = LOCATION){
+	trimmed <- regression_data[abs(z_score_log_density)<4, ]
+	distance_model <- trimmed[, as.list(coef(lm(demo_avg_dist ~ pop_density_km),  weights = demo_pop )), by = c('descriptor', 'demographic')]
+    setnames(distance_model, c('(Intercept)', 'pop_density_km'), c('intercept', 'density_coef'))
+	fwrite(distance_model, paste0(location, '_distance_model.csv'))
+	return(distance_model)
+}
+
+
+##############SCRATCH. USED FOR CLC DELIVERY BUT NOT USEFUL#######
+
 
 calculate_pct_change <- function(data, reference_descriptor){
 

@@ -32,7 +32,7 @@ STORAGE_BUCKET = 'equitable-polling-analysis'
 CLOUD_STORAGE_ANALYSIS_NAME = paste0(ORIG_CONFIG_FOLDER, '_AND_', POTENTIAL_CONFIG_FOLDER)
 
 #constants for reading data
-READ_FROM_CSV = TRUE
+READ_FROM_CSV = FALSE
 PRINT_SQL = FALSE
 
 #constants for database queries
@@ -110,6 +110,15 @@ potential_list_prepped <- prepare_outputs_for_maps(potential_output_df_list$resi
 all_res_output <- do.call(rbind, c(orig_list_prepped, potential_list_prepped))
 global_color_bounds <- distance_bounds(all_res_output)
 
+#prepare datasets for regressions of distance versus density
+orig_regression_data <- get_regression_data(LOCATION, orig_output_df_list$results)
+
+potential_regression_data <- get_regression_data(LOCATION, potential_output_df_list$results)
+
+orig_bg_density_demo <- bg_data(orig_regression_data)
+potential_bg_density_demo <- bg_data(potential_regression_data)
+
+
 #######
 #Plot potential data
 #######
@@ -141,6 +150,13 @@ plot_boxplots(potential_output_df_list$residence_distances)
 
 #Histogram of the original distributions and that for the desired number of polls
 plot_orig_ideal_hist(orig_output_df_list$residence_distances, potential_output_df_list$residence_distances, IDEAL_POLL_NUMBER)
+
+#plot distance v density graphs and regressions
+demographic_list = c('white', 'black')
+plot_density_v_distance_bg(potential_bg_density_demo, LOCATION, demographic_list)
+
+orig_bg_coefs <- bg_level_naive_regression(orig_bg_density_demo)
+
 
 ###maps####
 
@@ -174,5 +190,12 @@ sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'black'))
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'white'))
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'hispanic'))
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
+
+#plot distance v density graphs and regressions
+
+demographic_list = c('white', 'black')
+plot_density_v_distance_bg(orig_bg_density_demo, LOCATION, demographic_list)
+
+orig_bg_coefs <- bg_level_naive_regression(orig_bg_density_demo)
 
 upload_graph_files_to_cloud_storage()
