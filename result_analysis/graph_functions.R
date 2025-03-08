@@ -646,7 +646,7 @@ plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, log_f
         ggplot(trimmed[descriptor == descriptor_str & demographic %in% demo_list, ] , aes(x = pop_density_km, y = demo_avg_dist, group = demographic, color = demographic, size = demo_pop )) +
             geom_point(alpha = .7) + geom_smooth(method=lm, mapping = aes(weight = demo_pop), se= F) + scale_x_continuous(trans = 'log10') + scale_y_log10(limits = y_bounds) + 
             labs(title = "Demographic average distance to polls by block group", 
-                subtitle = gsub("_", " ", paste(county, descriptor_str)),y = paste("Avg", log_str, driving_str, "distance (m)"), x = "Block group population density (people/ km^2)")
+                subtitle = gsub("_", " ", paste(county, descriptor_str)),y = paste("Avg", log_str,  driving_str, "distance (m)"), x = "Block group population density (people/ km^2)")
 		graph_file_path = paste(county, descriptor_str, "avg distance.png")
 		add_graph_to_graph_file_manifest(graph_file_path)
 		ggsave(graph_file_path)
