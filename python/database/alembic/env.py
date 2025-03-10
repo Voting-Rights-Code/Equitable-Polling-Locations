@@ -2,15 +2,14 @@
 
 from logging.config import fileConfig
 
-
-# pylint: disable-next=wildcard-import,unused-wildcard-import
-from models import *
-
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
 
+
+# pylint: disable-next=wildcard-import,unused-wildcard-import
+from python.database.models import *
 from python.database.sqlalchemy_main import (
     ModelBase,
     get_db_project,
