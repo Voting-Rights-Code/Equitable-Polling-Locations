@@ -185,6 +185,10 @@ Equitable-Polling-Locations.Rproj
 *.dbf
 *.shx
 *.jpg
+#Want to avoid keeping config files locally
+#and put them in the database
+*.yaml
+
 
 #specific files to include
 !docs/README_Image.jpg
