@@ -9,15 +9,23 @@ import math
 import os
 import threading
 
-from typing import Union
-
 import numpy as np
 import pandas as pd
 
 import db
 import db_import_cli
 from model_config import PollingModelConfig
-from utils import timer, current_time_utc
+from utils import (
+  timer,
+  current_time_utc,
+  build_results_file_path,
+  build_precinct_summary_file_path,
+  build_residence_summary_file_path,
+  build_y_ede_summary_file_path
+)
+
+
+from constants import RESULTS_BASE_DIR
 
 lock = threading.Lock()
 
@@ -142,23 +150,24 @@ def write_results_csv(
 ):
     '''Write result, demographic_prec, demographic_res and demographic_ede to local CSV file'''
 
+    result_path = os.path.join(RESULTS_BASE_DIR, result_folder)
+
     #check if the directory exists
-    if not os.path.exists(result_folder):
-        os.makedirs(result_folder)
-    result_file = f'{run_prefix}_results.csv'
-    precinct_summary = f'{run_prefix}_precinct_distances.csv'
-    residence_summary = f'{run_prefix}_residence_distances.csv'
-    y_ede_summary = f'{run_prefix}_edes.csv'
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
 
-
+    result_file = build_results_file_path(result_path, run_prefix)
+    precinct_summary_file = build_precinct_summary_file_path(result_path, run_prefix)
+    residence_summary_file = build_residence_summary_file_path(result_path, run_prefix)
+    y_ede_summary_file = build_y_ede_summary_file_path(result_path, run_prefix)
 
     try:
-        result_df.to_csv(os.path.join(result_folder, result_file), index = True)
-        demographic_prec.to_csv(os.path.join(result_folder, precinct_summary), index = True)
-        demographic_res.to_csv(os.path.join(result_folder, residence_summary), index = True)
-        demographic_ede.to_csv(os.path.join(result_folder, y_ede_summary), index = True)
+        result_df.to_csv(result_file, index = True)
+        demographic_prec.to_csv(precinct_summary_file, index = True)
+        demographic_res.to_csv(residence_summary_file, index = True)
+        demographic_ede.to_csv(y_ede_summary_file, index = True)
     except FileExistsError:
-        print(f'Output file already exists for {result_folder}/{run_prefix}, set replace = True to overwrite')
+        print(f'Output file already exists for {result_path}/{run_prefix}, set replace = True to overwrite')
 
 
 @timer
