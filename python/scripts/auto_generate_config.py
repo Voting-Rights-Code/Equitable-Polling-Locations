@@ -11,6 +11,7 @@ from sqlalchemy import inspect, sql
 from python.database import query
 from python.solver.model_config import PollingModelConfig
 from python.database import models as Models
+from python.utils.constants import CONFIG_BASE_DIR 
 
 def load_base_config(config_file):
     '''Load the base configuration from the provided YAML file.'''
@@ -66,7 +67,7 @@ def check_model_and_input_types_match(input_config, model_inspect):
             raise ValueError(f'{key} is of wrong type. See models.model_config.py for correct types.')
     return
 
-def generate_configs(base_config_file:str):#, field_to_vary:str, desired_range: list):
+def generate_configs(base_config_file:str, config_base_dir = CONFIG_BASE_DIR):#, field_to_vary:str, desired_range: list):
     """
     Generate YAML configurations by varying specified parameters while keeping others constant.
     """
@@ -93,7 +94,7 @@ def generate_configs(base_config_file:str):#, field_to_vary:str, desired_range: 
 
     #validate config name and set
     config_set = base_config['config_set']
-    config_dir = os.path.dirname(base_config_file)
+    config_dir =  base_config_file.split(os.path.sep)[-2] 
     config_file_name = os.path.splitext(os.path.basename(base_config_file))[0]
     config_name = base_config['config_name']
     if (config_dir != config_set):
@@ -128,7 +129,7 @@ def generate_configs(base_config_file:str):#, field_to_vary:str, desired_range: 
         config[field_to_vary] = new_value
 
         #yaml path
-        file_path = os.path.join(base_config['config_set'], new_config_file_name)
+        file_path = os.path.join(config_base_dir, base_config['config_set'], new_config_file_name)
         if os.path.isfile(file_path):
             raise ValueError(f'{file_path} already exists')
 
