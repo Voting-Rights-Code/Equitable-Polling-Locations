@@ -422,12 +422,20 @@ combine_different_runs<- function(df_list){
 #makes a plot showing how y_EDEs change for each demographic group as the
 #number of polls is increased
 
-#DOES NOT ACCOMODATE DRIVING DISTANCES
-plot_poll_edes<-function(ede_df){
+plot_poll_edes<-function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
+	#make flag dependent labels
+	driving_str = ' straight line '
+	log_str = ''
+	if (driving_flag){driving_str = ' driving '} 
+	if (log_flag){log_str = 'log '}
+	
+	title_str = paste0('Equity weighted', driving_str, 'distance to poll by demographic')
+	y_str = paste0('Equity weighted', driving_str, 'distance (', log_str, 'm)')
+
 	ggplot(ede_df, aes(x = num_polls, y = y_EDE,
 		group = demographic, color = demographic)) +
 		geom_line()+ geom_point()+
-		labs(x = 'Number of polls', y = 'Equity weighted distance (m)', color = 'Demographic')+
+		labs(x = 'Number of polls', y = y_str, title = title_str, color = 'Demographic')+
 		scale_color_discrete(labels = demographic_legend_dict)
 
 	graph_file_path = 'demographic_edes.png'
@@ -435,12 +443,23 @@ plot_poll_edes<-function(ede_df){
 	ggsave(graph_file_path)
 }
 
-plot_multiple_edes<-function(ede_list, demo_grp){
+plot_multiple_edes<-function(ede_list, demo_grp, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
 	ede_df <- do.call(rbind, ede_list)
+
+	#make flag dependent labels
+	driving_str = ' straight line '
+	log_str = ''
+	if (driving_flag){driving_str = ' driving '} 
+	if (log_flag){log_str = 'log '}
+	
+	title_str = paste0('Equity weighted', driving_str, 'distance to poll by demographic')
+	y_str = paste0('Equity weighted', driving_str, 'distance (', log_str, 'm)')
+
+
 	ggplot(ede_df[demographic == demo_grp, ], aes(x = num_polls, y = y_EDE,
 		group = descriptor, color =  descriptor, shape = demo_grp)) +
 		geom_line()+ geom_point()+
-		labs(x = 'Number of polls', y = 'Equity weighted distance (m)', color = "Run Type", shape = 'Demographic')+
+		labs(x = 'Number of polls', y = y_str, title = title_str, color = "Run Type", shape = 'Demographic')+
 		scale_shape_discrete(labels = demographic_legend_dict) +
 		scale_color_manual(breaks = c('Intersecting', 'Contained'), values = c('red','darkviolet'))
 
@@ -474,7 +493,7 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 	if (driving_flag)
 		{distance_type = 'driving'
 	} else 
-		{distance_type = ''}
+		{distance_type = 'straight line'}
 	if (log_flag)
 		{unit = 'log'
 	} else {
@@ -533,26 +552,34 @@ ede_with_pop<- function(config_df_list){
 #compares optimized runs with historical runs having the same number of
 #polls (via plot_historical_edes)
 
-#ACCOMODATES DRIVING DISTANCES
-plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_flag = DRIVING_FLAG){
+plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
 	#select the relevant optimized runs
 	orig_num_polls <- unique(orig_ede$num_polls)
 	config_num_polls <- unique(config_ede$num_polls)
 	optimization_num_polls<- max(intersect(orig_num_polls, config_num_polls))
 	optimized_run_dfs <- config_ede[num_polls == optimization_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
-	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), driving_flag)
+	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), driving_flag, log_flag)
 
 }
 
 #like plot_poll_edes, but plots just the y_edes for the
 # population as a whole, and not demographic groups
 
-#DOES NOT ACCOMODATE DRIVING DISTANCES
-plot_population_edes <- function(ede_df){
+plot_population_edes <- function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
+	#make flag dependent labels
+	driving_str = ' straight line '
+	log_str = ''
+	if (driving_flag){driving_str = ' driving '} 
+	if (log_flag){log_str = 'log '}
+	
+	title_str = paste0('Equity weighted', driving_str, 'distance to poll')
+	y_str = paste0('Equity weighted', driving_str, 'distance (', log_str, 'm)')
+
+
 	ggplot(ede_df[demographic == 'population', ], aes(x =  num_polls, y = y_EDE))+
 		geom_line()+ geom_point()+
-		labs(x = 'Number of polls', y = 'Equity weighted distance (m)')
+		labs(x = 'Number of polls', y = y_str, title = title_str)
 
 	graph_file_path = 'population_edes.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -641,12 +668,21 @@ plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, log_f
 	trimmed <- bg_density_data[abs(z_score_log_density)<4, ]
 
     descriptor_graph <- function(descriptor_str, demo_list, y_bounds){   
-		if(log_flag){log_str = 'log'} else{log_str = ''}
-		if(driving_flag){driving_str = 'driving'} else{driving_str = ''}
-        ggplot(trimmed[descriptor == descriptor_str & demographic %in% demo_list, ] , aes(x = pop_density_km, y = demo_avg_dist, group = demographic, color = demographic, size = demo_pop )) +
-            geom_point(alpha = .7) + geom_smooth(method=lm, mapping = aes(weight = demo_pop), se= F) + scale_x_continuous(trans = 'log10') + scale_y_log10(limits = y_bounds) + 
-            labs(title = "Demographic average distance to polls by block group", 
-                subtitle = gsub("_", " ", paste(county, descriptor_str)),y = paste("Avg", log_str,  driving_str, "distance (m)"), x = "Block group population density (people/ km^2)")
+		#make flag dependent labels
+		driving_str = ' straight line '
+		log_str = ''
+		if (driving_flag){driving_str = ' driving '} 
+		if (log_flag){log_str = 'log '}
+	
+		title_str = paste0('Average', driving_str, 'distance to poll by demographic and block group')
+		y_str = paste0(paste0("Avg",  driving_str, "distance (", log_str, ' m)'))
+
+        ggplot(trimmed[descriptor == descriptor_str & demographic %in% demo_list, ] , aes(x = pop_density_km, y = demo_avg_dist, group = demographic, color = demographic)) +
+            geom_point(alpha = .7, aes(size = demo_pop )) + geom_smooth(method=lm, mapping = aes(weight = demo_pop), se= F) + scale_x_continuous(trans = 'log10') + scale_y_log10(limits = y_bounds) + 
+            labs(title = title_str, 
+                subtitle = gsub("_", " ", paste(county, descriptor_str)), y = y_str , 
+				x = "Block group population density (people/ km^2)", size = 'Population', color = 'Demographic') + 
+				scale_color_discrete(labels = demographic_legend_dict[demo_list])
 		graph_file_path = paste(county, descriptor_str, "avg distance.png")
 		add_graph_to_graph_file_manifest(graph_file_path)
 		ggsave(graph_file_path)
