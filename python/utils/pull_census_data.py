@@ -6,11 +6,10 @@ import subprocess
 import argparse
 import pandas as pd
 
-# TODO fix this
-# try:
-#     from authentication_files.census_key import census_key
-# except:
-#     census_key = None
+try:
+    from authentication_files.census_key import census_key
+except:
+    census_key = None
 
 census_key = None
 
