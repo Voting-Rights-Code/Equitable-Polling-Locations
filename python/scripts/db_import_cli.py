@@ -12,11 +12,11 @@ import sys
 import pandas as pd
 
 from python.database import models, query, imports
-from python.database.import_result import ImportResult
+from python.database.imports import ImportResult
 
 from python.solver.model_config import PollingModelConfig
 from python.utils import build_precinct_summary_file_path, build_residence_summary_file_path, build_results_file_path, build_y_ede_summary_file_path, current_time_utc
-from python.utils.constants import DATASETS_DIR, RESULTS_BASE_DIR
+from python.utils.constants import RESULTS_BASE_DIR
 
 MODEL_RUN_ID = 'model_run_id'
 
@@ -30,32 +30,23 @@ IMPORT_ERROR_LOG_FILE='import_errors.csv'
 
 def output_file_paths(config: PollingModelConfig) -> dict[str, str]:
     ''' Resturns a dictionary of paths to where the results file for a given ModelConfig instance can be found. '''
-    config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
-    run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
 
-    result_folder = config.result_folder
+    config_name = config.config_name
+    result_folder = os.path.join(RESULTS_BASE_DIR, config.config_set)
 
-    result_path = os.path.join(RESULTS_BASE_DIR, result_folder)
+    if not os.path.exists(result_folder):
+        raise FileNotFoundError(f'File {result_folder} not found')
 
-    source_file_name = config.location + '.csv'
-    source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
-    if not os.path.exists(source_path):
-        raise FileNotFoundError(f'File {source_path} not found')
-
-
-    if not os.path.exists(result_path):
-        raise FileNotFoundError(f'Results folder {result_path} not found.')
-
-    result_file = build_results_file_path(result_path, run_prefix)
-    precinct_summary_file = build_precinct_summary_file_path(result_path, run_prefix)
-    residence_summary_file = build_residence_summary_file_path(result_path, run_prefix)
-    y_ede_summary_file = build_y_ede_summary_file_path(result_path, run_prefix)
+    result_file = build_results_file_path(result_folder, config_name)
+    precinct_summary_file = build_precinct_summary_file_path(result_folder, config_name)
+    residence_summary_file = build_residence_summary_file_path(result_folder, config_name)
+    y_ede_summary_file = build_y_ede_summary_file_path(result_folder, config_name)
 
     results = {
-        RESULTS_PATH: os.path.join(result_folder, result_file),
-        PRECINCT_DISTANCES_PATH: os.path.join(result_folder, precinct_summary_file),
-        RESIDENCE_DISTANCES_PATH: os.path.join(result_folder, residence_summary_file),
-        EDE_PATH: os.path.join(result_folder, y_ede_summary_file),
+        RESULTS_PATH: result_file,
+        PRECINCT_DISTANCES_PATH: precinct_summary_file,
+        RESIDENCE_DISTANCES_PATH: residence_summary_file,
+        EDE_PATH: y_ede_summary_file,
     }
 
     return results

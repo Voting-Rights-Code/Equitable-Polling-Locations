@@ -7,7 +7,6 @@ import re
 from time import time
 import uuid
 
-
 # class RegexMatch:
 #     def __init__(self, pattern: re.Match):
 #         self.pattern = pattern
@@ -96,18 +95,18 @@ def get_env_var_or_prompt(var_name: str, default_value: str=None) -> str:
     return value or default_value
 
 
-def build_results_file_path(result_path: str, run_prefix: str) -> str:
+def build_results_file_path(result_path: str, config_name: str) -> str:
     ''' Builds the path for the optimization results csv file. '''
-    return os.path.join(result_path, f'{run_prefix}_results.csv')
+    return os.path.join(result_path, f'{config_name}_results.csv')
 
-def build_precinct_summary_file_path(result_path: str, run_prefix: str) -> str:
+def build_precinct_summary_file_path(result_path: str, config_name: str) -> str:
     ''' Builds the path for precinct distances csv file. '''
-    return os.path.join(result_path, f'{run_prefix}_precinct_distances.csv')
+    return os.path.join(result_path, f'{config_name}_precinct_distances.csv')
 
-def build_residence_summary_file_path(result_path: str, run_prefix: str) -> str:
+def build_residence_summary_file_path(result_path: str, config_name: str) -> str:
     ''' Builds the path for the residence distances csv file. '''
-    return os.path.join(result_path, f'{run_prefix}_residence_distances.csv')
+    return os.path.join(result_path, f'{config_name}_residence_distances.csv')
 
-def build_y_ede_summary_file_path(result_path: str, run_prefix: str) -> str:
+def build_y_ede_summary_file_path(result_path: str, config_name: str) -> str:
     ''' Builds the path for the y ede summary csv file. '''
-    return os.path.join(result_path, f'{run_prefix}_edes.csv')
+    return os.path.join(result_path, f'{config_name}_edes.csv')

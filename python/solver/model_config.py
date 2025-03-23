@@ -84,8 +84,6 @@ class PollingModelConfig:
     run_time: dt.datetime = None
     '''NOT CURRENTLY IN USE. Time at which model run was initiated'''
 
-    result_folder: str = None
-    ''' The location to write out results '''
     config_file_path: str = None
     ''' The path to the file that defines this config.  '''
     log_file_path: str = None
@@ -95,8 +93,6 @@ class PollingModelConfig:
     ''' Id if this PollingModelConfig initially came from the db '''
 
     def __post_init__(self):
-        if not self.result_folder:
-            self.result_folder = f'{self.location}_results'
         self.varnames = list(vars(self).keys()) # Not sure if this will work, let's see
 
     @staticmethod

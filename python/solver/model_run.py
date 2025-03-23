@@ -11,7 +11,7 @@ Gwinnett_County_GA_configs/Gwinnett_config_full_11.py
 import os
 import warnings
 
-from python.utils.constants import DATASETS_DIR
+from python.utils.constants import DATASETS_DIR, RESULTS_BASE_DIR
 
 from .model_config import PollingModelConfig
 from .model_data import (
@@ -30,22 +30,15 @@ from .model_results import (
 )
 from .model_solver import solve_model
 
-
 OUT_TYPE_DB = 'db'
 OUT_TYPE_CSV = 'csv'
-
 
 def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OUT_TYPE_DB):
     '''
     The entry point to exectute a pyomo/scip run.
     '''
 
-    config_file_path = config.config_file_path
-    if config_file_path:
-        config_file_basename = f'{os.path.basename(config.config_file_path)}'.replace('.yaml','')
-        run_prefix = f'{os.path.dirname(config.config_file_path)}.{config_file_basename}'
-    else:
-        run_prefix = f'{config.config_set}/{config.config_name}'
+    run_prefix = f'{config.config_set}/{config.config_name}'
 
     if not config.driving:
         source_file_name = config.location + '.csv'
@@ -53,7 +46,6 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
         source_file_name = config.location + '_driving.csv'
     if config.log_distance:
         source_file_name = source_file_name.replace('.csv', '_log.csv')
-
 
     source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
     if not os.path.exists(source_path):
@@ -104,13 +96,11 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
              log=log,
         )
     elif outtype == OUT_TYPE_CSV:
-        if hasattr(config, 'result_folder'):
-            out_location = config.result_folder
-        else:
-            out_location = config.config_set
+        result_folder = os.path.join(RESULTS_BASE_DIR, config.config_set)
+
         write_results_csv(
-            out_location,
-            run_prefix,
+            result_folder,
+            config.config_name,
             result_df,
             demographic_prec,
             demographic_res,

@@ -139,10 +139,12 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
 
     return demographic_summary
 
+
+
 @timer
 def write_results_csv(
     result_folder: str,
-    run_prefix: str,
+    config_name: str,
     result_df: pd.DataFrame,
     demographic_prec: pd.DataFrame,
     demographic_res: pd.DataFrame,
@@ -150,24 +152,19 @@ def write_results_csv(
 ):
     '''Write result, demographic_prec, demographic_res and demographic_ede to local CSV file'''
 
-    result_path = os.path.join(RESULTS_BASE_DIR, result_folder)
+    # Create result_path as needed
+    if not os.path.exists(result_folder):
+        os.makedirs(result_folder)
 
-    #check if the directory exists
-    if not os.path.exists(result_path):
-        os.makedirs(result_path)
+    result_file = build_results_file_path(result_folder, config_name)
+    precinct_summary_file = build_precinct_summary_file_path(result_folder, config_name)
+    residence_summary_file = build_residence_summary_file_path(result_folder, config_name)
+    y_ede_summary_file = build_y_ede_summary_file_path(result_folder, config_name)
 
-    result_file = build_results_file_path(result_path, run_prefix)
-    precinct_summary_file = build_precinct_summary_file_path(result_path, run_prefix)
-    residence_summary_file = build_residence_summary_file_path(result_path, run_prefix)
-    y_ede_summary_file = build_y_ede_summary_file_path(result_path, run_prefix)
-
-    try:
-        result_df.to_csv(result_file, index = True)
-        demographic_prec.to_csv(precinct_summary_file, index = True)
-        demographic_res.to_csv(residence_summary_file, index = True)
-        demographic_ede.to_csv(y_ede_summary_file, index = True)
-    except FileExistsError:
-        print(f'Output file already exists for {result_path}/{run_prefix}, set replace = True to overwrite')
+    result_df.to_csv(result_file, index = True)
+    demographic_prec.to_csv(precinct_summary_file, index = True)
+    demographic_res.to_csv(residence_summary_file, index = True)
+    demographic_ede.to_csv(y_ede_summary_file, index = True)
 
 
 @timer

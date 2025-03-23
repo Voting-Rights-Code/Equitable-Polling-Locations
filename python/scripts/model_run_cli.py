@@ -12,13 +12,14 @@ from glob import glob
 from multiprocessing import Pool
 import os
 import sys
-from typing import List
+from typing import List, Literal
 
 from tqdm import tqdm
 
 from python.solver.model_config import PollingModelConfig
 from python.solver import model_run
 from python import utils
+from python.utils.constants import RESULTS_FOLDER_NAME
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 
@@ -52,14 +53,21 @@ def load_configs(config_paths: List[str], logdir: str) -> tuple[bool, List[Polli
 
     return (valid, results)
 
-def run_config(config: PollingModelConfig, log: bool=False, outtype: str='db', verbose=False):
+
+def run_config(
+        config: PollingModelConfig,
+        log: bool=False,
+        outtype: Literal['db', 'csv']=model_run.OUT_TYPE_DB,
+        verbose=False,
+):
     ''' run a config file '''
 
     if verbose and outtype == model_run.OUT_TYPE_DB:
         # pylint: disable-next=line-too-long
         print(f'Starting config: {config.config_file_path} -> BigQuery {outtype} output with config set {config.config_set} and name {config.config_name}')
     elif verbose and outtype == model_run.OUT_TYPE_CSV:
-        print(f'Starting config: {config.config_file_path} -> CSV output to directory {config.result_folder}')
+        results_path = os.path.join(RESULTS_FOLDER_NAME, config.config_set)
+        print(f'Starting config: {config.config_file_path} -> CSV output to directory {results_path}')
 
     model_run.run_on_config(config, log, outtype)
     if verbose:
@@ -96,21 +104,22 @@ def main(args: argparse.Namespace):
 
     # If any level of verbosity is set, the display SCIP logs
     log: bool = args.verbose > 0
+    verbose: bool = args.verbose > 1
 
     if args.concurrent > 1:
         print(f'Running concurrent with a pool size of {args.concurrent} against {total_files} config file(s)')
         with Pool(args.concurrent) as pool:
-            for _ in tqdm(pool.imap_unordered(lambda x: run_config(x, log, outtype), configs), total=total_files):
+            for _ in tqdm(pool.imap_unordered(lambda x: run_config(x, log, outtype, verbose), configs), total=total_files):
                 pass
     else:
         # Disable function timers messages unless verbosity 2 or higher is set
-        if args.verbose > 1:
+        if verbose:
             utils.set_timers_enabled(True)
 
         print(f'Running single process against {total_files} config file(s)')
 
         for config_file in configs:
-            run_config(config_file, log, outtype)
+            run_config(config_file, log, outtype, verbose)
             print('--------------------------------------------------------------------------------')
 
 if __name__ == '__main__':
@@ -154,6 +163,5 @@ Examples:
         # pylint: disable-next=line-too-long
         help = f'Output location, one of "{model_run.OUT_TYPE_DB}" (database) or "{model_run.OUT_TYPE_CSV}" (local CSV)',
     )
-
 
     main(parser.parse_args())

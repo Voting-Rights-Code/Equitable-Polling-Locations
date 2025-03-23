@@ -10,6 +10,8 @@ files will be read from the db instead of from yaml files on disk, and all resul
 the db.
 '''
 
+from typing import Literal
+
 import argparse
 import datetime
 from multiprocessing import Pool
@@ -24,6 +26,7 @@ from python.solver.model_config import PollingModelConfig
 from python.solver import model_run
 from python.database.models import ModelConfig
 from python import utils
+from python.utils.constants import RESULTS_FOLDER_NAME
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 
@@ -85,14 +88,24 @@ def load_configs(config_args: List[str], logdir: str) -> List[PollingModelConfig
     return results
 
 
-def run_config(config: PollingModelConfig, log: bool=False, verbose=False):
+def run_config(
+        config: PollingModelConfig,
+        log: bool=False,
+        outtype: Literal['db', 'csv']=model_run.OUT_TYPE_DB,
+        verbose=False,
+):
     ''' run a config file '''
 
     config_info = f'{config.db_id} {config.config_set}/{config.config_name}'
-    # pylint: disable-next=line-too-long
-    print(f'Starting config: {config_info}')
 
-    model_run.run_on_config(config, log, 'db')
+    if verbose and outtype == model_run.OUT_TYPE_DB:
+        # pylint: disable-next=line-too-long
+        print(f'Starting config: {config_info} -> BigQuery {outtype} output with config set {config.config_set} and name {config.config_name}')
+    elif verbose and outtype == model_run.OUT_TYPE_CSV:
+        results_path = os.path.join(RESULTS_FOLDER_NAME, config.config_set)
+        print(f'Starting config: {config_info} -> CSV output to directory {results_path}')
+
+    model_run.run_on_config(config, log, outtype)
     if verbose:
         print(f'Finished config: {config_info}')
 
@@ -122,21 +135,22 @@ def main(args: argparse.Namespace):
 
     # If any level of verbosity is set, the display SCIP logs
     log: bool = args.verbose > 0
+    verbose: bool = args.verbose > 1
 
     if args.concurrent > 1:
         print(f'Running concurrent with a pool size of {args.concurrent} against {total_files} config file(s)')
         with Pool(args.concurrent) as pool:
-            for _ in tqdm(pool.imap_unordered(lambda x: run_config(x, log, outtype), configs), total=total_files):
+            for _ in tqdm(pool.imap_unordered(lambda x: run_config(x, log, outtype, verbose), configs), total=total_files):
                 pass
     else:
         # Disable function timers messages unless verbosity 2 or higher is set
-        if args.verbose > 1:
+        if verbose:
             utils.set_timers_enabled(True)
 
         print(f'Running single process against {total_files} config file(s)')
 
         for config_file in configs:
-            run_config(config_file, log, outtype)
+            run_config(config_file, log, outtype, verbose)
             print('--------------------------------------------------------------------------------')
 
 if __name__ == '__main__':
