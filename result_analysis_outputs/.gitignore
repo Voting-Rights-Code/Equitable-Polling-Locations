@@ -1,0 +1,9 @@
+#non code files
+*.csv
+*.png
+*.shp
+*.prj
+*.dbf
+*.shx
+*.jpg
+

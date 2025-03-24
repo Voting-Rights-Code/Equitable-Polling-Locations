@@ -19,7 +19,7 @@ Until the logging system is updated to something more robust, any additional log
 If output from these log statements are needed then it is suggested that the command line be run in single concurrency mode with verbosity set to maximum e.g.:
 
 ```python
-python ./model_run_cli.py -c1 -vv -l logs ./Gwinnett_GA_configs/Gwinnett_config_expanded_*.yaml
+python -m python.scripts.model_run_cli -c1 -vv -l logs ./Gwinnett_GA_configs/Gwinnett_config_expanded_*.yaml
 ```
 
 When running concurrently, logs can be followed from the log directory in realtime using something like the following in Linux/MacOS:

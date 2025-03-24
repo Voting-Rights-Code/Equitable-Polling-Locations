@@ -1,0 +1,37 @@
+# fields for the database
+config_set: 'Richmond_County_GA_log_configs_cap3' #should match folder name
+config_name: 'config_template_Richmond_log_cap3' #should match file name
+
+# Constants for the optimization function
+location: Richmond_County_GA
+year:
+    - '2020'
+    - '2022'    
+    - '2024'
+bad_types: 
+    - 'Elec Day School - Potential'
+    - 'bg_centroid'
+beta: -2
+time_limit: 360000 #100 hours minutes
+capacity: 3.0
+fixed_capacity_site_number: null
+
+####Optional#####
+precincts_open: null
+max_min_mult: 5 #scalar >= 1
+maxpctnew: 1 # in interval [0,1]
+minpctold: .8 # in interval [0,1]
+driving: False
+log_distance: True
+penalized_sites: null
+
+###### For config generation ######
+field_to_vary: 'precincts_open'
+new_range:
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    - 10 
