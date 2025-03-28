@@ -737,8 +737,8 @@ bg_data <- function(density_data){
 
 bg_level_naive_regression <- function(regression_data, location = LOCATION){
 	trimmed <- regression_data[abs(z_score_log_density)<4, ]
-	distance_model <- trimmed[, as.list(coef(lm(demo_avg_dist ~ pop_density_km),  weights = demo_pop )), by = c('descriptor', 'demographic')]
-    setnames(distance_model, c('(Intercept)', 'pop_density_km'), c('intercept', 'density_coef'))
+	distance_model <- trimmed[, as.list(coef(lm(log(demo_avg_dist) ~ log(pop_density_km)),  weights = demo_pop )), by = c('descriptor', 'demographic')]
+    setnames(distance_model, c('(Intercept)', 'log(pop_density_km)'), c('intercept', 'density_coef'))
 	fwrite(distance_model, paste0(location, '_distance_model.csv'))
 	return(distance_model)
 }

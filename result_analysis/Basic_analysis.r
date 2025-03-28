@@ -21,9 +21,9 @@ source('result_analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'Richmond_County_GA' #needed only for reading from csv and writing outputs
-ORIG_CONFIG_FOLDER = "Richmond_County_GA_original_configs"
-POTENTIAL_CONFIG_FOLDER = "Richmond_County_GA_configs"
+LOCATION = 'Dougherty_County_GA' #needed only for reading from csv and writing outputs
+ORIG_CONFIG_FOLDER = "Dougherty_County_GA_original_configs"
+POTENTIAL_CONFIG_FOLDER = "Dougherty_County_GA_log_configs"
 ORIG_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 POTENTIAL_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 
