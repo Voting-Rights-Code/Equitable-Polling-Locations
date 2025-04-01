@@ -10,7 +10,7 @@ import os
 
 
 import pandas as pd
-from python.database.imports import ImportResult
+from python.database.imports import csv_to_bigquery, ImportResult
 from python.database.models import (
     LOCATION_TYPE_CITY,
     LOCATION_TYPE_COUNTY,
@@ -50,7 +50,7 @@ def import_locations(
     ignore_columns = ['V1']
     add_columns = { 'polling_locations_set_id': polling_locations_set_id }
 
-    return query.csv_to_bigquery(
+    return csv_to_bigquery(
         config_set=name,
         config_name=csv_path,
         model_class=PollingLocation,
@@ -66,7 +66,7 @@ def import_locations_only(
     polling_locations_set_id: str,
     csv_path: str,
     log: bool = False,
-) -> query.ImportResult:
+) -> ImportResult:
 
     column_renames = {
         'Location': 'location',
@@ -79,7 +79,7 @@ def import_locations_only(
         'polling_locations_set_id': polling_locations_set_id
     }
 
-    return query.csv_to_bigquery(
+    return csv_to_bigquery(
         config_set=name,
         config_name=csv_path,
         model_class=PollingLocationOnly,
@@ -98,7 +98,7 @@ def import_locations_only(
 #         csv_path: str = None,
 #         df: pd.DataFrame = None,
 #         log: bool = False,
-# ) -> query.ImportResult:
+# ) -> ImportResult:
 #     ''' Imports an existing EDEs csv into the database for a given mode_run_id. '''
 
 #     column_renames = {}
@@ -117,7 +117,7 @@ def import_locations_only(
 #         log=log,
 #     )
 
-def print_all_import_results(import_results_list: List[query.ImportResult], output_path: str=None):
+def print_all_import_results(import_results_list: List[ImportResult], output_path: str=None):
     ''' Prints to the screen a summary of all import results. '''
 
     data = {
@@ -236,7 +236,18 @@ def main(args: argparse.Namespace):
         print(f'Locations path: {locations_path}')
         print(state, location_type, location)
 
-        polling_locations_set = query.create_db_polling_locations_set(state, location_type, location, election_year)
+        polling_locations_set = query.create_db_polling_locations_set(
+            name=location_directory,
+            election_year=election_year,
+            county=location,
+            state=state,
+        )
+            # name=location_directory,
+            # state=state,
+            # location_type=location_type,
+            # location=location,
+            # election_year=election_year,
+        # )
 
         print(f'Importing polling locations from {polling_locations_set}')
 

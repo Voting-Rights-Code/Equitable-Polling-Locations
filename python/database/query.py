@@ -209,6 +209,93 @@ def create_model_run(
 
     return model_run
 
+def create_db_distance_set(
+    state: str,
+    location_type: str,
+    location: str,
+    census_year: str,
+    map_source_year: str
+) -> models.DistancesSet:
+    result = models.DistancesSet(
+        state=state,
+        location_type=location_type,
+        location=location,
+        census_year=census_year,
+        map_source_year=map_source_year,
+    )
+
+    result.id = utils.generate_uuid()
+    result.name = result.generate_name()
+
+    session = get_session()
+    session.add_all([result])
+
+    return result
+
+def create_distance_set(distance_set: models.DistancesSet) -> models.DistancesSet:
+    '''
+    Creates a new DistanceSet object in the database.  Note: db.commit() must be
+    called for the object to be commited to the database.
+    '''
+    distance_set.name = distance_set.generate_name()
+
+    # print(model_config)
+
+    session = get_session()
+    session.add_all([distance_set])
+
+    return distance_set
+
+def find_distance_set(distance_set_name: str) -> Optional[models.DistancesSet]:
+    ''' Load a DistanceSet model from the database if it exists, otherwise return None '''
+    session = get_session()
+    result = session.query(models.DistancesSet).filter(models.DistancesSet.name == distance_set_name).first()
+
+    return result
+
+def find_or_create_distance_set(distance_set: models.DistancesSet, log: bool = False) -> models.DistancesSet:
+    '''
+    Looks for an existing DistanceSet object in the database, if one does not already
+    exist then one will be created.  Note: db.commit() must be
+    called for the object to be commited to the database.
+    '''
+    result = find_distance_set(distance_set.generate_name())
+
+    if not result:
+        if log:
+            print(f'creating model {distance_set}')
+        result = create_distance_set(distance_set)
+    else:
+        if log:
+            print(f'found model {distance_set}')
+    return result
+
+
+
+def create_db_polling_locations_set(
+    name: str,
+    election_year: str,
+    county: str,
+    state: str,
+    # location_type: str,
+    # location: str,
+) -> models.PollingLocationSet:
+    result = models.PollingLocationSet(
+        name=name,
+        election_year=election_year,
+        county=county,
+        state=state,
+        # location_type=location_type,
+    )
+
+    result.id = utils.generate_uuid()
+    result.name = name
+
+    session = get_session()
+    session.add_all([result])
+
+    return result
+
 def bigquery_client() -> bigquery.Client:
     ''' Returns an instance of bigquery.Client, handling all needed credentials. '''
     return bigquery.Client(project=sqlalchemy_main.get_db_project())

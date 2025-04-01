@@ -42,15 +42,15 @@ class PollingLocationSet(ModelBase):
     )
 
     name: str = Column(String(256), nullable=False)
-    ''' The name of the polling location set - TODO Rename this to location'''
+    ''' The name of the polling location set - TODO Rename this from name -> location'''
 
     election_year: str = Column(String(4), nullable=False)
-    ''' The year the polling locatinos are in refrence to '''
+    ''' The year the polling locations are in refrence to '''
 
-    # county: str = Column(String(256), nullable=False)
+    county: str = Column(String(256), nullable=False)
     # ''' needed? - yes'''
 
-    # state: str = Column(String(2), nullable=False)
+    state: str = Column(String(2), nullable=False)
 
     created_at: DateTime = Column(DateTime, nullable=False, default=current_time_utc)
     ''' The DateTime this model config was created. '''
@@ -63,7 +63,7 @@ class PollingLocationSet(ModelBase):
 
     def __repr__(self):
         # pylint: disable-next=line-too-long
-        return f"PollingLocationSet(id={self.id}, county='{self.county}', state='{self.state}, election_year='{self.election_year}')"
+        return f"PollingLocationSet(id={self.id}, county='{self.county}', state='{self.state}', election_year='{self.election_year}')"
 
 
 class PollingLocationOnly(ModelBase):

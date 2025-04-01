@@ -19,10 +19,6 @@ class DistancesSet(ModelBase):
 
     __tablename__ = 'distance_sets'
 
-
-    # ID should be (lower case): [location]_[conty|city]_[state]_[census_year]_[map_source_year]
-
-
     id: str = Column(
         String(36),
         primary_key=True,

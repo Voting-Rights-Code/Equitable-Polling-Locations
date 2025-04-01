@@ -14,6 +14,7 @@ import pandas as pd
 
 from python.database.models import LOCATION_TYPE_CITY, LOCATION_TYPE_COUNTY, Distance
 from python.database import query
+from python.database.imports import csv_to_bigquery, ImportResult
 
 # from python.solver.model_config import PollingModelConfig
 from python.utils import is_int
@@ -41,16 +42,16 @@ def import_distances(
     distance_set_id: str,
     csv_path: str,
     log: bool = False,
-) -> query.ImportResult:
+) -> ImportResult:
 
     column_renames = {}
     ignore_columns = ['V1']
     add_columns = { 'distance_set_id': distance_set_id }
 
-    impoort_name = f'{location_type}_{location}_{state}'
+    import_name = f'{location_type}_{location}_{state}'
 
-    return query.csv_to_bigquery(
-        config_set=impoort_name,
+    return csv_to_bigquery(
+        config_set=import_name,
         config_name=csv_path,
         model_class=Distance,
         ignore_columns=ignore_columns,
@@ -87,7 +88,7 @@ def import_distances(
 #         log=log,
 #     )
 
-def print_all_import_results(import_results_list: List[query.ImportResult], output_path: str=None):
+def print_all_import_results(import_results_list: List[ImportResult], output_path: str=None):
     ''' Prints to the screen a summary of all import results. '''
 
     data = {
