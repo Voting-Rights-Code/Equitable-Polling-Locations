@@ -138,7 +138,6 @@ def csv_to_bigquery(
         )
     # pylint: disable-next=broad-exception-caught
     except Exception as e:
-        raise e
         result = ImportResult(
             config_set=config_set,
             config_name=config_name,
