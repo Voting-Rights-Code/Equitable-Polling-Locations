@@ -62,31 +62,6 @@ def import_distances(
     )
 
 
-# def import_edes(
-#         config_set: str,
-#         config_name: str,
-#         model_run_id: str,
-#         csv_path: str = None,
-#         df: pd.DataFrame = None,
-#         log: bool = False,
-# ) -> query.ImportResult:
-#     ''' Imports an existing EDEs csv into the database for a given mode_run_id. '''
-
-#     column_renames = {}
-#     ignore_columns = ['V1']
-#     add_columns = { 'model_run_id': model_run_id }
-
-#     return query.csv_to_bigquery(
-#         config_set=config_set,
-#         config_name=config_name,
-#         model_class=Models.EDES,
-#         ignore_columns=ignore_columns,
-#         column_renames=column_renames,
-#         add_columns=add_columns,
-#         csv_path=csv_path,
-#         df=df,
-#         log=log,
-#     )
 
 def print_all_import_results(import_results_list: List[ImportResult], output_path: str=None):
     ''' Prints to the screen a summary of all import results. '''

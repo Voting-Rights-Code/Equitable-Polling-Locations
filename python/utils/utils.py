@@ -7,6 +7,8 @@ import re
 from time import time
 import uuid
 
+from python.utils.constants import POLLING_DIR
+
 # class RegexMatch:
 #     def __init__(self, pattern: re.Match):
 #         self.pattern = pattern
@@ -69,6 +71,9 @@ def is_int(value):
 def is_str(value):
     return isinstance(value, str)
 
+def is_boolean(value):
+    return isinstance(value, bool)
+
 MEMORIZED_ENV_VALUES = None
 
 def get_env_var_or_prompt(var_name: str, default_value: str=None) -> str:
@@ -110,3 +115,28 @@ def build_residence_summary_file_path(result_path: str, config_name: str) -> str
 def build_y_ede_summary_file_path(result_path: str, config_name: str) -> str:
     ''' Builds the path for the y ede summary csv file. '''
     return os.path.join(result_path, f'{config_name}_edes.csv')
+
+
+def build_locations_distance_file_path(location: str, driving: bool, log_distance: bool) -> str:
+    ''' Returns the path to the locations files that includes distances for this config '''
+
+    if driving:
+        source_file_name = f'{location}_driving.csv'
+    if not driving:
+        source_file_name = f'{location}.csv'
+
+    if log_distance:
+        source_file_name = source_file_name.replace('.csv', '_log.csv')
+
+    source_path = os.path.join(POLLING_DIR, location, source_file_name)
+
+    return source_path
+
+
+def build_locations_only_file_path(location: str) -> str:
+    ''' Returns the path to the locations file for this config '''
+
+    file_name = f'{location}_locations_only.csv'
+    locations_only_source_file = os.path.join(POLLING_DIR, location, file_name)
+
+    return locations_only_source_file

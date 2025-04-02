@@ -5,12 +5,11 @@ A command line utility to read distances into the database.
 from typing import List, Tuple
 
 import argparse
-import itertools
+from glob import glob
 import os
-import sys
+
 
 import pandas as pd
-
 from python.database.imports import csv_to_bigquery, ImportResult
 from python.database.models import (
     LOCATION_TYPE_CITY,
@@ -22,19 +21,26 @@ from python.database.models import (
 )
 
 from python.database import query
-from python.solver.model_data import build_source
 from python.utils import is_int
-from python.utils.utils import build_locations_distance_file_path, build_locations_only_file_path
+
+
+# MODEL_RUN_ID = 'model_run_id'
+
+# RESULTS_PATH = 'results_path'
+# PRECINCT_DISTANCES_PATH = 'precinct_distances_path'
+# RESIDENCE_DISTANCES_PATH = 'residence_distances_path'
+# EDE_PATH = 'EDE_PATH'
 
 DEFAULT_LOG_DIR='logs'
-IMPORT_ERROR_LOG_FILE='locations_import_errors.csv'
+IMPORT_ERROR_LOG_FILE='distance_import_errors.csv'
+
+
+DISTANCE_FILE_SUFFIX = '_driving_distances.csv'
 
 def import_locations(
     name: str,
     polling_locations_set_id: str,
     csv_path: str,
-    driving: bool,
-    log_distance: bool,
     log: bool = False,
 ) -> ImportResult:
 
@@ -42,11 +48,7 @@ def import_locations(
         'non-hispanic': 'non_hispanic',
     }
     ignore_columns = ['V1']
-    add_columns = {
-        'polling_locations_set_id': polling_locations_set_id,
-        'log_distance': log_distance,
-        'driving': driving,
-    }
+    add_columns = { 'polling_locations_set_id': polling_locations_set_id }
 
     return csv_to_bigquery(
         config_set=name,
@@ -152,19 +154,43 @@ def parse_polling_location_directory_name(location_directory: str) -> Tuple[str,
 
     return (state, location_type, location)
 
+def build_locations_only_file_path(location_directory: str) -> str:
+    ''' Builds the expected file path for the locations only csv file. '''
+
+    dirname = os.path.basename(location_directory)
+
+    filename = f'{dirname}_locations_only.csv'
+
+    return os.path.join(location_directory, filename)
+
+def build_locations_file_path(location_directory: str) -> str:
+    ''' Builds the expected file path for the locations csv file. '''
+
+    dirname = os.path.basename(location_directory)
+
+    filename = f'{dirname}.csv'
+
+    return os.path.join(location_directory, filename)
+
 
 def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
     logdir = args.logdir
-    locations: List[str] = args.locations
 
     election_year: str = args.election_year[0]
 
     if len(election_year) != 4 or not is_int(election_year):
         raise ValueError(f'Invalid election year {election_year}')
 
-    num_imports = len(locations)
+    glob_paths = [ glob(item) for item in args.location_directories ]
+    location_directories: List[str] = [ item for sublist in glob_paths for item in sublist ]
+
+    for location_directory in location_directories:
+        if not os.path.isdir(location_directory):
+            raise ValueError(f'Invalid location path {location_directory}')
+
+    num_imports = len(location_directories)
 
     print('------------------------------------------')
     print(f'Importing {num_imports} location(s)\n')
@@ -172,85 +198,76 @@ def main(args: argparse.Namespace):
 
     results = []
 
-    for i, location in enumerate(locations):
+    for i, location_directory in enumerate(location_directories):
         success = True
-        print(f'Loading [{i+1}/{num_imports}] {location}')
+        print(f'Loading [{i+1}/{num_imports}] {location_directory}')
 
-        locations_only_file_path = build_locations_only_file_path(location)
-        print('locations_only_file_path:', locations_only_file_path)
+        locations_only_path = build_locations_only_file_path(location_directory)
+        locations_path = build_locations_file_path(location_directory)
+        state, location_type, location = parse_polling_location_directory_name(location_directory)
 
-        if not os.path.isfile(locations_only_file_path):
-            print('Locations only file not found: {locations_only_file_path}')
-            continue
+        print(f'Locations only path: {locations_only_path}')
+        print(f'Locations path: {locations_path}')
+        print(state, location_type, location)
 
         polling_locations_set = query.create_db_polling_locations_set(
-            location=location,
+            name=location_directory,
             election_year=election_year,
+            county=location,
+            state=state,
         )
+
+        print(f'Importing polling locations from {polling_locations_set}')
+
+        import_locations_result = []
+
+        if not os.path.isfile(locations_only_path):
+            raise ValueError(f'Locations only file not found: {locations_only_path}')
+
+        if os.path.isfile(locations_path):
+            import_locations_result = import_locations(
+                name=location,
+                polling_locations_set_id=polling_locations_set.id,
+                csv_path=locations_path,
+                log=True,
+            )
 
         import_locations_only_result = import_locations_only(
             name=location,
             polling_locations_set_id=polling_locations_set.id,
-            csv_path=locations_only_file_path,
+            csv_path=locations_only_path,
             log=True,
         )
-        results.append(import_locations_only_result)
 
-
-        bool_values = [False, True]
-        location_flags = list(itertools.product(bool_values, repeat=2))
-
-        location_files: List[str] = [ build_locations_distance_file_path(location, driving, log_distance) for driving, log_distance in location_flags ]
-
-        print('location_files',  location_files)
-
-
-        for driving, log_distance in location_flags:
-            location_path = build_source(location, driving, log_distance, log=False)
-            print('location_path', location_path)
-            print('driving', driving)
-            print('log_distance', log_distance)
-
-            if not os.path.isfile(location_path):
-                print(f'{location_path} file failed to generate, skipping')
-                continue
-
-            import_locations_result = import_locations(
-                name=location,
-                polling_locations_set_id=polling_locations_set.id,
-                csv_path=location_path,
-                driving=driving,
-                log_distance=log_distance,
-                log=True,
-            )
-            results.append(import_locations_result)
-
-
-        print('\n\n')
+        # print('\n\n')
 
         query.commit()
 
-    success_results = [ result for result in results if result.success ]
-    failed_results = [ result for result in results if not result.success ]
+        results.append(import_locations_only_result)
+        results.append(import_locations_result)
 
-    num_successes = len(success_results)
-    num_failures = len(failed_results)
 
-    print('--------')
-    print(f'\nSuccesses ({num_successes}):')
-    print_all_import_results(success_results)
-    print(f'\n\nFailures ({num_failures}):')
-    print_all_import_results(failed_results)
+    # success_results = [ result for result in results if result.success ]
+    # failed_results = [ result for result in results if not result.success ]
 
-    # Write any errors to the log dir
-    log_path = os.path.join(os.getcwd(), logdir)
-    if not os.path.exists(log_path):
-        os.makedirs(logdir)
-    output_path = os.path.join(log_path, IMPORT_ERROR_LOG_FILE)
-    print_all_import_results(failed_results, output_path=output_path)
+    # num_successes = len(success_results)
+    # num_failures = len(failed_results)
 
-    if num_failures:
-        sys.exit(10)
+    # print('--------')
+    # print(f'\nSuccesses ({num_successes}):')
+    # print_all_import_results(success_results)
+    # print(f'\n\nFailures ({num_failures}):')
+    # print_all_import_results(failed_results)
+
+    # # Write any errors to the log dir
+    # log_path = os.path.join(os.getcwd(), logdir)
+    # if not os.path.exists(log_path):
+    #     os.makedirs(logdir)
+    # output_path = os.path.join(log_path, IMPORT_ERROR_LOG_FILE)
+    # print_all_import_results(failed_results, output_path=output_path)
+
+    # if num_failures:
+    #     sys.exit(10)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -259,14 +276,13 @@ if __name__ == '__main__':
         # pylint: disable-next=line-too-long
         epilog='''
 Examples:
-    To import locations for Contained_in_Madison_City_of_WI and Intersecting_Madison_City_of_WI
-:
+    To import all model data location file named Contained_in_Madison_City_of_WI_driving_distances.csv:
 
-        python ./db_import_locations_cli.py Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
+        python ./db_import_locations_cli.py ./datasets/driving/Contained_in_Madison_City_of_WI/Contained_in_Madison_City_of_WI_driving_distances.csv
         '''
     )
     parser.add_argument('election_year', nargs=1, help='The year of the census data used to generate the distances')
-    parser.add_argument('locations', nargs='+', help='One or location directories with csv location files to import')
+    parser.add_argument('location_directories', nargs='+', help='One or location directories with csv location files to import')
     parser.add_argument('-l', '--logdir', default=DEFAULT_LOG_DIR, type=str, help='The directory to error files to ')
 
     main(parser.parse_args())

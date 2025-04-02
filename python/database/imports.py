@@ -115,7 +115,8 @@ def csv_to_bigquery(
             df[new_column] = value
 
         # Delete any unamed columns
-        df = df.loc[:, ~df.columns.str.startswith('Unnamed')]
+        mask = ~df.columns.astype(str).str.startswith('Unnamed', na=False)
+        df = df.loc[:, mask]
 
         if log:
             print(f'--\nImporting into table `{table_name}` from {csv_path}')
@@ -137,6 +138,7 @@ def csv_to_bigquery(
         )
     # pylint: disable-next=broad-exception-caught
     except Exception as e:
+        raise e
         result = ImportResult(
             config_set=config_set,
             config_name=config_name,

@@ -12,6 +12,7 @@ import os
 from haversine import haversine
 import geopandas as gpd
 
+from python.utils import build_locations_only_file_path, build_locations_distance_file_path
 from python.utils.constants import DATASETS_DIR
 from python.utils.pull_census_data import pull_census_data
 
@@ -61,6 +62,29 @@ BLOCK_GROUP_SHAPE_COLS = [
     'INTPTLON20',
 ]
 
+FULL_DF_COLS = [
+    'id_orig',
+    'id_dest',
+    'address',
+    'dest_lat',
+    'dest_lon',
+    'orig_lat',
+    'orig_lon',
+    'location_type',
+    'dest_type',
+    'population',
+    'hispanic',
+    'non_hispanic',
+    'white',
+    'black',
+    'native',
+    'asian',
+    'pacific_islander',
+    'other',
+    'multiple_races',
+]
+
+
 
 ##########################
 #read in data and write relevant dataframe for model to file
@@ -68,25 +92,18 @@ BLOCK_GROUP_SHAPE_COLS = [
 #build distance data set from census data and potential pollig location data.
 #using driving distances if driving = True
 
-def build_source(config: PollingModelConfig, log):
-    ######
-    #Pull out necessary config variables
-    ######
-    location = config.location
-    driving = config.driving
-    log_distance = config.log_distance
-
+def build_source(location: str, driving: bool, log_distance: bool, log) -> str:
     ######
     #Check that necessary files exist
     ######
     #1. Potential polling locations
-    file_name = location + '_locations_only.csv'
-    location_source_file = os.path.join(DATASETS_DIR, 'polling', location, file_name)
-    if os.path.exists(location_source_file):
+    locations_only_source_file = build_locations_only_file_path(location)
+
+    if os.path.exists(locations_only_source_file):
         #warnings.warn(f'{file_name} found. Last modified {os.path.getmtime(LOCATION_SOURCE_FILE)}.')
-        locations = pd.read_csv(location_source_file)
+        locations = pd.read_csv(locations_only_source_file)
     else:
-        raise ValueError(f'Potential polling location data ({location_source_file}) not found.')
+        raise ValueError(f'Potential polling location data ({locations_only_source_file}) not found.')
 
     #2. Census demographic data
     file_nameP3 = 'DECENNIALPL2020.P3-Data.csv'
@@ -98,6 +115,7 @@ def build_source(config: PollingModelConfig, log):
         statecode = location[-2:]
         locality = location[:-3].replace('_',' ')
         pull_census_data(statecode, locality)
+
     if os.path.exists(P3_SOURCE_FILE):
         p3_df = pd.read_csv(P3_SOURCE_FILE,
             header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
@@ -105,6 +123,7 @@ def build_source(config: PollingModelConfig, log):
             )
     else:
         raise ValueError(f'Census data from table P3 not found. Download using api or manually following download instruction from README.')
+
     if os.path.exists(P4_SOURCE_FILE):
         p4_df = pd.read_csv(P4_SOURCE_FILE,
             header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
@@ -120,10 +139,12 @@ def build_source(config: PollingModelConfig, log):
     file_name_bg = [f for f in file_list if f.endswith('bg20.shp')][0]
     block_source_file  = os.path.join(geography_dir, file_name_block)
     block_group_source_file  = os.path.join(geography_dir, file_name_bg)
+
     if os.path.exists(block_source_file):
         blocks_gdf = gpd.read_file(block_source_file)
     else:
         raise ValueError(f'Census data for block geography not found. Reinstall using api or manually following download instruction from README.')
+
     if os.path.exists(block_group_source_file):
         blockgroup_gdf = gpd.read_file(block_group_source_file)
     else:
@@ -210,29 +231,6 @@ def build_source(config: PollingModelConfig, log):
     #Rename, select columns
     #####
     full_df = full_df.rename(columns = {'GEO_ID': 'id_orig', 'Address': 'address', 'Latitude':'dest_lat', 'Longitude':'dest_lon', 'INTPTLAT20':'orig_lat', 'INTPTLON20':'orig_lon', 'Location type': 'location_type', 'Location': 'id_dest'})
-
-    FULL_DF_COLS = [
-    'id_orig',
-    'id_dest',
-    'address',
-    'dest_lat',
-    'dest_lon',
-    'orig_lat',
-    'orig_lon',
-    'location_type',
-    'dest_type',
-    'population',
-    'hispanic',
-    'non_hispanic',
-    'white',
-    'black',
-    'native',
-    'asian',
-    'pacific_islander',
-    'other',
-    'multiple_races',
-    ]
-
     full_df = full_df[FULL_DF_COLS]
 
     #####
@@ -244,9 +242,10 @@ def build_source(config: PollingModelConfig, log):
         full_df['source'] = 'haversine distance'
     else: # driving is true
         driving_file_name = location + '_driving_distances.csv'
-        DRIVING_DISTANCES_FILE = os.path.join(DATASETS_DIR, 'driving', location, driving_file_name)
-        full_df = insert_driving_distances(full_df, DRIVING_DISTANCES_FILE, log)
+        driving_distances_file = os.path.join(DATASETS_DIR, 'driving', location, driving_file_name)
+        full_df = insert_driving_distances(full_df, driving_distances_file, log)
         full_df['source'] = 'driving distance'
+
     #if log distance, modify the source and distance columns
     if log_distance:
         full_df['source'] = 'log ' + full_df['source']
@@ -262,16 +261,10 @@ def build_source(config: PollingModelConfig, log):
     full_df['id_orig'] = full_df['id_orig'].astype(str)
     full_df['id_dest'] = full_df['id_dest'].astype(str)
 
-    if not driving:
-        output_file_name = location + '.csv'
-    else: #driving is true
-        output_file_name = location + '_driving.csv'
-    if log_distance:
-        output_file_name = output_file_name.replace('.csv', '_log.csv')
+    output_path = build_locations_distance_file_path(location, driving, log_distance)
 
-    output_path = os.path.join(DATASETS_DIR, 'polling', location, output_file_name)
     full_df.to_csv(output_path, index = True)
-    return
+    return output_path
 
 
 def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str, log: bool=False) -> pd.DataFrame:
@@ -308,7 +301,6 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str, 
 
     combined_df = pd.merge(df, driving_distance, on=['id_orig', 'id_dest'], how='left')
 
-
     return combined_df
 
 #########
@@ -321,20 +313,14 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str, 
 def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool):
     location = config.location
     year_list = config.year
-    driving = config.driving
-    log_distance = config.log_distance
 
-    #read in data
-    file_path = os.path.join(DATASETS_DIR, 'polling', location, f'{location}.csv')
-    if driving:
-        file_path = file_path.replace('.csv', '_driving.csv')
-    if log_distance:
-        file_path = file_path.replace('.csv', '_log.csv')
+    file_path = build_locations_distance_file_path(location, config.driving, config.log_distance)
 
     if not os.path.isfile(file_path):
         raise ValueError(f'Do not currently have any data for {file_path} from {config.config_file_path}')
+
     df = pd.read_csv(file_path, index_col=0)
-    df= df.astype({'id_orig':'str'})
+    df = df.astype({'id_orig':'str'})
 
     #pull out unique location types is this data
     unique_location_types = df['location_type'].unique()
@@ -345,15 +331,16 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool):
         bad_location_list = config.bad_types
 
     polling_location_types = set(df[df.dest_type == 'polling']['location_type'])
+
     for year in year_list:
         if not any(str(year) in poll for poll in polling_location_types):
             raise ValueError(f'Do not currently have any data for {location} for {year} from {config.config_file_path}')
-
 
     #exclude bad location types
     # The bad types must be valid location types
     if not set(bad_location_list).issubset(set(unique_location_types)):
         raise ValueError(f'unrecognized bad location types types {set(bad_location_list).difference(set(unique_location_types))} in {config.config_file_path}' )
+
     #drop rows of bad location types in df
     df = df[~df['location_type'].isin(bad_location_list)]
 
@@ -391,7 +378,8 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool):
 
     #create other useful columns
     df['Weighted_dist'] = df['population'] * df['distance_m']
-    return(df)
+
+    return df
 
 ##########################
 #Other functions for data processing
@@ -402,6 +390,7 @@ def get_max_min_dist(dist_df):
     min_dist = dist_df[['id_orig', 'distance_m']].groupby('id_orig').agg('min')
     max_min_dist = min_dist.distance_m.max()
     max_min_dist = math.ceil(max_min_dist)
+
     return max_min_dist
 
 #various alpha function. Really only use alpha_min
@@ -414,6 +403,7 @@ def alpha_all(df):
     #population weighted distance squared
     distance_sq_sum = sum(df['population']*df['distance_squared'])
     alpha = distance_sum/distance_sq_sum
+
     return alpha
 
 
@@ -428,6 +418,7 @@ def alpha_min(df):
     #population weighted distance squared
     distance_sq_sum = sum(min_df['population']*min_df['distance_squared'])
     alpha = distance_sum/distance_sq_sum
+
     return alpha
 
 def alpha_mean(df):
@@ -441,4 +432,5 @@ def alpha_mean(df):
     #population weighted distance squared
     distance_sq_sum = sum(mean_df['population']*mean_df['distance_squared'])
     alpha = distance_sum/distance_sq_sum
+
     return alpha

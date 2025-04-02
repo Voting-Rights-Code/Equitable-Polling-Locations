@@ -30,6 +30,7 @@ _session: SessionMaker = None
 
 DB_INTEGER = 'INTEGER'
 DB_FLOAT = 'FLOAT'
+DB_BOOLEAN = 'BOOLEAN'
 
 
 
@@ -273,23 +274,15 @@ def find_or_create_distance_set(distance_set: models.DistancesSet, log: bool = F
 
 
 def create_db_polling_locations_set(
-    name: str,
+    location: str,
     election_year: str,
-    county: str,
-    state: str,
-    # location_type: str,
-    # location: str,
 ) -> models.PollingLocationSet:
     result = models.PollingLocationSet(
-        name=name,
+        location=location,
         election_year=election_year,
-        county=county,
-        state=state,
-        # location_type=location_type,
     )
 
     result.id = utils.generate_uuid()
-    result.name = name
 
     session = get_session()
     session.add_all([result])
@@ -347,12 +340,17 @@ def validate_csv_columns(model_class: sqlalchemy_main.ModelBaseType, df: pd.Data
                         # pylint: disable-next=line-too-long
                         f'Unexpected column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
                     )
+            elif str(expected_type) == DB_BOOLEAN:
+                if not utils.is_boolean(val):
+                    raise ValueError(
+                        # pylint: disable-next=line-too-long
+                        f'Unexpected column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
+                    )
             else:
                 raise ValueError(
                     # pylint: disable-next=line-too-long
                     f'Unknown value type for column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
                 )
-
 
 def commit():
     '''

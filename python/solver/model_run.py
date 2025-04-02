@@ -11,7 +11,8 @@ Gwinnett_County_GA_configs/Gwinnett_config_full_11.py
 import os
 import warnings
 
-from python.utils.constants import DATASETS_DIR, RESULTS_BASE_DIR
+from python.utils import build_locations_distance_file_path
+from python.utils.constants import RESULTS_BASE_DIR
 
 from .model_config import PollingModelConfig
 from .model_data import (
@@ -40,17 +41,10 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
 
     run_prefix = f'{config.config_set}/{config.config_name}'
 
-    if not config.driving:
-        source_file_name = config.location + '.csv'
-    else: #driving is true
-        source_file_name = config.location + '_driving.csv'
-    if config.log_distance:
-        source_file_name = source_file_name.replace('.csv', '_log.csv')
-
-    source_path = os.path.join(DATASETS_DIR, 'polling', config.location, source_file_name)
+    source_path = build_locations_distance_file_path(config.location, config.driving, config.log_distance)
     if not os.path.exists(source_path):
         warnings.warn(f'File {source_path} not found. Creating it.')
-        build_source(config, log)
+        build_source(config.location, config.driving, config.log_distance, log)
 
 
     #get main data frame

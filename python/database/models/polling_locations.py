@@ -4,7 +4,7 @@
 
 from typing import List
 
-from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, text
+from sqlalchemy import Boolean, Column, String, Integer, Float, DateTime, ForeignKey, text
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from python.database.sqlalchemy_main import ModelBase
@@ -41,16 +41,11 @@ class PollingLocationSet(ModelBase):
         nullable=False
     )
 
-    name: str = Column(String(256), nullable=False)
+    location: str = Column(String(256), nullable=False)
     ''' The name of the polling location set - TODO Rename this from name -> location'''
 
     election_year: str = Column(String(4), nullable=False)
     ''' The year the polling locations are in refrence to '''
-
-    county: str = Column(String(256), nullable=False)
-    # ''' needed? - yes'''
-
-    state: str = Column(String(2), nullable=False)
 
     created_at: DateTime = Column(DateTime, nullable=False, default=current_time_utc)
     ''' The DateTime this model config was created. '''
@@ -107,7 +102,6 @@ class PollingLocation(ModelBase):
     id_orig: str = Column(String(256), nullable=False)
     id_dest: str = Column(String(256), nullable=False)
     distance_m: float = Column(Float, nullable=False)
-    county: str = Column(String(256), nullable=False)
     address: str = Column(String(256), nullable=False)
     dest_lat: float = Column(Float, nullable=False)
     dest_lon: float = Column(Float, nullable=False)
@@ -125,6 +119,8 @@ class PollingLocation(ModelBase):
     pacific_islander: int = Column(Integer, nullable=False)
     other: int = Column(Integer, nullable=False)
     multiple_races: int = Column(Integer, nullable=False)
+    log_distance: bool = Column(Boolean, nullable=False)
+    driving: bool = Column(Boolean, nullable=False)
     source: str = Column(String(256), nullable=False)
 
     # Relations
