@@ -5,7 +5,7 @@
 #######################################
 
 ''' Utils for configuring models '''
-from typing import List
+from typing import List, Literal
 from dataclasses import dataclass, field
 
 import yaml
@@ -15,6 +15,9 @@ import datetime as dt
 
 MODEL_CONFIG_ARRAY_NAMES = ['year', 'bad_types', 'penalized_sites']
 ''' These PollingModelConfig variables are expected to be arrays, not None '''
+
+LOCATION_SOURCE_DB = 'db'
+LOCATION_SOURCE_CSV = 'csv'
 
 @dataclass
 class PollingModelConfig:
@@ -91,6 +94,9 @@ class PollingModelConfig:
 
     db_id: str = None
     ''' Id if this PollingModelConfig initially came from the db '''
+
+    location_source: Literal['csv', 'db'] = LOCATION_SOURCE_CSV
+    ''' Where to retrieve the location data from, either a CSV file or the database. '''
 
     def __post_init__(self):
         self.varnames = list(vars(self).keys()) # Not sure if this will work, let's see

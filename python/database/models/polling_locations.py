@@ -58,7 +58,7 @@ class PollingLocationSet(ModelBase):
 
     def __repr__(self):
         # pylint: disable-next=line-too-long
-        return f"PollingLocationSet(id={self.id}, county='{self.county}', state='{self.state}', election_year='{self.election_year}')"
+        return f"PollingLocationSet(id={self.id}, election_year='{self.election_year}', location='{self.location}')"
 
 
 class PollingLocationOnly(ModelBase):

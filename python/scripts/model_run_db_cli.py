@@ -22,7 +22,7 @@ from typing import List
 from tqdm import tqdm
 
 from python.database import query
-from python.solver.model_config import PollingModelConfig
+from python.solver.model_config import LOCATION_SOURCE_DB, PollingModelConfig
 from python.solver import model_run
 from python.database.models import ModelConfig
 from python import utils
@@ -105,6 +105,7 @@ def run_config(
         results_path = os.path.join(RESULTS_FOLDER_NAME, config.config_set)
         print(f'Starting config: {config_info} -> CSV output to directory {results_path}')
 
+    config.location_source = LOCATION_SOURCE_DB
     model_run.run_on_config(config, log, outtype)
     if verbose:
         print(f'Finished config: {config_info}')

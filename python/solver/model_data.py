@@ -5,6 +5,9 @@
 #@attribution: based off of code by Josh Murell
 #######################################
 
+import warnings
+from typing import Literal
+
 import pandas as pd
 import numpy as np
 import math
@@ -12,11 +15,12 @@ import os
 from haversine import haversine
 import geopandas as gpd
 
+from python.database import query
 from python.utils import build_locations_only_file_path, build_locations_distance_file_path
 from python.utils.constants import DATASETS_DIR
 from python.utils.pull_census_data import pull_census_data
 
-from .model_config import PollingModelConfig
+from .model_config import LOCATION_SOURCE_DB, PollingModelConfig
 
 #define columns for each input data set
 LOCATIONS_COLS = [
@@ -83,7 +87,6 @@ FULL_DF_COLS = [
     'other',
     'multiple_races',
 ]
-
 
 
 ##########################
@@ -303,6 +306,58 @@ def insert_driving_distances(df: pd.DataFrame, driving_distance_file_path: str, 
 
     return combined_df
 
+
+def get_polling_locations(
+        location_source: Literal['db', 'csv'],
+        location: str,
+        log_distance: bool,
+        driving: bool
+) -> pd.DataFrame:
+    '''
+    Loads the polling locations data either from local files or from the database based on config settings.
+    '''
+
+    # TODO - make this a config setting
+    election_year = '2020'
+
+    if location_source == LOCATION_SOURCE_DB:
+        print(f'Loading polling locations for {location} from database')
+
+        # Load locations from the database
+        location_set = query.get_location_set(election_year=election_year, location=location)
+        if not location_set:
+            raise ValueError(f'Could not find location set for {location} in the database.')
+
+        df = query.get_locations(
+            polling_locations_set_id=location_set.id,
+            log_distance=log_distance,
+            driving=driving,
+        )
+
+        # Remove aditional columns that are specific to the database
+        del df['polling_locations_set_id']
+        del df['log_distance']
+        del df['driving']
+
+        return df
+
+    else:
+        file_path = build_locations_distance_file_path(location, driving, log_distance)
+        print(f'Loading polling locations for {location} from {file_path}')
+
+        if not os.path.exists(file_path):
+            warnings.warn(f'File {file_path} not found. Creating it.')
+            build_source(location, driving, log_distance, log=False)
+
+        if not os.path.isfile(file_path):
+            raise ValueError(f'Do not currently have any data for {file_path} from location {location}')
+
+        df = pd.read_csv(file_path, index_col=0)
+        df = df.astype({'id_orig':'str'})
+
+        return df
+
+
 #########
 #Read the intermediate data frame from file, and pull the relevant rows
 #Note this this function is called twice, once for calculating alpha and once for
@@ -314,13 +369,15 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool):
     location = config.location
     year_list = config.year
 
-    file_path = build_locations_distance_file_path(location, config.driving, config.log_distance)
+    # file_path = build_locations_distance_file_path(location, config.driving, config.log_distance)
 
-    if not os.path.isfile(file_path):
-        raise ValueError(f'Do not currently have any data for {file_path} from {config.config_file_path}')
+    # if not os.path.isfile(file_path):
+    #     raise ValueError(f'Do not currently have any data for {file_path} from {config.config_file_path}')
 
-    df = pd.read_csv(file_path, index_col=0)
-    df = df.astype({'id_orig':'str'})
+    # df = pd.read_csv(file_path, index_col=0)
+    # df = df.astype({'id_orig':'str'})
+
+    df = get_polling_locations(config.location_source, location, config.log_distance, config.driving)
 
     #pull out unique location types is this data
     unique_location_types = df['location_type'].unique()
@@ -372,7 +429,7 @@ def clean_data(config: PollingModelConfig, for_alpha: bool, log: bool):
                 print(f'{len(missing_dests)} missing dests in driving distances: {missing_dests}')
             if len(missing_sources) > 0:
                 print(f'{len(missing_sources)} missing orig in driving distances: {missing_sources}')
-        raise ValueError(f'Driving Distance File ({file_path}) '
+        raise ValueError(f'Driving Distances ({location}) '
                          'does not contain driving distances for all id_orig/id_dest pairs.')
 
 

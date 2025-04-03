@@ -5,7 +5,6 @@ A command line utility to read distances into the database.
 from typing import List, Tuple
 
 import argparse
-import itertools
 import os
 import sys
 
@@ -24,20 +23,23 @@ from python.database.models import (
 from python.database import query
 from python.solver.model_data import build_source
 from python.utils import is_int
-from python.utils.utils import build_locations_distance_file_path, build_locations_only_file_path
+from python.utils.utils import build_locations_only_file_path
 
 DEFAULT_LOG_DIR='logs'
 IMPORT_ERROR_LOG_FILE='locations_import_errors.csv'
 
+HAVERSINE = 'haversine'
+DRIVING = 'driving'
+ALL = 'ALL'
+
 def import_locations(
-    name: str,
+    location: str,
     polling_locations_set_id: str,
     csv_path: str,
     driving: bool,
     log_distance: bool,
     log: bool = False,
 ) -> ImportResult:
-
     column_renames = {
         'non-hispanic': 'non_hispanic',
     }
@@ -49,7 +51,7 @@ def import_locations(
     }
 
     return csv_to_bigquery(
-        config_set=name,
+        config_set=location,
         config_name=csv_path,
         model_class=PollingLocation,
         ignore_columns=ignore_columns,
@@ -72,7 +74,7 @@ def import_locations_only(
         'Location type': 'location_type',
         'Lat, Long': 'lat_lon',
     }
-    ignore_columns = ['V1']
+    ignore_columns = ['V1', 'Latitude', 'Longitude']
     add_columns = {
         'polling_locations_set_id': polling_locations_set_id
     }
@@ -152,12 +154,38 @@ def parse_polling_location_directory_name(location_directory: str) -> Tuple[str,
 
     return (state, location_type, location)
 
+def build_and_import_locations(
+    polling_locations_set_id: str,
+    location: str,
+    driving: bool,
+    log_distance: bool,
+) -> ImportResult:
+    location_path = build_source(location, driving, log_distance, log=False)
+    print(f'Importing {location} driving={driving} log_distance={log_distance}')
+    print(f'  {location_path}')
+
+    if not os.path.isfile(location_path):
+        raise ValueError(f'File {location_path} not found')
+
+    import_locations_result = import_locations(
+        location=location,
+        polling_locations_set_id=polling_locations_set_id,
+        csv_path=location_path,
+        driving=driving,
+        log_distance=log_distance,
+        log=True,
+    )
+    return import_locations_result
+
 
 def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
     logdir = args.logdir
+    distance_type: str = args.type or ALL
     locations: List[str] = args.locations
+
+    print('distance_type', distance_type)
 
     election_year: str = args.election_year[0]
 
@@ -173,7 +201,6 @@ def main(args: argparse.Namespace):
     results = []
 
     for i, location in enumerate(locations):
-        success = True
         print(f'Loading [{i+1}/{num_imports}] {location}')
 
         locations_only_file_path = build_locations_only_file_path(location)
@@ -196,39 +223,59 @@ def main(args: argparse.Namespace):
         )
         results.append(import_locations_only_result)
 
+        try:
+            if (distance_type == ALL) or (distance_type == DRIVING):
+                result = build_and_import_locations(
+                    polling_locations_set.id,
+                    location,
+                    driving=True,
+                    log_distance=False
+                )
+                results.append(result)
 
-        bool_values = [False, True]
-        location_flags = list(itertools.product(bool_values, repeat=2))
+                result = build_and_import_locations(
+                    polling_locations_set.id,
+                    location,
+                    driving=True,
+                    log_distance=True
+                )
+                results.append(result)
 
-        location_files: List[str] = [ build_locations_distance_file_path(location, driving, log_distance) for driving, log_distance in location_flags ]
+            if distance_type == ALL or distance_type == HAVERSINE:
+                result = build_and_import_locations(
+                    polling_locations_set.id,
+                    location,
+                    driving=False,
+                    log_distance=False
+                )
+                results.append(result)
 
-        print('location_files',  location_files)
+                result = build_and_import_locations(
+                    polling_locations_set.id,
+                    location,
+                    driving=False,
+                    log_distance=True
+                )
+                results.append(result)
 
 
-        for driving, log_distance in location_flags:
-            location_path = build_source(location, driving, log_distance, log=False)
-            print('location_path', location_path)
-            print('driving', driving)
-            print('log_distance', log_distance)
+            print('\n\n')
 
-            if not os.path.isfile(location_path):
-                print(f'{location_path} file failed to generate, skipping')
-                continue
+            query.commit()
 
-            import_locations_result = import_locations(
-                name=location,
-                polling_locations_set_id=polling_locations_set.id,
-                csv_path=location_path,
-                driving=driving,
-                log_distance=log_distance,
-                log=True,
+        # pylint: disable-next=broad-exception-caught
+        except Exception as e:
+            print("Exception:", e)
+            result =  ImportResult(
+                config_set=location,
+                config_name=location,
+                table_name='polling_locations',
+                success=False,
+                source_file=location,
+                rows_written=0,
+                exception=e,
             )
-            results.append(import_locations_result)
 
-
-        print('\n\n')
-
-        query.commit()
 
     success_results = [ result for result in results if result.success ]
     failed_results = [ result for result in results if not result.success ]
@@ -265,9 +312,10 @@ Examples:
         python ./db_import_locations_cli.py Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
         '''
     )
+    parser.add_argument('-l', '--logdir', default=DEFAULT_LOG_DIR, type=str, help='The directory to error files to ')
+    parser.add_argument('-t', '--type', default=ALL, choices=[ALL, HAVERSINE, DRIVING], help='The type of location to import: haversine, driving, or all for both')
     parser.add_argument('election_year', nargs=1, help='The year of the census data used to generate the distances')
     parser.add_argument('locations', nargs='+', help='One or location directories with csv location files to import')
-    parser.add_argument('-l', '--logdir', default=DEFAULT_LOG_DIR, type=str, help='The directory to error files to ')
 
     main(parser.parse_args())
 

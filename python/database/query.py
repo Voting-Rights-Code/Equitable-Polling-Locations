@@ -271,8 +271,6 @@ def find_or_create_distance_set(distance_set: models.DistancesSet, log: bool = F
             print(f'found model {distance_set}')
     return result
 
-
-
 def create_db_polling_locations_set(
     location: str,
     election_year: str,
@@ -289,12 +287,52 @@ def create_db_polling_locations_set(
 
     return result
 
+def get_location_set(election_year: str, location: str) -> models.PollingLocationSet:
+    session = get_session()
+
+    subquery = select(
+        models.PollingLocationSet,
+        func.
+            row_number().
+            over(
+                partition_by=[models.PollingLocationSet.location],
+                order_by=desc(models.PollingLocationSet.created_at)).
+            label('rn')
+    ).subquery()
+
+    query = select(subquery).where(
+        subquery.c.election_year == election_year,
+        subquery.c.location == location,
+        subquery.c.rn == 1
+    )
+
+    row = session.execute(query).fetchone()
+
+    if not row:
+        return None
+
+    columns = row._asdict()
+    del columns['rn']
+    return models.PollingLocationSet(**columns)
+
+def get_locations(polling_locations_set_id: str, log_distance: bool, driving: bool) -> pd.DataFrame:
+    session = get_session()
+
+    table_name = models.PollingLocation.__tablename__
+
+    log_distance_filter = 'log_distance = true' if log_distance else 'log_distance = false'
+    driving_filter = 'driving = true' if driving else 'driving = false'
+
+    # pylint: disable-next=line-too-long
+    query = f'SELECT * FROM {table_name} WHERE polling_locations_set_id = "{polling_locations_set_id}" AND {log_distance_filter} AND {driving_filter}'
+
+    df = pd.read_sql(query, session.get_bind())
+    return df
+
+
 def bigquery_client() -> bigquery.Client:
     ''' Returns an instance of bigquery.Client, handling all needed credentials. '''
     return bigquery.Client(project=sqlalchemy_main.get_db_project())
-
-
-
 
 def validate_csv_columns(model_class: sqlalchemy_main.ModelBaseType, df: pd.DataFrame, log: bool = False):
     '''
