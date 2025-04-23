@@ -12,13 +12,14 @@ import os
 import warnings
 
 from python.utils import build_locations_distance_file_path
-from python.utils.constants import RESULTS_BASE_DIR
+from python.utils.constants import LOCATION_SOURCE_CSV, RESULTS_BASE_DIR
 
 from .model_config import PollingModelConfig
 from .model_data import (
     build_source,
     clean_data,
     alpha_min,
+    get_polling_locations,
 )
 from .model_factory import polling_model_factory
 from .model_penalties import incorporate_penalties
@@ -41,17 +42,43 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
 
     run_prefix = f'{config.config_set}/{config.config_name}'
 
-    source_path = build_locations_distance_file_path(config.location, config.driving, config.log_distance)
-    if not os.path.exists(source_path):
-        warnings.warn(f'File {source_path} not found. Creating it.')
-        build_source(config.location, config.driving, config.log_distance, log)
+    source_path = build_locations_distance_file_path(
+        config.census_year,
+        config.location,
+        config.driving,
+        config.log_distance,
+    )
+
+    # If we are using local files, build the source data if it doesn't already exist
+    if config.location_source == LOCATION_SOURCE_CSV:
+        if not os.path.exists(source_path):
+            warnings.warn(f'File {source_path} not found. Creating it.')
+            build_source(
+                location_source=LOCATION_SOURCE_CSV,
+                census_year=config.census_year,
+                location=config.location,
+                driving=config.driving,
+                log_distance=config.log_distance,
+                map_source_date=config.maps_source_date,
+                log=log,
+            )
+
+    polling_locations = get_polling_locations(
+        location_source=config.location_source,
+        census_year=config.census_year,
+        location=config.location,
+        log_distance=config.log_distance,
+        driving=config.driving,
+    )
+
+    locations_df = polling_locations.polling_locations
 
 
     #get main data frame
-    dist_df = clean_data(config, False, log)
+    dist_df = clean_data(config, locations_df, False, log)
 
     #get alpha
-    alpha_df = clean_data(config, True, log)
+    alpha_df = clean_data(config, locations_df, True, log)
     alpha  = alpha_min(alpha_df)
 
     #build model
@@ -82,12 +109,13 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
 
     if outtype == OUT_TYPE_DB:
         write_results_bigquery(
-             config,
-             result_df,
-             demographic_prec,
-             demographic_res,
-             demographic_ede,
-             log=log,
+            config=config,
+            polling_locations_set_id=polling_locations.polling_locations_set_id,
+            result_df=result_df,
+            demographic_prec=demographic_prec,
+            demographic_res=demographic_res,
+            demographic_ede=demographic_ede,
+            log=log,
         )
     elif outtype == OUT_TYPE_CSV:
         result_folder = os.path.join(RESULTS_BASE_DIR, config.config_set)

@@ -2,32 +2,16 @@
 A command line utility to read distances into the database.
 '''
 
-from typing import List, Tuple
-
 import argparse
-from glob import glob
 import os
 import sys
 
-
-import pandas as pd
-
-from python.database.models import LOCATION_TYPE_CITY, LOCATION_TYPE_COUNTY, Distance
+from python.database.models import Distance
 from python.database import query
-from python.database.imports import csv_to_bigquery, ImportResult
+from python.database.imports import csv_to_bigquery, ImportResult, print_all_import_results
 
-# from python.solver.model_config import PollingModelConfig
 from python.utils import is_int
-#build_precinct_summary_file_path, build_residence_summary_file_path,
-# # build_results_file_path, build_y_ede_summary_file_path, current_time_utc
-# from python.utils.constants import DATASETS_DIR, RESULTS_BASE_DIR
-
-# MODEL_RUN_ID = 'model_run_id'
-
-# RESULTS_PATH = 'results_path'
-# PRECINCT_DISTANCES_PATH = 'precinct_distances_path'
-# RESIDENCE_DISTANCES_PATH = 'residence_distances_path'
-# EDE_PATH = 'EDE_PATH'
+from python.utils.utils import build_driving_distances_file_path
 
 DEFAULT_LOG_DIR='logs'
 IMPORT_ERROR_LOG_FILE='distance_import_errors.csv'
@@ -36,22 +20,17 @@ IMPORT_ERROR_LOG_FILE='distance_import_errors.csv'
 DISTANCE_FILE_SUFFIX = '_driving_distances.csv'
 
 def import_distances(
-    state: str,
-    location_type: str,
     location: str,
     distance_set_id: str,
     csv_path: str,
     log: bool = False,
 ) -> ImportResult:
-
     column_renames = {}
     ignore_columns = ['V1']
-    add_columns = { 'distance_set_id': distance_set_id }
-
-    import_name = f'{location_type}_{location}_{state}'
+    add_columns = { 'distance_set_id': distance_set_id, 'source': 'driving distance' }
 
     return csv_to_bigquery(
-        config_set=import_name,
+        config_set=location,
         config_name=csv_path,
         model_class=Distance,
         ignore_columns=ignore_columns,
@@ -62,109 +41,45 @@ def import_distances(
     )
 
 
-
-def print_all_import_results(import_results_list: List[ImportResult], output_path: str=None):
-    ''' Prints to the screen a summary of all import results. '''
-
-    data = {
-        'timestamp': [ r.timestamp for r in import_results_list ],
-        'config_set': [ r.config_set for r in import_results_list ],
-        'config_name': [ r.config_name for r in import_results_list ],
-        'success': [ r.success for  r in import_results_list ],
-        'table_name': [ r.table_name for r in import_results_list ],
-        'source_file': [ r.source_file for r in import_results_list ],
-        'rows_written': [ r.rows_written for  r in import_results_list ],
-        'error': [ str(r.exception or '') for  r in import_results_list ],
-    }
-
-    df = pd.DataFrame(data)
-    if output_path:
-        # Write to a file
-
-        if os.path.exists(output_path):
-            mode = 'a'
-            header = False
-        else:
-            mode = 'w'
-            header = True
-        df.to_csv(output_path, mode=mode, header=header, index=False)
-    else:
-        # Write to the screen
-        print(df.to_csv(index=False))
-
-
-
-def parse_distance_filename(distance_file_path: str) -> Tuple[str, str, str]:
-    ''' Returns the state, location type, and location from a distance csv filename as a tuple '''
-    if not distance_file_path or not distance_file_path.endswith(DISTANCE_FILE_SUFFIX):
-        raise ValueError(f'Invalid distance file path {distance_file_path}')
-
-    # Get the file name without the path
-    name = os.path.basename(distance_file_path)
-
-    # Strip off the _driving_distances.csv
-    name = name[:-len(DISTANCE_FILE_SUFFIX)]
-
-    name_parts = name.split('_')
-
-    # Make sure the name contains at least 3 parts for the location type, county, and state
-    if len(name_parts) < 3:
-        raise ValueError(f'Invalid distance file path {distance_file_path}, not enough parts in name')
-
-    # get the state by remove the right-most section of the split file and removing the .csv part
-    state = name_parts.pop().lower()
-    if len(state) != 2:
-        raise ValueError(f'Invalid distance file path {distance_file_path}, state {state} is not 2 characters')
-
-    # get the location type by removing the right-most section of the split file
-    location_type = name_parts.pop().lower()
-    if location_type not in [LOCATION_TYPE_CITY, LOCATION_TYPE_COUNTY]:
-        raise ValueError(f'Invalid distance file path {distance_file_path}, location type {location_type} is not valid')
-
-    # The rest of the name is the county
-    location = ' '.join(name_parts).lower()
-
-    return (state, location_type, location)
-
-
 def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
     logdir = args.logdir
 
+
+    locations: list[str] = args.locations
     census_year: str = args.census_year[0]
-    map_source_year: str = args.map_source_year[0]
+
+    # map_source_date: str = args.map_source_date[0]
+    # Hard coded for now since map_source_date is not fully implemented
+    map_source_date = '20250101'
 
     if len(census_year) != 4 or not is_int(census_year):
         raise ValueError(f'Invalid census year {census_year}')
 
-    if len(map_source_year) != 4 or not is_int(census_year):
-        raise ValueError(f'Invalid maps source year {map_source_year}')
+    if len(map_source_date) != 8 or not is_int(census_year):
+        raise ValueError(f'Invalid maps source date {map_source_date}')
 
-    glob_paths = [ glob(item) for item in args.distance_files ]
-    distance_file_paths: List[str] = [ item for sublist in glob_paths for item in sublist ]
+    num_imports = len(locations)
 
-    num_files = len(distance_file_paths)
 
     print('------------------------------------------')
-    print(f'Importing {num_files} file(s)\n')
+    print(f'Importing {num_imports} location(s)\n')
 
 
     results = []
 
-    for i, distance_file_path in enumerate(distance_file_paths):
-        success = True
-        print(f'Loading [{i+1}/{num_files}] {distance_file_path}')
+    for i, location in enumerate(locations):
+        distance_file_path = build_driving_distances_file_path(census_year, map_source_date, location)
 
-        state, location_type, location = parse_distance_filename(distance_file_path)
+        print(f'Loading [{i+1}/{num_imports}] {distance_file_path}')
 
-        distance_set = query.create_db_distance_set(state, location_type, location, census_year, map_source_year)
+
+        distance_set = query.create_db_distance_set(census_year, map_source_date, location)
 
         print(f'Importing distances from {distance_set}')
 
         import_distances_result = import_distances(
-            state=state,
-            location_type=location_type,
             location=location,
             distance_set_id=distance_set.id,
             csv_path=distance_file_path,
@@ -206,14 +121,15 @@ if __name__ == '__main__':
         description='A command line utility to read in distance csv files and import them into the database.',
         epilog='''
 Examples:
-    To import all model data distance file named Contained_in_Madison_City_of_WI_driving_distances.csv:
-
-        python ./db_import_distances_cli.py ../datasets/driving/Contained_in_Madison_City_of_WI/Contained_in_Madison_City_of_WI_driving_distances.csv
+    To import distance file for 2020 census year for Contained_in_Madison_City_of_WI_driving_distances.csv:
+ß
+        python -m db_import_distances_cli 2020 Contained_in_Madison_City_of_WI
         '''
     )
     parser.add_argument('census_year', nargs=1, help='The year of the census data used to generate the distances')
-    parser.add_argument('map_source_year', nargs=1, help='The year of the map data used to generate the distances')
-    parser.add_argument('distance_files', nargs='+', help='One or distance csv files to import')
+    # Removed since map_source_date is not fully implemented
+    # parser.add_argument('map_source_date', nargs=1, help='The date (YYYYMMDD) of the map data used to generate the distances')
+    parser.add_argument('locations', nargs='+', help='One or more locations to import for the specifed census year and map date')
     parser.add_argument('-l', '--logdir', default=DEFAULT_LOG_DIR, type=str, help='The directory to error files to ')
 
     main(parser.parse_args())

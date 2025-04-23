@@ -12,12 +12,11 @@ import yaml
 import os
 import datetime as dt
 
+from python.utils.constants import LOCATION_SOURCE_CSV
+
 
 MODEL_CONFIG_ARRAY_NAMES = ['year', 'bad_types', 'penalized_sites']
 ''' These PollingModelConfig variables are expected to be arrays, not None '''
-
-LOCATION_SOURCE_DB = 'db'
-LOCATION_SOURCE_CSV = 'csv'
 
 @dataclass
 class PollingModelConfig:
@@ -97,6 +96,12 @@ class PollingModelConfig:
 
     location_source: Literal['csv', 'db'] = LOCATION_SOURCE_CSV
     ''' Where to retrieve the location data from, either a CSV file or the database. '''
+
+    census_year: str = None
+    ''' The census year to use. '''
+
+    maps_source_date: str = None
+    ''' The date (YYYYMMDD) of the maps source to use if driving distances are used. '''
 
     def __post_init__(self):
         self.varnames = list(vars(self).keys()) # Not sure if this will work, let's see

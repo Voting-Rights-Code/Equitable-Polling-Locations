@@ -25,7 +25,7 @@ latest_distance_set_view = ReplaceableObject(
         WITH ranked_distance_sets AS (
             SELECT
                 *,
-                ROW_NUMBER() OVER (PARTITION BY name ORDER BY created_at DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY location ORDER BY created_at DESC) AS rn
             FROM
                 {DATASET}.distance_sets
         )

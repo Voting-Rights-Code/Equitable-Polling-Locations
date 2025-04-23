@@ -8,6 +8,8 @@ import json
 from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, text, ARRAY
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 
+from .polling_locations import PollingLocationSet
+
 from ..sqlalchemy_main import ModelBase
 from python.utils import current_time_utc, generate_uuid
 
@@ -83,6 +85,9 @@ class ModelConfig(ModelBase):
     log_distance: bool = Column(Boolean, nullable = True)
     '''Flag indicating whether or not the log of the distances is to be used in the optimization'''
 
+    census_year: str = Column(String(4), nullable=True, default='2020')
+    ''' The year of the distance source data '''
+
     created_at: DateTime = Column(DateTime, nullable=False, default=current_time_utc)
     ''' The DateTime this model config was created. '''
 
@@ -150,6 +155,13 @@ class ModelRun(ModelBase):
 
     model_config: Mapped['ModelConfig'] = relationship(back_populates='model_runs')
     ''' The ModelConfig instance that this run is the result of '''
+
+    # Relations
+    polling_locations_set_id = mapped_column(ForeignKey('polling_locations_sets.id'), nullable=True)
+    ''' The PollingLocationSet id that this ModelRun came from '''
+
+    polling_locations_set: Mapped['PollingLocationSet'] = relationship()
+    ''' The PollingLocationSet instance that this ModelRun came from '''
 
     def __repr__(self):
         # pylint: disable-next=line-too-long

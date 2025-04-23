@@ -7,7 +7,7 @@ import re
 from time import time
 import uuid
 
-from python.utils.constants import POLLING_DIR
+from python.utils.constants import DRIVING_DIR, POLLING_DIR
 
 # class RegexMatch:
 #     def __init__(self, pattern: re.Match):
@@ -117,21 +117,27 @@ def build_y_ede_summary_file_path(result_path: str, config_name: str) -> str:
     return os.path.join(result_path, f'{config_name}_edes.csv')
 
 
-def build_locations_distance_file_path(location: str, driving: bool, log_distance: bool) -> str:
+def build_locations_distance_file_path(
+        census_year: str,
+        location: str,
+        driving: bool,
+        log_distance: bool,
+    ) -> str:
     ''' Returns the path to the locations files that includes distances for this config '''
+    if log_distance:
+        extension = '_log.csv'
+    else:
+        extension = '.csv'
 
     if driving:
-        source_file_name = f'{location}_driving.csv'
-    if not driving:
-        source_file_name = f'{location}.csv'
+        source_file_name = f'{location}_driving_{census_year}{extension}'
+    else:
+        source_file_name = f'{location}_{census_year}{extension}'
 
-    if log_distance:
-        source_file_name = source_file_name.replace('.csv', '_log.csv')
 
     source_path = os.path.join(POLLING_DIR, location, source_file_name)
 
     return source_path
-
 
 def build_locations_only_file_path(location: str) -> str:
     ''' Returns the path to the locations file for this config '''
@@ -140,3 +146,14 @@ def build_locations_only_file_path(location: str) -> str:
     locations_only_source_file = os.path.join(POLLING_DIR, location, file_name)
 
     return locations_only_source_file
+
+def build_driving_distances_file_path(census_year: str, map_source_date: str, location: str) -> str:
+    ''' Returns the path to the locations file for this config '''
+
+    # TODO implement census_year and map_source_date
+
+    driving_file_name = f'{location}_driving_distances.csv'
+
+    driving_distances_file = os.path.join(DRIVING_DIR, location, driving_file_name)
+
+    return driving_distances_file

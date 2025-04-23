@@ -1,5 +1,7 @@
 ''' Utilities to import csv files into the database.'''
 
+import os
+
 from dataclasses import dataclass
 from python import utils
 from typing import Dict, Optional, List
@@ -259,3 +261,33 @@ def import_results(
         df=df,
         log=log,
     )
+
+
+def print_all_import_results(import_results_list: List[ImportResult], output_path: str=None):
+    ''' Prints to the screen a summary of all import results. '''
+
+    data = {
+        'timestamp': [ r.timestamp for r in import_results_list ],
+        'config_set': [ r.config_set for r in import_results_list ],
+        'config_name': [ r.config_name for r in import_results_list ],
+        'success': [ r.success for  r in import_results_list ],
+        'table_name': [ r.table_name for r in import_results_list ],
+        'source_file': [ r.source_file for r in import_results_list ],
+        'rows_written': [ r.rows_written for  r in import_results_list ],
+        'error': [ str(r.exception or '') for  r in import_results_list ],
+    }
+
+    df = pd.DataFrame(data)
+    if output_path:
+        # Write to a file
+
+        if os.path.exists(output_path):
+            mode = 'a'
+            header = False
+        else:
+            mode = 'w'
+            header = True
+        df.to_csv(output_path, mode=mode, header=header, index=False)
+    else:
+        # Write to the screen
+        print(df.to_csv(index=False))

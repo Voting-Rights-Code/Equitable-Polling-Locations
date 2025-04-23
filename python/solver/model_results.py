@@ -14,7 +14,6 @@ import pandas as pd
 
 from python.database import imports, query
 
-from python.utils.constants import RESULTS_BASE_DIR
 from python.utils import (
   timer,
   current_time_utc,
@@ -169,7 +168,8 @@ def write_results_csv(
 
 @timer
 def write_results_bigquery(
-    source_config: PollingModelConfig,
+    config: PollingModelConfig,
+    polling_locations_set_id: str,
     result_df: pd.DataFrame,
     demographic_prec: pd.DataFrame,
     demographic_res: pd.DataFrame,
@@ -178,22 +178,23 @@ def write_results_bigquery(
 ):
     '''Write result, demographic_prec, demographic_res and demographic_ede to BigQuery SQL tables'''
 
+
     # TODO clean this up once PollingModelConfig is eventually removed and remplaced with
     # the SQLAlchmey model
 
     # Setup a thread lock so that only one write to bigquery happens at a time.
     # This is to prevent problems with tqdm being used in model_run_cli.py
     with lock:
-        if source_config.db_id:
+        if config.db_id:
             # If we already have a database id then assume that the source_config
             # is already written to the database and just use the existing ID
-            model_config_id = source_config.db_id
-            config_set = source_config.config_set
-            config_name = source_config.config_name
+            model_config_id = config.db_id
+            config_set = config.config_set
+            config_name = config.config_name
         else:
             # With no id, create a new database instance of the source_config
-            print(f'source_config.config_file_path: {source_config.config_file_path}')
-            model_config = query.create_db_model_config(source_config)
+            print(f'source_config.config_file_path: {config.config_file_path}')
+            model_config = query.create_db_model_config(config)
             model_config = query.find_or_create_model_config(model_config)
 
             model_config_id = model_config.id
@@ -201,10 +202,16 @@ def write_results_bigquery(
             config_name = model_config.config_name
 
         if log:
-            print(f'Importing result from {source_config}')
+            print(f'Importing result from {config}')
 
         # TODO Add user and commit hashs
-        model_run = query.create_model_run(model_config_id, '', '', current_time_utc())
+        model_run = query.create_model_run(
+            model_config_id=model_config_id,
+            polling_locations_set_id=polling_locations_set_id,
+            username='',
+            commit_hash='',
+            created_at=current_time_utc(),
+        )
 
         # Import each DF for this run
         edes_import_result = imports.import_edes(

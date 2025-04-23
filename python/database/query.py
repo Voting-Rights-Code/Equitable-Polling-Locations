@@ -188,6 +188,7 @@ def find_or_create_model_config(model_config: models.ModelConfig, log: bool = Fa
 
 def create_model_run(
         model_config_id: str,
+        polling_locations_set_id: str,
         username: str,
         commit_hash: str,
         created_at: datetime=None,
@@ -200,6 +201,7 @@ def create_model_run(
     model_run = models.ModelRun(
         id = utils.generate_uuid(),
         model_config_id = model_config_id,
+        polling_locations_set_id = polling_locations_set_id,
         username = username,
         commit_hash = commit_hash,
         created_at = created_at,
@@ -210,23 +212,19 @@ def create_model_run(
 
     return model_run
 
+# TODO de-dup these
 def create_db_distance_set(
-    state: str,
-    location_type: str,
-    location: str,
     census_year: str,
-    map_source_year: str
+    map_source_date: str,
+    location: str,
 ) -> models.DistancesSet:
     result = models.DistancesSet(
-        state=state,
-        location_type=location_type,
-        location=location,
         census_year=census_year,
-        map_source_year=map_source_year,
+        map_source_date=map_source_date,
+        location=location,
     )
 
     result.id = utils.generate_uuid()
-    result.name = result.generate_name()
 
     session = get_session()
     session.add_all([result])
@@ -247,12 +245,49 @@ def create_distance_set(distance_set: models.DistancesSet) -> models.DistancesSe
 
     return distance_set
 
-def find_distance_set(distance_set_name: str) -> Optional[models.DistancesSet]:
-    ''' Load a DistanceSet model from the database if it exists, otherwise return None '''
-    session = get_session()
-    result = session.query(models.DistancesSet).filter(models.DistancesSet.name == distance_set_name).first()
 
-    return result
+def find_distance_set(census_year: str, map_source_date: str, location: str) -> Optional[models.DistancesSet]:
+    session = get_session()
+
+    subquery = select(
+        models.DistancesSet,
+        func.
+            row_number().
+            over(
+                partition_by=[
+                    models.DistancesSet.census_year,
+                    models.DistancesSet.map_source_date,
+                    models.DistancesSet.location,
+                ],
+                order_by=desc(models.DistancesSet.created_at)).
+            label('rn')
+    ).subquery()
+
+    query = select(subquery).where(
+        subquery.c.census_year == census_year,
+        subquery.c.map_source_date == map_source_date,
+        subquery.c.location == location,
+        subquery.c.rn == 1
+    )
+
+    row = session.execute(query).fetchone()
+
+    if not row:
+        return None
+
+    columns = row._asdict()
+    del columns['rn']
+    return models.DistancesSet(**columns)
+
+def get_distances(distance_set_id: str) -> pd.DataFrame:
+    session = get_session()
+
+    table_name = models.Distance.__tablename__
+
+    query = f'SELECT * FROM {table_name} WHERE distance_set_id = "{distance_set_id}"'
+
+    df = pd.read_sql(query, session.get_bind())
+    return df
 
 def find_or_create_distance_set(distance_set: models.DistancesSet, log: bool = False) -> models.DistancesSet:
     '''
@@ -260,7 +295,11 @@ def find_or_create_distance_set(distance_set: models.DistancesSet, log: bool = F
     exist then one will be created.  Note: db.commit() must be
     called for the object to be commited to the database.
     '''
-    result = find_distance_set(distance_set.generate_name())
+    result = find_distance_set(
+        census_year=distance_set.census_year,
+        map_source_date=distance_set.map_source_date,
+        location=distance_set.location,
+    )
 
     if not result:
         if log:
@@ -272,12 +311,20 @@ def find_or_create_distance_set(distance_set: models.DistancesSet, log: bool = F
     return result
 
 def create_db_polling_locations_set(
+    polling_locations_only_set_id: str,
+    census_year: str,
     location: str,
-    election_year: str,
+    log_distance: bool,
+    driving: bool,
+    distance_set_id: str,
 ) -> models.PollingLocationSet:
     result = models.PollingLocationSet(
+        polling_locations_only_set_id=polling_locations_only_set_id,
+        census_year=census_year,
         location=location,
-        election_year=election_year,
+        log_distance=log_distance,
+        driving=driving,
+        distance_set_id=distance_set_id,
     )
 
     result.id = utils.generate_uuid()
@@ -287,7 +334,61 @@ def create_db_polling_locations_set(
 
     return result
 
-def get_location_set(election_year: str, location: str) -> models.PollingLocationSet:
+def create_db_polling_locations_only_set(
+    location: str,
+) -> models.PollingLocationOnlySet:
+    result = models.PollingLocationOnlySet(
+        location=location,
+    )
+
+    result.id = utils.generate_uuid()
+
+    session = get_session()
+    session.add_all([result])
+
+    return result
+
+
+def get_location_only_set(location: str) -> models.PollingLocationOnlySet:
+    session = get_session()
+
+    subquery = select(
+        models.PollingLocationOnlySet,
+        func.
+            row_number().
+            over(
+                partition_by=[models.PollingLocationOnlySet.location],
+                order_by=desc(models.PollingLocationOnlySet.created_at)).
+            label('rn')
+    ).subquery()
+
+    query = select(subquery).where(
+        subquery.c.location == location,
+        subquery.c.rn == 1
+    )
+
+    row = session.execute(query).fetchone()
+
+    if not row:
+        return None
+
+    columns = row._asdict()
+    del columns['rn']
+    return models.PollingLocationOnlySet(**columns)
+
+def get_locations_only(polling_locations_set_id: str) -> pd.DataFrame:
+    session = get_session()
+
+    table_name = models.PollingLocationOnly.__tablename__
+
+    query = f'SELECT * FROM {table_name} WHERE polling_locations_only_set_id = "{polling_locations_set_id}"'
+
+    df = pd.read_sql(query, session.get_bind())
+    return df
+
+
+
+def get_location_set(census_year: str, location: str, log_distance: bool, driving: bool) -> models.PollingLocationSet:
     session = get_session()
 
     subquery = select(
@@ -295,14 +396,21 @@ def get_location_set(election_year: str, location: str) -> models.PollingLocatio
         func.
             row_number().
             over(
-                partition_by=[models.PollingLocationSet.location],
+                partition_by=[
+                    models.PollingLocationSet.census_year,
+                    models.PollingLocationSet.location,
+                    models.PollingLocationSet.log_distance,
+                    models.PollingLocationSet.driving,
+                ],
                 order_by=desc(models.PollingLocationSet.created_at)).
             label('rn')
     ).subquery()
 
     query = select(subquery).where(
-        subquery.c.election_year == election_year,
+        subquery.c.census_year == census_year,
         subquery.c.location == location,
+        subquery.c.log_distance == log_distance,
+        subquery.c.driving == driving,
         subquery.c.rn == 1
     )
 
@@ -315,16 +423,13 @@ def get_location_set(election_year: str, location: str) -> models.PollingLocatio
     del columns['rn']
     return models.PollingLocationSet(**columns)
 
-def get_locations(polling_locations_set_id: str, log_distance: bool, driving: bool) -> pd.DataFrame:
+def get_locations(polling_locations_set_id: str) -> pd.DataFrame:
     session = get_session()
 
     table_name = models.PollingLocation.__tablename__
 
-    log_distance_filter = 'log_distance = true' if log_distance else 'log_distance = false'
-    driving_filter = 'driving = true' if driving else 'driving = false'
-
     # pylint: disable-next=line-too-long
-    query = f'SELECT * FROM {table_name} WHERE polling_locations_set_id = "{polling_locations_set_id}" AND {log_distance_filter} AND {driving_filter}'
+    query = f'SELECT * FROM {table_name} WHERE polling_locations_set_id = "{polling_locations_set_id}"'
 
     df = pd.read_sql(query, session.get_bind())
     return df
