@@ -1,12 +1,12 @@
 '''
-A command line utility to read distances into the database.
+A command line utility to read driving distances into the database.
 '''
 
 import argparse
 import os
 import sys
 
-from python.database.models import Distance
+from python.database.models import DrivingDistance
 from python.database import query
 from python.database.imports import csv_to_bigquery, ImportResult, print_all_import_results
 
@@ -14,25 +14,25 @@ from python.utils import is_int
 from python.utils.utils import build_driving_distances_file_path
 
 DEFAULT_LOG_DIR='logs'
-IMPORT_ERROR_LOG_FILE='distance_import_errors.csv'
+IMPORT_ERROR_LOG_FILE='driving_distance_import_errors.csv'
 
 
 DISTANCE_FILE_SUFFIX = '_driving_distances.csv'
 
 def import_distances(
     location: str,
-    distance_set_id: str,
+    driving_distance_set_id: str,
     csv_path: str,
     log: bool = False,
 ) -> ImportResult:
     column_renames = {}
     ignore_columns = ['V1']
-    add_columns = { 'distance_set_id': distance_set_id, 'source': 'driving distance' }
+    add_columns = { 'driving_distance_set_id': driving_distance_set_id, 'source': 'driving distance' }
 
     return csv_to_bigquery(
         config_set=location,
         config_name=csv_path,
-        model_class=Distance,
+        model_class=DrivingDistance,
         ignore_columns=ignore_columns,
         column_renames=column_renames,
         add_columns=add_columns,
@@ -64,7 +64,7 @@ def main(args: argparse.Namespace):
 
 
     print('------------------------------------------')
-    print(f'Importing {num_imports} location(s)\n')
+    print(f'Importing {num_imports} driving distance(s)\n')
 
 
     results = []
@@ -77,11 +77,11 @@ def main(args: argparse.Namespace):
 
         distance_set = query.create_db_distance_set(census_year, map_source_date, location)
 
-        print(f'Importing distances from {distance_set}')
+        print(f'Importing driving distances from {distance_set}')
 
         import_distances_result = import_distances(
             location=location,
-            distance_set_id=distance_set.id,
+            driving_distance_set_id=distance_set.id,
             csv_path=distance_file_path,
         )
 
@@ -123,7 +123,7 @@ if __name__ == '__main__':
 Examples:
     To import distance file for 2020 census year for Contained_in_Madison_City_of_WI_driving_distances.csv:
 ß
-        python -m db_import_distances_cli 2020 Contained_in_Madison_City_of_WI
+        python -m db_import_driving_distances_cli 2020 Contained_in_Madison_City_of_WI
         '''
     )
     parser.add_argument('census_year', nargs=1, help='The year of the census data used to generate the distances')

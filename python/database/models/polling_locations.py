@@ -10,20 +10,7 @@ from sqlalchemy.orm import mapped_column, Mapped, relationship
 from python.database.sqlalchemy_main import ModelBase
 from python.utils import current_time_utc, generate_uuid
 
-from .distances import DistancesSet
-
-# Questions: do we need early vote flag? - no goes into location type
-# Better name? e.g. county_locations - no
-# Can PollingLocationOnly just be a view of PollingLocation and/or do we need both in the DB - review workflow, maybe?  esp if the import itself makes the not _only file instead of model run
-#     will have to think about impact on distance tables
-# Can we avoid generating county_locations on run and only do it on import?  - yes (see above)
-
-# are we still mixing these in polling_locations (the second type are centroids id_dest becomes block group): - these should be in the same file
-# 68,450150201011000,Lebanon Mens' Club,30139.3392901949,Berkeley_County_SC,"1188 Lebanon Rd, Ridgeville, SC 29472",33.140979,-80.21408,33.4115614,-80.1950604,polling_2022_2020_2014_2016_2018,polling,0,0,0,0,0,0,0,0,0,0,haversine distance
-# 69,450150201011000,450150201011,1154.17894775204,Berkeley_County_SC,"",33.413041,-80.1827525,33.4115614,-80.1950604,bg_centroid,bg_centroid,0,0,0,0,0,0,0,0,0,0,haversine distance
-# BG centroid get added to short file as orgins
-# Build source handles building long file (in model_data.py)
-
+from .driving_distances import DrivingDistancesSet
 
 LOCATION_TYPE_CONTAINED_IN_CITY = 'contained_in_city'
 LOCATION_TYPE_INTERSECTING_CITY = 'intersecting_city'
@@ -118,11 +105,11 @@ class PollingLocationSet(ModelBase):
     polling_locations_only_set: Mapped['PollingLocationOnlySet'] = relationship(back_populates='polling_locations_sets')
     ''' The PollingLocationOnlySet instance that this PollingLocationSet is generated from. '''
 
-    distance_set_id = mapped_column(ForeignKey('distance_sets.id'), nullable=True)
-    ''' The DistancesSet id that this PollingLocationSet is generated from. Null if driving is set to False. '''
+    driving_distance_set_id = mapped_column(ForeignKey('driving_distance_sets.id'), nullable=True)
+    ''' The DrivingDistancesSet id that this PollingLocationSet is generated from. Null if driving is set to False. '''
 
-    distance_set: Mapped['DistancesSet'] = relationship()
-    ''' The DistancesSet instance that this PollingLocationSet is generated from. Null if driving is set to False. '''
+    driving_distance_set: Mapped['DrivingDistancesSet'] = relationship()
+    ''' The DrivingDistancesSet instance that this PollingLocationSet is generated from. Null if driving is set to False. '''
 
     polling_locations: Mapped[List['PollingLocation']] = relationship(back_populates='polling_locations_set')
     ''' The polling locations in this PollingLocationSet '''

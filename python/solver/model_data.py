@@ -143,7 +143,7 @@ class BuildSourceResult:
     log_distance: bool
     map_source_date: str = None,
     output_path: str = None
-    distance_set_id: str = None
+    driving_distance_set_id: str = None
     polling_locations_only_set_id: str = None
 
 ##########################
@@ -317,12 +317,12 @@ def build_source(
 
     if driving:
         if location_source == LOCATION_SOURCE_DB:
-            distance_set = query.find_distance_set(census_year, map_source_date, location)
-            if not distance_set:
+            driving_distance_set = query.find_driving_distance_set(census_year, map_source_date, location)
+            if not driving_distance_set:
                 # pylint: disable-next=line-too-long
-                raise ValueError('Distance set not found in database for census_year {census_year}, map_source_date {map_source_date}, location {location}.')
-            result.distance_set_id = distance_set.id
-            driving_distances_df = get_db_driving_distances(distance_set.id)
+                raise ValueError('DrivingDistance set not found in database for census_year {census_year}, map_source_date {map_source_date}, location {location}.')
+            result.driving_distance_set_id = driving_distance_set.id
+            driving_distances_df = get_db_driving_distances(driving_distance_set.id)
         else:
             driving_distances_df = get_csv_driving_distances(census_year, map_source_date, location)
 
@@ -394,12 +394,12 @@ def get_csv_driving_distances(census_year: str, map_source_date: str, location: 
     driving_distances = pd.read_csv(driving_distance_file_path)
     return driving_distances
 
-def get_db_driving_distances(distance_set_id: str) -> pd.DataFrame:
-    driving_distances = query.get_distances(distance_set_id)
+def get_db_driving_distances(driving_distance_set_id: str) -> pd.DataFrame:
+    driving_distances = query.get_driving_distances(driving_distance_set_id)
     if driving_distances.empty:
-        raise ValueError(f'No driving distances for distance set {distance_set_id}.')
+        raise ValueError(f'No driving distances for distance set {driving_distance_set_id}.')
 
-    del driving_distances['distance_set_id']
+    del driving_distances['driving_distance_set_id']
 
     return driving_distances
 

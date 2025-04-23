@@ -73,7 +73,7 @@ def build_and_import_locations(
         log=False,
     )
 
-    print('result.distance_set_id', build_source_result.distance_set_id)
+    print('result.driving_distance_set_id', build_source_result.driving_distance_set_id)
 
     polling_locations_set = query.create_db_polling_locations_set(
         polling_locations_only_set_id=build_source_result.polling_locations_only_set_id,
@@ -81,7 +81,7 @@ def build_and_import_locations(
         location=location,
         log_distance=log_distance,
         driving=driving,
-        distance_set_id=build_source_result.distance_set_id,
+        driving_distance_set_id=build_source_result.driving_distance_set_id,
     )
 
     print('polling_locations_set', polling_locations_set)

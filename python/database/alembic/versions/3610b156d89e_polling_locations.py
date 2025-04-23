@@ -44,8 +44,8 @@ def upgrade() -> None:
     sa.Column('log_distance', sa.Boolean(), nullable=False),
     sa.Column('driving', sa.Boolean(), nullable=False),
     sa.Column('polling_locations_only_set_id', sa.String(length=36), nullable=False),
-    sa.Column('distance_set_id', sa.String(length=36), nullable=True),
-    sa.ForeignKeyConstraint(['distance_set_id'], ['distance_sets.id'], ),
+    sa.Column('driving_distance_set_id', sa.String(length=36), nullable=True),
+    sa.ForeignKeyConstraint(['driving_distance_set_id'], ['driving_distance_sets.id'], ),
     sa.ForeignKeyConstraint(['polling_locations_only_set_id'], ['polling_locations_only_sets.id'], ),
     sa.PrimaryKeyConstraint('id')
     )

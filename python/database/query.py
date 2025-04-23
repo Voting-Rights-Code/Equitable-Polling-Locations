@@ -212,13 +212,13 @@ def create_model_run(
 
     return model_run
 
-# TODO de-dup these
+
 def create_db_distance_set(
     census_year: str,
     map_source_date: str,
     location: str,
-) -> models.DistancesSet:
-    result = models.DistancesSet(
+) -> models.DrivingDistancesSet:
+    result = models.DrivingDistancesSet(
         census_year=census_year,
         map_source_date=map_source_date,
         location=location,
@@ -231,35 +231,21 @@ def create_db_distance_set(
 
     return result
 
-def create_distance_set(distance_set: models.DistancesSet) -> models.DistancesSet:
-    '''
-    Creates a new DistanceSet object in the database.  Note: db.commit() must be
-    called for the object to be commited to the database.
-    '''
-    distance_set.name = distance_set.generate_name()
 
-    # print(model_config)
-
-    session = get_session()
-    session.add_all([distance_set])
-
-    return distance_set
-
-
-def find_distance_set(census_year: str, map_source_date: str, location: str) -> Optional[models.DistancesSet]:
+def find_driving_distance_set(census_year: str, map_source_date: str, location: str) -> Optional[models.DrivingDistancesSet]:
     session = get_session()
 
     subquery = select(
-        models.DistancesSet,
+        models.DrivingDistancesSet,
         func.
             row_number().
             over(
                 partition_by=[
-                    models.DistancesSet.census_year,
-                    models.DistancesSet.map_source_date,
-                    models.DistancesSet.location,
+                    models.DrivingDistancesSet.census_year,
+                    models.DrivingDistancesSet.map_source_date,
+                    models.DrivingDistancesSet.location,
                 ],
-                order_by=desc(models.DistancesSet.created_at)).
+                order_by=desc(models.DrivingDistancesSet.created_at)).
             label('rn')
     ).subquery()
 
@@ -277,37 +263,46 @@ def find_distance_set(census_year: str, map_source_date: str, location: str) -> 
 
     columns = row._asdict()
     del columns['rn']
-    return models.DistancesSet(**columns)
+    return models.DrivingDistancesSet(**columns)
 
-def get_distances(distance_set_id: str) -> pd.DataFrame:
+def get_driving_distances(driving_distance_set_id: str) -> pd.DataFrame:
     session = get_session()
 
-    table_name = models.Distance.__tablename__
+    table_name = models.DrivingDistance.__tablename__
 
-    query = f'SELECT * FROM {table_name} WHERE distance_set_id = "{distance_set_id}"'
+    query = f'SELECT * FROM {table_name} WHERE driving_distance_set_id = "{driving_distance_set_id}"'
 
     df = pd.read_sql(query, session.get_bind())
     return df
 
-def find_or_create_distance_set(distance_set: models.DistancesSet, log: bool = False) -> models.DistancesSet:
+def find_or_create_driving_distance_set(
+    census_year: str,
+    map_source_date: str,
+    location: str,
+    log: bool = False,
+) -> models.DrivingDistancesSet:
     '''
     Looks for an existing DistanceSet object in the database, if one does not already
     exist then one will be created.  Note: db.commit() must be
     called for the object to be commited to the database.
     '''
-    result = find_distance_set(
-        census_year=distance_set.census_year,
-        map_source_date=distance_set.map_source_date,
-        location=distance_set.location,
+    result = find_driving_distance_set(
+        census_year=census_year,
+        map_source_date=map_source_date,
+        location=location,
     )
 
     if not result:
+        result = create_db_distance_set(
+            census_year=census_year,
+            map_source_date=map_source_date,
+            location=location,
+        )
         if log:
-            print(f'creating model {distance_set}')
-        result = create_distance_set(distance_set)
+            print(f'creating model {result}')
     else:
         if log:
-            print(f'found model {distance_set}')
+            print(f'found model {result}')
     return result
 
 def create_db_polling_locations_set(
@@ -316,7 +311,7 @@ def create_db_polling_locations_set(
     location: str,
     log_distance: bool,
     driving: bool,
-    distance_set_id: str,
+    driving_distance_set_id: str,
 ) -> models.PollingLocationSet:
     result = models.PollingLocationSet(
         polling_locations_only_set_id=polling_locations_only_set_id,
@@ -324,7 +319,7 @@ def create_db_polling_locations_set(
         location=location,
         log_distance=log_distance,
         driving=driving,
-        distance_set_id=distance_set_id,
+        driving_distance_set_id=driving_distance_set_id,
     )
 
     result.id = utils.generate_uuid()

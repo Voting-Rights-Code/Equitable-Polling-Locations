@@ -1,4 +1,4 @@
-"""distance views
+"""driving distance views
 
 Revision ID: 8e4685dd772b
 Revises: 4a6823d917dd
@@ -19,15 +19,15 @@ depends_on: Union[str, Sequence[str], None] = None
 
 DATASET = get_db_dataset()
 
-latest_distance_set_view = ReplaceableObject(
-    'latest_distance_sets',
+latest_driving_distance_set_view = ReplaceableObject(
+    'latest_driving_distance_sets',
     f'''
         WITH ranked_distance_sets AS (
             SELECT
                 *,
                 ROW_NUMBER() OVER (PARTITION BY location ORDER BY created_at DESC) AS rn
             FROM
-                {DATASET}.distance_sets
+                {DATASET}.driving_distance_sets
         )
         SELECT
             rds.*,
@@ -39,8 +39,8 @@ latest_distance_set_view = ReplaceableObject(
 )
 
 def upgrade() -> None:
-    op.create_view(latest_distance_set_view)
+    op.create_view(latest_driving_distance_set_view)
 
 
 def downgrade() -> None:
-    op.drop_view(latest_distance_set_view)
+    op.drop_view(latest_driving_distance_set_view)
