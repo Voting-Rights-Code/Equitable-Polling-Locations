@@ -7,15 +7,7 @@ import re
 from time import time
 import uuid
 
-from python.utils.constants import DRIVING_DIR, POLLING_DIR
-
-# class RegexMatch:
-#     def __init__(self, pattern: re.Match):
-#         self.pattern = pattern
-
-#     def __eq__(self, other):
-#         print(f'Match {other} to {self.pattern}')
-#         return re.match(self.pattern, other) is not None
+from python.utils.constants import DATASETS_DIR, DRIVING_DIR, POLLING_DIR
 
 @dataclass
 class RegexEqual(str):
@@ -157,3 +149,24 @@ def build_driving_distances_file_path(census_year: str, map_source_date: str, lo
     driving_distances_file = os.path.join(DRIVING_DIR, location, driving_file_name)
 
     return driving_distances_file
+
+def build_demographics_dir_path(location: str) -> str:
+    return os.path.join(DATASETS_DIR, 'census', 'redistricting', location)
+
+def build_p3_source_file_path(census_year: str, location: str) -> str:
+    ''' Returns the path to Census data p3 table '''
+
+    file_name_p3 = f'DECENNIALPL{census_year}.P3-Data.csv'
+
+    demographics_dir = build_demographics_dir_path(location)
+
+    return os.path.join(demographics_dir, file_name_p3)
+
+def build_p4_source_file_path(census_year: str, location: str) -> str:
+    ''' Returns the path to Census data p4 table '''
+
+    file_name_p4 = f'DECENNIALPL{census_year}.P4-Data.csv'
+
+    demographics_dir = build_demographics_dir_path(location)
+
+    return os.path.join(demographics_dir, file_name_p4)

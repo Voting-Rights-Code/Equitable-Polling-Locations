@@ -16,11 +16,18 @@ from haversine import haversine
 import geopandas as gpd
 
 from python.database import query
-from python.utils import build_locations_only_file_path, build_locations_distance_file_path
+from python.utils import (
+    build_driving_distances_file_path,
+    build_locations_only_file_path,
+    build_locations_distance_file_path,
+    build_demographics_dir_path,
+    build_p3_source_file_path,
+    build_p4_source_file_path,
+    is_int,
+)
+
 from python.utils.constants import DATASETS_DIR, LOCATION_SOURCE_DB
 from python.utils.pull_census_data import pull_census_data
-from python.utils.utils import build_driving_distances_file_path
-
 from .model_config import PollingModelConfig
 
 #define columns for each input data set
@@ -164,6 +171,9 @@ def build_source(
     locations_only_results = get_polling_locations_only(location_source, location)
     locations_only = locations_only_results.locations_only
 
+    if not is_int(census_year):
+        raise ValueError(f'Invalid Census year {census_year} for location {location}')
+
     result = BuildSourceResult(
         location_source=location_source,
         census_year=census_year,
@@ -178,27 +188,26 @@ def build_source(
     output_path = build_locations_distance_file_path(census_year, location, driving, log_distance)
     result.output_path = output_path
 
-    file_nameP3 = f'DECENNIALPL{census_year}.P3-Data.csv'
-    file_nameP4 = f'DECENNIALPL{census_year}.P4-Data.csv'
-    demographics_dir = os.path.join(DATASETS_DIR, 'census', 'redistricting', location)
-    P3_SOURCE_FILE  = os.path.join(demographics_dir, file_nameP3)
-    P4_SOURCE_FILE  = os.path.join(demographics_dir, file_nameP4)
+    demographics_dir = build_demographics_dir_path(location)
+    p3_source_file = build_p3_source_file_path(census_year, location)
+    p4_source_file = build_p4_source_file_path(census_year, location)
+
     if not os.path.exists(demographics_dir):
         statecode = location[-2:]
         locality = location[:-3].replace('_',' ')
         pull_census_data(statecode, locality)
 
-    if os.path.exists(P3_SOURCE_FILE):
-        p3_df = pd.read_csv(P3_SOURCE_FILE,
+    if os.path.exists(p3_source_file):
+        p3_df = pd.read_csv(p3_source_file,
             header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
             low_memory=False, # files are too big, set this to False to prevent errors
             )
     else:
         # pylint: disable-next=line-too-long
-        raise ValueError('Census data from table P3 not found. Download using api or manually following download instruction from README.')
+        raise ValueError(f'Census data from table P3 not found. Download using api or manually following download instruction from README. {p3_source_file}')
 
-    if os.path.exists(P4_SOURCE_FILE):
-        p4_df = pd.read_csv(P4_SOURCE_FILE,
+    if os.path.exists(p4_source_file):
+        p4_df = pd.read_csv(p4_source_file,
             header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
             low_memory=False, # files are too big, set this to False to prevent errors
             )
