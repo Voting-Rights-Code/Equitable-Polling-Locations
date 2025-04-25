@@ -4,9 +4,10 @@ config_name: 'config_template_Muscogee' #should match file name
 
 # Constants for the optimization function
 location: Muscogee_County_GA
+census_year: 2020
 year:
     - '2020'
-bad_types: 
+bad_types:
     - 'Elec Day Church - Potential'
     - 'College Campus - Potential'
     - 'Community Center - Potential'

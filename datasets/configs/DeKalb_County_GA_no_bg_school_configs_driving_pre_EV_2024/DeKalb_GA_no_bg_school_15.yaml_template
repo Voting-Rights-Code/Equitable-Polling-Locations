@@ -4,10 +4,11 @@ config_name: 'DeKalb_GA_no_bg_school_15'
 
 # Constants for the optimization function
 location: DeKalb_County_GA
+census_year: 2020
 year:
     - '2020'
     - '2022'
-bad_types: 
+bad_types:
     - 'Elec Day School - Potential'
     - 'bg_centroid'
 beta: -2
