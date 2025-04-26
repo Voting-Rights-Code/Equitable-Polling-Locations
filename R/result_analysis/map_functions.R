@@ -216,7 +216,7 @@ make_or_load_maps <- function(location, map_type, demographic = 'population'){
 	return(map)
 }
 
-make_bg_maps <-function(prepped_data, map_type, result_folder_name = result_folder,  demo_str = 'population', driving_flag = DRIVING_FLAG, color_bounds = global_color_bounds){
+make_bg_maps <-function(prepped_data, map_type, result_folder_name = result_folder,  demo_str = 'population', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, color_bounds = global_color_bounds){
 	#Note: No longer supports cartograms. 
 	#use residence_distances to color the map by distance to matched location, for the indicated demographic
 	#If the map type is "map", then also plot the polling locations
@@ -243,13 +243,13 @@ make_bg_maps <-function(prepped_data, map_type, result_folder_name = result_fold
 	demo_dist_shape<- merge(map_sf, prepped_data_demo) #TODO: ideally want a right join here. Unclear what that isn't working
 
 	#make maps
-	if (driving_flag){
-		title_str = 'Average driving distance to poll (m)'
-		fill_str = 'Avg driving distance (m)'
-	} else{
-		title_str = 'Average distance to poll (m)'
-		fill_str = 'Avg straight line distance (m)'
-	}
+	driving_str = ' straight line '
+	log_str = ''
+	if (driving_flag){driving_str = ' driving '} 
+	if (log_flag){log_str = 'log '}
+	
+	title_str = paste0('Average', driving_str, 'distance to poll (', log_str, 'm)')
+	fill_str = paste0('Avg distance (', log_str, 'm)')
 
 	county = gsub('.{3}$','', location)
 	descriptor = paste(county, unique(demo_dist_shape$descriptor), sep ='_')
@@ -263,14 +263,14 @@ make_bg_maps <-function(prepped_data, map_type, result_folder_name = result_fold
 		scale_color_manual(breaks = c('polling', 'potential', 'bg_centroid'), values = c('red', 'black', 'dimgrey'), name = 'Poll Type') +  xlab('') + ylab('')	
 	#add title
 	plotted = plotted + ggtitle(title_str, paste('Block group map', 'of', gsub('_', ' ', descriptor) ))
-
+		
 	#write to file
 	graph_file_path = paste0(map_name, '_',descriptor, '_','polls.png')
 	add_graph_to_graph_file_manifest(graph_file_path)
 	ggsave(graph_file_path, plotted)
 }
 
-make_demo_dist_map <-function(prepped_data, demo_str, map_type = 'map', result_folder_name = result_folder,  driving_flag = DRIVING_FLAG, color_bounds = global_color_bounds){
+make_demo_dist_map <-function(prepped_data, demo_str, map_type = 'map', result_folder_name = result_folder,  driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, color_bounds = global_color_bounds){
 	#use demographic residence_distances to put a dot in  the map colored by distance and sized by population
 	
 	#get the location from the data
@@ -292,13 +292,13 @@ make_demo_dist_map <-function(prepped_data, demo_str, map_type = 'map', result_f
 
 	#plot map with a point at the centroid, colored by distance, sized by size
 	#set names
-	if (driving_flag){
-		title_str = 'population average driving distance to poll (m)'
-		color_str = 'Avg driving distance (m)'
-	} else{
-		title_str = 'population average distance to poll (m)'
-		color_str = 'Avg straight line distance (m)'
-	}
+	driving_str = ' straight line '
+	log_str = ''
+	if (driving_flag){driving_str = ' driving '} 
+	if (log_flag){log_str = 'log '}
+	
+	title_str = paste0('Average', driving_str, 'distance to poll (', log_str, 'm)')
+	color_str = paste0('Avg distance (', log_str, 'm)')
 
 	county = gsub('.{3}$','',location)
 	descriptor = paste(county, unique(demo_dist_shape$descriptor), sep ='_')
@@ -313,7 +313,7 @@ make_demo_dist_map <-function(prepped_data, demo_str, map_type = 'map', result_f
 		labs(size = paste(demographic_legend_dict[demo_str], 'population') ) +
 		xlab('') + ylab('') + scale_size(limits= c(0, max_pop)) +
 		ggtitle(paste(demographic_legend_dict[demo_str], title_str), paste('Block groups in', gsub('_', ' ', descriptor)))
-
+	
 	#write to file
 	graph_file_path = paste0(demo_str, '_','pop_and_dist','_',descriptor, '_','polls.png')
 	add_graph_to_graph_file_manifest(graph_file_path)

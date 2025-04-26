@@ -32,7 +32,7 @@ This will create a set of .yaml files in the indicaded `config_folder`, each wit
 
 **Example:**
 To generate a set of configs for DuPage County, IL where the number of precincts open varies from 15 to 20, define
-`field_to_change: 'precints open'`
+`field_to_change: 'precints_open'`
 `new_range:
     - 15
     - 16
