@@ -1,0 +1,20 @@
+config_set: Muscogee_County_GA_log_configs
+config_name: Muscogee_County_GA_precincts_open_5
+location: Muscogee_County_GA
+year:
+- '2020'
+- '2022'
+- '2024'
+bad_types:
+- bg_centroid
+beta: -2
+time_limit: 360000
+capacity: 1.8
+fixed_capacity_site_number: null
+precincts_open: 5
+max_min_mult: 50000
+maxpctnew: 1
+minpctold: 0.5
+driving: false
+log_distance: true
+penalized_sites: null

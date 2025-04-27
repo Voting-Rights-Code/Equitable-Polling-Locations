@@ -10,15 +10,14 @@ import pyomo.environ as pyo
 from python.solver.model_config import PollingModelConfig
 from python.solver import model_data, model_factory, model_solver
 
-#TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-TESTS_DIR = 'tests'
+TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTING_CONFIG_EXPANDED = os.path.join(TESTS_DIR, 'testing_config_expanded.yaml')
 
 CONFIG = PollingModelConfig.load_config(TESTING_CONFIG_EXPANDED)
 print(f'config -> {CONFIG}')
-DIST_DF = model_data.clean_data(CONFIG, False)
+DIST_DF = model_data.clean_data(CONFIG, False, False)
 TOTAL_POP = DIST_DF.groupby('id_orig')['population'].agg('unique').str[0].sum()
-ALPHA_DF = model_data.clean_data(CONFIG, True)
+ALPHA_DF = model_data.clean_data(CONFIG, True, False)
 ALPHA = model_data.alpha_min(ALPHA_DF)
 
 MODEL = model_factory.polling_model_factory(DIST_DF, ALPHA, CONFIG)
@@ -38,7 +37,7 @@ def test_alpha_min():
 def test_kp_factor():
     DIST_DF['KP_factor'] = round(model_factory.compute_kp_factor(CONFIG, ALPHA, DIST_DF), 6)
     dist_df2 = DIST_DF[['id_orig', 'id_dest', 'KP_factor']]
-    fixed_test_data = pd.read_csv('tests/test_kp_factor.csv') #data from R code
+    fixed_test_data = pd.read_csv('./test_kp_factor.csv') #data from R code
     fixed_test_data.kp_factor = round(fixed_test_data.kp_factor, 6)
     compare = dist_df2.merge(fixed_test_data, how = 'outer')
     assert compare.KP_factor.equals(compare.kp_factor)
@@ -85,7 +84,7 @@ def test_capacity():
 # Test the intermediate dataframe with driving distances
 DRIVING_TESTING_CONFIG = os.path.join(TESTS_DIR, 'testing_config_driving.yaml')
 DRIVING_CONFIG = PollingModelConfig.load_config(DRIVING_TESTING_CONFIG)
-DRIVING_DIST_DF = model_data.clean_data(DRIVING_CONFIG, False)
+DRIVING_DIST_DF = model_data.clean_data(DRIVING_CONFIG, False, False)
 
 # The test driving distances are exactly twice the haversine test distances
 def test_driving_distances():

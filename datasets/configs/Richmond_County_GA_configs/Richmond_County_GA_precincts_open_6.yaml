@@ -1,0 +1,21 @@
+config_set: Richmond_County_GA_configs
+config_name: Richmond_County_GA_precincts_open_6
+location: Richmond_County_GA
+year:
+- '2020'
+- '2022'
+- '2024'
+bad_types:
+- Elec Day School - Potential
+- bg_centroid
+beta: -2
+time_limit: 360000
+capacity: 1.8
+fixed_capacity_site_number: null
+precincts_open: 6
+max_min_mult: 5
+maxpctnew: 1
+minpctold: 0.8
+driving: false
+log_distance: false
+penalized_sites: null

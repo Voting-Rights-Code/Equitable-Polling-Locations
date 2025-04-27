@@ -1,8 +1,10 @@
 import os
 import yaml
 
-tests_dir = 'tests'
-testing_config_file = os.path.join(tests_dir, 'testing_auto_generate_config.yaml')
+from python.utils.constants import RESULTS_BASE_DIR
+
+test_results_dir = f'{RESULTS_BASE_DIR}/testing_results'
+testing_config_file = os.path.join(test_results_dir, 'testing_auto_generate_config.yaml')
 
 # Function to simulate your generate_configs function
 def generate_configs(base_config_file, field_to_vary, desired_range):
@@ -24,7 +26,7 @@ def generate_configs(base_config_file, field_to_vary, desired_range):
 def test_required_fields():
     # Create a toy config file
     generate_configs(testing_config_file, "field_to_vary", [1, 2, 3])
-    
+
     # Load the generated config for validation
     with open(testing_config_file, 'r') as file:
         config = yaml.safe_load(file)
