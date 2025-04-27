@@ -1,5 +1,6 @@
 library(here)
-
+library(gargle)
+options(gargle_oauth_email = TRUE)
 #######
 #Change directory
 #######
@@ -21,12 +22,7 @@ if (length(args) != 1){
     source(config_path)
 }
 
-#######
-#refresh google cloud connection
-#######
-if (!READ_FROM_CSV){
-    system("gcloud auth application-default login")
-}
+
 #######
 #Check that location and folders valid
 #Load configs and get driving flags
