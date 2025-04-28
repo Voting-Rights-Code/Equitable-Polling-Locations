@@ -18,9 +18,7 @@ First activate the environment if not done so already:
         * config_set and config_name refer to the fields in the config data.
             * To run all the config_names associated to a config_set, just enter the config_set
     * For extra logging include the flag -vv
-* If you are using the model on a particular location for the first time, the input data needs to be imported to the database before the model can be run:
-    * Import the `[LOCATION]_locations_only.csv` file
-        * `python -m python.scripts.db_import_driving_distances_cli 2020 [LOCATION]`
+
 
 
 ### Examples
