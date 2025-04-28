@@ -21,9 +21,9 @@ source('R/result_analysis/map_functions.R')
 #LOCATION must be either a string or list of strings
 #CONFIG_FOLDER must be a string
 
-LOCATION = 'DeKalb_County_GA' #needed only for reading from csv and writing outputs
-ORIG_CONFIG_FOLDER = "DeKalb_County_GA_original_configs_driving_beta-2"
-POTENTIAL_CONFIG_FOLDER = "DeKalb_County_GA_no_school_penalize_bg_configs_driving_pre_EV_2024"
+LOCATION = 'Dougherty_County_GA' #needed only for reading from csv and writing outputs
+ORIG_CONFIG_FOLDER = "Dougherty_County_GA_original_configs"
+POTENTIAL_CONFIG_FOLDER = "Dougherty_County_GA_log_configs"
 ORIG_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 POTENTIAL_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 
@@ -67,8 +67,8 @@ potential_config_dt <- load_config_data(LOCATION, POTENTIAL_CONFIG_FOLDER)
 
 #get driving flags
 config_dt_list<-c(orig_config_dt, potential_config_dt)
-DRIVING_FLAG <- set_global_flag(config_dt_list, 'driving') 
-LOG_FLAG <- set_global_flag(config_dt_list, 'log_distance') 
+DRIVING_FLAG <- set_global_flag(config_dt_list, 'driving')
+LOG_FLAG <- set_global_flag(config_dt_list, 'log_distance')
 
 
 #######
@@ -110,6 +110,15 @@ potential_list_prepped <- prepare_outputs_for_maps(potential_output_df_list$resi
 all_res_output <- do.call(rbind, c(orig_list_prepped, potential_list_prepped))
 global_color_bounds <- distance_bounds(all_res_output)
 
+#prepare datasets for regressions of distance versus density
+orig_regression_data <- get_regression_data(LOCATION, orig_output_df_list$results)
+
+potential_regression_data <- get_regression_data(LOCATION, potential_output_df_list$results)
+
+orig_bg_density_demo <- bg_data(orig_regression_data)
+potential_bg_density_demo <- bg_data(potential_regression_data)
+
+
 #######
 #Plot potential data
 #######
@@ -142,6 +151,13 @@ plot_boxplots(potential_output_df_list$residence_distances)
 #Histogram of the original distributions and that for the desired number of polls
 plot_orig_ideal_hist(orig_output_df_list$residence_distances, potential_output_df_list$residence_distances, IDEAL_POLL_NUMBER)
 
+#plot distance v density graphs and regressions
+demographic_list = c('white', 'black')
+plot_density_v_distance_bg(potential_bg_density_demo, LOCATION, demographic_list)
+
+potential_bg_coefs <- bg_level_naive_regression(potential_bg_density_demo)
+
+
 ###maps####
 
 sapply(potential_list_prepped, function(x)make_bg_maps(x, 'map'))
@@ -160,12 +176,11 @@ if (file.exists(file.path(here(), plot_folder))){
     setwd(file.path(here(), plot_folder))
 } else{
     dir.create(file.path(here(), plot_folder))
-    setwd(file.path(here(), plot_folder))
 }
+setwd(file.path(here(), plot_folder))
 
 ###maps####
-density_data <- get_regression_data(LOCATION, orig_output_df_list$results)
-plot_population_densities(density_data)
+plot_population_densities(orig_regression_data)
 
 sapply(orig_list_prepped, function(x)make_bg_maps(x, 'map'))
 
@@ -174,5 +189,12 @@ sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'black'))
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'white'))
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'hispanic'))
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
+
+#plot distance v density graphs and regressions
+
+demographic_list = c('white', 'black')
+plot_density_v_distance_bg(orig_bg_density_demo, LOCATION, demographic_list)
+
+orig_bg_coefs <- bg_level_naive_regression(orig_bg_density_demo)
 
 upload_graph_files_to_cloud_storage()
