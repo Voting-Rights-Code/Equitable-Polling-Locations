@@ -507,8 +507,8 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
     #select data based on year
     #mark everything but bg_centroid as potential
     #then mark location_types with correct years as
-    df['dest_type'].mask(df['dest_type'] != 'bg_centroid', 'potential', inplace = True)
-    df['dest_type'].mask(df['location_type'].str.contains('|'.join(year_list)), 'polling', inplace = True)
+    result_df['dest_type'].mask(result_df['dest_type'] != 'bg_centroid', 'potential', inplace = True)
+    result_df['dest_type'].mask(result_df['location_type'].str.contains('|'.join(year_list)), 'polling', inplace = True)
     #check that this hasn't created duplicates (should not have); drop these
     result_df = result_df.drop_duplicates()
 
