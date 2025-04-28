@@ -1,18 +1,38 @@
 library(here)
 library(gargle)
 options(gargle_oauth_email = TRUE)
+
 #######
-#Change directory
+#Change directory:
+#Sets directory to the git home directory
 #######
 setwd(here())
 
 #######
 #source functions
+#1. storage.R contains functions for putting outputs on Google Cloud Storage
+#2. graph_functions.R (contains too much) contains all the functions for 
+#   reading data, checking data, processing graphs/ maps / regressions, plotting
+#   graphs and computing regresssions
+#3. map_functions.R contains all the functions for reading in the data and 
+#   plotting the maps
 #######
 
-source('R/result_analysis/storage.R')
-source('R/result_analysis/graph_functions.R')
-source('R/result_analysis/map_functions.R')
+source('R/result_analysis/utility_functions/storage.R')
+source('R/result_analysis/utility_functions/graph_functions.R')
+source('R/result_analysis/utility_functions/map_functions.R')
+
+
+#######
+#Read in command line arguments
+#Note: 1. This is now run from command line. A config file 
+#      must be given to get the constants for the analysis to be run
+#      2. In the case of only doing historical analysis, and not comparing 
+#      against any changes to what is historically present, the 
+#      POTENTIAL_CONFIG_FOLDER must be NULL in the config file. Then all 
+#      functions in this file that uses this constant and their ouputs are 
+#      adjusted to ignore this input or return NULL.
+#######
 
 args = commandArgs(trailingOnly = TRUE)
 if (length(args) != 1){
@@ -21,11 +41,11 @@ if (length(args) != 1){
     config_path <- paste0('R/result_analysis/Basic_analysis_configs/', args[1])
     source(config_path)
 }
-
+#source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
 
 #######
 #Check that location and folders valid
-#Load configs and get driving flags
+#Load configs and get driving / log flags
 #######
 
 #Load config data
@@ -44,38 +64,33 @@ LOG_FLAG <- set_global_flag(config_dt_list, 'log_distance')
 #Read in data
 #Run this for each of the folders under consideration
 #Recall, output of form: list(ede_df, precinct_df, residence_df, results_df)
+#Note: if DESCRIPTOR_DICT is NULL in the config file, then change_descriptor does nothing
 #######
 
 #names of the output data in these lists
-#come from TABLES above
+#come from TABLES defined in graph_functions.R
 
 orig_output_df_list <- read_result_data(orig_config_dt, ORIG_FIELD_OF_INTEREST)
 
 potential_output_df_list <- read_result_data(potential_config_dt, POTENTIAL_FIELD_OF_INTEREST)
 
-#change descriptor
-#function to set certain descriptors as desired
-#change_descriptors <- function(df){
-#    df <- df[descriptor == "location_Contained_in_Madison_City_of_WI", descriptor := "Contained"
-#            ][descriptor == "location_Intersecting_Madison_City_of_WI", descriptor := "Intersecting"
-#            ]
-#return(df)
-#}
-#config_df_list = lapply(config_df_list, change_descriptors)
+#change descriptor if needed
+orig_output_df_list = lapply(orig_output_df_list, function(x)change_descriptors(x))
 
 #########
 #Set up maps
+#
 #########
 
-#add location to residence data, aggregate to block level, merge with polling locations and split
+#add location to residence data, aggregate to block level, merge with polling locations and split by config_name
 orig_list_prepped <- prepare_outputs_for_maps(orig_output_df_list$residence_distances, orig_output_df_list$result, orig_config_dt)
 potential_list_prepped <- prepare_outputs_for_maps(potential_output_df_list$residence_distances, potential_output_df_list$result, potential_config_dt)
 
 #get avg distance bounds for map coloring
 #same scale for orig and potential
+#Note: maps are colored by avg distance, not ede value
 all_res_output <- do.call(rbind, c(orig_list_prepped, potential_list_prepped))
 global_color_bounds <- distance_bounds(all_res_output)
-
 
 #########
 #Set up regressions

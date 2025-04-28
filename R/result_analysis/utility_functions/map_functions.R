@@ -2,7 +2,7 @@ library(data.table)
 library(ggplot2)
 library(sf)
 
-source('R/result_analysis/storage.R')
+source('R/result_analysis/utility_functions/storage.R')
 
 ######
 #General process

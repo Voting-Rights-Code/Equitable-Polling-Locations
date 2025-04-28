@@ -1,10 +1,14 @@
 #######
-#Set Constants
+#Analysis Constants
 #######
 
 #Basic constants for analysis
 #LOCATION must be either a string or list of strings
-#CONFIG_FOLDER must be a string
+#ORIG_CONFIG_FOLDER must be a string
+#POTENTIAL_CONFIG_FOLDER must either be a string or NULL
+#                   NULL indicates that this set of constants is only 
+#                   on for historical
+
 
 LOCATION = 'Berkeley_County_SC' #needed only for reading from csv and writing outputs
 ORIG_CONFIG_FOLDER = "Berkeley_County_SC_original_configs"
@@ -17,6 +21,24 @@ if (is.null(POTENTIAL_CONFIG_FOLDER)){
 }else{HISTORICAL_FLAG = FALSE}
 
 DEMOGRAPHIC_LIST = c('white', 'black')
+
+#Run-type specific constants
+IDEAL_POLL_NUMBER  = 15 #the optimal number of polls desired for this county
+
+#dictionary of custom descriptors
+#keys: automatatically generated descriptor values to change
+#values: the desired descriptor values
+# DESCRIPTOR_DICT <- c('year_2014' = '2014', 'year_2016' = '2016', 
+#                      'year_2018' = '2018', 'year_2020' = '2020', 
+#                      'year_2022' = '2022')
+#If no changes desired, set 
+DESCRIPTOR_DICT <- NULL
+
+
+#######
+#Constants for DB
+#######
+
 # This is where this analysis will be stored in the cloud
 STORAGE_BUCKET = 'equitable-polling-analysis'
 if (HISTORICAL_FLAG){
@@ -34,9 +56,6 @@ PRINT_SQL = FALSE
 PROJECT = "equitable-polling-locations"
 DATASET = "equitable_polling_locations_prod"
 BILLING = PROJECT
-
-#Run-type specific constants
-IDEAL_POLL_NUMBER  = 15 #the optimal number of polls desired for this county
 
 #Connect to database if needed
 #returns NULL if READ_FROM_CSV = TRUE

@@ -7,7 +7,7 @@ library(DBI)
 library(bigrquery)
 library(yaml)
 
-source('R/result_analysis/storage.R')
+source('R/result_analysis/utility_functions/storage.R')
 
 TABLES = c("edes", "precinct_distances", "residence_distances", "results")
 
@@ -162,6 +162,7 @@ load_config_data <- function(location, config_folder, read_from_csv = READ_FROM_
 	config_dt <- as.data.table(config_dt)
 	return(config_dt)
 }
+
 
 #########
 #Get a driving/log_distance/ etc flag from the config folders
@@ -401,6 +402,34 @@ read_result_data<- function(config_dt, field_of_interest = '', tables = TABLES){
 	# }
 
 	return(appended_df_list)
+}
+
+#function to set certain descriptors as desired
+change_descriptors <- function(df, descriptor_dict = DESCRIPTOR_DICT){
+	#if the descriptor dictionary is NULL, then do nothing
+	if(is.null(descriptor_dict)){return(df)}
+
+	#otherwise, there is data in the dictionary. Check that this is consisent with the 
+	#descriptor data in the df
+	generated_descriptors <- unique(df$descriptor)
+	dict_descriptors <- names(descriptor_dict)
+	missing_from_dict <- setdiff(generated_descriptors, dict_descriptors)
+	extra_in_dict <- setdiff(dict_descriptors, generated_descriptors)
+	#if either missing from dict or extra in dict are non-empty, stop
+	if (length(missing_from_dict) > 0 | length(extra_in_dict) >0){
+		stop(paste0('Missmatch between descriptor values given in config and generated algorithmically: 
+					\n mistaken entries in config: ', extra_in_dict, '
+					\n missing entries in config: ', missing_from_dict))
+	}
+	
+	#assuming consistency, replace values in df
+	#1. turn dictionary into data.table
+	descriptor_dt <- data.table(old_descriptor = names(descriptor_dict), new_descriptor = descriptor_dict)
+	#2. merge and rename columns
+    df_renamed <-  merge(df, descriptor_dt, by.x = 'descriptor', by.y = 'old_descriptor', all.x = TRUE)
+	df_renamed[ , descriptor := NULL]
+	setnames(df_renamed, c('new_descriptor'), c('descriptor'))
+return(df_renamed)
 }
 
 
