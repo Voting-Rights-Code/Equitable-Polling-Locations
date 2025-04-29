@@ -71,6 +71,9 @@ These fields are determined by the sql_alchemy config model. See `models/model_c
 * location
     * str, nullable
     * Location for this model. Usually a county.
+* census_year
+    * str
+    * census year that the maps and data are pulling from
 * year
     * List[str], nullable
     * An array of years of historical data relevant to this model
