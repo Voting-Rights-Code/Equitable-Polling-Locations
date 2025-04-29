@@ -28,11 +28,11 @@ IDEAL_POLL_NUMBER  = 15 #the optimal number of polls desired for this county
 #dictionary of custom descriptors
 #keys: automatatically generated descriptor values to change
 #values: the desired descriptor values
-# DESCRIPTOR_DICT <- c('year_2014' = '2014', 'year_2016' = '2016', 
-#                      'year_2018' = '2018', 'year_2020' = '2020', 
-#                      'year_2022' = '2022')
+DESCRIPTOR_DICT_ORIG <- c('year_2014' = '2014', 'year_2016' = '2016', 
+                     'year_2018' = '2018', 'year_2020' = '2020', 
+                     'year_2022' = '2022')
 #If no changes desired, set 
-DESCRIPTOR_DICT <- NULL
+DESCRIPTOR_DICT_POTENTIAL <- NULL
 
 
 #######

@@ -128,7 +128,7 @@ mapply(function(x,y, z){make_demo_dist_map(CONFIG_FOLDER, x, 'population', resul
 
 
 #3d Plot pct distance changed by density and black
-regression_data <- get_regression_data(LOCATION, config_df_list[[4]])
+regression_data <- get_density_data(LOCATION, config_df_list[[4]])
 descriptor_list <- unique(regression_data$descriptor)
 reference <- descriptor_list[grepl(REFERENCE_TAG, descriptor_list)]
 regression_data <- calculate_pct_change(regression_data, reference)

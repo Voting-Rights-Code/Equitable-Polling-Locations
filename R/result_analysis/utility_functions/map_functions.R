@@ -2,6 +2,7 @@ library(data.table)
 library(ggplot2)
 library(sf)
 
+source('R/result_analysis/utility_functions/load_config_data.R')
 source('R/result_analysis/utility_functions/storage.R')
 
 ######
@@ -44,6 +45,12 @@ source('R/result_analysis/utility_functions/storage.R')
 #	 * the size of the dot corresponds to population.
 # 	 	* the size scale is determined by the total populations of the block groups
 
+###########
+#Prep map data for later mapping
+#add location to residence data, aggregate to block level,
+# 	merge with polling locations and split by config_name
+###########
+
 add_location <- function(data, config_dt){
 	#adds location field from config_dt to output data
 
@@ -55,6 +62,54 @@ add_location <- function(data, config_dt){
 
 	return(data_with_loc)
 }
+
+aggregate_residence_demo <- function(res_dist_df){
+	#aggregate residence data from the model output, which is at the block
+	#level, to the block group level
+
+	#the last 3 digits of id_orig are the block, remove these for block group
+	#GEOID20 is the BG column name from the census
+	res_dist_df <- res_dist_df[ , id_orig := as.character(id_orig)
+		][ , GEOID20 := gsub('.{3}$', '', id_orig)]
+
+	#aggregate by block group, demographic and config_name
+	bg_res_dist <- res_dist_df[ , .(demo_pop = sum(demo_pop),weighted_dist = sum(weighted_dist)),
+						by = c('GEOID20', 'demographic', 'config_set','config_name', 'descriptor')][ , avg_dist := weighted_dist/demo_pop]
+
+	return(bg_res_dist)
+}
+
+prepare_outputs_for_maps <- function(residence_data, result_data, config_data){
+
+	#if any input are NULL, and HISTORIC_FLAG return NULL (if one is null, all should be)
+	if(check_historic_flag(residence_data)| check_historic_flag(result_data) | check_historic_flag(config_data)){
+		return(NULL)
+	}
+
+	#aggregate block level demographic data to block group level
+	res_dist_demo <- aggregate_residence_demo(residence_data)
+
+	#get lat/ lon coords for polling locations from results
+	dest_lat_lon <- result_data[ ,.(lon = unique(dest_lon), lat = unique(dest_lat), type = unique(dest_type)), by = c('id_dest', 'config_set', 'config_name')]
+
+	#combine with residence data
+	#note cartesian join 
+	#this means that each block group has all destinations associated with it, whether or not matched
+	#the distances reported, however are just for the matched locations
+	res_dist_demo_dest <- merge(dest_lat_lon, res_dist_demo, by = c('config_set', 'config_name'), allow.cartesian = TRUE)
+
+	#add location column to above for later bookkeeping
+	combined_data_with_loc <- add_location(res_dist_demo_dest, config_data)
+
+	#split by config_name
+	data_list <- split(combined_data_with_loc, combined_data_with_loc$config_name)
+
+	return(data_list)
+}
+
+###########
+#Calculate min and max distance for a dataframe
+###########
 
 distance_bounds <- function(residence_df){
 	#calculate the min and max average distances traveled by census block for maps by location
@@ -75,6 +130,7 @@ distance_bounds <- function(residence_df){
 	color_bounds <- list(global_min, global_max)
 	return(color_bounds)
 }
+
 
 
 process_maps <- function(file_name){
@@ -116,47 +172,6 @@ process_demographics <-function(folder_name){
 	demo = demo[population >0, ]
 }
 
-aggregate_residence_demo <- function(res_dist_df){
-	#aggregate residence data from the model output, which is at the block
-	#level, to the block group level
-
-	#the last 3 digits of id_orig are the block, remove these for block group
-	#GEOID20 is the BG column name from the census
-	res_dist_df <- res_dist_df[ , id_orig := as.character(id_orig)
-		][ , GEOID20 := gsub('.{3}$', '', id_orig)]
-
-	#aggregate by block group, demographic and config_name
-	bg_res_dist <- res_dist_df[ , .(demo_pop = sum(demo_pop),weighted_dist = sum(weighted_dist)),
-						by = c('GEOID20', 'demographic', 'config_set','config_name', 'descriptor')][ , avg_dist := weighted_dist/demo_pop]
-
-	return(bg_res_dist)
-}
-
-prepare_outputs_for_maps <- function(residence_data, result_data, config_data){
-
-	#if any input are NULL, and HISTORIC_FLAG return NULL (if one is null, all should be)
-	if(check_historic_flag(residence_data)| check_historic_flag(result_data) | check_historic_flag(config_data)){
-		return(NULL)
-	}
-
-	#aggregate block level demographic data to block group level
-	res_dist_demo <- aggregate_residence_demo(residence_data)
-
-	#get lat/ lon coords from results
-	dest_lat_lon <- result_data[ ,.(lon = unique(dest_lon), lat = unique(dest_lat), type = unique(dest_type)), by = c('id_dest', 'config_set', 'config_name')]
-
-	#combine with residence data
-	#note cartesian join
-	res_dist_demo_dest <- merge(dest_lat_lon, res_dist_demo, by = c('config_set', 'config_name'), allow.cartesian = TRUE)
-
-	#add location to above
-	combined_data_with_loc <- add_location(res_dist_demo_dest, config_data)
-
-	#split by config_name
-	data_list <- split(combined_data_with_loc, combined_data_with_loc$config_name)
-
-	return(data_list)
-}
 
 make_or_load_maps <- function(location, map_type, demographic = 'population'){
 	#Note: No longer supports cartograms. 

@@ -21,6 +21,7 @@ setwd(here())
 source('R/result_analysis/utility_functions/storage.R')
 source('R/result_analysis/utility_functions/graph_functions.R')
 source('R/result_analysis/utility_functions/map_functions.R')
+source('R/result_analysis/utility_functions/regression_functions.R')
 
 
 #######
@@ -34,14 +35,14 @@ source('R/result_analysis/utility_functions/map_functions.R')
 #      adjusted to ignore this input or return NULL.
 #######
 
-args = commandArgs(trailingOnly = TRUE)
-if (length(args) != 1){
-    stop("Must enter at least one config file")
-} else{
-    config_path <- paste0('R/result_analysis/Basic_analysis_configs/', args[1])
-    source(config_path)
-}
-#source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
+# args = commandArgs(trailingOnly = TRUE)
+# if (length(args) != 1){
+#     stop("Must enter at least one config file")
+# } else{
+#     config_path <- paste0('R/result_analysis/Basic_analysis_configs/', args[1])
+#     source(config_path)
+# }
+source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
 
 #######
 #Check that location and folders valid
@@ -63,23 +64,22 @@ LOG_FLAG <- set_global_flag(config_dt_list, 'log_distance')
 #######
 #Read in data
 #Run this for each of the folders under consideration
+#update description to custom descriptors if desired.
 #Recall, output of form: list(ede_df, precinct_df, residence_df, results_df)
-#Note: if DESCRIPTOR_DICT is NULL in the config file, then change_descriptor does nothing
 #######
 
 #names of the output data in these lists
 #come from TABLES defined in graph_functions.R
+orig_output_df_list <- read_result_data(orig_config_dt, field_of_interest = ORIG_FIELD_OF_INTEREST, descriptor_dict = DESCRIPTOR_DICT_ORIG)
 
-orig_output_df_list <- read_result_data(orig_config_dt, ORIG_FIELD_OF_INTEREST)
+potential_output_df_list <- read_result_data(potential_config_dt, field_of_interest = POTENTIAL_FIELD_OF_INTEREST, 
+descriptor_dict = DESCRIPTOR_DICT_POTENTIAL)
 
-potential_output_df_list <- read_result_data(potential_config_dt, POTENTIAL_FIELD_OF_INTEREST)
-
-#change descriptor if needed
-orig_output_df_list = lapply(orig_output_df_list, function(x)change_descriptors(x))
 
 #########
 #Set up maps
-#
+#1. Aggregate data above to block group level and split by config name
+#2. Calculate a single average distance bound across all datasets
 #########
 
 #add location to residence data, aggregate to block level, merge with polling locations and split by config_name
@@ -96,13 +96,13 @@ global_color_bounds <- distance_bounds(all_res_output)
 #Set up regressions
 #########
 
-#prepare datasets for regressions of distance versus density
-orig_regression_data <- get_regression_data(LOCATION, orig_output_df_list$results)
-potential_regression_data <- get_regression_data(LOCATION, potential_output_df_list$results)
+#combine result data with block area data to get population density and related measures
+orig_regression_data <- get_density_data(LOCATION, orig_output_df_list$results)
+potential_regression_data <- get_density_data(LOCATION, potential_output_df_list$results)
 
+#take density data and aggregate key columns up to the block level
 orig_bg_density_demo <- bg_data(orig_regression_data)
 potential_bg_density_demo <- bg_data(potential_regression_data)
-
 
 if(!HISTORICAL_FLAG){
     #######
