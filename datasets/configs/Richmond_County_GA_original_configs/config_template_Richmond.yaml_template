@@ -4,7 +4,7 @@ config_name: 'config_template_Richmond' #should match file name
 
 # Constants for the optimization function
 location: Richmond_County_GA
-census_year: 2020
+census_year: '2020'
 year:
     - '2020'
 bad_types:

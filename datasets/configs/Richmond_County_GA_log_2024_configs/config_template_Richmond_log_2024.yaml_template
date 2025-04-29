@@ -4,7 +4,7 @@ config_name: 'config_template_Richmond_log_2024' #should match file name
 
 # Constants for the optimization function
 location: Richmond_County_GA
-census_year: 2020
+census_year: '2020'
 year:
     - '2022'
     - '2024'
