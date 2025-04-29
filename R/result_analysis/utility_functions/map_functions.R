@@ -2,7 +2,7 @@ library(data.table)
 library(ggplot2)
 library(sf)
 
-source('R/result_analysis/storage.R')
+source('R/result_analysis/utility_functions/storage.R')
 
 ######
 #General process
@@ -133,6 +133,11 @@ aggregate_residence_demo <- function(res_dist_df){
 }
 
 prepare_outputs_for_maps <- function(residence_data, result_data, config_data){
+
+	#if any input are NULL, and HISTORIC_FLAG return NULL (if one is null, all should be)
+	if(check_historic_flag(residence_data)| check_historic_flag(result_data) | check_historic_flag(config_data)){
+		return(NULL)
+	}
 
 	#aggregate block level demographic data to block group level
 	res_dist_demo <- aggregate_residence_demo(residence_data)

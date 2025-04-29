@@ -1,3 +1,10 @@
+########################
+# Should be outdated:
+# this was written as a test suite to understand the difference between the log model and the base model
+# this will not run under the current reorganization of the code 
+# If this is needed for any reason, at the very least, the file paths need to be updated
+########################
+
 library(here)
 library(reticulate)
 use_condaenv('C:/Users/ganga/anaconda3/envs/Equitable-Polls', required = TRUE)
