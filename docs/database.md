@@ -23,6 +23,13 @@ The output from the optimization model runs can be found in the BigQuery dataset
 | residence_distances_extras | View  | A view that inner joins model_config_runs and residence_distances_extras           |
 | results                    | Table | The general results from the from the optimization model run |
 | results_extras             | View  | A view that inner joins model_config_runs and residence_distances_extras           |
+| polling_locations_only     | Table | The polling location only data source |
+| polling_locations_only_sets | Table | The metadata for polling location only data source |
+| driving_distances          | Table | The driving distances for polling locations data source|
+| driving_distance_sets      | Table | The metadata for driving distances for polling locations data source |
+| polling_locations          | Table | The polling locations data source used by the optimizer |
+| polling_locations_sets     | Table | The metadata for polling locations data |
+
 
 
 
@@ -122,7 +129,7 @@ With read only access, the user can
 
 ## Selecting which database to write to
 
-When using the model_run_cli.py or db_import_cli.py scripts as well as Alembic for database migrations, the The Google Project
+When using the model_run_cli.py scripts as well as Alembic for database migrations, the The Google Project
 and BigQuery dataset can be selected by setting the environemntal variables DB_PROJECT and DB_dataset.
 If these variables are not set then you will be prompted to chooose which project and which dataset to use.
 
@@ -138,21 +145,89 @@ set DB_PROJECT=equitable-polling-locations
 set DB_DATASET=equitable_polling_locations_prod
 ```
 
-
 ## Writting model run output to the database
 
-To write ouput from the model_run_cli to Google's BigQuery instead of local csv files, opt for the option ```-o db```. Database write access will be required.
+To write ouput from the
+
+python.scripts.model_run_db_cli will write to output the to Google's BigQuery by default unless -o csv is selected.
 
 Example:
 
 ```
-python -m python.scripts.model_run_cli -c1 -o db -vv -l logs Gwinnett_County_GA_original_configs/Gwinnett_config_original_2020.yaml
+python -m python.scripts.model_run_db_cli -vv Contained_in_Madison_City_of_WI_potential_configs_driving/Contained_in_Madison_City_of_WI_config_driving_change_1
 ```
 
+# Database Imports
 
-## Import existing csv files into the BigQuery database
+## Dataset Import Tools
 
-To import existing csv files into  the BigQuery database, use the db_import_cli.py script.
+In order to run python.scripts.model_run_db_cli, the required datasources for the giving location must be imported into the database.  These imports should occur in the following order:
+1. Polling Locations Only File Imports
+1. Driving Distance Imports (only if driving distances will be required)
+1. Build and Import Locations with Distances
+
+The import tools may be run more than once any location.  Reruns will not overwrite historic imports, so they will be available for historic purposes.  However, anytime the import tools are used to reimport a datasets then the subsequent import tools must be also rerun.  For example, if "Driving Distance Imports" for a given location are rerun then "Build and Import Locations with Distances" must also be rerun afterwards for the same location in order for that data to be made available to the model_run_db_cli script.
+
+### Polling Locations Only File Imports
+
+Polling locations only csv files, located in ```.../datasets/polling/[location]/```, represent a growing list of polling locations throught the years.  These locations do not include distances to each group. These locations only files must be imported into the database before any of the rest of the dataset database imports.
+
+Example of importing the latest Contained_in_Madison_City_of_WI and Gwinnett_County_GA locations only:
+
+```
+python -m python.scripts.db_import_locations_only_cli Contained_in_Madison_City_of_WI Gwinnett_County_GA
+```
+
+Any errors importing will be written to the screen as well as the logs directory (by default) to the file `.../logs/locations_only_import_errors.csv`.
+
+### Driving Distance Imports
+
+Driving distance csv files, located in ```.../datasets/driving/[location]/```, are needed for running optimization models where driving is set to true in the model config.
+
+Example of importing the latest Contained_in_Madison_City_of_WI and Gwinnett_County_GA driving for the 2020 census year:
+
+```
+python -m python.scripts.db_import_driving_distances_cli 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
+```
+
+Any errors importing will be written to the screen as well as the logs directory (by default) to the file `.../logs/driving_distance_import_errors.csv`.
+
+
+### Build and Import Locations with Distances
+
+Locations which include distances are what the optimizer will run against using the model_run_db_cli script.  Locations with distances can be log or linear distance, and haversine or driving distance.
+
+Example of building and importing the latest Contained_in_Madison_City_of_WI and Gwinnett_County_GA linear, haversine locations for 2020 census year:
+
+```
+python -m python.scripts.db_import_locations_cli -t linear 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
+```
+
+Example of building and importing the latest Contained_in_Madison_City_of_WI and Gwinnett_County_GA log, haversine locations for 2020 census year:
+
+```
+python -m python.scripts.db_import_locations_cli -t log 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
+```
+
+Example of building and importing the latest Contained_in_Madison_City_of_WI and Gwinnett_County_GA linear, driving locations for 2020 census year:
+
+```
+python -m python.scripts.db_import_locations_cli -d -t linear 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
+```
+
+Example of building and importing the latest Contained_in_Madison_City_of_WI and Gwinnett_County_GA log, driving locations for 2020 census year:
+
+```
+python -m python.scripts.db_import_locations_cli -d -t log 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
+```
+
+Any errors importing will be written to the screen as well as the logs directory (by default) to the file `.../logs/locations_import_errors.csv`.
+
+
+
+## Import existing model run csv result files into the BigQuery database
+
+To import existing csv files into the BigQuery database, use the db_import_cli.py script.
 
 Here is an example of importing all results from Berkeley_County_SC_original_configs:
 
