@@ -325,11 +325,16 @@ combine_different_runs<- function(df_list){
 
 #join population data to ede graphs in order to get population scaled graphs
 ede_with_pop<- function(config_df_list){
+	#aggregate population by demographic and descriptor
 	demo_pop <- config_df_list$precinct_distances[ , .(total_population = sum(demo_pop)), by  = c('descriptor', 'demographic')]
+	#extract total population for each descriptor
 	total_pop <- demo_pop[demographic == 'population', c('descriptor', 'total_population')]
+	#add a total population column to demo_pop
 	demo_pop <- merge(demo_pop, total_pop, by = 'descriptor')
 	setnames(demo_pop, c('total_population.x', 'total_population.y'), c('total_demo_population', 'total_population'))
+	#calculate the percent of the total population attributed to each demographic group
 	demo_pop[ , pct_demo_population := total_demo_population/ total_population]
+	#merge this data into the ede data
 	edes_with_pop <- merge(config_df_list$edes, demo_pop, by = c('descriptor', 'demographic'))
 	return(edes_with_pop)
 }
@@ -338,9 +343,10 @@ ede_with_pop<- function(config_df_list){
 #plotting functions
 #######
 
+#####edes for all descriptors in a config_set######
+
 #makes a plot showing how y_EDEs change for each demographic group as the
 #number of polls is increased
-
 plot_poll_edes<-function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
 
 	flag_strs <- make_flag_strs(driving_flag, log_flag)
@@ -359,6 +365,26 @@ plot_poll_edes<-function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLA
 	ggsave(graph_file_path)
 }
 
+#like plot_poll_edes, but plots just the y_edes for the
+# population as a whole, and not demographic groups
+plot_population_edes <- function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
+	flag_strs <- make_flag_strs(driving_flag, log_flag)
+	
+	title_str = paste0('Equity weighted', flag_strs$driving_str, 'distance to poll')
+	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', log_str, 'm)')
+
+
+	ggplot(ede_df[demographic == 'population', ], aes(x =  num_polls, y = y_EDE))+
+		geom_line()+ geom_point()+
+		labs(x = 'Number of polls', y = y_str, title = title_str)
+
+	graph_file_path = 'population_edes.png'
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
+}
+
+#makes a plot showing how the y_EDEs for multiple config_sets change 
+#as the number of polls is increased, for a specified demographic_group 
 plot_multiple_edes<-function(ede_list, demo_grp, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
 	ede_df <- do.call(rbind, ede_list)
 
@@ -366,7 +392,6 @@ plot_multiple_edes<-function(ede_list, demo_grp, driving_flag = DRIVING_FLAG, lo
 	
 	title_str = paste0('Equity weighted', flag_strs$driving_str, 'distance to poll by demographic')
 	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
-
 
 	ggplot(ede_df[demographic == demo_grp, ], aes(x = num_polls, y = y_EDE,
 		group = descriptor, color =  descriptor, shape = demo_grp)) +
@@ -380,12 +405,10 @@ plot_multiple_edes<-function(ede_list, demo_grp, driving_flag = DRIVING_FLAG, lo
 	ggsave(graph_file_path)
 }
 
+#####historic and optimize edes ######
+
 #makes two plots, one showing the y_ede the other avg distance
 #showing how these variables change across the included runs
-#Note: This can produce a graph very similar to the one above,
-#but the formatting of this one is better for historical analysis,
-#while the formatting of the previous is better for many polls
-
 plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
 
 	#set x axis label order
@@ -444,7 +467,6 @@ if (scale_bool){
 
 #compares optimized runs with historical runs having the same number of
 #polls (via plot_historical_edes)
-
 plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
 	#select the relevant optimized runs
 	orig_num_polls <- unique(orig_ede$num_polls)
@@ -456,23 +478,6 @@ plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_f
 
 }
 
-#like plot_poll_edes, but plots just the y_edes for the
-# population as a whole, and not demographic groups
-plot_population_edes <- function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
-	flag_strs <- make_flag_strs(driving_flag, log_flag)
-	
-	title_str = paste0('Equity weighted', flag_strs$driving_str, 'distance to poll')
-	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', log_str, 'm)')
-
-
-	ggplot(ede_df[demographic == 'population', ], aes(x =  num_polls, y = y_EDE))+
-		geom_line()+ geom_point()+
-		labs(x = 'Number of polls', y = y_str, title = title_str)
-
-	graph_file_path = 'population_edes.png'
-	add_graph_to_graph_file_manifest(graph_file_path)
-	ggsave(graph_file_path)
-}
 
 #a plot showing which precincts are used for which number of polls
 #also makes a panel of graphs showing which demographics are assigned to each poll
@@ -532,6 +537,7 @@ plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_n
 	ggsave(graph_file_path)
 }
 
+#plot of population densities by block, ordered by density
 plot_population_densities <- function(density_df){
 	ggplot(density_df[population != 0, ]) + 
 	   geom_point(aes(reorder(id_orig, pop_density_km), y = pop_density_km)) +
@@ -544,6 +550,9 @@ plot_population_densities <- function(density_df){
 	ggsave(graph_file_path)
 }
 
+#plot of average distances traveled by demographic groups, aggregated 
+#at the block group level, ordered by population density
+#log / log scale, with best fit lines
 plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG){
 
 	#set graph y axis bounds. if min_distance == 0 m, make 1m
