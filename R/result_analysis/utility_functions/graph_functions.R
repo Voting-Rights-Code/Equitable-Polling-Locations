@@ -7,7 +7,7 @@ library(DBI)
 library(bigrquery)
 library(yaml)
 
-source('R/result_analysis/storage.R')
+source('R/result_analysis/utility_functions/storage.R')
 
 TABLES = c("edes", "precinct_distances", "residence_distances", "results")
 
@@ -143,14 +143,18 @@ check_location_valid <- function(location, config_dt){
 
 #Read in config data
 load_config_data <- function(location, config_folder, read_from_csv = READ_FROM_CSV, con = POLLING_CON){
+	#if config_folder is NULL, and HISTORIC_FLAG return NULL
+	if(check_historic_flag(config_folder)){
+		return(NULL)
+	}
 	if(read_from_csv){
 		#check that config folder valid
 		check_config_folder_valid(config_folder, read_from_csv, con)
 		config_dt <- read_config_folder_from_file(config_folder)
 	} else{
+		check_config_folder_valid(config_folder, read_from_csv, con)
 		config_dt <- read_config_set_from_db(config_folder, '*')
 	}
-
 	#then check that the location is in the data
 	check_location_valid(location, config_dt)
 
@@ -158,6 +162,7 @@ load_config_data <- function(location, config_folder, read_from_csv = READ_FROM_
 	config_dt <- as.data.table(config_dt)
 	return(config_dt)
 }
+
 
 #########
 #Get a driving/log_distance/ etc flag from the config folders
@@ -246,6 +251,15 @@ process_configs_dt <- function(config_dt, field_of_interest){
 ######
 #Functions to read in results
 ######
+check_historic_flag<- function(null_arg, historic_flag = HISTORICAL_FLAG){
+	if(historic_flag & is.null(null_arg)){
+		return(TRUE)
+	}else if (!historic_flag & is.null(null_arg)) {
+		stop('HISTORICAL_FLAG is FALSE but argument NULL')
+	}else{
+		return(FALSE)
+	}
+}
 
 load_output_from_csv <-function(config_dt, result_type){
 	#select which results we want
@@ -359,6 +373,11 @@ read_result_data<- function(config_dt, field_of_interest = '', tables = TABLES){
 	#field_of_interest: string indicating the field to be used for a descriptor (in case the config folder has only 1 file)
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
 
+	#if config_dt is NULL, and HISTORIC_FLAG return NULL
+	if(check_historic_flag(config_dt)){
+		return(NULL)
+	}
+
 	#read output data into a list with a descriptor column attached
 	df_list<- lapply(tables, function(x){assign_descriptor(config_dt, x, field_of_interest)})
 	names(df_list) <- tables
@@ -383,6 +402,34 @@ read_result_data<- function(config_dt, field_of_interest = '', tables = TABLES){
 	# }
 
 	return(appended_df_list)
+}
+
+#function to set certain descriptors as desired
+change_descriptors <- function(df, descriptor_dict = DESCRIPTOR_DICT){
+	#if the descriptor dictionary is NULL, then do nothing
+	if(is.null(descriptor_dict)){return(df)}
+
+	#otherwise, there is data in the dictionary. Check that this is consisent with the 
+	#descriptor data in the df
+	generated_descriptors <- unique(df$descriptor)
+	dict_descriptors <- names(descriptor_dict)
+	missing_from_dict <- setdiff(generated_descriptors, dict_descriptors)
+	extra_in_dict <- setdiff(dict_descriptors, generated_descriptors)
+	#if either missing from dict or extra in dict are non-empty, stop
+	if (length(missing_from_dict) > 0 | length(extra_in_dict) >0){
+		stop(paste0('Missmatch between descriptor values given in config and generated algorithmically: 
+					\n mistaken entries in config: ', extra_in_dict, '
+					\n missing entries in config: ', missing_from_dict))
+	}
+	
+	#assuming consistency, replace values in df
+	#1. turn dictionary into data.table
+	descriptor_dt <- data.table(old_descriptor = names(descriptor_dict), new_descriptor = descriptor_dict)
+	#2. merge and rename columns
+    df_renamed <-  merge(df, descriptor_dt, by.x = 'descriptor', by.y = 'old_descriptor', all.x = TRUE)
+	df_renamed[ , descriptor := NULL]
+	setnames(df_renamed, c('new_descriptor'), c('descriptor'))
+return(df_renamed)
 }
 
 
@@ -694,6 +741,10 @@ plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, log_f
 #####Regression and density / distance functions ######
 
 get_regression_data<-function(location, result_df){
+	#if result_df is NULL, and HISTORIC_FLAG return NULL
+	if(check_historic_flag(result_df)){
+		return(NULL)
+	}
 
 	#get map data
 	map_folders <- paste0(here(),'/datasets/census/tiger/', location, '/')
@@ -716,6 +767,11 @@ bg_data <- function(density_data){
     #density_data[ , `:=`(white_weighted_dist = white*distance_m, black_weighted_dist = black *distance_m)
     #                ][, id_bg := gsub('.{3}$', '', density_data$id_orig)]
     
+	#if density_data is NULL, and HISTORIC_FLAG return NULL
+	if(check_historic_flag(density_data)){
+		return(NULL)
+	}
+
     density_data[ , avg_distance := weighted_dist/population]
     
     density_data_long <- melt(density_data, id.vars = c('id_orig', 'descriptor', 'pop_density_km','avg_distance', 'area'), measure.vars = c("population", "hispanic","non_hispanic", "white", "black", "native", "asian", "pacific_islander", "other"), value.name ='demo_pop' , variable.name = "demographic")
@@ -739,7 +795,9 @@ bg_level_naive_regression <- function(regression_data, location = LOCATION){
 	trimmed <- regression_data[abs(z_score_log_density)<4, ]
 	distance_model <- trimmed[, as.list(coef(lm(log(demo_avg_dist) ~ log(pop_density_km)),  weights = demo_pop )), by = c('descriptor', 'demographic')]
     setnames(distance_model, c('(Intercept)', 'log(pop_density_km)'), c('intercept', 'density_coef'))
-	fwrite(distance_model, paste0(location, '_distance_model.csv'))
+	csv_file_path = paste0(location, '_distance_model.csv')
+	add_graph_to_graph_file_manifest(csv_file_path)
+	fwrite(distance_model, csv_file_path)
 	return(distance_model)
 }
 
