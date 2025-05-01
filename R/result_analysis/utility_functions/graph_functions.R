@@ -11,6 +11,7 @@ source('R/result_analysis/utility_functions/load_config_data.R')
 source('R/result_analysis/utility_functions/storage.R')
 
 TABLES = c("edes", "precinct_distances", "residence_distances", "results")
+DEMO_COLS =  c("population", "hispanic","non_hispanic", "white", "black", "native", "asian", "pacific_islander", "other")
 
 PRINT_SQL = FALSE
 
@@ -280,12 +281,8 @@ read_result_data<- function(config_dt, field_of_interest = '', descriptor_dict =
 	return(appended_df_list)
 }
 
-
-
-
-
 #######
-#useful functions for makeing plots
+#useful functions for making plots
 #######
 
 #dictionary for labels
@@ -305,7 +302,7 @@ make_flag_strs<- function(driving_flag, log_flag){
 	log_str = ''
 	if (driving_flag){driving_str = ' driving '} 
 	if (log_flag){log_str = 'log '}
-	return(c(driving_str = driving_str, log_str = log_str))
+	return(as.list(c(driving_str = driving_str, log_str = log_str)))
 }
 
 #helper function to combine ede data from different config folders
@@ -350,7 +347,7 @@ ede_with_pop<- function(config_df_list){
 plot_poll_edes<-function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
 
 	flag_strs <- make_flag_strs(driving_flag, log_flag)
-
+	
 	title_str = paste0('Equity weighted', flag_strs$driving_str, 'distance to poll by demographic')
 	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
 
@@ -369,9 +366,9 @@ plot_poll_edes<-function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLA
 # population as a whole, and not demographic groups
 plot_population_edes <- function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
 	flag_strs <- make_flag_strs(driving_flag, log_flag)
-	
+
 	title_str = paste0('Equity weighted', flag_strs$driving_str, 'distance to poll')
-	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', log_str, 'm)')
+	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
 
 
 	ggplot(ede_df[demographic == 'population', ], aes(x =  num_polls, y = y_EDE))+
@@ -425,7 +422,7 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 	
 	flag_strs <- make_flag_strs(driving_flag, log_flag)
 
-	#is this driving distance data
+	#labels for various types of data
 	y_EDE_label = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
 	y_avg_label = paste0('Average', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
 	title_str = paste0(flag_strs$log_str, flag_strs$driving_str, 'distance by demographic and optimization run')
@@ -554,7 +551,7 @@ plot_population_densities <- function(density_df){
 #at the block group level, ordered by population density
 #log / log scale, with best fit lines
 plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG){
-
+	
 	#set graph y axis bounds. if min_distance == 0 m, make 1m
 	min_dist = min(bg_density_data[demographic %in% demo_list, ]$demo_avg_dist, na.rm = TRUE)
 	max_dist = max(bg_density_data[demographic %in% demo_list, ]$demo_avg_dist, na.rm = TRUE)

@@ -4,6 +4,7 @@ library(stringr)
 library(here)
 
 source('R/result_analysis/utility_functions/load_config_data.R')
+source('R/result_analysis/utility_functions/map_functions.R')
 source('R/result_analysis/utility_functions/storage.R')
 
 #########
@@ -12,67 +13,74 @@ source('R/result_analysis/utility_functions/storage.R')
 #2. take density data and aggregate key columns up to the block level
 #########
 
-get_density_data<-function(location, result_df){
+bg_data<-function(prepped_dt){
+
+	prepped_data <- copy(prepped_dt)
 	#if result_df is NULL, and HISTORIC_FLAG return NULL
-	if(check_historic_flag(result_df)){
+	if(check_historic_flag(prepped_data)){
 		return(NULL)
 	}
+	#drop polling data and make unique
+	demo_data <- unique(prepped_data[ , `:=`(dest_lat = NULL, dest_lon = NULL, dest_type = NULL, geometry = NULL)])
+	
+	#add a few more columns in
+	total_population <- demo_data[demographic == 'population', .(bg_id, demo_pop)]
+	setnames(total_population, c('demo_pop'), c('total_population'))
+	white_population <- demo_data[demographic == 'white', .(bg_id, demo_pop)]
+	setnames(white_population, c('demo_pop'), c('white_population'))
+	black_population <- demo_data[demographic == 'black', .(bg_id, demo_pop)]
+	setnames(black_population, c('demo_pop'), c('black_population'))
 
-	#get block area data:
-    #pull .shp files from tiger data, 
-    #extract GEOID20, Land area and water eara for each block
-	map_folders <- paste0(here(),'/datasets/census/tiger/', location, '/')
-	map_files <- paste0(map_folders, list.files(map_folders)[endsWith(list.files(map_folders), 'tabblock20.shp')])
-	map_data<- lapply(map_files, st_read)
+	regression_data <- merge(demo_data, total_population, by = c('bg_id'))
+	regression_data <- merge(regression_data, white_population, by = c('bg_id'))
+	regression_data <- merge(regression_data, black_population, by = c('bg_id'))
+	setnames(regression_data, c('AREA20'), c('area'))
 
-	block_areas <- lapply(map_data, function(x){x[, c('GEOID20', 'ALAND20', 'AWATER20')]})
-	if (length(block_areas)> 1){
-		block_areas <- do.call(rbind, block_areas)
-	}
-
-    #calculate density data for regression
-	#merge block area data with result data
-    #calculate population density (people/ km^2), average distance, pct white, pct black, 
-    #population density quantile, and a fuzzy distance (max(distance_m, 100))
-	regression_data <- merge(result_df, block_areas, by.x = 'id_orig', by.y = 'GEOID20', all.x = T)
-
-	regression_data[ , `:=`(area = ALAND20 + AWATER20, pop_density_km = 1e6 *population/(ALAND20 + AWATER20), pct_white= 100 * white/population, pct_black = 100 *black/population,  avg_distance = weighted_dist/population)][ , density_pctile := rank(pop_density_km)/length(pop_density_km)][ , fuzzy_dist :=distance_m][fuzzy_dist <100, fuzzy_dist := 100]
+	regression_data[ , `:=`(pop_density_km = 1e6 *total_population/(area), pct_white= 100 * white_population/total_population, pct_black = 100 *black_population/total_population)][ , z_score_log_density := scale(log(pop_density_km))]
+	
 	return(regression_data)
 }
 
-bg_data <- function(density_data){
+get_density_data <- function(result_dt){
     #take density data and aggregate key columns up to the block level
-
-	#if density_data is NULL, and HISTORIC_FLAG return NULL
-	if(check_historic_flag(density_data)){
+	result_data <- copy(result_dt)
+	#if any input input NULL, and HISTORIC_FLAG return NULL 
+	if(check_historic_flag(result_data)){
 		return(NULL)
 	}
-    
-    #Melt density data to make a demographic population column
-    density_data_long <- melt(density_data, id.vars = c('id_orig', 'descriptor', 'pop_density_km','avg_distance', 'area'), measure.vars = c("population", "hispanic","non_hispanic", "white", "black", "native", "asian", "pacific_islander", "other"), value.name ='demo_pop' , variable.name = "demographic")
-    
-    #create a block level demographic weighted distance and a block group id column
-    density_data_long[ , demo_weighted_dist := demo_pop * avg_distance
-                    ][, id_bg := gsub('.{3}$', '', density_data_long$id_orig)]
-    
-    #aggregate up to the block group level
-    bg_result_df <- density_data_long[ , .(demo_pop = sum(demo_pop), area= sum(area),
-									demo_weighted_dist = sum(demo_weighted_dist)),  by=list(id_bg, descriptor, demographic)
-								][ , demo_avg_dist := demo_weighted_dist/demo_pop]
 
-    #calculate the block group level population density and the z-score by descriptor and merge back in         
-    bg_pop_density <- bg_result_df[demographic == 'population',
-                     ][, pop_density_km := 1e6 *demo_pop/area][ , z_score_log_density := scale(log(pop_density_km))]
-    bg_result_df<- merge(bg_result_df, bg_pop_density[ , .(id_bg, pop_density_km, z_score_log_density)], by = c('id_bg', 'descriptor'))
+	#split by config_name
+	result_list <- split(result_data, result_data$config_name)
+	location_list <- sapply(result_list, function(df) extract_unique_location(df))
+	results_area_geom_list <- mapply(function(location, result)results_with_area_geom(location, result), location_list, result_list, SIMPLIFY = FALSE)
+	
+	add_other_variables <- function(result){
+		#drop geometry
+		result_area <-result[, geometry :=NULL]
+		setnames(result_area, c('AREA20'), c('area'))
+		regression_data <-	result_area[ , `:=`(pop_density_km = 1e6 *population/(area), pct_white= 100 * white/population, pct_black = 100 *black/population)][, density_pctile := rank(pop_density_km)/length(pop_density_km)][ , fuzzy_dist :=distance_m][fuzzy_dist <100, fuzzy_dist := 100]
+		return(regression_data)
+	}	
 
-    return(bg_result_df)
+	regression_list <- lapply(results_area_geom_list, function(df)add_other_variables(df))	
+    
+	if(length(regression_list)>1){
+		regression_data <- rbindlist(regression_list, use.names = TRUE)
+	}else(regresssion_data <- regression_list[[1]])
+
+    return(regression_data)
 }
 
-bg_level_naive_regression <- function(regression_data, location = LOCATION){
+bg_level_naive_regression <- function(regression_data){
+	config_set = unique(regression_data$config_set)
+	if(length(config_set)>1){
+		stop('Regression data has more than one config set.')
+	}
+
 	trimmed <- regression_data[abs(z_score_log_density)<4, ]
 	distance_model <- trimmed[, as.list(coef(lm(log(demo_avg_dist) ~ log(pop_density_km)),  weights = demo_pop )), by = c('descriptor', 'demographic')]
     setnames(distance_model, c('(Intercept)', 'log(pop_density_km)'), c('intercept', 'density_coef'))
-	csv_file_path = paste0(location, '_distance_model.csv')
+	csv_file_path = paste(config_set, '_distance_model.csv', sep= '_')
 	add_graph_to_graph_file_manifest(csv_file_path)
 	fwrite(distance_model, csv_file_path)
 	return(distance_model)
