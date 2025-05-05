@@ -12,24 +12,23 @@ The output from the optimization model runs can be found in the BigQuery dataset
 
 | Name                       | Type  | Purpose                                                                            |
 |----------------------------|-------|------------------------------------------------------------------------------------|
-| model_configs              | Table | The config settings used to generate the optimization model output                 |
+| model_configs              | Table | The config settings used to generate the optimization model output.                |
 | model_runs                 | Table | Any time a model run is executed from a config, a new entry in model_runs is created.|
-| model_config_runs          | View  | A view that inner joins model_configs and model_runs while only including the most recent and successful model_runs, avoiding any outdated data or incomplete output.
-| edes                       | Table | The ede results from the optimization model run |
-| edes_extras                | View  | A view that inner joins model_config_runs and edes                                 |
-| precinct_distances         | Table | The precinct distances from the optimization model run |
-| precinct_distances_extras  | View  | A view that inner joins model_config_runs and precinct_distances                   |
-| residence_distances        | Table | The residence distances from from the optimization model run |
+| model_config_runs          | View  | A view that inner joins model_configs and model_runs while only including the most recent and successful model_runs, avoiding any outdated data or incomplete output. |
+| edes                       | Table | The ede results from the optimization model run. |
+| edes_extras                | View  | A view that inner joins model_config_runs and edes.                                |
+| precinct_distances         | Table | The precinct distances from the optimization model run. |
+| precinct_distances_extras  | View  | A view that inner joins model_config_runs and precinct_distances.                  |
+| residence_distances        | Table | The residence distances from from the optimization model run.                      |
 | residence_distances_extras | View  | A view that inner joins model_config_runs and residence_distances_extras           |
-| results                    | Table | The general results from the from the optimization model run |
-| results_extras             | View  | A view that inner joins model_config_runs and residence_distances_extras           |
-| polling_locations_only     | Table | The polling location only data source |
-| polling_locations_only_sets | Table | The metadata for polling location only data source |
-| driving_distances          | Table | The driving distances for polling locations data source|
-| driving_distance_sets      | Table | The metadata for driving distances for polling locations data source |
-| polling_locations          | Table | The polling locations data source used by the optimizer |
-| polling_locations_sets     | Table | The metadata for polling locations data |
-
+| results                    | Table | The general results from the from the optimization model run.                      |
+| results_extras             | View  | A view that inner joins model_config_runs and residence_distances_extras.          |
+| polling_locations_only     | Table | Contains lists of where polling locations are at over the years for the specified geographic area.  These locations do not contain any distance calculations.  This is the data source used to generate all locations found in the polling_locations table data.   |
+| polling_locations_only_sets | Table | The metadata for polling_location_only data source.                               |
+| driving_distances          | Table | The driving data source of distances used to generate the polling_locations table. This is optional source data for when driving is true, this data is not needed for haversine polling_locations table data sets. |
+| driving_distance_sets      | Table | The metadata for driving distances for polling locations data source.              |
+| polling_locations          | Table | The polling locations data source which includes distance calculations used by the optimizer durning model runs. |
+| polling_locations_sets     | Table | The metadata for polling_locations data. This metadata will indicate if the polling_locations that this set represents are all driving or haversine, and if they are all linear or log. |
 
 
 
