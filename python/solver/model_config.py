@@ -5,12 +5,14 @@
 #######################################
 
 ''' Utils for configuring models '''
-from typing import List
+from typing import List, Literal
 from dataclasses import dataclass, field
 
 import yaml
 import os
 import datetime as dt
+
+from python.utils.constants import LOCATION_SOURCE_CSV
 
 
 MODEL_CONFIG_ARRAY_NAMES = ['year', 'bad_types', 'penalized_sites']
@@ -91,6 +93,15 @@ class PollingModelConfig:
 
     db_id: str = None
     ''' Id if this PollingModelConfig initially came from the db '''
+
+    location_source: Literal['csv', 'db'] = LOCATION_SOURCE_CSV
+    ''' Where to retrieve the location data from, either a CSV file or the database. '''
+
+    census_year: str = None
+    ''' The census year to use. '''
+
+    maps_source_date: str = None
+    ''' The date (YYYYMMDD) of the maps source to use if driving distances are used. '''
 
     def __post_init__(self):
         self.varnames = list(vars(self).keys()) # Not sure if this will work, let's see

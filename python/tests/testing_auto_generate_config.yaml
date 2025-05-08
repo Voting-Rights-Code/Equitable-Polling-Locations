@@ -17,5 +17,6 @@ minpctold: 1
 penalized_sites: null
 precincts_open: null
 time_limit: 360000
+census_year: 2020
 year:
 - '2024'

@@ -30,6 +30,7 @@ _session: SessionMaker = None
 
 DB_INTEGER = 'INTEGER'
 DB_FLOAT = 'FLOAT'
+DB_BOOLEAN = 'BOOLEAN'
 
 
 
@@ -187,6 +188,7 @@ def find_or_create_model_config(model_config: models.ModelConfig, log: bool = Fa
 
 def create_model_run(
         model_config_id: str,
+        polling_locations_set_id: str,
         username: str,
         commit_hash: str,
         created_at: datetime=None,
@@ -199,6 +201,7 @@ def create_model_run(
     model_run = models.ModelRun(
         id = utils.generate_uuid(),
         model_config_id = model_config_id,
+        polling_locations_set_id = polling_locations_set_id,
         username = username,
         commit_hash = commit_hash,
         created_at = created_at,
@@ -209,12 +212,227 @@ def create_model_run(
 
     return model_run
 
+
+def create_db_distance_set(
+    census_year: str,
+    map_source_date: str,
+    location: str,
+) -> models.DrivingDistancesSet:
+    result = models.DrivingDistancesSet(
+        census_year=census_year,
+        map_source_date=map_source_date,
+        location=location,
+    )
+
+    result.id = utils.generate_uuid()
+
+    session = get_session()
+    session.add_all([result])
+
+    return result
+
+
+def find_driving_distance_set(census_year: str, map_source_date: str, location: str) -> Optional[models.DrivingDistancesSet]:
+    session = get_session()
+
+    subquery = select(
+        models.DrivingDistancesSet,
+        func.
+            row_number().
+            over(
+                partition_by=[
+                    models.DrivingDistancesSet.census_year,
+                    models.DrivingDistancesSet.map_source_date,
+                    models.DrivingDistancesSet.location,
+                ],
+                order_by=desc(models.DrivingDistancesSet.created_at)).
+            label('rn')
+    ).subquery()
+
+    query = select(subquery).where(
+        subquery.c.census_year == census_year,
+        subquery.c.map_source_date == map_source_date,
+        subquery.c.location == location,
+        subquery.c.rn == 1
+    )
+
+    row = session.execute(query).fetchone()
+
+    if not row:
+        return None
+
+    columns = row._asdict()
+    del columns['rn']
+    return models.DrivingDistancesSet(**columns)
+
+def get_driving_distances(driving_distance_set_id: str) -> pd.DataFrame:
+    session = get_session()
+
+    table_name = models.DrivingDistance.__tablename__
+
+    query = f'SELECT * FROM {table_name} WHERE driving_distance_set_id = "{driving_distance_set_id}"'
+
+    df = pd.read_sql(query, session.get_bind())
+    return df
+
+def find_or_create_driving_distance_set(
+    census_year: str,
+    map_source_date: str,
+    location: str,
+    log: bool = False,
+) -> models.DrivingDistancesSet:
+    '''
+    Looks for an existing DistanceSet object in the database, if one does not already
+    exist then one will be created.  Note: db.commit() must be
+    called for the object to be commited to the database.
+    '''
+    result = find_driving_distance_set(
+        census_year=census_year,
+        map_source_date=map_source_date,
+        location=location,
+    )
+
+    if not result:
+        result = create_db_distance_set(
+            census_year=census_year,
+            map_source_date=map_source_date,
+            location=location,
+        )
+        if log:
+            print(f'creating model {result}')
+    else:
+        if log:
+            print(f'found model {result}')
+    return result
+
+def create_db_polling_locations_set(
+    polling_locations_only_set_id: str,
+    census_year: str,
+    location: str,
+    log_distance: bool,
+    driving: bool,
+    driving_distance_set_id: str,
+) -> models.PollingLocationSet:
+    result = models.PollingLocationSet(
+        polling_locations_only_set_id=polling_locations_only_set_id,
+        census_year=census_year,
+        location=location,
+        log_distance=log_distance,
+        driving=driving,
+        driving_distance_set_id=driving_distance_set_id,
+    )
+
+    result.id = utils.generate_uuid()
+
+    session = get_session()
+    session.add_all([result])
+
+    return result
+
+def create_db_polling_locations_only_set(
+    location: str,
+) -> models.PollingLocationOnlySet:
+    result = models.PollingLocationOnlySet(
+        location=location,
+    )
+
+    result.id = utils.generate_uuid()
+
+    session = get_session()
+    session.add_all([result])
+
+    return result
+
+
+def get_location_only_set(location: str) -> models.PollingLocationOnlySet:
+    session = get_session()
+
+    subquery = select(
+        models.PollingLocationOnlySet,
+        func.
+            row_number().
+            over(
+                partition_by=[models.PollingLocationOnlySet.location],
+                order_by=desc(models.PollingLocationOnlySet.created_at)).
+            label('rn')
+    ).subquery()
+
+    query = select(subquery).where(
+        subquery.c.location == location,
+        subquery.c.rn == 1
+    )
+
+    row = session.execute(query).fetchone()
+
+    if not row:
+        return None
+
+    columns = row._asdict()
+    del columns['rn']
+    return models.PollingLocationOnlySet(**columns)
+
+def get_locations_only(polling_locations_set_id: str) -> pd.DataFrame:
+    session = get_session()
+
+    table_name = models.PollingLocationOnly.__tablename__
+
+    query = f'SELECT * FROM {table_name} WHERE polling_locations_only_set_id = "{polling_locations_set_id}"'
+
+    df = pd.read_sql(query, session.get_bind())
+    return df
+
+
+
+def get_location_set(census_year: str, location: str, log_distance: bool, driving: bool) -> models.PollingLocationSet:
+    session = get_session()
+
+    subquery = select(
+        models.PollingLocationSet,
+        func.
+            row_number().
+            over(
+                partition_by=[
+                    models.PollingLocationSet.census_year,
+                    models.PollingLocationSet.location,
+                    models.PollingLocationSet.log_distance,
+                    models.PollingLocationSet.driving,
+                ],
+                order_by=desc(models.PollingLocationSet.created_at)).
+            label('rn')
+    ).subquery()
+
+    query = select(subquery).where(
+        subquery.c.census_year == census_year,
+        subquery.c.location == location,
+        subquery.c.log_distance == log_distance,
+        subquery.c.driving == driving,
+        subquery.c.rn == 1
+    )
+
+    row = session.execute(query).fetchone()
+
+    if not row:
+        return None
+
+    columns = row._asdict()
+    del columns['rn']
+    return models.PollingLocationSet(**columns)
+
+def get_locations(polling_locations_set_id: str) -> pd.DataFrame:
+    session = get_session()
+
+    table_name = models.PollingLocation.__tablename__
+
+    # pylint: disable-next=line-too-long
+    query = f'SELECT * FROM {table_name} WHERE polling_locations_set_id = "{polling_locations_set_id}"'
+
+    df = pd.read_sql(query, session.get_bind())
+    return df
+
+
 def bigquery_client() -> bigquery.Client:
     ''' Returns an instance of bigquery.Client, handling all needed credentials. '''
     return bigquery.Client(project=sqlalchemy_main.get_db_project())
-
-
-
 
 def validate_csv_columns(model_class: sqlalchemy_main.ModelBaseType, df: pd.DataFrame, log: bool = False):
     '''
@@ -260,12 +478,17 @@ def validate_csv_columns(model_class: sqlalchemy_main.ModelBaseType, df: pd.Data
                         # pylint: disable-next=line-too-long
                         f'Unexpected column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
                     )
+            elif str(expected_type) == DB_BOOLEAN:
+                if not utils.is_boolean(val):
+                    raise ValueError(
+                        # pylint: disable-next=line-too-long
+                        f'Unexpected column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
+                    )
             else:
                 raise ValueError(
                     # pylint: disable-next=line-too-long
                     f'Unknown value type for column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
                 )
-
 
 def commit():
     '''

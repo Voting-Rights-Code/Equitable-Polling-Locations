@@ -17,7 +17,6 @@ import datetime
 from multiprocessing import Pool
 import os
 import sys
-from typing import List
 
 from tqdm import tqdm
 
@@ -26,23 +25,23 @@ from python.solver.model_config import PollingModelConfig
 from python.solver import model_run
 from python.database.models import ModelConfig
 from python import utils
-from python.utils.constants import RESULTS_FOLDER_NAME
+from python.utils.constants import LOCATION_SOURCE_DB, RESULTS_FOLDER_NAME
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 
-def load_configs(config_args: List[str], logdir: str) -> List[PollingModelConfig]:
+def load_configs(config_args: list[str], logdir: str) -> list[PollingModelConfig]:
     ''' Loads configs from the db '''
     # valid = True
-    results: List[PollingModelConfig] = []
+    results: list[PollingModelConfig] = []
 
     # log_date_prefix = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
 
-    results: List[PollingModelConfig] = []
+    results: list[PollingModelConfig] = []
 
     log_date_prefix = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
 
     for config_arg in config_args:
-        configs: List[ModelConfig] = None
+        configs: list[ModelConfig] = None
 
         config_arg_parts = config_arg.split('/')
         num_config_arg_parts = len(config_arg_parts)
@@ -105,6 +104,7 @@ def run_config(
         results_path = os.path.join(RESULTS_FOLDER_NAME, config.config_set)
         print(f'Starting config: {config_info} -> CSV output to directory {results_path}')
 
+    config.location_source = LOCATION_SOURCE_DB
     model_run.run_on_config(config, log, outtype)
     if verbose:
         print(f'Finished config: {config_info}')

@@ -4,9 +4,10 @@ config_name: 'config_template_Muscogee_tech_center_log' #should match file name
 
 # Constants for the optimization function
 location: Muscogee_County_GA
+census_year: '2020'
 year:
     - 'must_keep'
-bad_types: 
+bad_types:
     - 'bg_centroid'
 beta: -2
 time_limit: 360000 #100 hours minutes

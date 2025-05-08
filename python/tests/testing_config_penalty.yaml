@@ -1,10 +1,11 @@
 # Constants for the optimization function
 location: testing
+census_year: 2020
 year:
     - '2020'
     - '2022'
-bad_types: 
-    - 'bg_centroid' 
+bad_types:
+    - 'bg_centroid'
 beta: -2
 time_limit: 360000 #100 hours minutes
 capacity: 5
@@ -14,5 +15,5 @@ precincts_open: 3
 max_min_mult: 5 #scalar >= 1
 maxpctnew: 1 # in interval [0,1]
 minpctold: .5 # in interval [0,1]
-penalized_sites: 
+penalized_sites:
     - 'College Campus - Potential'

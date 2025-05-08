@@ -7,13 +7,7 @@ import re
 from time import time
 import uuid
 
-# class RegexMatch:
-#     def __init__(self, pattern: re.Match):
-#         self.pattern = pattern
-
-#     def __eq__(self, other):
-#         print(f'Match {other} to {self.pattern}')
-#         return re.match(self.pattern, other) is not None
+from python.utils.constants import DATASETS_DIR, DRIVING_DIR, POLLING_DIR
 
 @dataclass
 class RegexEqual(str):
@@ -69,6 +63,9 @@ def is_int(value):
 def is_str(value):
     return isinstance(value, str)
 
+def is_boolean(value):
+    return isinstance(value, bool)
+
 MEMORIZED_ENV_VALUES = None
 
 def get_env_var_or_prompt(var_name: str, default_value: str=None) -> str:
@@ -110,3 +107,66 @@ def build_residence_summary_file_path(result_path: str, config_name: str) -> str
 def build_y_ede_summary_file_path(result_path: str, config_name: str) -> str:
     ''' Builds the path for the y ede summary csv file. '''
     return os.path.join(result_path, f'{config_name}_edes.csv')
+
+
+def build_locations_distance_file_path(
+        census_year: str,
+        location: str,
+        driving: bool,
+        log_distance: bool,
+    ) -> str:
+    ''' Returns the path to the locations files that includes distances for this config '''
+    if log_distance:
+        extension = '_log.csv'
+    else:
+        extension = '.csv'
+
+    if driving:
+        source_file_name = f'{location}_driving_{census_year}{extension}'
+    else:
+        source_file_name = f'{location}_{census_year}{extension}'
+
+
+    source_path = os.path.join(POLLING_DIR, location, source_file_name)
+
+    return source_path
+
+def build_locations_only_file_path(location: str) -> str:
+    ''' Returns the path to the locations file for this config '''
+
+    file_name = f'{location}_locations_only.csv'
+    locations_only_source_file = os.path.join(POLLING_DIR, location, file_name)
+
+    return locations_only_source_file
+
+def build_driving_distances_file_path(census_year: str, map_source_date: str, location: str) -> str:
+    ''' Returns the path to the locations file for this config '''
+
+    # TODO implement census_year and map_source_date
+
+    driving_file_name = f'{location}_driving_distances.csv'
+
+    driving_distances_file = os.path.join(DRIVING_DIR, location, driving_file_name)
+
+    return driving_distances_file
+
+def build_demographics_dir_path(location: str) -> str:
+    return os.path.join(DATASETS_DIR, 'census', 'redistricting', location)
+
+def build_p3_source_file_path(census_year: str, location: str) -> str:
+    ''' Returns the path to Census data p3 table '''
+
+    file_name_p3 = f'DECENNIALPL{census_year}.P3-Data.csv'
+
+    demographics_dir = build_demographics_dir_path(location)
+
+    return os.path.join(demographics_dir, file_name_p3)
+
+def build_p4_source_file_path(census_year: str, location: str) -> str:
+    ''' Returns the path to Census data p4 table '''
+
+    file_name_p4 = f'DECENNIALPL{census_year}.P4-Data.csv'
+
+    demographics_dir = build_demographics_dir_path(location)
+
+    return os.path.join(demographics_dir, file_name_p4)

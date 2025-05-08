@@ -4,10 +4,11 @@ config_name: 'config_template_Richmond_log_2024' #should match file name
 
 # Constants for the optimization function
 location: Richmond_County_GA
+census_year: '2020'
 year:
-    - '2022'    
+    - '2022'
     - '2024'
-bad_types: 
+bad_types:
     - 'Elec Day School - Potential'
     - 'bg_centroid'
 beta: -2
@@ -33,4 +34,4 @@ new_range:
     - 7
     - 8
     - 9
-    - 10 
+    - 10

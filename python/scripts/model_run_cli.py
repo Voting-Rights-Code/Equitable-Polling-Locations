@@ -12,7 +12,6 @@ from glob import glob
 from multiprocessing import Pool
 import os
 import sys
-from typing import List, Literal
 
 from tqdm import tqdm
 
@@ -23,10 +22,10 @@ from python.utils.constants import RESULTS_FOLDER_NAME
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 
-def load_configs(config_paths: List[str], logdir: str) -> tuple[bool, List[PollingModelConfig]]:
+def load_configs(config_paths: list[str], logdir: str) -> tuple[bool, list[PollingModelConfig]]:
     ''' Look through the list of files and confim they exist on disk, print any missing files or errors. '''
     valid = True
-    results: List[PollingModelConfig] = []
+    results: list[PollingModelConfig] = []
 
     log_date_prefix = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
 
@@ -57,19 +56,15 @@ def load_configs(config_paths: List[str], logdir: str) -> tuple[bool, List[Polli
 def run_config(
         config: PollingModelConfig,
         log: bool=False,
-        outtype: Literal['db', 'csv']=model_run.OUT_TYPE_DB,
         verbose=False,
 ):
     ''' run a config file '''
 
-    if verbose and outtype == model_run.OUT_TYPE_DB:
-        # pylint: disable-next=line-too-long
-        print(f'Starting config: {config.config_file_path} -> BigQuery {outtype} output with config set {config.config_set} and name {config.config_name}')
-    elif verbose and outtype == model_run.OUT_TYPE_CSV:
+    if verbose:
         results_path = os.path.join(RESULTS_FOLDER_NAME, config.config_set)
         print(f'Starting config: {config.config_file_path} -> CSV output to directory {results_path}')
 
-    model_run.run_on_config(config, log, outtype)
+    model_run.run_on_config(config, log, model_run.OUT_TYPE_CSV)
     if verbose:
         print(f'Finished config: {config.config_file_path}')
 
@@ -78,11 +73,6 @@ def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
     logdir = args.logdir
-    outtype = args.outtype
-    if outtype == model_run.OUT_TYPE_DB:
-        #Force the database prompt immediately upon run, if running on DB
-        utils.get_env_var_or_prompt('DB_PROJECT', default_value='equitable-polling-locations')
-        utils.get_env_var_or_prompt('DB_DATASET')
 
     if logdir:
         if not os.path.exists(logdir):
@@ -93,7 +83,7 @@ def main(args: argparse.Namespace):
 
     # Handle wildcards in Windows properly
     glob_paths = [ glob(item) for item in args.configs ]
-    config_paths: List[str] = [ item for sublist in glob_paths for item in sublist ]
+    config_paths: list[str] = [ item for sublist in glob_paths for item in sublist ]
 
     # Check that all files are valid, exist if they do not exist
     valid, configs = load_configs(config_paths, logdir)
@@ -109,7 +99,7 @@ def main(args: argparse.Namespace):
     if args.concurrent > 1:
         print(f'Running concurrent with a pool size of {args.concurrent} against {total_files} config file(s)')
         with Pool(args.concurrent) as pool:
-            for _ in tqdm(pool.imap_unordered(lambda x: run_config(x, log, outtype, verbose), configs), total=total_files):
+            for _ in tqdm(pool.imap_unordered(lambda x: run_config(x, log, verbose), configs), total=total_files):
                 pass
     else:
         # Disable function timers messages unless verbosity 2 or higher is set
@@ -119,7 +109,7 @@ def main(args: argparse.Namespace):
         print(f'Running single process against {total_files} config file(s)')
 
         for config_file in configs:
-            run_config(config_file, log, outtype, verbose)
+            run_config(config_file, log, verbose)
             print('--------------------------------------------------------------------------------')
 
 if __name__ == '__main__':
@@ -155,13 +145,5 @@ Examples:
             ' for each concurrent process.')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
     parser.add_argument('-l', '--logdir', type=str, help='The directory to output log files to')
-    parser.add_argument(
-        '-o',
-        '--outtype',
-        choices=[model_run.OUT_TYPE_DB, model_run.OUT_TYPE_CSV],
-        default = model_run.OUT_TYPE_DB,
-        # pylint: disable-next=line-too-long
-        help = f'Output location, one of "{model_run.OUT_TYPE_DB}" (database) or "{model_run.OUT_TYPE_CSV}" (local CSV)',
-    )
 
     main(parser.parse_args())
