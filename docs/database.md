@@ -128,9 +128,9 @@ With read only access, the user can
 
 ## Selecting which database to write to
 
-When using the model_run_cli.py scripts as well as Alembic for database migrations, the The Google Project
-and BigQuery dataset can be selected by setting the environemntal variables DB_PROJECT and DB_dataset.
-If these variables are not set then you will be prompted to chooose which project and which dataset to use.
+When using the model_run_cli.py or model_run_db_cli.py scripts, the database import tools, or the Alembic for database
+migrations, The Google Project and BigQuery dataset can be selected by setting the environemntal variables DB_PROJECT and
+DB_dataset. If these variables are not set then you will be prompted to chooose which project and which dataset to use.
 
 Setting Project and dataset for Linux/MacOS
 ```bash
