@@ -82,7 +82,7 @@ names(output_df_list) <- CONFIG_FOLDER
 
 #get data to run regression
 
-regression_data <- mapply(function(location, output){get_regression_data(location, output[[4]])}, LOCATION, output_df_list, SIMPLIFY = FALSE)
+regression_data <- mapply(function(location, output){get_density_data(location, output[[4]])}, LOCATION, output_df_list, SIMPLIFY = FALSE)
 ##descriptor_list <- unique(regression_data$descriptor)
 #reference <- descriptor_list[grepl(REFERENCE_TAG, descriptor_list)]
 ##regression_data <- calculate_pct_change(regression_data, reference)

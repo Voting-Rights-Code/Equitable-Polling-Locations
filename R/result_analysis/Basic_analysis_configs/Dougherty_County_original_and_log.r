@@ -24,6 +24,16 @@ DEMOGRAPHIC_LIST = c('white', 'black')
 #Run-type specific constants
 IDEAL_POLL_NUMBER  = 15 #the optimal number of polls desired for this county
 
+#dictionary of custom descriptors
+#keys: automatatically generated descriptor values to change
+#values: the desired descriptor values
+DESCRIPTOR_DICT_ORIG <- c('year_2020' = '2020', 'year_2022' = '2022', 'year_2024' = '2024')
+DESCRIPTOR_DICT_POTENTIAL <- NULL
+
+#If no changes desired, set 
+#DESCRIPTOR_DICT <- NULL
+
+
 #######
 #Constants for DB
 #######

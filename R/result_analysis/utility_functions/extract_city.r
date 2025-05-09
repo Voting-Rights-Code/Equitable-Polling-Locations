@@ -163,7 +163,9 @@ ggsave(paste0(TIGER_FOLDER, '/', CONTAINING_COUNTY, '/', CITY_LIMIT_FOLDER, '/',
 #st_write(city_blocks, paste0(TIGER_FOLDER, '/', LOCATION, '/',  BLOCK_GEOMETRY_FILES, '.shp'))
 
 
-########crop intersecting blocks and assign new interior points #########
+#######
+#crop intersecting blocks and assign new interior points 
+#######
 cropped_blocks <- crop_to_city_lines(city_shape, intersecting_blocks)
 cropped_bgs <- crop_to_city_lines(city_shape, intersecting_bgs)
     #THIS IS A MANUAL CLUDGE TO AVOID A SPECIFIC ERROR.
