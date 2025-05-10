@@ -110,7 +110,7 @@ global_color_bounds <- distance_bounds(all_prepped_output)
 orig_regression_data <- get_density_data(orig_output_df_list$result)
 potential_regression_data <- get_density_data(potential_output_df_list$result)
 
-#take density data and aggregate key columns up to the block level
+#take density data and aggregate key columns up to the block group level
 orig_bg_density_demo<- lapply(orig_list_prepped, function(df)bg_data(df))
 potential_bg_density_demo <- lapply(potential_list_prepped, function(df)bg_data(df))
 
