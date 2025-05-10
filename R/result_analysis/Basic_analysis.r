@@ -38,14 +38,18 @@ source('R/result_analysis/utility_functions/regression_functions.R')
 
 # args = commandArgs(trailingOnly = TRUE)
 # if (length(args) != 1){
-#     stop("Must enter at least one config file")
-# } else{
+#     stop("Must enter exactly one config file")
+# } else{#read constants from indicated config file
 #     config_path <- paste0('R/result_analysis/Basic_analysis_configs/', args[1])
 #     source(config_path)
 #  }
-#source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
 
-source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
+###
+#For inline testing only
+###
+source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
+
+#source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
 
 #######
 #Check that location and folders valid
@@ -91,7 +95,8 @@ orig_list_prepped <- prepare_outputs_for_maps( orig_output_df_list$result)
 potential_list_prepped <- prepare_outputs_for_maps( potential_output_df_list$result)
 
 #get avg distance bounds for map coloring
-#same scale for orig and potential
+#This defines a global max and min to 
+#set the same scale for orig and potential
 #Note: maps are colored by avg distance, not ede value
 all_prepped_output <- do.call(rbind, c(orig_list_prepped, potential_list_prepped))
 all_prepped_output <- all_prepped_output[demographic == 'population', ][, avg_dist := demo_avg_dist]

@@ -190,7 +190,7 @@ merge_bg_demo_shp_data <- function(result_df){
 prepare_outputs_for_maps <- function(result_dt){
 
 	result_data <- copy(result_dt)
-	#if any input input NULL, and HISTORIC_FLAG return NULL 
+	#if input NULL, and HISTORIC_FLAG return NULL 
 	if(check_historic_flag(result_data)){
 		return(NULL)
 	}

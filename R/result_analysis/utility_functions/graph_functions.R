@@ -40,14 +40,18 @@ set_global_flag<- function(config_dt_list, flag_type){
 	return(global_driving_flag)
 }
 
-#check whether or not the function is for historic data only or not.
+#If the config indicates that the analysis is for historical data only,
+#this function is used to make non-historical runs 
+#(e.g. outputs derived from potential config folder) return null
+
 check_historic_flag<- function(null_arg, historic_flag = HISTORICAL_FLAG){
-	if(historic_flag & is.null(null_arg)){
-		return(TRUE)
-	}else if (!historic_flag & is.null(null_arg)) {
-		stop('HISTORICAL_FLAG is FALSE but argument NULL')
-	}else{
+	if(!is.null(null_arg)){ #if the input is not null, the output shouldn't be
 		return(FALSE)
+	}
+	if (historic_flag) {#the input is null and historical config
+		return(TRUE)
+	}else{#input is not NULL, but this is a historical config
+		stop('HISTORICAL_FLAG is FALSE but argument NULL')
 	}
 }
 #######
@@ -125,11 +129,13 @@ change_descriptors <- function(df, descriptor_dict){
 	dict_descriptors <- names(descriptor_dict)
 	missing_from_dict <- setdiff(generated_descriptors, dict_descriptors)
 	if(length(missing_from_dict)>0){
-		missing_str <- paste('mistaken entries in config: ', paste(missing_from_dict, collapse = ' '))
+		missing_field_str<- paste(missing_from_dict, collapse = ' ')
+		missing_str <- paste('mistaken entries in config: ', missing_field_str)
 	}else{missing_str <- NULL}
 	extra_in_dict <- setdiff(dict_descriptors, generated_descriptors)
 	if(length(extra_in_dict)>0){
-		extra_str <- paste('mistaken entries in config: ', paste(extra_in_dict, collapse = ' '))
+		extra_field_str <- paste(extra_in_dict, collapse = ' ')
+		extra_str <- paste('mistaken entries in config: ', extra_field_str)
 	}else{extra_str <- NULL}
 	#if either missing from dict or extra in dict are non-empty, stop
 	if (length(missing_from_dict) > 0 | length(extra_in_dict) >0){
@@ -236,9 +242,9 @@ assign_descriptor_to_result<- function(config_dt, result_type, field_of_interest
 
 		result_type_dt <- load_results_from_db(table_name=extras_table_name, model_run_ids)
 	}
-
+	
 	#merge output and descriptor data
-	complete_dt <- merge(vary_dt, result_type_dt)
+	complete_dt <- merge(vary_dt, result_type_dt, by = c('config_name'))
 
 	#change to custom descriptors if desired
 	complete_dt <- change_descriptors(complete_dt, descriptor_dict)
@@ -254,7 +260,7 @@ assign_descriptor_to_result<- function(config_dt, result_type, field_of_interest
 
 read_result_data<- function(config_dt, field_of_interest = '', descriptor_dict = DESCRIPTOR_DICT, 
 							tables = TABLES, read_from_csv = READ_FROM_CSV){
-	#read in and format all the results data assocaited to a
+	#read in and format all the results data associated to a
 	#given config data.
 	#field_of_interest: string indicating the field to be used for a descriptor (in case the config folder has only 1 file)
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
