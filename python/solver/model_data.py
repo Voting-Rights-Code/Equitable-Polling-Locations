@@ -26,8 +26,9 @@ from python.utils import (
     is_int,
 )
 
-from python.utils.constants import DATASETS_DIR, LOCATION_SOURCE_DB
+from python.utils.constants import LOCATION_SOURCE_DB
 from python.utils.pull_census_data import pull_census_data
+from python.utils import get_block_source_file_path, get_block_group_block_source_file_path
 from .model_config import PollingModelConfig
 
 #define columns for each input data set
@@ -216,24 +217,11 @@ def build_source(
         raise ValueError('Census data from table P4 not found. Download using api or manually following download instruction from README.')
 
     #3. Census geographic data
-    geography_dir = os.path.join(DATASETS_DIR, 'census', 'tiger', location)
-    file_list = os.listdir(geography_dir)
-    file_name_block = [f for f in file_list if f.endswith('tabblock20.shp')][0]
-    file_name_bg = [f for f in file_list if f.endswith('bg20.shp')][0]
-    block_source_file  = os.path.join(geography_dir, file_name_block)
-    block_group_source_file  = os.path.join(geography_dir, file_name_bg)
+    block_source_file = get_block_source_file_path(census_year, location)
+    blocks_gdf = gpd.read_file(block_source_file)
 
-    if os.path.exists(block_source_file):
-        blocks_gdf = gpd.read_file(block_source_file)
-    else:
-        # pylint: disable-next=line-too-long
-        raise ValueError('Census data for block geography not found. Reinstall using api or manually following download instruction from README.')
-
-    if os.path.exists(block_group_source_file):
-        blockgroup_gdf = gpd.read_file(block_group_source_file)
-    else:
-        # pylint: disable-next=line-too-long
-        raise ValueError('Census data for block group geography not found. Reinstall using api or manually following download instruction from README.')
+    block_group_source_file = get_block_group_block_source_file_path(census_year, location)
+    blockgroup_gdf = gpd.read_file(block_group_source_file)
 
     #######
     #Clean data

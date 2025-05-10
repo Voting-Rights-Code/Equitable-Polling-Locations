@@ -7,7 +7,7 @@ import re
 from time import time
 import uuid
 
-from python.utils.constants import DATASETS_DIR, DRIVING_DIR, POLLING_DIR
+from python.utils.constants import BLOCK_GROUP_SHP_FILE_SUFFIX, CENSUS_TIGER_DIR, DATASETS_DIR, DRIVING_DIR, POLLING_DIR, TABBLOCK_SHP_FILE_SUFFIX
 
 @dataclass
 class RegexEqual(str):
@@ -170,3 +170,41 @@ def build_p4_source_file_path(census_year: str, location: str) -> str:
     demographics_dir = build_demographics_dir_path(location)
 
     return os.path.join(demographics_dir, file_name_p4)
+
+def build_tiger_location_dir(location: str) -> str:
+    ''' Returns the path to the Census Tiger data for this location '''
+
+    return os.path.join(CENSUS_TIGER_DIR, location)
+
+
+def get_block_source_file_path(census_year, location: str) -> str:
+    geography_dir = build_tiger_location_dir(location)
+    file_list = os.listdir(geography_dir)
+
+    prefix = f'tl_{census_year}_'
+
+    file_list = [f for f in file_list if f.startswith(prefix) and f.endswith(TABBLOCK_SHP_FILE_SUFFIX)]
+
+    if not file_list:
+        # pylint: disable-next=line-too-long
+        raise ValueError(f'No block file matching {prefix}.*{TABBLOCK_SHP_FILE_SUFFIX} found for location {location} in {geography_dir}. Reinstall using api or manually following download instruction from README.')
+
+    block_filename = file_list[0]
+
+    return os.path.join(geography_dir, block_filename)
+
+def get_block_group_block_source_file_path(census_year, location: str) -> str:
+    geography_dir = build_tiger_location_dir(location)
+    file_list = os.listdir(geography_dir)
+
+    prefix = f'tl_{census_year}_'
+
+    file_list = [f for f in file_list if f.startswith(prefix) and f.endswith(BLOCK_GROUP_SHP_FILE_SUFFIX)]
+
+    if not file_list:
+        # pylint: disable-next=line-too-long
+        raise ValueError(f'No block group file matching {prefix}.*{BLOCK_GROUP_SHP_FILE_SUFFIX} found for location {location} in {geography_dir}. Reinstall using api or manually following download instruction from README.')
+
+    block_group_filename = file_list[0]
+
+    return os.path.join(geography_dir, block_group_filename)

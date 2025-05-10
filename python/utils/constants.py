@@ -15,6 +15,14 @@ DATASETS_DIR_NAME = 'datasets'
 
 CONFIG_DIR_NAME = 'configs'
 
+TABBLOCK_SHP_FILE_SUFFIX = 'tabblock20.shp'
+
+BLOCK_GROUP_SHP_FILE_SUFFIX = 'bg20.shp'
+
+CONSUS = 'census'
+
+TIGER = 'tiger'
+
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..', '..'))
 
@@ -27,3 +35,5 @@ CONFIG_BASE_DIR = os.path.join(PROJECT_ROOT_DIR, DATASETS_DIR_NAME, CONFIG_DIR_N
 POLLING_DIR = os.path.join(DATASETS_DIR, POLLING_FOLDER_NAME)
 
 DRIVING_DIR = os.path.join(DATASETS_DIR, DRIVING_FOLDER_NAME)
+
+CENSUS_TIGER_DIR = os.path.join(DATASETS_DIR, CONSUS, TIGER)
