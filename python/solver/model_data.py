@@ -507,21 +507,19 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
 
     # raise error if there are any missing distances
     if len(result_df[pd.isnull(result_df.distance_m)]) > 0:
-        if log:
-            # indicate destinations and origins that are missing driving distances
-            all_orig = set(result_df.id_orig)
-            all_dest = set(result_df.id_dest)
-            notna_df = result_df[pd.notna(result_df.distance_m)]
-            notna_orig = set(notna_df.id_orig)
-            notna_dest = set(notna_df.id_dest)
-            missing_sources = all_orig - notna_orig
-            missing_dests = all_dest - notna_dest
-            if len(missing_dests) > 0:
-                print(f'{len(missing_dests)} missing dests in driving distances: {missing_dests}')
-            if len(missing_sources) > 0:
-                print(f'{len(missing_sources)} missing orig in driving distances: {missing_sources}')
-        raise ValueError(f'Driving Distances ({location}) '
-                         'does not contain driving distances for all id_orig/id_dest pairs.')
+        # indicate destinations and origins that are missing driving distances
+        all_orig = set(result_df.id_orig)
+        all_dest = set(result_df.id_dest)
+        notna_df = result_df[pd.notna(result_df.distance_m)]
+        notna_orig = set(notna_df.id_orig)
+        notna_dest = set(notna_df.id_dest)
+        missing_origs = all_orig - notna_orig
+        missing_dests = all_dest - notna_dest
+        if len(missing_dests) > 0:
+            print(f'distances missing for {len(missing_dests)} destination(s): {missing_dests}')
+        if len(missing_origs) > 0:
+            print(f'distances missing for {len(missing_origs)} origin(s): {missing_origs}')
+        raise ValueError(f'Some distances are missing for current config setting.')
 
 
     #create other useful columns
