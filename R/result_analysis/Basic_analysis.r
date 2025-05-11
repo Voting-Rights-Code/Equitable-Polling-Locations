@@ -21,6 +21,7 @@ setwd(here())
 source('R/result_analysis/utility_functions/storage.R')
 source('R/result_analysis/utility_functions/graph_functions.R')
 source('R/result_analysis/utility_functions/map_functions.R')
+source('R/result_analysis/utility_functions/regression_functions.R')
 
 
 #######
@@ -32,16 +33,23 @@ source('R/result_analysis/utility_functions/map_functions.R')
 #      POTENTIAL_CONFIG_FOLDER must be NULL in the config file. Then all 
 #      functions in this file that uses this constant and their ouputs are 
 #      adjusted to ignore this input or return NULL.
+#     3. Note: for now, this only works for a unique location. Extending this to the location being the varying field is still a TODO.
 #######
 
-args = commandArgs(trailingOnly = TRUE)
-if (length(args) != 1){
-    stop("Must enter at least one config file")
-} else{
-    config_path <- paste0('R/result_analysis/Basic_analysis_configs/', args[1])
-    source(config_path)
-}
-#source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
+# args = commandArgs(trailingOnly = TRUE)
+# if (length(args) != 1){
+#     stop("Must enter exactly one config file")
+# } else{#read constants from indicated config file
+#     config_path <- paste0('R/result_analysis/Basic_analysis_configs/', args[1])
+#     source(config_path)
+#  }
+
+###
+#For inline testing only
+###
+source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
+
+#source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
 
 #######
 #Check that location and folders valid
@@ -63,46 +71,48 @@ LOG_FLAG <- set_global_flag(config_dt_list, 'log_distance')
 #######
 #Read in data
 #Run this for each of the folders under consideration
+#update description to custom descriptors if desired.
 #Recall, output of form: list(ede_df, precinct_df, residence_df, results_df)
-#Note: if DESCRIPTOR_DICT is NULL in the config file, then change_descriptor does nothing
 #######
 
 #names of the output data in these lists
 #come from TABLES defined in graph_functions.R
+orig_output_df_list <- read_result_data(orig_config_dt, field_of_interest = ORIG_FIELD_OF_INTEREST, descriptor_dict = DESCRIPTOR_DICT_ORIG)
 
-orig_output_df_list <- read_result_data(orig_config_dt, ORIG_FIELD_OF_INTEREST)
+potential_output_df_list <- read_result_data(potential_config_dt, field_of_interest = POTENTIAL_FIELD_OF_INTEREST, 
+descriptor_dict = DESCRIPTOR_DICT_POTENTIAL)
 
-potential_output_df_list <- read_result_data(potential_config_dt, POTENTIAL_FIELD_OF_INTEREST)
-
-#change descriptor if needed
-orig_output_df_list = lapply(orig_output_df_list, function(x)change_descriptors(x))
 
 #########
 #Set up maps
-#
+#1. Aggregate data above to block group level and split by config name
+#2. Calculate a single average distance bound across all datasets
 #########
 
-#add location to residence data, aggregate to block level, merge with polling locations and split by config_name
-orig_list_prepped <- prepare_outputs_for_maps(orig_output_df_list$residence_distances, orig_output_df_list$result, orig_config_dt)
-potential_list_prepped <- prepare_outputs_for_maps(potential_output_df_list$residence_distances, potential_output_df_list$result, potential_config_dt)
+#split results by config_name 
+#Merge map and result_df at block group level
+orig_list_prepped <- prepare_outputs_for_maps( orig_output_df_list$result)
+potential_list_prepped <- prepare_outputs_for_maps( potential_output_df_list$result)
 
 #get avg distance bounds for map coloring
-#same scale for orig and potential
+#This defines a global max and min to 
+#set the same scale for orig and potential
 #Note: maps are colored by avg distance, not ede value
-all_res_output <- do.call(rbind, c(orig_list_prepped, potential_list_prepped))
-global_color_bounds <- distance_bounds(all_res_output)
+all_prepped_output <- do.call(rbind, c(orig_list_prepped, potential_list_prepped))
+all_prepped_output <- all_prepped_output[demographic == 'population', ][, avg_dist := demo_avg_dist]
+global_color_bounds <- distance_bounds(all_prepped_output)
 
 #########
 #Set up regressions
 #########
 
-#prepare datasets for regressions of distance versus density
-orig_regression_data <- get_regression_data(LOCATION, orig_output_df_list$results)
-potential_regression_data <- get_regression_data(LOCATION, potential_output_df_list$results)
+#combine result data with block area data to get population density and related measures
+orig_regression_data <- get_density_data(orig_output_df_list$result)
+potential_regression_data <- get_density_data(potential_output_df_list$result)
 
-orig_bg_density_demo <- bg_data(orig_regression_data)
-potential_bg_density_demo <- bg_data(potential_regression_data)
-
+#take density data and aggregate key columns up to the block group level
+orig_bg_density_demo<- lapply(orig_list_prepped, function(df)bg_data(df))
+potential_bg_density_demo <- lapply(potential_list_prepped, function(df)bg_data(df))
 
 if(!HISTORICAL_FLAG){
     #######
@@ -138,14 +148,14 @@ if(!HISTORICAL_FLAG){
     plot_orig_ideal_hist(orig_output_df_list$residence_distances, potential_output_df_list$residence_distances, IDEAL_POLL_NUMBER)
 
     #plot distance v density graphs and regressions
-    plot_density_v_distance_bg(potential_bg_density_demo, LOCATION, DEMOGRAPHIC_LIST)
+    plot_density_v_distance_bg(rbindlist(potential_bg_density_demo), LOCATION, DEMOGRAPHIC_LIST)
 
-    potential_bg_coefs <- bg_level_naive_regression(potential_bg_density_demo)
+    potential_bg_coefs <- bg_level_naive_regression(rbindlist(potential_bg_density_demo))
 
 
     ###maps####
 
-    sapply(potential_list_prepped, function(x)make_bg_maps(x, 'map'))
+    sapply(potential_list_prepped, function(x)make_bg_maps(x))
     sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'population'))
     sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'black'))
     sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'white'))
@@ -174,7 +184,7 @@ plot_historic_edes(orig_pop_scaled_edes, '_scaled')
 ###maps####
 plot_population_densities(orig_regression_data)
 
-sapply(orig_list_prepped, function(x)make_bg_maps(x, 'map'))
+sapply(orig_list_prepped, function(x)make_bg_maps(x))
 
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'population'))
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'black'))
@@ -184,8 +194,8 @@ sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
 
 #plot distance v density graphs and regressions
 
-plot_density_v_distance_bg(orig_bg_density_demo, LOCATION, DEMOGRAPHIC_LIST)
+plot_density_v_distance_bg(rbindlist(orig_bg_density_demo), LOCATION, DEMOGRAPHIC_LIST)
 
-orig_bg_coefs <- bg_level_naive_regression(orig_bg_density_demo)
+orig_bg_coefs <- bg_level_naive_regression(rbindlist(orig_bg_density_demo))
 
 upload_graph_files_to_cloud_storage()
