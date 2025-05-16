@@ -31,7 +31,7 @@ def import_locations(
     column_renames = {
         'non-hispanic': 'non_hispanic',
     }
-    ignore_columns = ['V1']
+    ignore_columns = ['id', 'V1']
     add_columns = {
         'polling_locations_set_id': polling_locations_set_id,
     }
