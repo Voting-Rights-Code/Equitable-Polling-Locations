@@ -1,6 +1,7 @@
 config_set: DeKalb_County_GA_no_bg_school_configs_driving_pre_EV_2024
 config_name: DeKalb_County_GA_precincts_open_18
 location: DeKalb_County_GA
+census_year: '2020'
 year:
 - '2020'
 - '2022'

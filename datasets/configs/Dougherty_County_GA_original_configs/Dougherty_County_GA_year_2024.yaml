@@ -1,6 +1,7 @@
 config_set: Dougherty_County_GA_original_configs
 config_name: Dougherty_County_GA_year_2024
 location: Dougherty_County_GA
+census_year: '2020'
 year:
 - '2024'
 bad_types:
