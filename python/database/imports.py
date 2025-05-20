@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from python import utils
 from typing import Dict, Optional, List
 
+import numpy as np
 import pandas as pd
 import sqlalchemy
 from sqlalchemy import inspect
@@ -48,6 +49,110 @@ def bigquery_bluk_insert_dataframe(table_name, df: pd.DataFrame, log: bool = Fal
     return job.output_rows
 
 
+def build_model_column_types(model_class: sqlalchemy_main.ModelBaseType) -> Dict[str, str]:
+    '''
+    Builds a dictionary of column names and their types for the given model class.
+    This is used to set the dtypes for reading in the csv file.
+    '''
+
+    column_types = {}
+    inspector = inspect(model_class)
+    for column in inspector.columns:
+        if isinstance(column.type, sqlalchemy.String):
+            column_types[column.name] = str
+        elif isinstance(column.type, sqlalchemy.Integer):
+            column_types[column.name] = np.int32
+        elif isinstance(column.type, sqlalchemy.Float):
+            column_types[column.name] = np.float64
+        elif isinstance(column.type, sqlalchemy.DateTime):
+            column_types[column.name] = str
+        else:
+            column_types[column.name] = str
+
+    return column_types
+
+
+def load_model_csv(
+    model_class: sqlalchemy_main.ModelBaseType,
+    column_renames: Dict[str, str],
+    csv_path: str,
+) -> pd.DataFrame:
+    '''
+    Loads a csv file into a pandas dataframe and sets the dtypes based on the model class.
+    This is used to set the dtypes for reading in the csv file.
+    '''
+    model_column_types = build_model_column_types(model_class)
+    reversed_column_renames = {value: key for key, value in column_renames.items()}
+
+    # Read the header of the csv file to get the column names
+    df_header = pd.read_csv(csv_path, nrows=0)
+    csv_header_list = df_header.columns.tolist()
+
+    # print('load_model_csv', csv_path)
+
+    converters = {}
+
+    for csv_column in csv_header_list:
+        model_column = reversed_column_renames.get(csv_column) or csv_column
+
+        column_type = model_column_types.get(model_column)
+
+        if column_type is not None:
+            # print(f'  Column {csv_column} is of type {column_type}')
+            # Prevent pandas from converting empty strings to NaN
+            if column_type == np.float64:
+                converters[csv_column] = utils.csv_float_converter
+            elif column_type == np.int32:
+                converters[csv_column] = utils.csv_int_converter
+            else:
+                converters[csv_column] = utils.csv_str_converter
+
+
+    df = pd.read_csv(
+        csv_path,
+        low_memory=False,
+        na_filter=True,
+        keep_default_na=True,
+        converters=converters,
+    )
+
+    # print(df.head())
+
+    return df
+
+def set_column_types(df: pd.DataFrame, model_class: sqlalchemy) -> pd.DataFrame:
+    '''
+    Sets the dtypes for the given dataframe based on the model class.
+    This is used to set the dtypes for reading in the csv file.
+    '''
+
+    inspector = inspect(model_class)
+    string_columns = [
+        column.name
+        for column in inspector.columns
+        if isinstance(column.type, sqlalchemy.String) and column.name in df.columns
+    ]
+
+    double_columns = [
+        column.name
+        for column in inspector.columns
+        if isinstance(column.type, sqlalchemy.Double) and column.name in df.columns
+    ]
+
+    float_columns = [
+        column.name
+        for column in inspector.columns
+        if isinstance(column.type, sqlalchemy.Float) and column.name in df.columns
+    ]
+
+    # Force convert all df columns types to match what is expected in the SQLAlchemy model
+    # This is important since columns such as orig_id that get loaded as an int by pd.read_csv.
+    df[string_columns] = df[string_columns].astype(str)
+    df[double_columns] = df[double_columns].astype(float)
+    df[float_columns] = df[float_columns].astype(float)
+
+    return df
+
 def csv_to_bigquery(
     config_set: str,
     config_name: str,
@@ -65,16 +170,18 @@ def csv_to_bigquery(
     models or raw queries.
     '''
 
+    # Build a dictionary of column renames to reverse the column renames
+    # This is used to set types for csv reading
+
     try:
         table_name = model_class.__tablename__
-
 
         # IF a dataframe is not already provided, load from the csv_path param
         if df is None:
             # We are intentionally not using the pd.read_csv dtype here since we want to use our
             # own validations to generate more info instead of depending on pandas ability to cast
             # from float to int, etc.
-            df = pd.read_csv(csv_path) #, na_filter=False, keep_default_na=False)
+            df = load_model_csv(model_class, column_renames, csv_path)
         else:
             csv_path = '[From DataFrame]'
 
@@ -88,29 +195,7 @@ def csv_to_bigquery(
         if column_renames:
             df = df.rename(columns=column_renames)
 
-        # Force convert all df columns to string type if they are a type string the SQLAlchemy model
-        # This is important since columns such as orig_id that get loaded as an int by pd.read_csv.
-        inspector = inspect(model_class)
-        string_columns = [
-            column.name
-            for column in inspector.columns
-            if isinstance(column.type, sqlalchemy.String) and column.name in df.columns
-        ]
-        df[string_columns] = df[string_columns].astype(str)
-
-        double_columns = [
-            column.name
-            for column in inspector.columns
-            if isinstance(column.type, sqlalchemy.Double) and column.name in df.columns
-        ]
-        df[double_columns] = df[double_columns].astype(float)
-
-        float_columns = [
-            column.name
-            for column in inspector.columns
-            if isinstance(column.type, sqlalchemy.Float) and column.name in df.columns
-        ]
-        df[float_columns] = df[float_columns].astype(float)
+        df = set_column_types(df, model_class)
 
         # Add any additional columns needed from the add_columns paramater
         for new_column, value in add_columns.items():

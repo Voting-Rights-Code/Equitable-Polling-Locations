@@ -7,6 +7,8 @@ import re
 from time import time
 import uuid
 
+import numpy as np
+
 from python.utils.constants import BLOCK_GROUP_SHP_FILE_SUFFIX, CENSUS_TIGER_DIR, DATASETS_DIR, DRIVING_DIR, POLLING_DIR, TABBLOCK_SHP_FILE_SUFFIX
 
 @dataclass
@@ -208,3 +210,28 @@ def get_block_group_block_source_file_path(census_year, location: str) -> str:
     block_group_filename = file_list[0]
 
     return os.path.join(geography_dir, block_group_filename)
+
+
+def csv_str_converter(value):
+    ''' Converts a read in csv value to a string to a without the use of nan if emptry. '''
+    if not value:
+        return ''
+    return value
+
+def csv_float_converter(value):
+    ''' Converts a read in csv value to a float, or returns None if the string is empty. '''
+    if value == '':
+        return np.nan
+    try:
+        return np.float64(value)
+    except ValueError:
+        raise ValueError(f'Invalid float value: {value}') from None
+
+def csv_int_converter(value):
+    ''' Converts a read in csv value to an int, or returns None if the string is empty. '''
+    if value == '':
+        return np.nan
+    try:
+        return np.int32(value)
+    except ValueError:
+        raise ValueError(f'Invalid int value: {value}') from None
