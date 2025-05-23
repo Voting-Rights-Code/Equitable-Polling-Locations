@@ -31,7 +31,7 @@ def import_locations(
     column_renames = {
         'non-hispanic': 'non_hispanic',
     }
-    ignore_columns = ['V1']
+    ignore_columns = ['id', 'V1']
     add_columns = {
         'polling_locations_set_id': polling_locations_set_id,
     }
@@ -73,8 +73,6 @@ def build_and_import_locations(
         log=False,
     )
 
-    print('result.driving_distance_set_id', build_source_result.driving_distance_set_id)
-
     polling_locations_set = query.create_db_polling_locations_set(
         polling_locations_only_set_id=build_source_result.polling_locations_only_set_id,
         census_year=census_year,
@@ -107,7 +105,8 @@ def main(args: argparse.Namespace):
 
     locations: List[str] = args.locations
     census_year: str = args.census_year[0]
-    driving: bool = args.driving is not None
+    driving: bool = args.driving
+
     if driving:
         # Use the default date for driving distances
         map_source_date = '20250101'

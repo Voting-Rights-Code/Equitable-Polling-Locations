@@ -1,11 +1,12 @@
 # Constants for the optimization function
 location: Cobb_County_GA
+census_year: '2020'
 year:
     - '2020'
     - '2022'
-bad_types: 
+bad_types:
     - 'Elec Day School - Potential'
-    - 'bg_centroid'  
+    - 'bg_centroid'
 beta: -2
 time_limit: 360000 #100 hours minutes
 capacity: 5

@@ -1,6 +1,7 @@
 config_set: Muscogee_County_GA_tech_center_log_configs
 config_name: Muscogee_County_GA_precincts_open_6
 location: Muscogee_County_GA
+census_year: '2020'
 year:
 - must_keep
 bad_types:

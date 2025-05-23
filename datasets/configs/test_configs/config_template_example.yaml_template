@@ -4,9 +4,10 @@ config_name: 'config_template_example' #should match file name
 
 # Constants for the optimization function
 location: DeKalb_County_GA
+census_year: '2020'
 year:
     - '2020'
-bad_types: 
+bad_types:
     - 'Elec Day School - Potential'
     - 'Elec Day Church - Potential'
     - 'Elec Day Other - Potential'

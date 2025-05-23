@@ -26,7 +26,7 @@ def import_distances(
     log: bool = False,
 ) -> ImportResult:
     column_renames = {}
-    ignore_columns = ['V1']
+    ignore_columns = ['id', 'V1']
     add_columns = { 'driving_distance_set_id': driving_distance_set_id, 'source': 'driving distance' }
 
     return csv_to_bigquery(
