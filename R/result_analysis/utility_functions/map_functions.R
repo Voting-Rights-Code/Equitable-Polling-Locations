@@ -88,7 +88,7 @@ results_with_area_geom<- function(location, result_df){
 	#extract columns
 	map_data<- process_maps(map_file)
 	#merge with results
-	results_with_geom <- merge(result_df, map_data, by.y = c('GEOID20'), by.x = c('id_orig'))
+	results_with_geom <- merge(result_df, map_data, by.y = c('GEOID20'), by.x = c('id_orig'), all.y = TRUE)
 	#drop centroid because have orig_lat, orig_lon
 	results_with_geom <- results_with_geom[, `:=`(INTPTLAT20 = NULL, INTPTLON20 = NULL)]
 	return(results_with_geom)
