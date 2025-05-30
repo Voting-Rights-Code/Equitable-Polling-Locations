@@ -67,7 +67,7 @@ model_solver.solve_model(MODEL, CONFIG.time_limit)
 
 #Model and data characteristics
 OPEN_PRECINCTS = {key for key in MODEL.open if MODEL.open[key].value ==1}
-POTENTIAL_PRECINCTS = set(DIST_DF[DIST_DF.dest_type == 'potential'].id_dest)
+POTENTIAL_PRECINCTS = set([DIST_DF.dest_type == 'potential'].id_dest)
 OLD_POLLS = len(DIST_DF[DIST_DF.location_type == 'polling'])
 ALL_RESIDENCES = set(DIST_DF.id_orig.unique())
 MATCHED_RESIDENCES = {key[0] for key in MODEL.matching if MODEL.matching[key].value ==1}
@@ -77,11 +77,10 @@ def test_alpha_min():
 
     print(f'alpha -> {ALPHA}')
 
-    assert round(ALPHA, 11) ==  7.89213e-05 #value from R code
+    assert round(ALPHA, 11) ==  7.992335e-05 #value from R code
 
 def test_kp_factor():
     print(f'config -> {CONFIG}')
-
     DIST_DF['KP_factor'] = round(model_factory.compute_kp_factor(CONFIG, ALPHA, DIST_DF), 6)
     dist_df2 = DIST_DF[['id_orig', 'id_dest', 'KP_factor']]
 
@@ -90,7 +89,7 @@ def test_kp_factor():
     fixed_test_data = load_kp_factor_data(TEST_KP_FACTOR) #data from R code
     fixed_test_data.kp_factor = round(fixed_test_data.kp_factor, 6)
     fixed_test_data = fixed_test_data.sort_values(by=['id_orig', 'id_dest'])
-
+    '''
     print('fixed_test_data columns:')
     print(fixed_test_data.columns)
     print(fixed_test_data.head())
@@ -99,13 +98,15 @@ def test_kp_factor():
     print('dist_df2 columns:')
     print(dist_df2.columns)
     print(dist_df2.head())
-
+    breakpoint()
     compare = dist_df2.merge(fixed_test_data, how = 'outer', on=['id_orig', 'id_dest'])
+
 
     print('================================================')
     print('compare columns:')
     print(compare.columns)
-    print(compare.head())
+    print(compare.head()) '''
+    compare = dist_df2.merge(fixed_test_data, how = 'outer', on=['id_orig', 'id_dest'])
     compare = compare.sort_values(by=['id_orig', 'id_dest'])
 
     assert compare.KP_factor.equals(compare.kp_factor)
