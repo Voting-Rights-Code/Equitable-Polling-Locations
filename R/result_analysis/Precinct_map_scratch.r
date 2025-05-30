@@ -48,8 +48,9 @@ source('R/result_analysis/utility_functions/regression_functions.R')
 #For inline testing only
 ###
 #source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
+source('R/result_analysis/Basic_analysis_configs/York_County_original.r')
 
-source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
+#source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
 
 #######
 #Check that location and folders valid
@@ -115,14 +116,14 @@ if (file.exists(file.path(here(), plot_folder))){
 setwd(file.path(here(), plot_folder))
 
 #split by descriptor
-#result_list <- split(orig_output_df_list$results, orig_output_df_list$results$descriptor)
-result_list <- split(potential_output_df_list$results, potential_output_df_list$results$descriptor)
+result_list <- split(orig_output_df_list$results, orig_output_df_list$results$descriptor)
+#result_list <- split(potential_output_df_list$results, potential_output_df_list$results$descriptor)
 
 
 
 #merge in geometry data
-#sample <- result_list$year_2014
-sample <- result_list$precincts_open_5
+sample <- result_list$year_2014
+#sample <- result_list$precincts_open_5
 location <- unique(sample$location) 
 block_result_geom <- results_with_area_geom(location, sample)
 
@@ -175,60 +176,3 @@ step_4<- ggplot() +	geom_sf(data = precincts_sf_all, aes(fill = id_dest), show.l
         #coord_sf(lims_method = "geometry_bbox", default_crs = sf::st_crs(4326)) + 
         geom_point(data = precincts_sf_all, aes(x = dest_lon, y = dest_lat), show.legend = FALSE)
 ggsave('step_4_all_precincts.png', step_4)
-
-
-browser()
-
-
-#break into connected components
-#precincts_cc_col <- st_sf(st_cast(precincts_sf$precinct_geom, "POLYGON"))
-
-precincts_cc_col <- st_sf(st_cast(precincts_sf_pop$precinct_geom, "POLYGON"))
-
-
-#match components with the larger geometry to keep track of assignment
-precincts_cc <- st_join(precincts_cc_col,precincts_sf_pop, join= st_within)
-names(precincts_cc)[names(precincts_cc) == '...1'] <- 'precinct_geom'
-st_geometry(precincts_cc) <- 'precinct_geom'
-
-ggplot() +	geom_sf(data = precincts_cc, aes(fill = id_dest)) +
-        #coord_sf(lims_method = "geometry_bbox", default_crs = sf::st_crs(4326)) + 
-        geom_point(data = precincts_cc, aes(x = dest_lon, y = dest_lat))
-
-
-
-#split into populated and unpopulated connected components
-#precincts_sf_unpop <- precincts_cc[is.na(precincts_cc$id_dest), ]
-#precincts_sf_pop <- precincts_cc[!is.na(precincts_cc$id_dest), ]
-
-#ggplot() +	geom_sf(data = precincts_sf_unpop)
-
-ggplot() +	geom_sf(data = df_sf_unpop)
-
-#adjust unpop data to match pop data
-names(df_sf_unpop)[names(df_sf_unpop) == 'geometry'] <- 'precinct_geom'
-st_geometry(df_sf_unpop) <- 'precinct_geom'
-df_sf_unpop <- df_sf_unpop[, names(precincts_cc)]
-
-
-#associate the unpopulated / unassigned ccs to the closests assigned feature
-unpop_join <- st_join(df_sf_unpop, precincts_cc, join=st_nearest_feature)
-unpop_narrow <- unpop_join[ , !(grepl('\\.x', names(unpop_join)))]
-names(unpop_narrow) <- gsub('\\.y', '',names(unpop_narrow))
-
-#combine assigned populated and unpopulated regions and
-#Group by assigned destination and union to get rid of internal lines
-#precincts_sf_all <- rbind(unpop_narrow, precincts_sf_pop ) %>% group_by(id_dest, descriptor, dest_lat, dest_lon) %>% summarize(precinct_geom = st_union(precinct_geom))
-
-
-precincts_sf_all <- rbind(unpop_narrow, precincts_cc ) %>% group_by(id_dest, descriptor, dest_lat, dest_lon) %>% summarize(precinct_geom = st_union(precinct_geom))
-
-
-foo <- ggplot() +	geom_sf(data = precincts_sf_all, aes(fill = id_dest), show.legend = FALSE) + 
-        geom_point(data = precincts_sf_all, aes(x = dest_lon, y = dest_lat),show.legend = FALSE)
-
-
-bar <- ggplot() +	geom_sf(data = unpop_narrow, aes(fill = id_dest), show.legend = FALSE) + 
-        geom_point(data = precincts_sf_all, aes(x = dest_lon, y = dest_lat), show.legend = FALSE)
-ggsave("populated.png", foo)
-ggsave("not_populated.png", bar)
