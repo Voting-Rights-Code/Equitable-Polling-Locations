@@ -483,6 +483,8 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
         if not any(str(year) in poll for poll in polling_location_types):
             raise ValueError(f'Do not currently have any data for {location} for {year} from {config.config_file_path}')
 
+    print('unique_location_types -> ', unique_location_types)
+
     #exclude bad location types
     # The bad types must be valid location types
     if not set(bad_location_list).issubset(set(unique_location_types)):
