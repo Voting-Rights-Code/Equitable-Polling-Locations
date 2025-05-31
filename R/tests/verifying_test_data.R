@@ -26,6 +26,6 @@ alpha = sum(sample_alpha$population * sample_alpha$distance_m)/ sum(sample_alpha
 sample_expanded <- sample[!(location_type %in% c('bg_centroid', "Elec Day School - Potential")), ]
 sample_expanded<- sample_expanded[ , kp_factor :=exp(2 * alpha * distance_m)]
 test_kp_factor <- sample_expanded[ , .(id_orig, id_dest, kp_factor)]
-fwrite(test_kp_factor, 'tests/test_kp_factor.csv')
+fwrite(test_kp_factor, 'python/tests/test_kp_factor.csv')
 
 

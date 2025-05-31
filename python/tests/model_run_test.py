@@ -107,7 +107,7 @@ def test_kp_factor():
     print('compare columns:')
     print(compare.columns)
     print(compare.head()) '''
-    breakpoint()
+
     compare = dist_df2.merge(fixed_test_data, how = 'outer', on=['id_orig', 'id_dest'])
     compare = compare.sort_values(by=['id_orig', 'id_dest'])
 
