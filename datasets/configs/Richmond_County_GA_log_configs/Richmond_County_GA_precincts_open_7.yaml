@@ -1,6 +1,7 @@
 config_set: Richmond_County_GA_log_configs
 config_name: Richmond_County_GA_precincts_open_7
 location: Richmond_County_GA
+census_year: '2020'
 year:
 - '2020'
 - '2022'

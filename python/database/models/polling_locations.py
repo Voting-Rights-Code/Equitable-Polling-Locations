@@ -134,7 +134,7 @@ class PollingLocation(ModelBase):
 
     id_orig: str = Column(String(256), nullable=False)
     id_dest: str = Column(String(256), nullable=False)
-    distance_m: float = Column(Float, nullable=False)
+    distance_m: float = Column(Float, nullable=True)
     address: str = Column(String(256), nullable=False)
     dest_lat: float = Column(Float, nullable=False)
     dest_lon: float = Column(Float, nullable=False)

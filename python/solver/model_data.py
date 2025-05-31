@@ -26,8 +26,9 @@ from python.utils import (
     is_int,
 )
 
-from python.utils.constants import DATASETS_DIR, LOCATION_SOURCE_DB
+from python.utils.constants import LOCATION_SOURCE_DB
 from python.utils.pull_census_data import pull_census_data
+from python.utils import get_block_source_file_path, get_block_group_block_source_file_path
 from .model_config import PollingModelConfig
 
 #define columns for each input data set
@@ -216,24 +217,11 @@ def build_source(
         raise ValueError('Census data from table P4 not found. Download using api or manually following download instruction from README.')
 
     #3. Census geographic data
-    geography_dir = os.path.join(DATASETS_DIR, 'census', 'tiger', location)
-    file_list = os.listdir(geography_dir)
-    file_name_block = [f for f in file_list if f.endswith('tabblock20.shp')][0]
-    file_name_bg = [f for f in file_list if f.endswith('bg20.shp')][0]
-    block_source_file  = os.path.join(geography_dir, file_name_block)
-    block_group_source_file  = os.path.join(geography_dir, file_name_bg)
+    block_source_file = get_block_source_file_path(census_year, location)
+    blocks_gdf = gpd.read_file(block_source_file)
 
-    if os.path.exists(block_source_file):
-        blocks_gdf = gpd.read_file(block_source_file)
-    else:
-        # pylint: disable-next=line-too-long
-        raise ValueError('Census data for block geography not found. Reinstall using api or manually following download instruction from README.')
-
-    if os.path.exists(block_group_source_file):
-        blockgroup_gdf = gpd.read_file(block_group_source_file)
-    else:
-        # pylint: disable-next=line-too-long
-        raise ValueError('Census data for block group geography not found. Reinstall using api or manually following download instruction from README.')
+    block_group_source_file = get_block_group_block_source_file_path(census_year, location)
+    blockgroup_gdf = gpd.read_file(block_group_source_file)
 
     #######
     #Clean data
@@ -519,21 +507,19 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
 
     # raise error if there are any missing distances
     if len(result_df[pd.isnull(result_df.distance_m)]) > 0:
-        if log:
-            # indicate destinations and origins that are missing driving distances
-            all_orig = set(result_df.id_orig)
-            all_dest = set(result_df.id_dest)
-            notna_df = result_df[pd.notna(result_df.distance_m)]
-            notna_orig = set(notna_df.id_orig)
-            notna_dest = set(notna_df.id_dest)
-            missing_sources = all_orig - notna_orig
-            missing_dests = all_dest - notna_dest
-            if len(missing_dests) > 0:
-                print(f'{len(missing_dests)} missing dests in driving distances: {missing_dests}')
-            if len(missing_sources) > 0:
-                print(f'{len(missing_sources)} missing orig in driving distances: {missing_sources}')
-        raise ValueError(f'Driving Distances ({location}) '
-                         'does not contain driving distances for all id_orig/id_dest pairs.')
+        # indicate destinations and origins that are missing driving distances
+        all_orig = set(result_df.id_orig)
+        all_dest = set(result_df.id_dest)
+        notna_df = result_df[pd.notna(result_df.distance_m)]
+        notna_orig = set(notna_df.id_orig)
+        notna_dest = set(notna_df.id_dest)
+        missing_origs = all_orig - notna_orig
+        missing_dests = all_dest - notna_dest
+        if len(missing_dests) > 0:
+            print(f'distances missing for {len(missing_dests)} destination(s): {missing_dests}')
+        if len(missing_origs) > 0:
+            print(f'distances missing for {len(missing_origs)} origin(s): {missing_origs}')
+        raise ValueError(f'Some distances are missing for current config setting.')
 
 
     #create other useful columns

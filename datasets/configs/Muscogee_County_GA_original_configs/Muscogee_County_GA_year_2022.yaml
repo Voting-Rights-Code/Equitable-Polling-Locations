@@ -1,6 +1,7 @@
 config_set: Muscogee_County_GA_original_configs
 config_name: Muscogee_County_GA_year_2022
 location: Muscogee_County_GA
+census_year: '2020'
 year:
 - '2022'
 bad_types:
