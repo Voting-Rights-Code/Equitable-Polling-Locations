@@ -67,11 +67,12 @@ model_solver.solve_model(MODEL, CONFIG.time_limit)
 
 #Model and data characteristics
 OPEN_PRECINCTS = {key for key in MODEL.open if MODEL.open[key].value ==1}
-POTENTIAL_PRECINCTS = set([DIST_DF.dest_type == 'potential'].id_dest)
+POTENTIAL_PRECINCTS = set(DIST_DF[DIST_DF.dest_type == 'potential'].id_dest)
 OLD_POLLS = len(DIST_DF[DIST_DF.location_type == 'polling'])
 ALL_RESIDENCES = set(DIST_DF.id_orig.unique())
 MATCHED_RESIDENCES = {key[0] for key in MODEL.matching if MODEL.matching[key].value ==1}
 MATCHED_PRECINCTS = {key[1] for key in MODEL.matching if MODEL.matching[key].value ==1}
+
 
 def test_alpha_min():
 
@@ -106,6 +107,7 @@ def test_kp_factor():
     print('compare columns:')
     print(compare.columns)
     print(compare.head()) '''
+    breakpoint()
     compare = dist_df2.merge(fixed_test_data, how = 'outer', on=['id_orig', 'id_dest'])
     compare = compare.sort_values(by=['id_orig', 'id_dest'])
 
