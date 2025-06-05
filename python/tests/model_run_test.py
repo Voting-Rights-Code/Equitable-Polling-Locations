@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTING_CONFIG_EXPANDED = os.path.join(TESTS_DIR, 'testing_config_expanded.yaml')
 TESTING_CONFIG_PENALTY = os.path.join(TESTS_DIR, 'testing_config_penalty.yaml')
+DRIVING_TESTING_CONFIG = os.path.join(TESTS_DIR, 'testing_config_driving.yaml')
+
 
 TEST_KP_FACTOR = os.path.join(TESTS_DIR, 'test_kp_factor.csv')
 
@@ -188,22 +190,22 @@ def test_capacity(polling_model, distances_df, total_population, polling_locatio
     dest_pop_df = result_df[['id_dest', 'population']].groupby('id_dest').agg('sum')
     assert all(dest_pop_df.population <=(polling_locations_config.capacity*total_population/polling_locations_config.precincts_open))
 
+
 # # Test the intermediate dataframe with driving distances
+# # The test driving distances are exactly twice the haversine test distances
+def test_driving_distances(distances_df):
+    driving_config = PollingModelConfig.load_config(DRIVING_TESTING_CONFIG)
+    driving_polling_locations = model_data.get_polling_locations(
+        location_source=driving_config.location_source,
+        census_year=driving_config.census_year,
+        location=driving_config.location,
+        log_distance=driving_config.log_distance,
+            driving=driving_config.driving,
+    )
+    driving_dist_df = model_data.clean_data(driving_config, driving_polling_locations, False, False)
 
-# # # The test driving distances are exactly twice the haversine test distances
-# # def test_driving_distances():
-# #     DRIVING_TESTING_CONFIG = os.path.join(TESTS_DIR, 'testing_config_driving.yaml')
-# #     DRIVING_CONFIG = PollingModelConfig.load_config(DRIVING_TESTING_CONFIG)
-# #     DRIVING_POLLING_LOCATIONS = model_data.get_polling_locations(
-# #         location_source=DRIVING_CONFIG.location_source,
-# #         census_year=DRIVING_CONFIG.census_year,
-# #         location=DRIVING_CONFIG.location,
-# #         log_distance=DRIVING_CONFIG.log_distance,
-# #             driving=DRIVING_CONFIG.driving,
-# #     )
-# #     DRIVING_DIST_DF = model_data.clean_data(DRIVING_CONFIG, DRIVING_POLLING_LOCATIONS, False, False)
+    assert driving_dist_df['distance_m'].sum() == 2*distances_df['distance_m'].sum()
 
-# #     assert DRIVING_DIST_DF['distance_m'].sum() == 2*DIST_DF['distance_m'].sum()
 
 # Test for penalty functionality
 def test_exclude_penalized(expanded_polling_model, polling_locations_penalty_config):
