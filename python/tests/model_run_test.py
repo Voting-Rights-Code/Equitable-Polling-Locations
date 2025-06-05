@@ -1,15 +1,18 @@
-'''Note that this testing framework pulls a (fixed) sample dataset from an existing county, runs the model on it, and checks
-that the resulta are consistent. As such, this is a point check only, and not a proof of correctness'''
+'''Note that this testing framework pulls a (fixed) sample dataset from an existing county, runs the model on it,
+and checks that the resulta are consistent. As such, this is a point check only, and not a proof of correctness'''
+
+# pylint: disable=redefined-outer-name
 
 import math
 import os
-import sys
 
 import logging
 
 import numpy as np
 import pandas as pd
 import pyomo.environ as pyo
+
+import pytest
 
 from python.solver.model_config import PollingModelConfig
 from python.solver import model_data, model_factory, model_solver
@@ -20,35 +23,69 @@ logger = logging.getLogger(__name__)
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTING_CONFIG_EXPANDED = os.path.join(TESTS_DIR, 'testing_config_expanded.yaml')
+TESTING_CONFIG_PENALTY = os.path.join(TESTS_DIR, 'testing_config_penalty.yaml')
 
 TEST_KP_FACTOR = os.path.join(TESTS_DIR, 'test_kp_factor.csv')
 
-CONFIG = PollingModelConfig.load_config(TESTING_CONFIG_EXPANDED)
+@pytest.fixture(scope='session')
+def polling_locations_config():
+    yield PollingModelConfig.load_config(TESTING_CONFIG_EXPANDED)
+
+@pytest.fixture(scope='session')
+def polling_locations_penalty_config():
+    yield PollingModelConfig.load_config(TESTING_CONFIG_PENALTY)
+
+@pytest.fixture(scope='module')
+def polling_locations_df(polling_locations_config):
+    polling_locations = model_data.get_polling_locations(
+        location_source='csv',
+        census_year=polling_locations_config.census_year,
+        location=polling_locations_config.location,
+        log_distance=polling_locations_config.log_distance,
+        driving=polling_locations_config.driving,
+    )
+    yield polling_locations.polling_locations
+
+@pytest.fixture(scope='module')
+def distances_df(polling_locations_config, polling_locations_df):
+    yield model_data.clean_data(polling_locations_config, polling_locations_df, False, False)
+
+@pytest.fixture(scope='module')
+def alpha_min(polling_locations_config, polling_locations_df):
+    alpha_df = model_data.clean_data(polling_locations_config, polling_locations_df, True, False)
+    yield model_data.alpha_min(alpha_df)
+
+@pytest.fixture(scope='module')
+def polling_model(distances_df, alpha_min, polling_locations_config):
+    model = model_factory.polling_model_factory(distances_df, alpha_min, polling_locations_config)
+    model_solver.solve_model(model, polling_locations_config.time_limit)
+
+    yield model
+
+@pytest.fixture(scope='module')
+def expanded_polling_model(distances_df, alpha_min, polling_locations_penalty_config):
+    model = model_factory.polling_model_factory(
+        distances_df,
+        alpha_min,
+        polling_locations_penalty_config,
+        exclude_penalized_sites=True
+    )
+    model_solver.solve_model(model, polling_locations_penalty_config.time_limit)
+
+    yield model
 
 
-POLLING_LOCATIONS = model_data.get_polling_locations(
-    location_source='csv',
-    census_year=CONFIG.census_year,
-    location=CONFIG.location,
-    log_distance=CONFIG.log_distance,
-    driving=CONFIG.driving,
-)
+@pytest.fixture(scope='module')
+def open_precincts(polling_model):
+    yield {key for key in polling_model.open if polling_model.open[key].value ==1}
 
+@pytest.fixture(scope='module')
+def total_population(distances_df):
+    yield distances_df.groupby('id_orig')['population'].agg('unique').str[0].sum()
 
-POLLING_LOCATIONS_DF = POLLING_LOCATIONS.polling_locations
-print('POLLING_LOCATIONS_DF columns:')
-print(POLLING_LOCATIONS_DF.columns)
-print(POLLING_LOCATIONS_DF.head())
-
-DIST_DF = model_data.clean_data(CONFIG, POLLING_LOCATIONS_DF, False, False)
-
-
-
-# sys.exit(0)  # Exit early for debugging purposes
-
-TOTAL_POP = DIST_DF.groupby('id_orig')['population'].agg('unique').str[0].sum()
-ALPHA_DF = model_data.clean_data(CONFIG, POLLING_LOCATIONS_DF, True, False)
-ALPHA = model_data.alpha_min(ALPHA_DF)
+@pytest.fixture(scope='module')
+def potential_precincts(distances_df):
+    yield set(distances_df[distances_df.dest_type == 'potential'].id_dest)
 
 
 def load_kp_factor_data(path: str) -> pd.DataFrame:
@@ -60,138 +97,144 @@ def load_kp_factor_data(path: str) -> pd.DataFrame:
     }
     return pd.read_csv(path, dtype=dtype_spec)
 
-#
 
-MODEL = model_factory.polling_model_factory(DIST_DF, ALPHA, CONFIG)
-model_solver.solve_model(MODEL, CONFIG.time_limit)
+def test_alpha_min(alpha_min):
+    print(f'alpha -> {alpha_min}')
+    print(f'alpha_min -> {alpha_min}')
 
-#Model and data characteristics
-OPEN_PRECINCTS = {key for key in MODEL.open if MODEL.open[key].value ==1}
-POTENTIAL_PRECINCTS = set(DIST_DF[DIST_DF.dest_type == 'potential'].id_dest)
-OLD_POLLS = len(DIST_DF[DIST_DF.location_type == 'polling'])
-ALL_RESIDENCES = set(DIST_DF.id_orig.unique())
-MATCHED_RESIDENCES = {key[0] for key in MODEL.matching if MODEL.matching[key].value ==1}
-MATCHED_PRECINCTS = {key[1] for key in MODEL.matching if MODEL.matching[key].value ==1}
+    assert round(alpha_min, 11) ==  7.992335e-05 #value from R code
 
+def test_kp_factor(alpha_min, distances_df, polling_locations_config):
+    distances_kp = distances_df.copy()
+    distances_kp['KP_factor'] = round(
+        model_factory.compute_kp_factor(
+            polling_locations_config,
+            alpha_min,
+            distances_df
+        ),
+        6,
+    )
 
-def test_alpha_min():
+    distances_df2 = distances_kp[['id_orig', 'id_dest', 'KP_factor']]
+    distances_df2['KP_factor'] = round(
+        model_factory.compute_kp_factor(
+            polling_locations_config,
+            alpha_min,
+            distances_df
+        ),
+        6,
+    )
 
-    print(f'alpha -> {ALPHA}')
-
-    assert round(ALPHA, 11) ==  7.992335e-05 #value from R code
-
-def test_kp_factor():
-    print(f'config -> {CONFIG}')
-    DIST_DF['KP_factor'] = round(model_factory.compute_kp_factor(CONFIG, ALPHA, DIST_DF), 6)
-    dist_df2 = DIST_DF[['id_orig', 'id_dest', 'KP_factor']]
-
-    dist_df2 = dist_df2.sort_values(by=['id_orig', 'id_dest'])
+    distances_df2 = distances_df2.sort_values(by=['id_orig', 'id_dest'])
 
     fixed_test_data = load_kp_factor_data(TEST_KP_FACTOR) #data from R code
     fixed_test_data.kp_factor = round(fixed_test_data.kp_factor, 6)
     fixed_test_data = fixed_test_data.sort_values(by=['id_orig', 'id_dest'])
-    '''
-    print('fixed_test_data columns:')
-    print(fixed_test_data.columns)
-    print(fixed_test_data.head())
 
-    print('================================================')
-    print('dist_df2 columns:')
-    print(dist_df2.columns)
-    print(dist_df2.head())
-    breakpoint()
-    compare = dist_df2.merge(fixed_test_data, how = 'outer', on=['id_orig', 'id_dest'])
-
-
-    print('================================================')
-    print('compare columns:')
-    print(compare.columns)
-    print(compare.head()) '''
-
-    compare = dist_df2.merge(fixed_test_data, how = 'outer', on=['id_orig', 'id_dest'])
+    compare = distances_df2.merge(fixed_test_data, how = 'outer', on=['id_orig', 'id_dest'])
     compare = compare.sort_values(by=['id_orig', 'id_dest'])
 
     assert compare.KP_factor.equals(compare.kp_factor)
 
 
 # #test model constraints
-# def test_open_constraint():
-#     #number of open precincts as described in config
-#     print(f'OPEN_PRECINCTS: {OPEN_PRECINCTS}')
-#     assert len(OPEN_PRECINCTS) == CONFIG.precincts_open
+def test_open_constraint(open_precincts, polling_locations_config):
+    #number of open precincts as described in config
+    assert len(open_precincts) == polling_locations_config.precincts_open
 
 
-# def test_max_new_constraint():
-#     #number of new precincts less than maxpctnew of number open
-#     new_precincts = POTENTIAL_PRECINCTS.intersection(OPEN_PRECINCTS)
-#     print('new_precincts:', new_precincts)
-#     assert len(new_precincts) < CONFIG.maxpctnew* CONFIG.precincts_open
+def test_max_new_constraint(potential_precincts, open_precincts, polling_locations_config):
+    #number of new precincts less than maxpctnew of number open
+    new_precincts = potential_precincts.intersection(open_precincts)
+    print('new_precincts:', new_precincts)
+    assert len(new_precincts) < polling_locations_config.maxpctnew * polling_locations_config.precincts_open
 
 
-# def test_min_old_constraint():
-#     #number of old precincts more than minpctold of old polls
-#     old_precincts = OPEN_PRECINCTS.difference(POTENTIAL_PRECINCTS)
-#     assert len(old_precincts) >= CONFIG.minpctold*OLD_POLLS
+def test_min_old_constraint(distances_df, open_precincts, potential_precincts, polling_locations_config):
+    #number of old precincts more than minpctold of old polls
+    old_polls = len(distances_df[distances_df.location_type == 'polling'])
+    old_precincts = open_precincts.difference(potential_precincts)
+    assert len(old_precincts) >= polling_locations_config.minpctold*old_polls
 
 
-# def test_res_assigned():
-#     #each residence assigned to exactly one precinct
-#     #Note: ignoring the radius calculation here
-#     assert MATCHED_RESIDENCES == ALL_RESIDENCES
+def test_res_assigned(polling_model, distances_df):
+    #each residence assigned to exactly one precinct
+    #Note: ignoring the radius calculation here
+    matched_residences = {key[0] for key in polling_model.matching if polling_model.matching[key].value ==1}
 
-# def test_precinct_open():
-#     #residences matched to open precincts (and all open precincts matched)
-#     assert MATCHED_PRECINCTS == OPEN_PRECINCTS
+    all_residences = set(distances_df.id_orig.unique())
+
+    assert matched_residences == all_residences
 
 
-# def test_capacity():
-#     #each open precinct doesn't serve more that capacity * total pop / number open
-#     matching_list= [(key[0], key[1], MODEL.matching[key].value) for key in MODEL.matching if MODEL.matching[key].value ==1]
-#     matching_df = pd.DataFrame(matching_list, columns = ['id_orig', 'id_dest', 'matching'])
+def test_precinct_open(polling_model, open_precincts):
+    #residences matched to open precincts (and all open precincts matched)
+    matched_precincts = {key[1] for key in polling_model.matching if polling_model.matching[key].value ==1}
 
-#     #merge with dist_df
-#     result_df = pd.merge(DIST_DF, matching_df, on = ['id_orig', 'id_dest'])
-#     dest_pop_df = result_df[['id_dest', 'population']].groupby('id_dest').agg('sum')
-#     assert all(dest_pop_df.population <=(CONFIG.capacity*TOTAL_POP/CONFIG.precincts_open))
+    assert matched_precincts == open_precincts
+
+
+def test_capacity(polling_model, distances_df, total_population, polling_locations_config):
+    #each open precinct doesn't serve more that capacity * total pop / number open
+    matching_list= [
+        (key[0], key[1], polling_model.matching[key].value)
+        for key in polling_model.matching
+        if polling_model.matching[key].value ==1
+    ]
+    matching_df = pd.DataFrame(matching_list, columns = ['id_orig', 'id_dest', 'matching'])
+
+    #merge with distances_df
+    result_df = pd.merge(distances_df, matching_df, on = ['id_orig', 'id_dest'])
+    dest_pop_df = result_df[['id_dest', 'population']].groupby('id_dest').agg('sum')
+    assert all(dest_pop_df.population <=(polling_locations_config.capacity*total_population/polling_locations_config.precincts_open))
 
 # # Test the intermediate dataframe with driving distances
 
-# # The test driving distances are exactly twice the haversine test distances
-# def test_driving_distances():
-#     DRIVING_TESTING_CONFIG = os.path.join(TESTS_DIR, 'testing_config_driving.yaml')
-#     DRIVING_CONFIG = PollingModelConfig.load_config(DRIVING_TESTING_CONFIG)
-#     DRIVING_POLLING_LOCATIONS = model_data.get_polling_locations(
-#         location_source=DRIVING_CONFIG.location_source,
-#         census_year=DRIVING_CONFIG.census_year,
-#         location=DRIVING_CONFIG.location,
-#         log_distance=DRIVING_CONFIG.log_distance,
-#             driving=DRIVING_CONFIG.driving,
-#     )
-#     DRIVING_DIST_DF = model_data.clean_data(DRIVING_CONFIG, DRIVING_POLLING_LOCATIONS, False, False)
+# # # The test driving distances are exactly twice the haversine test distances
+# # def test_driving_distances():
+# #     DRIVING_TESTING_CONFIG = os.path.join(TESTS_DIR, 'testing_config_driving.yaml')
+# #     DRIVING_CONFIG = PollingModelConfig.load_config(DRIVING_TESTING_CONFIG)
+# #     DRIVING_POLLING_LOCATIONS = model_data.get_polling_locations(
+# #         location_source=DRIVING_CONFIG.location_source,
+# #         census_year=DRIVING_CONFIG.census_year,
+# #         location=DRIVING_CONFIG.location,
+# #         log_distance=DRIVING_CONFIG.log_distance,
+# #             driving=DRIVING_CONFIG.driving,
+# #     )
+# #     DRIVING_DIST_DF = model_data.clean_data(DRIVING_CONFIG, DRIVING_POLLING_LOCATIONS, False, False)
 
-#     assert DRIVING_DIST_DF['distance_m'].sum() == 2*DIST_DF['distance_m'].sum()
-#     # Test for penalty functionality
-# OBJ = pyo.value(MODEL.obj)
-# KP = -1/(CONFIG.beta*ALPHA)*math.log(OBJ)
-# TESTING_CONFIG_PENALTY = os.path.join(TESTS_DIR, 'testing_config_penalty.yaml')
-# PENALTY_CONFIG = PollingModelConfig.load_config(TESTING_CONFIG_PENALTY)
-# EX_MODEL = model_factory.polling_model_factory(DIST_DF, ALPHA, PENALTY_CONFIG, exclude_penalized_sites=True)
-# model_solver.solve_model(EX_MODEL, PENALTY_CONFIG.time_limit)
-# EX_OBJ = pyo.value(EX_MODEL.obj)
-# EX_KP = -1/(CONFIG.beta*ALPHA)*math.log(EX_OBJ) # same beta and alpha for both configs
+# #     assert DRIVING_DIST_DF['distance_m'].sum() == 2*DIST_DF['distance_m'].sum()
 
-# def test_exclude_penalized():
-#     EX_OPEN_PRECINCTS = {key for key in EX_MODEL.open if EX_MODEL.open[key].value ==1}
-#     assert len(EX_OPEN_PRECINCTS - set(PENALTY_CONFIG.penalized_sites))==3
+# Test for penalty functionality
+def test_exclude_penalized(expanded_polling_model, polling_locations_penalty_config):
+    ex_open_precincts = {key for key in expanded_polling_model.open if expanded_polling_model.open[key].value ==1}
+    assert len(ex_open_precincts - set(polling_locations_penalty_config.penalized_sites))==3
 
-# def test_penalized_model():
-#     penalty = (EX_KP - KP) / len(OPEN_PRECINCTS)
-#     PEN_MODEL = model_factory.polling_model_factory(DIST_DF, ALPHA, PENALTY_CONFIG,
-#                                                     exclude_penalized_sites=False,
-#                                                     site_penalty=penalty,
-#                                                     kp_penalty_parameter=KP)
-#     model_solver.solve_model(PEN_MODEL, PENALTY_CONFIG.time_limit)
-#     PEN_OPEN_PRECINCTS = {key for key in PEN_MODEL.open if PEN_MODEL.open[key].value ==1}
-#     PEN_OBJ = pyo.value(PEN_MODEL.obj)
-#     PEN_KP = -1/(CONFIG.beta*ALPHA)*math.log(PEN_OBJ) - penalty
-#     assert (PEN_KP > KP)
+def test_penalized_model(
+    expanded_polling_model,
+    polling_model,
+    polling_locations_config,
+    alpha_min,
+    polling_locations_penalty_config,
+    open_precincts,
+    distances_df,
+):
+    ex_obj = pyo.value(expanded_polling_model.obj)
+    print('polling_locations_config:', polling_locations_config.beta)
+    ex_kp = -1/(polling_locations_config.beta*alpha_min)*math.log(ex_obj) # same beta and alpha for both configs
+
+    obj = pyo.value(polling_model.obj)
+
+    kp = -1/(polling_locations_config.beta*alpha_min)*math.log(obj)
+    penalty = (ex_kp - kp) / len(open_precincts)
+    pen_model = model_factory.polling_model_factory(distances_df, alpha_min, polling_locations_penalty_config,
+                                                    exclude_penalized_sites=False,
+                                                    site_penalty=penalty,
+                                                    kp_penalty_parameter=kp)
+    model_solver.solve_model(pen_model, polling_locations_penalty_config.time_limit)
+
+    # PEN_OPEN_PRECINCTS = {key for key in pen_model.open if pen_model.open[key].value ==1}
+    pen_obj = pyo.value(pen_model.obj)
+    pen_kp = -1/(polling_locations_config.beta * alpha_min)*math.log(pen_obj) - penalty
+    assert pen_kp > kp
+
