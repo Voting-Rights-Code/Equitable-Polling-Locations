@@ -48,7 +48,7 @@ def polling_locations_df(polling_locations_config):
     )
     yield polling_locations.polling_locations
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def distances_df(polling_locations_config, polling_locations_df):
     yield model_data.clean_data(polling_locations_config, polling_locations_df, False, False)
 
