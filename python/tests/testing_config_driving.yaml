@@ -5,7 +5,7 @@ year:
     - '2020'
     - '2022'
 bad_types:
-    - 'Election Day Loc - Potential'
+    - 'Elec Day School - Potential'
     - 'bg_centroid'
 beta: -2
 time_limit: 360000 #100 hours minutes
