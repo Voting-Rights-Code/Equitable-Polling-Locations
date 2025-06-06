@@ -48,9 +48,9 @@ source('R/result_analysis/utility_functions/regression_functions.R')
 #For inline testing only
 ###
 #source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
-source('R/result_analysis/Basic_analysis_configs/York_County_original.r')
+#source('R/result_analysis/Basic_analysis_configs/York_County_original.r')
 
-#source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
+source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
 
 #######
 #Check that location and folders valid
@@ -116,20 +116,21 @@ if (file.exists(file.path(here(), plot_folder))){
 setwd(file.path(here(), plot_folder))
 
 #split by descriptor
-result_list <- split(orig_output_df_list$results, orig_output_df_list$results$descriptor)
-#result_list <- split(potential_output_df_list$results, potential_output_df_list$results$descriptor)
+#result_list <- split(orig_output_df_list$results, orig_output_df_list$results$descriptor)
+result_list <- split(potential_output_df_list$results, potential_output_df_list$results$descriptor)
 
 
 
 #merge in geometry data
-sample <- result_list$year_2014
-#sample <- result_list$precincts_open_5
+#sample <- result_list$year_2014
+sample <- result_list$precincts_open_5
 location <- unique(sample$location) 
 block_result_geom <- results_with_area_geom(location, sample)
 
 #Make sf
 library(dplyr)
 library(sf)
+libarary(smoothr)
 
 df_sf <- st_as_sf(block_result_geom)
 
@@ -176,3 +177,12 @@ step_4<- ggplot() +	geom_sf(data = precincts_sf_all, aes(fill = id_dest), show.l
         #coord_sf(lims_method = "geometry_bbox", default_crs = sf::st_crs(4326)) + 
         geom_point(data = precincts_sf_all, aes(x = dest_lon, y = dest_lat), show.legend = FALSE)
 ggsave('step_4_all_precincts.png', step_4)
+
+#drop crumbs
+area_thresh <- units::set_units(2, km^2)
+precincts_sf_valid <- st_make_valid(precincts_sf_all)
+precincts_sf_clean <- precincts_sf_valid %>% st_buffer(50)
+step_5<- ggplot() +	geom_sf(data = precincts_sf_valid, aes(fill = id_dest), show.legend = FALSE)+
+        #coord_sf(lims_method = "geometry_bbox", default_crs = sf::st_crs(4326)) + 
+        geom_point(data = precincts_sf_all, aes(x = dest_lon, y = dest_lat), show.legend = FALSE)
+ggsave('step_5_clean_precincts.png', step_5)
