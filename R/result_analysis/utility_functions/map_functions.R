@@ -222,9 +222,9 @@ prepare_outputs_for_precinct_maps <- function(result_dt){
 	result_with_geom <- mapply(function(location, df)results_with_area_geom(location, df), location_list, result_list, SIMPLIFY = FALSE)
 
 	#make map data an sf object
-	df_sf <- st_as_sf(block_result_geom)
-
-	return(df_sf)
+	sf_list <- lapply(result_with_geom, st_as_sf)
+	
+	return(sf_list)
 }
 
 
@@ -343,10 +343,12 @@ make_precinct_map_no_people <- function(df_sf){
 		geom_sf(data = df_sf, aes(fill = id_dest), show.legend = FALSE)+
         geom_point(data = df_sf, aes(x = dest_lon, y = dest_lat), show.legend = FALSE)
 	
-	location <- unique(df$location)
+	location <- unique(df_sf$location)
 	descriptor <- unique(df_sf$location)
+
+	browser()
 	#write to file
-	graph_file_path = paste0(location, '_','precince','_',descriptor, '_','indicate_0_population.png')
+	graph_file_path = paste0(location, '_','precinct','_',descriptor, '_','indicate_0_population.png')
 	add_graph_to_graph_file_manifest(graph_file_path)
 	ggsave(graph_file_path, plotted)
 }
