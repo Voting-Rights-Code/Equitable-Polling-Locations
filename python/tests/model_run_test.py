@@ -16,6 +16,7 @@ import pytest
 
 from python.solver.model_config import PollingModelConfig
 from python.solver import model_data, model_factory, model_solver
+from python.utils.constants import POLLING_DIR
 
 pd.set_option('display.max_columns', None)
 
@@ -26,6 +27,7 @@ TESTING_CONFIG_EXPANDED = os.path.join(TESTS_DIR, 'testing_config_expanded.yaml'
 TESTING_CONFIG_PENALTY = os.path.join(TESTS_DIR, 'testing_config_penalty.yaml')
 DRIVING_TESTING_CONFIG = os.path.join(TESTS_DIR, 'testing_config_driving.yaml')
 
+TESTING_LOCATIONS_ONLY_PATH = os.path.join(POLLING_DIR, 'testing', 'testing_locations_only.csv')
 
 TEST_KP_FACTOR = os.path.join(TESTS_DIR, 'test_kp_factor.csv')
 
@@ -188,24 +190,25 @@ def test_capacity(polling_model, distances_df, total_population, polling_locatio
     #merge with distances_df
     result_df = pd.merge(distances_df, matching_df, on = ['id_orig', 'id_dest'])
     dest_pop_df = result_df[['id_dest', 'population']].groupby('id_dest').agg('sum')
+    # pylint: disable-next=line-too-long
     assert all(dest_pop_df.population <=(polling_locations_config.capacity*total_population/polling_locations_config.precincts_open))
 
 
 # # Test the intermediate dataframe with driving distances
 # # The test driving distances are exactly twice the haversine test distances
-'''def test_driving_distances(distances_df):
-    driving_config = PollingModelConfig.load_config(DRIVING_TESTING_CONFIG)
-    driving_polling_locations = model_data.get_polling_locations(
-        location_source=driving_config.location_source,
-        census_year=driving_config.census_year,
-        location=driving_config.location,
-        log_distance=driving_config.log_distance,
-            driving=driving_config.driving,
-    )
-    driving_polling_locations_df = driving_polling_locations.polling_locations
-    driving_dist_df = model_data.clean_data(driving_config, driving_polling_locations_df, False, False) 
-    
-    assert driving_dist_df['distance_m'].sum() == 2*distances_df['distance_m'].sum()'''
+# def test_driving_distances(distances_df):
+#     driving_config = PollingModelConfig.load_config(DRIVING_TESTING_CONFIG)
+#     driving_polling_locations = model_data.get_polling_locations(
+#         location_source=driving_config.location_source,
+#         census_year=driving_config.census_year,
+#         location=driving_config.location,
+#         log_distance=driving_config.log_distance,
+#             driving=driving_config.driving,
+#     )
+#     driving_polling_locations_df = driving_polling_locations.polling_locations
+#     driving_dist_df = model_data.clean_data(driving_config, driving_polling_locations_df, False, False)
+
+#     assert driving_dist_df['distance_m'].sum() == 2*distances_df['distance_m'].sum()
 
 
 # Test for penalty functionality
@@ -239,5 +242,5 @@ def test_penalized_model(
     # PEN_OPEN_PRECINCTS = {key for key in pen_model.open if pen_model.open[key].value ==1}
     pen_obj = pyo.value(pen_model.obj)
     pen_kp = -1/(polling_locations_config.beta * alpha_min)*math.log(pen_obj) - penalty
-    print(f'pen_kp:', {pen_kp}, 'pen_obj:', {pen_obj})
+    # print('pen_kp:', {pen_kp}, 'pen_obj:', {pen_obj})
     assert pen_kp > kp
