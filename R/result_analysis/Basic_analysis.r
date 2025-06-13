@@ -36,18 +36,18 @@ source('R/result_analysis/utility_functions/regression_functions.R')
 #     3. Note: for now, this only works for a unique location. Extending this to the location being the varying field is still a TODO.
 #######
 
-# args = commandArgs(trailingOnly = TRUE)
-# if (length(args) != 1){
-#     stop("Must enter exactly one config file")
-# } else{#read constants from indicated config file
-#     config_path <- paste0('R/result_analysis/Basic_analysis_configs/', args[1])
-#     source(config_path)
-#  }
+args = commandArgs(trailingOnly = TRUE)
+if (length(args) != 1){ 
+        stop("Must enter exactly one config file")
+  } else{#read constants from indicated config file
+    config_path <- paste0('R/result_analysis/Basic_analysis_configs/', args[1])
+   source(config_path)
+  }
 
 ###
 #For inline testing only
 ###
-source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
+#source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
 
 #source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
 

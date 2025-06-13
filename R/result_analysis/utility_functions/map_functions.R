@@ -1,6 +1,7 @@
 library(data.table)
 library(ggplot2)
 library(sf)
+library(dplyr)
 
 source('R/result_analysis/utility_functions/load_config_data.R')
 source('R/result_analysis/utility_functions/storage.R')
@@ -338,15 +339,19 @@ make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLA
 #############
 make_precinct_map_no_people <- function(df_sf){
 
+	#set labeling constants
+	location <- unique(df_sf[!is.na(df_sf$id_dest), ]$location)
+	descriptor <- unique(df_sf[!is.na(df_sf$id_dest), ]$descriptor)
+
+	title_str = gsub("_", '', paste(location, 'precinct map; empty blocks indicated'))
+	subtitle_str = gsub("_", ' ', paste('Optimized for', descriptor))
+	
 	#make map where blocks with no people are in grey
 	plotted <- ggplot() +	
 		geom_sf(data = df_sf, aes(fill = id_dest), show.legend = FALSE)+
-        geom_point(data = df_sf, aes(x = dest_lon, y = dest_lat), show.legend = FALSE)
+        geom_point(data = df_sf, aes(x = dest_lon, y = dest_lat), show.legend = FALSE) + 
+		ggtitle(title_str, subtitle_str) + xlab('') + ylab('')
 	
-	location <- unique(df_sf$location)
-	descriptor <- unique(df_sf$location)
-
-	browser()
 	#write to file
 	graph_file_path = paste0(location, '_','precinct','_',descriptor, '_','indicate_0_population.png')
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -355,6 +360,13 @@ make_precinct_map_no_people <- function(df_sf){
 
 make_precinct_map <- function(df_sf){
 
+	#set labeling constants
+	location <- unique(df_sf[!is.na(df_sf$id_dest), ]$location)
+	descriptor <- unique(df_sf[!is.na(df_sf$id_dest), ]$descriptor)
+
+	title_str = gsub("_", ' ', paste(location, 'precinct map'))
+	subtitle_str = gsub("_", ' ', paste('Optimized for', descriptor))
+	
 	#separate out populated and unpopulated blocks
 	df_sf_pop <- df_sf[!is.na(df_sf$id_dest), ]
 	df_sf_unpop <- df_sf[is.na(df_sf$id_dest), ]
@@ -381,10 +393,9 @@ make_precinct_map <- function(df_sf){
 	precincts_sf_clean <- precincts_sf_valid %>% st_buffer(50)
 	plotted<- ggplot() +	
 		geom_sf(data = precincts_sf_valid, aes(fill = id_dest), show.legend = FALSE)+
-			geom_point(data = precincts_sf_all, aes(x = dest_lon, y = dest_lat), show.legend = FALSE)
-
-	location <- unique(df$location)
-	descriptor <- unique(df_sf$location)
+		geom_point(data = precincts_sf_all, aes(x = dest_lon, y = dest_lat), show.legend = FALSE)+ 
+		ggtitle(title_str, subtitle_str) + xlab('') + ylab('')
+	
 	#write to file
 	graph_file_path = paste0(location, '_','precinct','_',descriptor,'.png')
 	add_graph_to_graph_file_manifest(graph_file_path)
