@@ -16,4 +16,4 @@ max_min_mult: 5 #scalar >= 1
 maxpctnew: 1 # in interval [0,1]
 minpctold: .5 # in interval [0,1]
 penalized_sites:
-    - 'College Campus - Potential'
+    - 'Elec Day School - Potential'
