@@ -25,7 +25,7 @@
 
 #to test that kp2 is correctly defined on line 57
 #Define:
-#  exclude_config = test_config_schools.yaml
+#  exclude_config = test_config_expanded.yaml
 #  penalize_config = test_config_pentalty.yaml
 #run 
 #  exclude_model = polling_model_factory(dist_df, alpha, exclude_config)
