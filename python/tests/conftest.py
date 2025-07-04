@@ -1,0 +1,142 @@
+''' Pytest fixtures '''
+
+# pylint: disable=redefined-outer-name,line-too-long
+
+import os
+
+import pandas as pd
+import pytest
+
+from python.solver import model_data, model_factory, model_run, model_solver, model_results, model_penalties
+from python.solver.model_config import PollingModelConfig
+
+
+from .constants import TESTING_CONFIG_EXPANDED, TESTING_CONFIG_PENALTY, TESTS_DIR, TESTING_LOCATIONS_ONLY_PATH, TEST_LOCATION, MAP_SOURCE_DATE
+
+def generate_penalties_df(config: PollingModelConfig) -> pd.DataFrame:
+    run_setup = model_run.prepare_run(config, False)
+
+    model_solver.solve_model(run_setup.ea_model, config.time_limit, log=False, log_file_path=config.log_file_path)
+
+    incorporate_result_df = model_results.incorporate_result(run_setup.dist_df, run_setup.ea_model)
+
+    result = model_penalties.incorporate_penalties(
+        run_setup.dist_df,
+        run_setup.alpha,
+        run_setup.run_prefix,
+        incorporate_result_df,
+        run_setup.ea_model,
+        config,
+        False,
+    )
+
+    return result
+
+@pytest.fixture(scope='session')
+def driving_testing_config():
+    return PollingModelConfig.load_config(os.path.join(TESTS_DIR, 'testing_config_driving.yaml'))
+
+@pytest.fixture(scope='session')
+def testing_config_expanded():
+    return PollingModelConfig.load_config(os.path.join(TESTS_DIR, 'testing_config_expanded.yaml'))
+
+@pytest.fixture(scope='session')
+def testing_config_penalty():
+    return PollingModelConfig.load_config(os.path.join(TESTS_DIR, 'testing_config_penalty.yaml'))
+
+@pytest.fixture(scope='session')
+def testing_config_schools():
+    return PollingModelConfig.load_config(os.path.join(TESTS_DIR, 'testing_config_schools.yaml'))
+
+@pytest.fixture(scope='session')
+def result_no_school_df(testing_config_expanded):
+    return generate_penalties_df(testing_config_expanded)
+
+@pytest.fixture(scope='session')
+def result_school_penalized_df(testing_config_penalty):
+    return generate_penalties_df(testing_config_penalty)
+
+@pytest.fixture(scope='session')
+def result_school_df(testing_config_schools):
+    return generate_penalties_df(testing_config_schools)
+
+@pytest.fixture(scope='session')
+def driving_locations_results_df(tmp_path_factory, driving_testing_config):
+    ''' Fixture to load the locations results DataFrame from the testing locations CSV. '''
+
+    tmp_path = tmp_path_factory.mktemp('driving_locations_results_test_data')
+    build_source_ouput_tmp_path = os.path.join(tmp_path, 'testing_driving_2020.csv')
+
+    model_data.build_source(
+        'csv',
+        census_year=driving_testing_config.census_year,
+        location=TEST_LOCATION,
+        driving=driving_testing_config.driving,
+        log_distance=driving_testing_config.log_distance,
+        map_source_date=MAP_SOURCE_DATE,
+        locations_only_path_override=TESTING_LOCATIONS_ONLY_PATH,
+        output_path_override=build_source_ouput_tmp_path,
+    )
+
+    locations_results_df = model_data.load_locations_csv(build_source_ouput_tmp_path)
+    return locations_results_df
+
+@pytest.fixture(scope='session')
+def polling_locations_config():
+    yield PollingModelConfig.load_config(TESTING_CONFIG_EXPANDED)
+
+@pytest.fixture(scope='session')
+def polling_locations_penalty_config():
+    yield PollingModelConfig.load_config(TESTING_CONFIG_PENALTY)
+
+@pytest.fixture(scope='module')
+def polling_locations_df(polling_locations_config):
+    polling_locations = model_data.get_polling_locations(
+        location_source='csv',
+        census_year=polling_locations_config.census_year,
+        location=polling_locations_config.location,
+        log_distance=polling_locations_config.log_distance,
+        driving=polling_locations_config.driving,
+    )
+    yield polling_locations.polling_locations
+
+@pytest.fixture(scope='module')
+def distances_df(polling_locations_config, polling_locations_df):
+    yield model_data.clean_data(polling_locations_config, polling_locations_df, False, False)
+
+@pytest.fixture(scope='module')
+def alpha_min(polling_locations_config, polling_locations_df):
+    alpha_df = model_data.clean_data(polling_locations_config, polling_locations_df, True, False)
+    yield model_data.alpha_min(alpha_df)
+
+@pytest.fixture(scope='module')
+def polling_model(distances_df, alpha_min, polling_locations_config):
+    model = model_factory.polling_model_factory(distances_df, alpha_min, polling_locations_config)
+    model_solver.solve_model(model, polling_locations_config.time_limit)
+
+    yield model
+
+@pytest.fixture(scope='module')
+def expanded_polling_model(distances_df, alpha_min, polling_locations_penalty_config):
+    model = model_factory.polling_model_factory(
+        distances_df,
+        alpha_min,
+        polling_locations_penalty_config,
+        exclude_penalized_sites=True
+    )
+    model_solver.solve_model(model, polling_locations_penalty_config.time_limit)
+
+    yield model
+
+
+@pytest.fixture(scope='module')
+def open_precincts(polling_model):
+    yield {key for key in polling_model.open if polling_model.open[key].value ==1}
+
+@pytest.fixture(scope='module')
+def total_population(distances_df):
+    yield distances_df.groupby('id_orig')['population'].agg('unique').str[0].sum()
+
+@pytest.fixture(scope='module')
+def potential_precincts(distances_df):
+    yield set(distances_df[distances_df.dest_type == 'potential'].id_dest)

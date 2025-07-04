@@ -1,51 +1,16 @@
 ''' Test for model_data. '''
 
-# pylint: disable=redefined-outer-name,line-too-long
+# pylint: disable=line-too-long
 
-import os
 from itertools import product
 
 import pandas as pd
 import pytest
 
 from python.solver import model_data
-from python.solver.model_config import PollingModelConfig
-from python.utils.constants import POLLING_DIR
 
-TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-DRIVING_TESTING_CONFIG = os.path.join(TESTS_DIR, 'testing_config_driving.yaml')
-TESTING_LOCATIONS_ONLY_PATH = os.path.join(POLLING_DIR, 'testing', 'testing_locations_only.csv')
+from .constants import TESTING_LOCATIONS_ONLY_PATH, TEST_LOCATION, MAP_SOURCE_DATE
 
-# CENSUS_YEAR_2020 = '2020'
-TEST_LOCATION = 'Gwinnett_County_GA'
-
-
-MAP_SOURCE_DATE='20250101'
-
-@pytest.fixture(scope='session')
-def driving_testing_config():
-    return PollingModelConfig.load_config(DRIVING_TESTING_CONFIG)
-
-@pytest.fixture(scope='session')
-def driving_locations_results_df(tmp_path_factory, driving_testing_config):
-    ''' Fixture to load the locations results DataFrame from the testing locations CSV. '''
-
-    tmp_path = tmp_path_factory.mktemp('driving_locations_results_test_data')
-    build_source_ouput_tmp_path = os.path.join(tmp_path, 'testing_driving_2020.csv')
-
-    model_data.build_source(
-        'csv',
-        census_year=driving_testing_config.census_year,
-        location=TEST_LOCATION,
-        driving=driving_testing_config.driving,
-        log_distance=driving_testing_config.log_distance,
-        map_source_date=MAP_SOURCE_DATE,
-        locations_only_path_override=TESTING_LOCATIONS_ONLY_PATH,
-        output_path_override=build_source_ouput_tmp_path,
-    )
-
-    locations_results_df = model_data.load_locations_csv(build_source_ouput_tmp_path)
-    return locations_results_df
 
 def test_build_source_columns(driving_locations_results_df):
     ''' Checks that the columns in the locations_results_df match the expected columns. '''
@@ -64,6 +29,7 @@ def test_build_source_columns(driving_locations_results_df):
         f'Expected: {expected_columns}\n'
         f'Actual: {actual_columns}'
     )
+
 
 def test_build_source_locations(driving_testing_config, driving_locations_results_df):
     ''' Calls build_source with driving distances and checks the locations are as expected. '''
@@ -179,4 +145,45 @@ def test_build_source_column_output(driving_locations_results_df):
                 # For all other data types, use a direct comparison
                 assert actual_value == expected_value, \
                     f"Mismatch in column '{column_name}' for row {lookup_key}. Expected: {expected_value}, Got: {actual_value}"
+
+
+def test_clean_data(driving_testing_config, driving_locations_results_df):
+    bad_types_df = driving_locations_results_df[driving_locations_results_df['location_type'].isin(driving_testing_config.bad_types)]
+    num_bad_types = len(bad_types_df)
+    assert num_bad_types > 0, (
+        'Test data should have some bad types, but found none.'
+    )
+
+    driving_locations_results_dest_types = driving_locations_results_df['dest_type'].unique()
+    print('driving_locations_results_dest_types')
+    print(driving_locations_results_dest_types)
+
+    # Check that clean_data removes bad types when for_alpha is False
+    cleaned_data_df = model_data.clean_data(driving_testing_config, driving_locations_results_df, False, False)
+    cleaned_data_bad_types_df = cleaned_data_df[cleaned_data_df['location_type'].isin(driving_testing_config.bad_types)]
+    num_cleaned_bad_types = len(cleaned_data_bad_types_df)
+
+    assert num_cleaned_bad_types == 0, (
+        f'Expected no bad types in cleaned data, but found {num_cleaned_bad_types} bad types.'
+    )
+
+    # Check that clean_data with alpha set to true removes all location_types that contain 'Potential' or 'centroid'
+    cleaned_data_with_alpha_df = model_data.clean_data(driving_testing_config, driving_locations_results_df, True, False)
+    unique_location_types = cleaned_data_with_alpha_df['location_type'].unique()
+
+    assert not any('Potential' in s or 'centroid' in s for s in unique_location_types), (
+        f'Unexpected locations from clean_data with alpha set to true should not return locations that contain "Potential" or "centroid" in location_type: {unique_location_types}'
+    )
+
+    driving_locations_results_dest_types = set(driving_locations_results_df['dest_type'].unique().tolist())
+    assert driving_locations_results_dest_types == set(['potential', 'polling', 'bg_centroid']), (
+        "Expected 'potential', 'polling', and 'bg_centroid' to be in location data for test to continue"
+    )
+
+    cleaned_data_dest_types = cleaned_data_df['dest_type'].unique().tolist()
+    assert cleaned_data_dest_types == ['potential', 'polling']
+
+
+    cleaned_data_with_alpha_dest_types = cleaned_data_with_alpha_df['dest_type'].unique().tolist()
+    assert cleaned_data_with_alpha_dest_types == ['polling']
 

@@ -38,6 +38,7 @@ def incorporate_result(dist_df, model):
     #turn matched solution into df
     matching_list= [(key[0], key[1], model.matching[key].value) for key in model.matching]
     matching_df = pd.DataFrame(matching_list, columns = ['id_orig', 'id_dest', 'matching'])
+
     #the matching doesn't always give an integer value. Replace the value with the integer it would round to   
     matching_df['matching'].mask(matching_df['matching']>=0.5, 1, inplace=True)
     matching_df['matching'].mask(matching_df['matching']<0.5, 0, inplace=True)

@@ -16,6 +16,13 @@ def get_log_path(config: PollingModelConfig, specifier: str):
     return f'{base_path}.{specifier}.log'
 
 
+def compute_kp(config: PollingModelConfig, alpha: float, obj_value: float) -> float:
+    if config.beta:
+        return -1/(config.beta*alpha)*math.log(obj_value)
+
+    return obj_value
+
+
 def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, config: PollingModelConfig, log: bool=False):
 
 
@@ -32,7 +39,7 @@ def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, confi
         return result_df
 
     # otherwise, start a log and continue the algorithm
-    penalty_log = open(get_log_path(config,'penalty'), 'a')
+    penalty_log = open(get_log_path(config,'penalty'), 'a', encoding='utf-8')
     penalty_log.write('Model 1: original model with no penalties\n')
     penalty_log.write(f'Selected {len(penalized_selections)} penalized sites:\n')
     for s in sorted(penalized_selections):
@@ -40,7 +47,8 @@ def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, confi
 
     # 2. convert objective value to KP score (kp1)
     obj_value = pyo.value(ea_model.obj)
-    kp1 = -1/(config.beta*alpha)*math.log(obj_value) if config.beta else obj_value
+    # kp1 = -1/(config.beta*alpha)*math.log(obj_value) if config.beta else obj_value
+    kp1 = compute_kp(config, alpha, obj_value)
     penalty_log.write(f'KP Objective = {kp1:.2f}\n')
 
     # 3. compute optimal solution excluding penalized sites (model 2)

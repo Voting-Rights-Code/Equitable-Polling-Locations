@@ -8,8 +8,11 @@ This file sets up a pyomo/scip run based on a config file, e.g.
 Gwinnett_County_GA_configs/Gwinnett_config_full_11.py
 '''
 
+from dataclasses import dataclass
 import os
 import warnings
+
+import pandas as pd
 
 from python.utils import build_locations_distance_file_path
 from python.utils.constants import LOCATION_SOURCE_CSV, RESULTS_BASE_DIR
@@ -21,7 +24,7 @@ from .model_data import (
     alpha_min,
     get_polling_locations,
 )
-from .model_factory import polling_model_factory
+from .model_factory import PollingModel, polling_model_factory
 from .model_penalties import incorporate_penalties
 from .model_results import (
     incorporate_result,
@@ -35,9 +38,21 @@ from .model_solver import solve_model
 OUT_TYPE_DB = 'db'
 OUT_TYPE_CSV = 'csv'
 
-def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OUT_TYPE_DB):
+@dataclass
+class RunSetup:
+    polling_locations_set_id: str
+    locations_df: pd.DataFrame
+    dist_df: pd.DataFrame
+    alpha: float
+    alpha_df: pd.DataFrame
+    ea_model: PollingModel
+    run_prefix: str
+
+
+def prepare_run(config: PollingModelConfig, log: bool=False) -> RunSetup:
     '''
-    The entry point to exectute a pyomo/scip run.
+    Use a PollingModelConfig to setup everything that is needed to run the model and return a
+    RunSetup object with the results.
     '''
 
     run_prefix = f'{config.config_set}/{config.config_name}'
@@ -71,29 +86,55 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
         driving=config.driving,
     )
 
+    polling_locations_set_id = polling_locations.polling_locations_set_id
     locations_df = polling_locations.polling_locations
-
 
     #get main data frame
     dist_df = clean_data(config, locations_df, False, log)
 
     #get alpha
     alpha_df = clean_data(config, locations_df, True, log)
-    alpha  = alpha_min(alpha_df)
+    alpha = alpha_min(alpha_df)
 
     #build model
     ea_model = polling_model_factory(dist_df, alpha, config)
     if log:
         print(f'model built for {run_prefix}.')
 
+    return RunSetup(
+        locations_df=locations_df,
+        polling_locations_set_id=polling_locations_set_id,
+        dist_df=dist_df,
+        alpha=alpha,
+        alpha_df=alpha_df,
+        ea_model=ea_model,
+        run_prefix=run_prefix,
+    )
+
+
+def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OUT_TYPE_DB):
+    '''
+    The entry point to exectute a pyomo/scip run.
+    '''
+
+    run_setup = prepare_run(config, log)
+
     #solve model
-    solve_model(ea_model, config.time_limit, log=log, log_file_path=config.log_file_path)
+    solve_model(run_setup.ea_model, config.time_limit, log=log, log_file_path=config.log_file_path)
 
     #incorporate result into main dataframe
-    result_df = incorporate_result(dist_df, ea_model)
+    result_df = incorporate_result(run_setup.dist_df, run_setup.ea_model)
 
     #incorporate site penalties as appropriate
-    result_df = incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, config, log)
+    result_df = incorporate_penalties(
+        run_setup.dist_df,
+        run_setup.alpha,
+        run_setup.run_prefix,
+        result_df,
+        run_setup.ea_model,
+        config,
+        log,
+    )
 
     #calculate the new alpha given this assignment
     alpha_new = alpha_min(result_df)
@@ -110,7 +151,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
     if outtype == OUT_TYPE_DB:
         write_results_bigquery(
             config=config,
-            polling_locations_set_id=polling_locations.polling_locations_set_id,
+            polling_locations_set_id=run_setup.polling_locations_set_id,
             result_df=result_df,
             demographic_prec=demographic_prec,
             demographic_res=demographic_res,

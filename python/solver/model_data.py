@@ -519,6 +519,20 @@ def get_polling_locations(
         )
 
 
+def clean_dest_type(locations_df: pd.DataFrame, year_list: list[str]):
+    '''
+    Cleans the destination type column in the DataFrame.
+    This function is used to ensure that the destination type is set correctly based on the location type.
+    '''
+    #select data based on year
+    #mark everything but bg_centroid as potential
+    #then mark location_types with correct years as
+    locations_df['dest_type'].mask(locations_df['dest_type'] != 'bg_centroid', 'potential', inplace = True)
+
+    # Set the dest_type to polling for every row that has a location_type like "2018" or "2020" from the year_list
+    locations_df['dest_type'].mask(locations_df['location_type'].str.contains('|'.join(year_list)), 'polling', inplace = True)
+
+
 #########
 #Read the intermediate data frame from file, and pull the relevant rows
 #Note this this function is called twice, once for calculating alpha and once for
@@ -547,8 +561,6 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
         if not any(str(year) in poll for poll in polling_location_types):
             raise ValueError(f'Do not currently have any data for {location} for {year} from {config.config_file_path}')
 
-    print('unique_location_types -> ', unique_location_types)
-
     #exclude bad location types
     # The bad types must be valid location types
     if not set(bad_location_list).issubset(set(unique_location_types)):
@@ -558,11 +570,8 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
     #drop rows of bad location types in df
     result_df = result_df[~result_df['location_type'].isin(bad_location_list)]
 
-    #select data based on year
-    #mark everything but bg_centroid as potential
-    #then mark location_types with correct years as
-    result_df['dest_type'].mask(result_df['dest_type'] != 'bg_centroid', 'potential', inplace = True)
-    result_df['dest_type'].mask(result_df['location_type'].str.contains('|'.join(year_list)), 'polling', inplace = True)
+    clean_dest_type(result_df, year_list)
+
     #check that this hasn't created duplicates (should not have); drop these
     result_df = result_df.drop_duplicates()
 
@@ -585,7 +594,7 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
             print(f'distances missing for {len(missing_dests)} destination(s): {missing_dests}')
         if len(missing_origs) > 0:
             print(f'distances missing for {len(missing_origs)} origin(s): {missing_origs}')
-        raise ValueError(f'Some distances are missing for current config setting.')
+        raise ValueError('Some distances are missing for current config setting.')
 
     #create other useful columns
     result_df['Weighted_dist'] = result_df['population'] * result_df['distance_m']

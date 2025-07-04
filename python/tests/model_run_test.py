@@ -4,7 +4,6 @@ and checks that the resulta are consistent. As such, this is a point check only,
 # pylint: disable=redefined-outer-name
 
 import math
-import os
 
 import logging
 
@@ -12,84 +11,12 @@ import numpy as np
 import pandas as pd
 import pyomo.environ as pyo
 
-import pytest
-
-from python.solver.model_config import PollingModelConfig
-from python.solver import model_data, model_factory, model_solver
-from python.utils.constants import POLLING_DIR
+from python.solver import model_factory, model_solver, model_run
+from python.tests.constants import TEST_KP_FACTOR
 
 pd.set_option('display.max_columns', None)
 
 logger = logging.getLogger(__name__)
-
-TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-TESTING_CONFIG_EXPANDED = os.path.join(TESTS_DIR, 'testing_config_expanded.yaml')
-TESTING_CONFIG_PENALTY = os.path.join(TESTS_DIR, 'testing_config_penalty.yaml')
-DRIVING_TESTING_CONFIG = os.path.join(TESTS_DIR, 'testing_config_driving.yaml')
-
-TESTING_LOCATIONS_ONLY_PATH = os.path.join(POLLING_DIR, 'testing', 'testing_locations_only.csv')
-
-TEST_KP_FACTOR = os.path.join(TESTS_DIR, 'test_kp_factor.csv')
-
-@pytest.fixture(scope='session')
-def polling_locations_config():
-    yield PollingModelConfig.load_config(TESTING_CONFIG_EXPANDED)
-
-@pytest.fixture(scope='session')
-def polling_locations_penalty_config():
-    yield PollingModelConfig.load_config(TESTING_CONFIG_PENALTY)
-
-@pytest.fixture(scope='module')
-def polling_locations_df(polling_locations_config):
-    polling_locations = model_data.get_polling_locations(
-        location_source='csv',
-        census_year=polling_locations_config.census_year,
-        location=polling_locations_config.location,
-        log_distance=polling_locations_config.log_distance,
-        driving=polling_locations_config.driving,
-    )
-    yield polling_locations.polling_locations
-
-@pytest.fixture(scope='module')
-def distances_df(polling_locations_config, polling_locations_df):
-    yield model_data.clean_data(polling_locations_config, polling_locations_df, False, False)
-
-@pytest.fixture(scope='module')
-def alpha_min(polling_locations_config, polling_locations_df):
-    alpha_df = model_data.clean_data(polling_locations_config, polling_locations_df, True, False)
-    yield model_data.alpha_min(alpha_df)
-
-@pytest.fixture(scope='module')
-def polling_model(distances_df, alpha_min, polling_locations_config):
-    model = model_factory.polling_model_factory(distances_df, alpha_min, polling_locations_config)
-    model_solver.solve_model(model, polling_locations_config.time_limit)
-
-    yield model
-
-@pytest.fixture(scope='module')
-def expanded_polling_model(distances_df, alpha_min, polling_locations_penalty_config):
-    model = model_factory.polling_model_factory(
-        distances_df,
-        alpha_min,
-        polling_locations_penalty_config,
-        exclude_penalized_sites=True
-    )
-    model_solver.solve_model(model, polling_locations_penalty_config.time_limit)
-
-    yield model
-
-
-@pytest.fixture(scope='module')
-def open_precincts(polling_model):
-    yield {key for key in polling_model.open if polling_model.open[key].value ==1}
-
-@pytest.fixture(scope='module')
-def total_population(distances_df):
-    yield distances_df.groupby('id_orig')['population'].agg('unique').str[0].sum()
-
-@pytest.fixture(scope='module')
-def potential_precincts(distances_df):
-    yield set(distances_df[distances_df.dest_type == 'potential'].id_dest)
 
 
 def load_kp_factor_data(path: str) -> pd.DataFrame:
@@ -216,6 +143,7 @@ def test_exclude_penalized(expanded_polling_model, polling_locations_penalty_con
     ex_open_precincts = {key for key in expanded_polling_model.open if expanded_polling_model.open[key].value ==1}
     assert len(ex_open_precincts - set(polling_locations_penalty_config.penalized_sites))==3
 
+
 def test_penalized_model(
     expanded_polling_model,
     polling_model,
@@ -244,3 +172,7 @@ def test_penalized_model(
     pen_kp = -1/(polling_locations_config.beta * alpha_min)*math.log(pen_obj) - penalty
     # print('pen_kp:', {pen_kp}, 'pen_obj:', {pen_obj})
     assert pen_kp > kp
+
+
+def test_run_on_config(driving_testing_config):
+    model_run.run_on_config(driving_testing_config, False, model_run.OUT_TYPE_CSV)
