@@ -75,11 +75,16 @@ def test_kp1(testing_config_schools, testing_config_penalty, distances_df, alpha
     model_solver.solve_model(keep_model, keep_config.time_limit)
     keep_obj_value = pyo.value(keep_model.obj)
 
-    kp1 = model_penalties.compute_kp(penalize_config, alpha_min, keep_obj_value)
+    penalize_model = model_factory.polling_model_factory(distances_df, alpha_min, penalize_config)
+    model_solver.solve_model(penalize_model, penalize_config.time_limit)
+    penalize_obj_value = pyo.value(penalize_model.obj)
 
-    assert kp1 == keep_obj_value
+    kp1 = model_penalties.compute_kp(penalize_config, alpha_min, penalize_obj_value)
+    keep_kp = model_penalties.compute_kp(keep_config, alpha_min, keep_obj_value)
 
-def test_kp2(test_config_expanded, testing_config_penalty, distances_df, alpha_min):
+    assert kp1 == keep_kp
+
+def test_kp2(testing_config_expanded, testing_config_penalty, distances_df, alpha_min):
     #to test that kp2 is correctly defined on line 57
     #Define:
     #  exclude_config = test_config_expanded.yaml
@@ -91,17 +96,21 @@ def test_kp2(test_config_expanded, testing_config_penalty, distances_df, alpha_m
     #  kp2 = the value of line 57 when run on penalize_config
     #check that kp2 == exclude_obj_value
 
-    keep_config = test_config_expanded
+    exclude_config = testing_config_expanded
     penalize_config = testing_config_penalty
 
-    keep_model = model_factory.polling_model_factory(distances_df, alpha_min, keep_config)
-    model_solver.solve_model(keep_model, keep_config.time_limit)
-    # keep_obj_value =  pyo.value(keep_model.obj)
-    ea_model_exclusions = model_factory.polling_model_factory(distances_df, alpha_min, config, exclude_penalized_sites=True)
+    exclude_model = model_factory.polling_model_factory(distances_df, alpha_min, exclude_config)
+    model_solver.solve_model(exclude_model, exclude_config.time_limit)
+    exclude_obj_value = pyo.value(exclude_model.obj)
 
-    # kp1 = model_penalties.compute_kp(penalize_config, alpha_min, keep_obj_value)
+    penalize_model = model_factory.polling_model_factory(distances_df, alpha_min, penalize_config, exclude_penalized_sites=True)
+    model_solver.solve_model(penalize_model, penalize_config.time_limit)
+    penalize_obj_value = pyo.value(penalize_model.obj)
 
-    # assert kp1 == keep_obj_value
+    kp2 = model_penalties.compute_kp(penalize_config, alpha_min, penalize_obj_value)
+    exclude_kp = model_penalties.compute_kp(exclude_config, alpha_min, exclude_obj_value)
+
+    assert kp2 == exclude_kp
 
 
 
