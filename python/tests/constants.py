@@ -10,7 +10,9 @@ TESTING_LOCATIONS_ONLY_PATH = os.path.join(POLLING_DIR, 'testing', 'testing_loca
 TEST_LOCATION = 'Gwinnett_County_GA'
 MAP_SOURCE_DATE='20250101'
 
-TESTING_CONFIG_EXPANDED = os.path.join(TESTS_DIR, 'testing_config_expanded.yaml')
+TESTING_CONFIG_BASE = os.path.join(TESTS_DIR, 'testing_config_no_bg_school.yaml')
+TESTING_CONFIG_KEEP = os.path.join(TESTS_DIR, 'testing_config_no_bg.yaml')
+TESTING_CONFIG_EXCLUDE = os.path.join(TESTS_DIR, 'testing_config_no_bg_campus_fire.yaml')
 TESTING_CONFIG_PENALTY = os.path.join(TESTS_DIR, 'testing_config_penalty.yaml')
 DRIVING_TESTING_CONFIG = os.path.join(TESTS_DIR, 'testing_config_driving.yaml')
 

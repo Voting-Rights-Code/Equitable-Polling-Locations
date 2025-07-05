@@ -11,7 +11,7 @@ from python.solver import model_data, model_factory, model_run, model_solver, mo
 from python.solver.model_config import PollingModelConfig
 
 
-from .constants import TESTING_CONFIG_EXPANDED, TESTING_CONFIG_PENALTY, TESTS_DIR, TESTING_LOCATIONS_ONLY_PATH, TEST_LOCATION, MAP_SOURCE_DATE
+from .constants import TESTING_CONFIG_BASE, TESTING_CONFIG_KEEP, TESTING_CONFIG_EXCLUDE, TESTING_CONFIG_PENALTY, DRIVING_TESTING_CONFIG, TESTS_DIR, TESTING_LOCATIONS_ONLY_PATH, TEST_LOCATION, MAP_SOURCE_DATE
 
 def generate_penalties_df(config: PollingModelConfig) -> pd.DataFrame:
     run_setup = model_run.prepare_run(config, False)
@@ -34,31 +34,31 @@ def generate_penalties_df(config: PollingModelConfig) -> pd.DataFrame:
 
 @pytest.fixture(scope='session')
 def driving_testing_config():
-    return PollingModelConfig.load_config(os.path.join(TESTS_DIR, 'testing_config_driving.yaml'))
+    return PollingModelConfig.load_config(DRIVING_TESTING_CONFIG)
 
 @pytest.fixture(scope='session')
-def testing_config_expanded():
-    return PollingModelConfig.load_config(os.path.join(TESTS_DIR, 'testing_config_expanded.yaml'))
+def testing_config_exclude():
+    return PollingModelConfig.load_config(TESTING_CONFIG_EXCLUDE)
 
 @pytest.fixture(scope='session')
 def testing_config_penalty():
-    return PollingModelConfig.load_config(os.path.join(TESTS_DIR, 'testing_config_penalty.yaml'))
+    return PollingModelConfig.load_config(TESTING_CONFIG_PENALTY)
 
 @pytest.fixture(scope='session')
-def testing_config_schools():
-    return PollingModelConfig.load_config(os.path.join(TESTS_DIR, 'testing_config_schools.yaml'))
+def testing_config_keep():
+    return PollingModelConfig.load_config(TESTING_CONFIG_KEEP)
 
 @pytest.fixture(scope='session')
-def result_no_school_df(testing_config_expanded):
-    return generate_penalties_df(testing_config_expanded)
+def result_exclude_df(testing_config_exclude):
+    return generate_penalties_df(testing_config_exclude)
 
 @pytest.fixture(scope='session')
-def result_school_penalized_df(testing_config_penalty):
+def result_penalized_df(testing_config_penalty):
     return generate_penalties_df(testing_config_penalty)
 
 @pytest.fixture(scope='session')
-def result_school_df(testing_config_schools):
-    return generate_penalties_df(testing_config_schools)
+def result_keep_df(testing_config_keep):
+    return generate_penalties_df(testing_config_keep)
 
 @pytest.fixture(scope='session')
 def driving_locations_results_df(tmp_path_factory, driving_testing_config):
@@ -83,7 +83,7 @@ def driving_locations_results_df(tmp_path_factory, driving_testing_config):
 
 @pytest.fixture(scope='session')
 def polling_locations_config():
-    yield PollingModelConfig.load_config(TESTING_CONFIG_EXPANDED)
+    yield PollingModelConfig.load_config(TESTING_CONFIG_BASE)
 
 @pytest.fixture(scope='session')
 def polling_locations_penalty_config():
@@ -116,6 +116,7 @@ def polling_model(distances_df, alpha_min, polling_locations_config):
 
     yield model
 
+#TODO: Should this be called the penaized polling model? where is this used? 
 @pytest.fixture(scope='module')
 def expanded_polling_model(distances_df, alpha_min, polling_locations_penalty_config):
     model = model_factory.polling_model_factory(

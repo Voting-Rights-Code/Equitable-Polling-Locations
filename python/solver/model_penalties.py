@@ -48,7 +48,7 @@ def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, confi
     # 2. convert objective value to KP score (kp1)
     obj_value = pyo.value(ea_model.obj)
     # kp1 = -1/(config.beta*alpha)*math.log(obj_value) if config.beta else obj_value
-    kp1 = compute_kp(config, alpha, obj_value)
+    kp1 = compute_kp(config, alpha, obj_value) 
     penalty_log.write(f'KP Objective = {kp1:.2f}\n')
 
     # 3. compute optimal solution excluding penalized sites (model 2)
@@ -61,8 +61,8 @@ def incorporate_penalties(dist_df, alpha, run_prefix, result_df, ea_model, confi
         print(f'Model 2 solved for {run_prefix}.')
 
     # 4. convert objective value to KP score (kp2)
-    obj_value = pyo.value(ea_model_exclusions.obj)
-    kp2 = -1/(config.beta*alpha)*math.log(obj_value) if config.beta else obj_value
+    obj_value_exclusions = pyo.value(ea_model_exclusions.obj)
+    kp2 = compute_kp(config, alpha, obj_value_exclusions) 
 
     # 5. compute penalty as (kp2-kp1)/len(selected penalized sites in model 1)
     penalty = (kp2-kp1)/len(penalized_selections)

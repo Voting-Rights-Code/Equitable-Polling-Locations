@@ -1,5 +1,6 @@
 ''' Tests for working with penalties '''
 
+import pandas as pd
 import pandas.testing as pd_testing
 
 import pyomo.environ as pyo
@@ -12,15 +13,15 @@ from python.solver.model_penalties import incorporate_penalties
 from python.solver.model_results import incorporate_result
 from python.solver.model_solver import solve_model
 
-def test_incorperate_results_and_penalties(testing_config_expanded: PollingModelConfig):
+def test_incorperate_results_and_penalties(testing_config_exclude: PollingModelConfig):
     '''
-    Confirm that incorporate_result and incorporate_penalties produce the same results on testing_config_expanded.
+    Confirm that incorporate_result and incorporate_penalties produce the same results on testing_config_exclude.
     '''
     #to test line 22:
     #check that lines 93 and 96 of model_run.py result in the same df
-    #when run on testing_config_expanded
+    #when run on testing_config_exclude
 
-    config = testing_config_expanded
+    config = testing_config_exclude
     run_setup = model_run.prepare_run(config, False)
 
     solve_model(run_setup.ea_model, config.time_limit, log=False, log_file_path=config.log_file_path)
@@ -43,23 +44,23 @@ def test_incorperate_results_and_penalties(testing_config_expanded: PollingModel
         check_like=True,
     )
 
-def test_incorporate_penalties(result_no_school_df, result_school_penalized_df, result_school_df):
+def test_incorporate_penalties(result_exclude_df, result_penalized_df, result_keep_df):
     ''' NOTE: this only checks a property that should be true, not that the algorithm gives the correct value '''
-    result_no_school_kp_factor_sum = result_no_school_df.KP_factor.sum()
-    result_school_penalized_kp_factor_sum = result_school_penalized_df.KP_factor.sum()
-    result_school_kp_factor_sum = result_school_df.KP_factor.sum()
+    result_exclude_kp_factor_sum = result_exclude_df.KP_factor.sum()
+    result_penalized_kp_factor_sum = result_penalized_df.KP_factor.sum()
+    result_keep_kp_factor_sum = result_keep_df.KP_factor.sum()
 
-    print(result_no_school_kp_factor_sum)
-    print(result_school_penalized_kp_factor_sum)
-    print(result_school_kp_factor_sum)
+    print(result_exclude_kp_factor_sum)
+    print(result_penalized_kp_factor_sum)
+    print(result_keep_kp_factor_sum)
 
-    assert result_no_school_kp_factor_sum <= result_school_penalized_kp_factor_sum
-    assert result_school_penalized_kp_factor_sum <= result_school_kp_factor_sum
+    assert result_exclude_kp_factor_sum <= result_penalized_kp_factor_sum
+    assert result_penalized_kp_factor_sum <= result_keep_kp_factor_sum
 
-def test_kp1(testing_config_schools, testing_config_penalty, distances_df, alpha_min):
+def test_kp1(testing_config_keep, testing_config_penalty, distances_df, alpha_min):
     #to test that kp1 is correctly defined on line 43
     #Define:
-    #  keep_config = test_config_schools.yaml
+    #  keep_config = test_config_keep.yaml
     #  penalize_config = test_config_pentalty.yaml
     #run
     #  keep_model = polling_model_factory(dist_df, alpha, keep_config)
@@ -68,7 +69,7 @@ def test_kp1(testing_config_schools, testing_config_penalty, distances_df, alpha
     #  kp1 = the value of line 43 when run on penalize_config
     #check that kp1 == keep_obj_value
 
-    keep_config = testing_config_schools
+    keep_config = testing_config_keep
     penalize_config = testing_config_penalty
 
     keep_model = model_factory.polling_model_factory(distances_df, alpha_min, keep_config)
@@ -84,10 +85,10 @@ def test_kp1(testing_config_schools, testing_config_penalty, distances_df, alpha
 
     assert kp1 == keep_kp
 
-def test_kp2(testing_config_expanded, testing_config_penalty, distances_df, alpha_min):
+def test_kp2(testing_config_exclude, testing_config_penalty, distances_df, alpha_min):
     #to test that kp2 is correctly defined on line 57
     #Define:
-    #  exclude_config = test_config_expanded.yaml
+    #  exclude_config = test_config_exclude.yaml
     #  penalize_config = test_config_pentalty.yaml
     #run
     #  exclude_model = polling_model_factory(dist_df, alpha, exclude_config)
@@ -96,12 +97,25 @@ def test_kp2(testing_config_expanded, testing_config_penalty, distances_df, alph
     #  kp2 = the value of line 57 when run on penalize_config
     #check that kp2 == exclude_obj_value
 
-    exclude_config = testing_config_expanded
+    exclude_config = testing_config_exclude
     penalize_config = testing_config_penalty
 
     exclude_model = model_factory.polling_model_factory(distances_df, alpha_min, exclude_config)
     model_solver.solve_model(exclude_model, exclude_config.time_limit)
     exclude_obj_value = pyo.value(exclude_model.obj)
+    
+    matching_list= [(key[0], key[1], exclude_model.matching[key].value) for key in exclude_model.matching]
+    matching_df = pd.DataFrame(matching_list, columns = ['id_orig', 'id_dest', 'matching'])
+
+    #the matching doesn't always give an integer value. Replace the value with the integer it would round to   
+    matching_df['matching'].mask(matching_df['matching']>=0.5, 1, inplace=True)
+    matching_df['matching'].mask(matching_df['matching']<0.5, 0, inplace=True)
+    all_sites = set(matching_df.id_dest)
+
+    #only matched sites
+    matched_df = matching_df.loc[matching_df['matching'] ==1]
+    selected_sites = set(matched_df.id_dest)
+    breakpoint()
 
     penalize_model = model_factory.polling_model_factory(distances_df, alpha_min, penalize_config, exclude_penalized_sites=True)
     model_solver.solve_model(penalize_model, penalize_config.time_limit)
