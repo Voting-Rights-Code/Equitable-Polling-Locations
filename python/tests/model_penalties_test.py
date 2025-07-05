@@ -136,15 +136,6 @@ def test_kp2(testing_config_exclude, testing_config_penalty, polling_locations_d
     model_solver.solve_model(penalize_model, penalize_config.time_limit)
     penalize_obj_value = pyo.value(penalize_model.obj)
 
-    matching_list= [(key[0], key[1], penalize_model.matching[key].value) for key in penalize_model.matching]
-    matching_df = pd.DataFrame(matching_list, columns = ['id_orig', 'id_dest', 'matching'])
-
-    #the matching doesn't always give an integer value. Replace the value with the integer it would round to   
-    matching_df['matching'].mask(matching_df['matching']>=0.5, 1, inplace=True)
-    matching_df['matching'].mask(matching_df['matching']<0.5, 0, inplace=True)
-    all_sites = set(matching_df.id_dest)
-    #breakpoint()
-
 
     #get objectives
     kp2 = model_penalties.compute_kp(penalize_config, penalize_alpha, penalize_obj_value)
