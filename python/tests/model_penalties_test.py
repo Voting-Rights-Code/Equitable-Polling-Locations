@@ -1,6 +1,7 @@
 ''' Tests for working with penalties '''
 
-import pandas as pd
+# pylint: disable=protected-access
+
 import pandas.testing as pd_testing
 
 import pyomo.environ as pyo
@@ -9,7 +10,7 @@ from python.solver import model_factory, model_run
 from python.solver import model_solver
 from python.solver import model_penalties
 from python.solver.model_config import PollingModelConfig
-from python.solver.model_penalties import incorporate_penalties
+from python.solver.model_penalties import PenalizeModel, incorporate_penalties
 from python.solver.model_results import incorporate_result
 from python.solver.model_solver import solve_model
 from python.solver.model_data import clean_data, alpha_min
@@ -58,7 +59,7 @@ def test_incorporate_penalties(result_exclude_df, result_penalized_df, result_ke
     assert result_exclude_kp_factor_sum <= result_penalized_kp_factor_sum
     assert result_penalized_kp_factor_sum <= result_keep_kp_factor_sum
 
-def test_kp1(testing_config_keep, testing_config_penalty, polling_locations_df):
+def test_kp1(testing_config_keep, testing_config_penalty):
     #to test that kp1 is correctly defined on line 43
     #Define:
     #  keep_config = test_config_keep.yaml
@@ -71,34 +72,74 @@ def test_kp1(testing_config_keep, testing_config_penalty, polling_locations_df):
     #check that kp1 == keep_obj_value
 
     #get configs
-    keep_config = testing_config_keep
+    keep_config = testing_config_keep # testing_config_no_bg.yaml
     penalize_config = testing_config_penalty
 
-    #get distances
-    keep_distances = clean_data(keep_config, polling_locations_df, False, False)
-    penalty_distances = clean_data(penalize_config, polling_locations_df, False, False)
+    # polling_locations_df testing_config_no_bg_school.yaml
 
-    #get alphas
-    keep_alpha_df = clean_data(keep_config, polling_locations_df, True, False)
-    keep_alpha = alpha_min(keep_alpha_df)
 
-    penalize_alpha_df = clean_data(penalize_config, polling_locations_df, True, False)
-    penalize_alpha = alpha_min(penalize_alpha_df)
+    keep_run_setup = model_run.prepare_run(keep_config)
+    model_solver.solve_model(keep_run_setup.ea_model, keep_config.time_limit)
+    keep_obj_value = pyo.value(keep_run_setup.ea_model.obj)
 
-    #compute models
-    keep_model = model_factory.polling_model_factory(keep_distances, keep_alpha, keep_config)
-    model_solver.solve_model(keep_model, keep_config.time_limit)
-    keep_obj_value = pyo.value(keep_model.obj)
+    penalty_run_setup = model_run.prepare_run(penalize_config)
+    model_solver.solve_model(penalty_run_setup.ea_model, keep_config.time_limit)
+    penalize_obj_value = pyo.value(penalty_run_setup.ea_model.obj)
 
-    penalize_model = model_factory.polling_model_factory(penalty_distances, penalize_alpha, penalize_config)
-    model_solver.solve_model(penalize_model, penalize_config.time_limit)
-    penalize_obj_value = pyo.value(penalize_model.obj)
+    kp1_a = model_penalties.compute_kp(penalize_config, penalty_run_setup.alpha, penalize_obj_value)
+    keep_kp_a = model_penalties.compute_kp(keep_config, keep_run_setup.alpha, keep_obj_value)
 
-    #get objectives
-    kp1 = model_penalties.compute_kp(penalize_config, penalize_alpha, penalize_obj_value)
-    keep_kp = model_penalties.compute_kp(keep_config, keep_alpha, keep_obj_value)
+    assert kp1_a == keep_kp_a
 
-    assert kp1 == keep_kp
+    # Updated version
+
+    keep_run_setup = model_run.prepare_run(keep_config)
+    model_solver.solve_model(keep_run_setup.ea_model, keep_config.time_limit)
+    keep_result_df = incorporate_result(keep_run_setup.dist_df, keep_run_setup.ea_model)
+
+    keep_penalize_model = PenalizeModel(keep_run_setup, keep_result_df)
+    # keep_penalize_model.run()
+    keep_penalize_model._compute_kp1()
+
+    penalty_run_setup = model_run.prepare_run(penalize_config)
+    model_solver.solve_model(penalty_run_setup.ea_model, penalize_config.time_limit)
+    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
+
+    penalty_penalize_model = PenalizeModel(keep_run_setup, penalty_result_df)
+    # penalty_penalize_model.run()
+    penalty_penalize_model._compute_kp1()
+
+    assert keep_penalize_model.kp1 == penalty_penalize_model.kp1
+
+    assert keep_penalize_model.kp1 == keep_kp_a
+    assert penalty_penalize_model.kp1 == kp1_a
+
+    # #---
+    # #get distances
+    # keep_distances = clean_data(keep_config, polling_locations_df, False, False)
+    # penalty_distances = clean_data(penalize_config, polling_locations_df, False, False)
+
+    # #get alphas
+    # keep_alpha_df = clean_data(keep_config, polling_locations_df, True, False)
+    # keep_alpha = alpha_min(keep_alpha_df)
+
+    # penalize_alpha_df = clean_data(penalize_config, polling_locations_df, True, False)
+    # penalize_alpha = alpha_min(penalize_alpha_df)
+
+    # #compute models
+    # keep_model = model_factory.polling_model_factory(keep_distances, keep_alpha, keep_config)
+    # model_solver.solve_model(keep_model, keep_config.time_limit)
+    # keep_obj_value = pyo.value(keep_model.obj)
+
+    # penalize_model = model_factory.polling_model_factory(penalty_distances, penalize_alpha, penalize_config)
+    # model_solver.solve_model(penalize_model, penalize_config.time_limit)
+    # penalize_obj_value = pyo.value(penalize_model.obj)
+
+    # #get objectives
+    # kp1 = model_penalties.compute_kp(penalize_config, penalize_alpha, penalize_obj_value)
+    # keep_kp = model_penalties.compute_kp(keep_config, keep_alpha, keep_obj_value)
+
+    # assert kp1 == keep_kp
 
 def test_kp2(testing_config_exclude, testing_config_penalty, polling_locations_df):
     #to test that kp2 is correctly defined on line 57

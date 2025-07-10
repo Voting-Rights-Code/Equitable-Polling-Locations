@@ -8,14 +8,14 @@ This file sets up a pyomo/scip run based on a config file, e.g.
 Gwinnett_County_GA_configs/Gwinnett_config_full_11.py
 '''
 
-from dataclasses import dataclass
 import os
 import warnings
 
-import pandas as pd
 
 from python.utils import build_locations_distance_file_path
 from python.utils.constants import LOCATION_SOURCE_CSV, RESULTS_BASE_DIR
+
+from .run_setup import RunSetup
 
 from .model_config import PollingModelConfig
 from .model_data import (
@@ -24,7 +24,7 @@ from .model_data import (
     alpha_min,
     get_polling_locations,
 )
-from .model_factory import PollingModel, polling_model_factory
+from .model_factory import polling_model_factory
 from .model_penalties import incorporate_penalties
 from .model_results import (
     incorporate_result,
@@ -37,17 +37,6 @@ from .model_solver import solve_model
 
 OUT_TYPE_DB = 'db'
 OUT_TYPE_CSV = 'csv'
-
-@dataclass
-class RunSetup:
-    polling_locations_set_id: str
-    locations_df: pd.DataFrame
-    dist_df: pd.DataFrame
-    alpha: float
-    alpha_df: pd.DataFrame
-    ea_model: PollingModel
-    run_prefix: str
-
 
 def prepare_run(config: PollingModelConfig, log: bool=False) -> RunSetup:
     '''
@@ -109,6 +98,7 @@ def prepare_run(config: PollingModelConfig, log: bool=False) -> RunSetup:
         alpha_df=alpha_df,
         ea_model=ea_model,
         run_prefix=run_prefix,
+        config=config,
     )
 
 
