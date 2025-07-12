@@ -17,8 +17,9 @@ from .run_setup import RunSetup
 
 
 def get_log_path(config: PollingModelConfig, specifier: str):
-    base_path = '.'.join(config.log_file_path.split('.')[0:-1])
-    return f'{base_path}.{specifier}.log'
+    if config.log_file_path: #Inserted to avoid error when log_file_path empty
+        base_path = '.'.join(config.log_file_path.split('.')[0:-1])
+        return f'{base_path}.{specifier}.log'
 
 
 def compute_kp(config: PollingModelConfig, alpha: float, obj_value: float) -> float:
@@ -52,7 +53,7 @@ class PenalizeModel:
 
     penalty_log: TextIOWrapper = None
 
-    def _build_sites_and_selections(self):
+    def _check_if_penalized_sites_selected(self):
         dist_df = self.run_setup.dist_df
         config = self.run_setup.config
 
@@ -94,7 +95,7 @@ class PenalizeModel:
             self.ea_model_exclusions,
             config.time_limit,
             log=self.log,
-            log_file_path=get_log_path(self.config,'model2'))
+            log_file_path=get_log_path(self.run_setup.config,'model2'))
 
         if self.log:
             print(f'Model 2 solved for {self.run_prefix}.')
@@ -206,19 +207,19 @@ class PenalizeModel:
     def run(self) -> pd.DataFrame:
         ''' Computes the new results incorporating penalties '''
 
-        if not self.config.penalized_sites:
+        #check if this is a penalized run
+        if not self.run_setup.config.penalized_sites:
             return self.result_df
 
         self._setup_log()
 
         try:
             self._log_write('Model 1: original model with no penalties\n')
-            self._build_sites_and_selections()
-
+            self._check_if_penalized_sites_selected()
             if not self.penalized_selections:
                 print('No penalized sites selected')
                 return self.result_df
-
+ 
             self._compute_kp1()
             self._compute_optimal_solution()
             self._compute_kp2()

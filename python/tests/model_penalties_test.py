@@ -93,26 +93,41 @@ def test_kp1(testing_config_keep, testing_config_penalty):
 
     # Updated version
 
+    #Note, keep_config is not a model with penalties, and therefore should be run on the model_run machinery, not the PenalizeModel machinery.
+    #penalize_config should be run on the PenalizeModel machinery
+    #The point of this test is to check that certain steps in the PenalizeModel machinery gives the same results as the model_run machinery under the correct conditions.
+    
+    #get kp value from the keep_config using model_run machinery
     keep_run_setup = model_run.prepare_run(keep_config)
     model_solver.solve_model(keep_run_setup.ea_model, keep_config.time_limit)
-    keep_result_df = incorporate_result(keep_run_setup.dist_df, keep_run_setup.ea_model)
+    #keep_result_df = incorporate_result(keep_run_setup.dist_df, keep_run_setup.ea_model)
+    keep_obj_value = pyo.value(keep_run_setup.ea_model.obj)
+    keep_kp = model_penalties.compute_kp(keep_config, keep_run_setup.alpha, keep_obj_value)
 
-    keep_penalize_model = PenalizeModel(keep_run_setup, keep_result_df)
+    ###
+    #Not running this because keep_config should not be run on the 
+    #Penalty machinery
+    ####
+    #keep_penalize_model = PenalizeModel(keep_run_setup, keep_result_df)
     # keep_penalize_model.run()
-    keep_penalize_model._compute_kp1()
+    #keep_penalize_model._compute_kp1()
 
+    #get kp2 value from the penalize_config using model_run machinery
     penalty_run_setup = model_run.prepare_run(penalize_config)
     model_solver.solve_model(penalty_run_setup.ea_model, penalize_config.time_limit)
     penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
 
-    penalty_penalize_model = PenalizeModel(keep_run_setup, penalty_result_df)
-    # penalty_penalize_model.run()
-    penalty_penalize_model._compute_kp1()
+    penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
+    penalty_model.run()
+    #penalty_penalize_model._compute_kp1()
+    assert penalty_model.kp1 == keep_kp
 
-    assert keep_penalize_model.kp1 == penalty_penalize_model.kp1
+    #assert keep_penalize_model.kp1 == penalty_penalize_model.kp1
 
-    assert keep_penalize_model.kp1 == keep_kp_a
-    assert penalty_penalize_model.kp1 == kp1_a
+    #assert keep_penalize_model.kp1 == keep_kp_a
+    #assert penalty_penalize_model.kp1 == kp1_a
+
+
 
     # #---
     # #get distances
@@ -183,6 +198,31 @@ def test_kp2(testing_config_exclude, testing_config_penalty, polling_locations_d
     exclude_kp = model_penalties.compute_kp(exclude_config, exclude_alpha, exclude_obj_value)
 
     assert kp2 == exclude_kp
+
+    # Updated version
+
+    #Note, exclude_config is not a model with penalties, and therefore should be run on the model_run machinery, not the PenalizeModel machinery.
+    #penalize_config should be run on the PenalizeModel machinery
+    #The point of this test is to check that certain steps in the PenalizeModel machinery gives the same results as the model_run machinery under the correct conditions.
+    
+    #get kp value from the exclue_config using model_run machinery
+    exclude_run_setup = model_run.prepare_run(exclude_config)
+    model_solver.solve_model(exclude_run_setup.ea_model, exclude_config.time_limit)
+    #keep_result_df = incorporate_result(keep_run_setup.dist_df, keep_run_setup.ea_model)
+    exclude_obj_value = pyo.value(exclude_run_setup.ea_model.obj)
+    exclude_kp = model_penalties.compute_kp(exclude_config, exclude_run_setup.alpha, exclude_obj_value)
+
+
+    #get kp2 value from the penalize_config using model_run machinery
+    penalty_run_setup = model_run.prepare_run(penalize_config)
+    model_solver.solve_model(penalty_run_setup.ea_model, penalize_config.time_limit)
+    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
+
+    penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
+    penalty_model.run()
+    #penalty_penalize_model._compute_kp1()
+    assert penalty_model.kp2 == exclude_kp
+
 
 
 
