@@ -167,7 +167,6 @@ if(!HISTORICAL_FLAG){
     sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'white'))
     sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'hispanic'))
     sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
-    sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
     sapply(potential_list_block_prepped, function(x)make_precinct_map_no_people(x))
     sapply(potential_list_block_prepped, function(x)make_precinct_map(x))
 }

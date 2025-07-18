@@ -340,6 +340,9 @@ make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLA
 make_precinct_map_no_people <- function(df_sf){
 
 	#set labeling constants
+	#NOTE: the way the matching works, blocks without populations are not assigned
+	#an id_dest. However, they are present in the maps.
+	#selecting !is.na(df_sf$id_dest) restricts to the matched data only.
 	location <- unique(df_sf[!is.na(df_sf$id_dest), ]$location)
 	descriptor <- unique(df_sf[!is.na(df_sf$id_dest), ]$descriptor)
 
@@ -361,6 +364,9 @@ make_precinct_map_no_people <- function(df_sf){
 make_precinct_map <- function(df_sf){
 
 	#set labeling constants
+	#NOTE: the way the matching works, blocks without populations are not assigned
+	#an id_dest. However, they are present in the maps.
+	#selecting !is.na(df_sf$id_dest) restricts to the matched data only.
 	location <- unique(df_sf[!is.na(df_sf$id_dest), ]$location)
 	descriptor <- unique(df_sf[!is.na(df_sf$id_dest), ]$descriptor)
 
@@ -387,7 +393,7 @@ make_precinct_map <- function(df_sf){
 	#combine populated and unpopulated data
 	precincts_sf_all <- rbind(unpop_narrow, precincts_sf_pop) %>% group_by(id_dest, descriptor, dest_lat, dest_lon) %>% summarize(precinct_geom = st_union(precinct_geom))
 
-	#drop crumbs
+	#coarsen the fidelity of the map to drop odds and ends of leftover lines
 	area_thresh <- units::set_units(2, km^2)
 	precincts_sf_valid <- st_make_valid(precincts_sf_all)
 	precincts_sf_clean <- precincts_sf_valid %>% st_buffer(50)
