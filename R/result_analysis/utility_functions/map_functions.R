@@ -1,6 +1,7 @@
 library(data.table)
 library(ggplot2)
 library(sf)
+library(dplyr)
 
 source('R/result_analysis/utility_functions/load_config_data.R')
 source('R/result_analysis/utility_functions/storage.R')
@@ -88,7 +89,7 @@ results_with_area_geom<- function(location, result_df){
 	#extract columns
 	map_data<- process_maps(map_file)
 	#merge with results
-	results_with_geom <- merge(result_df, map_data, by.y = c('GEOID20'), by.x = c('id_orig'))
+	results_with_geom <- merge(result_df, map_data, by.y = c('GEOID20'), by.x = c('id_orig'), all.y = TRUE)
 	#drop centroid because have orig_lat, orig_lon
 	results_with_geom <- results_with_geom[, `:=`(INTPTLAT20 = NULL, INTPTLON20 = NULL)]
 	return(results_with_geom)
@@ -148,7 +149,7 @@ bg_result_geom <- function(location, result_df){
 
 ###########
 #Prep map data for later mapping
-#add location to residence data, aggregate to block level,
+#add location to residence data, aggregate to block grouplevel,
 # 	merge with polling locations and split by config_name
 ###########
 extract_unique_location <- function(df){
@@ -187,7 +188,7 @@ merge_bg_demo_shp_data <- function(result_df){
 }
 	
 
-prepare_outputs_for_maps <- function(result_dt){
+prepare_outputs_for_bg_maps <- function(result_dt){
 
 	result_data <- copy(result_dt)
 	#if input NULL, and HISTORIC_FLAG return NULL 
@@ -203,6 +204,30 @@ prepare_outputs_for_maps <- function(result_dt){
 
 	return(result_list)
 }
+
+prepare_outputs_for_precinct_maps <- function(result_dt){
+
+	result_data <- copy(result_dt)
+	#if input NULL, and HISTORIC_FLAG return NULL 
+	if(check_historic_flag(result_data)){
+		return(NULL)
+	}
+
+	#split by config_name
+	result_list <- split(result_data, result_data$config_name)
+
+	#extract unique location
+	location_list <- lapply(result_list, function(df) extract_unique_location(df))
+
+	#merge shape data
+	result_with_geom <- mapply(function(location, df)results_with_area_geom(location, df), location_list, result_list, SIMPLIFY = FALSE)
+
+	#make map data an sf object
+	sf_list <- lapply(result_with_geom, st_as_sf)
+	
+	return(sf_list)
+}
+
 
 ###########
 #Calculate min and max distance for a dataframe
@@ -308,6 +333,81 @@ make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLA
 
 }
 
+#############
+#precinct map
+#NOTE: done at block level
+#############
+make_precinct_map_no_people <- function(df_sf){
+
+	#set labeling constants
+	#NOTE: the way the matching works, blocks without populations are not assigned
+	#an id_dest. However, they are present in the maps.
+	#selecting !is.na(df_sf$id_dest) restricts to the matched data only.
+	location <- unique(df_sf[!is.na(df_sf$id_dest), ]$location)
+	descriptor <- unique(df_sf[!is.na(df_sf$id_dest), ]$descriptor)
+
+	title_str = gsub("_", '', paste(location, 'precinct map; empty blocks indicated'))
+	subtitle_str = gsub("_", ' ', paste('Optimized for', descriptor))
+	
+	#make map where blocks with no people are in grey
+	plotted <- ggplot() +	
+		geom_sf(data = df_sf, aes(fill = id_dest), show.legend = FALSE)+
+        geom_point(data = df_sf, aes(x = dest_lon, y = dest_lat), show.legend = FALSE) + 
+		ggtitle(title_str, subtitle_str) + xlab('') + ylab('')
+	
+	#write to file
+	graph_file_path = paste0(location, '_','precinct','_',descriptor, '_','indicate_0_population.png')
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path, plotted)
+}
+
+make_precinct_map <- function(df_sf){
+
+	#set labeling constants
+	#NOTE: the way the matching works, blocks without populations are not assigned
+	#an id_dest. However, they are present in the maps.
+	#selecting !is.na(df_sf$id_dest) restricts to the matched data only.
+	location <- unique(df_sf[!is.na(df_sf$id_dest), ]$location)
+	descriptor <- unique(df_sf[!is.na(df_sf$id_dest), ]$descriptor)
+
+	title_str = gsub("_", ' ', paste(location, 'precinct map'))
+	subtitle_str = gsub("_", ' ', paste('Optimized for', descriptor))
+	
+	#separate out populated and unpopulated blocks
+	df_sf_pop <- df_sf[!is.na(df_sf$id_dest), ]
+	df_sf_unpop <- df_sf[is.na(df_sf$id_dest), ]
+
+	#Group by assigned dest.
+	precincts_sf_pop <- df_sf_pop %>% group_by(id_dest, descriptor, dest_lat, dest_lon) %>% summarize(precinct_geom = st_union(geometry))
+
+	#adjust unpop data to match pop data
+	names(df_sf_unpop)[names(df_sf_unpop) == 'geometry'] <- 'precinct_geom'
+	st_geometry(df_sf_unpop) <- 'precinct_geom'
+	df_sf_unpop <- df_sf_unpop[, names(precincts_sf_pop)]
+
+	#associate the unpopulated / unassigned ccs to the closests assigned feature
+	unpop_join <- st_join(df_sf_unpop, precincts_sf_pop, join=st_nearest_feature)
+	unpop_narrow <- unpop_join[ , !(grepl('\\.x', names(unpop_join)))]
+	names(unpop_narrow) <- gsub('\\.y', '',names(unpop_narrow))
+
+	#combine populated and unpopulated data
+	precincts_sf_all <- rbind(unpop_narrow, precincts_sf_pop) %>% group_by(id_dest, descriptor, dest_lat, dest_lon) %>% summarize(precinct_geom = st_union(precinct_geom))
+
+	#coarsen the fidelity of the map to drop odds and ends of leftover lines
+	area_thresh <- units::set_units(2, km^2)
+	precincts_sf_valid <- st_make_valid(precincts_sf_all)
+	precincts_sf_clean <- precincts_sf_valid %>% st_buffer(50)
+	plotted<- ggplot() +	
+		geom_sf(data = precincts_sf_valid, aes(fill = id_dest), show.legend = FALSE)+
+		geom_point(data = precincts_sf_all, aes(x = dest_lon, y = dest_lat), show.legend = FALSE)+ 
+		ggtitle(title_str, subtitle_str) + xlab('') + ylab('')
+	
+	#write to file
+	graph_file_path = paste0(location, '_','precinct','_',descriptor,'.png')
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path, plotted)
+
+}
 
 ###################
 
