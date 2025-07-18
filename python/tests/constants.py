@@ -14,6 +14,7 @@ TESTING_CONFIG_BASE = os.path.join(TESTS_DIR, 'testing_config_no_bg_school.yaml'
 TESTING_CONFIG_KEEP = os.path.join(TESTS_DIR, 'testing_config_no_bg.yaml')
 TESTING_CONFIG_EXCLUDE = os.path.join(TESTS_DIR, 'testing_config_no_bg_campus_fire.yaml')
 TESTING_CONFIG_PENALTY = os.path.join(TESTS_DIR, 'testing_config_penalty.yaml')
+TESTING_CONFIG_PENALTY_UNUSED = os.path.join(TESTS_DIR, 'testing_config_penalty_school.yaml')
 DRIVING_TESTING_CONFIG = os.path.join(TESTS_DIR, 'testing_config_driving.yaml')
 
 TESTING_LOCATIONS_ONLY_PATH = os.path.join(POLLING_DIR, 'testing', 'testing_locations_only.csv')

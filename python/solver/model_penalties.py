@@ -40,9 +40,10 @@ class PenalizeModel:
     penalized_sites: Set = None
     penalized_selections: Set = None
 
-    obj_value: float = None
+    #obj_value: float = None  #this is an internal value that gets called then dropped
     kp1: float = None
     kp2: float = None
+    kp_pen: float = None
 
     penalty: float = None
 
@@ -71,8 +72,8 @@ class PenalizeModel:
         Convert objective value to KP score (kp1)
         '''
 
-        self.obj_value = pyo.value(self.run_setup.ea_model.obj)
-        self.kp1 = compute_kp(self.run_setup.config, self.run_setup.alpha, self.obj_value)
+        obj_value = pyo.value(self.run_setup.ea_model.obj)
+        self.kp1 = compute_kp(self.run_setup.config, self.run_setup.alpha, obj_value)
         self._log_write(f'KP Objective = {self.kp1:.2f}\n')
 
 
@@ -106,12 +107,12 @@ class PenalizeModel:
         Convert the exclusions objective value to KP score (kp2)
         '''
 
-        self.obj_value_exclusions = pyo.value(self.ea_model_exclusions.obj)
+        obj_value_exclusions = pyo.value(self.ea_model_exclusions.obj)
 
         self.kp2 = compute_kp(
             self.run_setup.config,
             self.run_setup.alpha,
-            self.obj_value_exclusions,
+            obj_value_exclusions,
         )
 
 
@@ -175,12 +176,16 @@ class PenalizeModel:
 
         # TODO make these results class variables for testing?
         obj_value = pyo.value(self.ea_model_penalized.obj)
-        kp_pen = -1/(config.beta*alpha)*math.log(obj_value) if config.beta else obj_value
+        self.kp_pen = compute_kp(
+            self.run_setup.config,
+            self.run_setup.alpha,
+            obj_value)
+        
         kp = compute_kp_score(self.penalized_result_df, config.beta, alpha=alpha)
 
-        self._log_write(f'Penalized KP Optimal = {kp_pen:.2f}\n')
+        self._log_write(f'Penalized KP Optimal = {self.kp_pen:.2f}\n')
         self._log_write(f'KP Optimal = {kp:.2f}\n')
-        self._log_write(f'Penalty = {kp_pen-kp:.2f}\n')
+        self._log_write(f'Penalty = {self.kp_pen-kp:.2f}\n')
 
 
     def _setup_log(self):

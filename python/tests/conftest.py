@@ -11,7 +11,7 @@ from python.solver import model_data, model_factory, model_run, model_solver, mo
 from python.solver.model_config import PollingModelConfig
 
 
-from .constants import TESTING_CONFIG_BASE, TESTING_CONFIG_KEEP, TESTING_CONFIG_EXCLUDE, TESTING_CONFIG_PENALTY, DRIVING_TESTING_CONFIG, TESTS_DIR, TESTING_LOCATIONS_ONLY_PATH, TEST_LOCATION, MAP_SOURCE_DATE
+from .constants import TESTING_CONFIG_BASE, TESTING_CONFIG_KEEP, TESTING_CONFIG_EXCLUDE, TESTING_CONFIG_PENALTY, TESTING_CONFIG_PENALTY_UNUSED, DRIVING_TESTING_CONFIG, TESTS_DIR, TESTING_LOCATIONS_ONLY_PATH, TEST_LOCATION, MAP_SOURCE_DATE
 
 def generate_penalties_df(config: PollingModelConfig) -> pd.DataFrame:
     run_setup = model_run.prepare_run(config, False)
@@ -44,6 +44,10 @@ def testing_config_exclude():
 def testing_config_penalty():
     return PollingModelConfig.load_config(TESTING_CONFIG_PENALTY)
 
+@pytest.fixture(scope='session')
+def testing_config_penalty_unused():
+    return PollingModelConfig.load_config(TESTING_CONFIG_PENALTY_UNUSED)
+    
 @pytest.fixture(scope='session')
 def testing_config_keep():
     return PollingModelConfig.load_config(TESTING_CONFIG_KEEP)
