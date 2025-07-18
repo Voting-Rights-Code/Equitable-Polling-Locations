@@ -44,6 +44,7 @@ class PenalizeModel:
     kp1: float = None
     kp2: float = None
     kp_pen: float = None
+    optimal_kp: float = None
 
     penalty: float = None
 
@@ -181,11 +182,11 @@ class PenalizeModel:
             self.run_setup.alpha,
             obj_value)
         
-        kp = compute_kp_score(self.penalized_result_df, config.beta, alpha=alpha)
+        self.optimal_kp = compute_kp_score(self.penalized_result_df, config.beta, alpha=alpha)
 
         self._log_write(f'Penalized KP Optimal = {self.kp_pen:.2f}\n')
-        self._log_write(f'KP Optimal = {kp:.2f}\n')
-        self._log_write(f'Penalty = {self.kp_pen-kp:.2f}\n')
+        self._log_write(f'KP Optimal = {self.optimal_kp:.2f}\n')
+        self._log_write(f'Penalty = {self.kp_pen-self.optimal_kp:.2f}\n')
 
 
     def _setup_log(self):
