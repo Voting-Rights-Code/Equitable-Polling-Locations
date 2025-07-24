@@ -147,3 +147,18 @@ def test_kp_inequalities(testing_config_penalty):
     assert penalty_model.kp2 >penalty_model.kp_pen
     assert penalty_model.kp_pen > penalty_model.kp1
 
+def test_final_statistics(testing_config_penalty):
+    #fixes the values from logs\20250718113608_testing_config_penalty.yaml.penalty.log
+    #assuming that this version is correctly implemented
+
+    penalty_run_setup = model_run.prepare_run(testing_config_penalty)
+    model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit)
+    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
+    
+    penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
+    penalty_model.run()
+    assert round(penalty_model.kp_pen, 2) ==  6243.37
+    assert round(penalty_model.optimal_kp, 2) == 5945.84
+    assert round(penalty_model.kp1, 2) == 5723.48
+    assert round(penalty_model.kp2, 2) == 6339.56
+    assert round(penalty_model.penalty, 2) == 308.04 
