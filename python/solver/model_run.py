@@ -25,7 +25,7 @@ from .model_data import (
     get_polling_locations,
 )
 from .model_factory import polling_model_factory
-from .model_penalties import incorporate_penalties
+from .model_penalties import PenalizeModel
 from .model_results import (
     incorporate_result,
     demographic_domain_summary,
@@ -116,15 +116,18 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
     result_df = incorporate_result(run_setup.dist_df, run_setup.ea_model)
 
     #incorporate site penalties as appropriate
-    result_df = incorporate_penalties(
-        run_setup.dist_df,
-        run_setup.alpha,
-        run_setup.run_prefix,
-        result_df,
-        run_setup.ea_model,
-        config,
-        log,
-    )
+    # result_df = incorporate_penalties(
+    #     run_setup.dist_df,
+    #     run_setup.alpha,
+    #     run_setup.run_prefix,
+    #     result_df,
+    #     run_setup.ea_model,
+    #     config,
+    #     log,
+    # )
+
+    penalty_model = PenalizeModel(run_setup, result_df)
+    result_df = penalty_model.run()
 
     #calculate the new alpha given this assignment
     alpha_new = alpha_min(result_df)

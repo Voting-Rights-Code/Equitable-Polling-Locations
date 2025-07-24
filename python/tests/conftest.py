@@ -10,8 +10,7 @@ import pytest
 from python.solver import model_data, model_factory, model_run, model_solver, model_results, model_penalties
 from python.solver.model_config import PollingModelConfig
 
-
-from .constants import TESTING_CONFIG_BASE, TESTING_CONFIG_KEEP, TESTING_CONFIG_EXCLUDE, TESTING_CONFIG_PENALTY, TESTING_CONFIG_PENALTY_UNUSED, DRIVING_TESTING_CONFIG, TESTS_DIR, TESTING_LOCATIONS_ONLY_PATH, TEST_LOCATION, MAP_SOURCE_DATE
+from .constants import TESTING_CONFIG_BASE, TESTING_CONFIG_KEEP, TESTING_CONFIG_EXCLUDE, TESTING_CONFIG_PENALTY, TESTING_CONFIG_PENALTY_UNUSED, DRIVING_TESTING_CONFIG, TESTING_LOCATIONS_ONLY_PATH, TEST_LOCATION, MAP_SOURCE_DATE
 
 def generate_penalties_df(config: PollingModelConfig) -> pd.DataFrame:
     run_setup = model_run.prepare_run(config, False)
@@ -20,15 +19,8 @@ def generate_penalties_df(config: PollingModelConfig) -> pd.DataFrame:
 
     incorporate_result_df = model_results.incorporate_result(run_setup.dist_df, run_setup.ea_model)
 
-    result = model_penalties.incorporate_penalties(
-        run_setup.dist_df,
-        run_setup.alpha,
-        run_setup.run_prefix,
-        incorporate_result_df,
-        run_setup.ea_model,
-        config,
-        False,
-    )
+    penalize_model = model_penalties.PenalizeModel(run_setup=run_setup, result_df=incorporate_result_df)
+    result = penalize_model.run()
 
     return result
 
@@ -47,7 +39,7 @@ def testing_config_penalty():
 @pytest.fixture(scope='session')
 def testing_config_penalty_unused():
     return PollingModelConfig.load_config(TESTING_CONFIG_PENALTY_UNUSED)
-    
+
 @pytest.fixture(scope='session')
 def testing_config_keep():
     return PollingModelConfig.load_config(TESTING_CONFIG_KEEP)
@@ -120,7 +112,7 @@ def polling_model(distances_df, alpha_min, polling_locations_config):
 
     yield model
 
-#TODO: Should this be called the penaized polling model? where is this used? 
+#TODO: Should this be called the penaized polling model? where is this used?
 @pytest.fixture(scope='module')
 def expanded_polling_model(distances_df, alpha_min, polling_locations_penalty_config):
     model = model_factory.polling_model_factory(

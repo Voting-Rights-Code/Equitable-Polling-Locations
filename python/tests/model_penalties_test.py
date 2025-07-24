@@ -1,19 +1,14 @@
 ''' Tests for working with penalties '''
 
-# pylint: disable=protected-access
-
-import pandas.testing as pd_testing
+# pylint: disable=protected-access,function-redefined
 
 import pyomo.environ as pyo
 
-from python.solver import model_factory, model_run
+from python.solver import model_run
 from python.solver import model_solver
 from python.solver import model_penalties
-from python.solver.model_config import PollingModelConfig
-from python.solver.model_penalties import PenalizeModel, incorporate_penalties
+from python.solver.model_penalties import PenalizeModel
 from python.solver.model_results import incorporate_result
-from python.solver.model_solver import solve_model
-from python.solver.model_data import clean_data, alpha_min
 
 # #def test_incorperate_results_and_penalties(testing_config_exclude: PollingModelConfig):
 #     '''
@@ -81,22 +76,29 @@ def test_penalty_selection_false(testing_config_penalty_unused):
 
 
 
+def test_penalty_selection_true(testing_config_penalty):
+    #testing that the penality function works correctly when no penalized sites are chosen
+    penalty_run_setup = model_run.prepare_run(testing_config_penalty)
+    model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit)
+    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
+
+    penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
+    penalty_model.run()
+    assert len(penalty_model.penalized_selections) == 2
+
+def test_penalty_selection_false(testing_config_penalty_unused):
+    #testing that the penality function works correctly when no penalized sites are MOT chosen
+    penalty_run_setup = model_run.prepare_run(testing_config_penalty_unused)
+    model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty_unused.time_limit)
+    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
+
+    penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
+    penalty_model.run()
+    assert not penalty_model.penalized_selections
+
+
+
 def test_kp1(testing_config_keep, testing_config_penalty):
-    #to test that kp1 is correctly defined on line 43
-    #Define:
-    #  keep_config = test_config_keep.yaml
-    #  penalize_config = test_config_pentalty.yaml
-    #run
-    #  keep_model = polling_model_factory(dist_df, alpha, keep_config)
-    #  solve_model(keep_model)
-    #  keep_obj_value =  pyo.value(keep_model.obj)
-    #  kp1 = the value of line 43 when run on penalize_config
-    #check that kp1 == keep_obj_value
-
-    #Note, keep_config is not a model with penalties, and therefore should be run on the model_run machinery, not the PenalizeModel machinery.
-    #penalize_config should be run on the PenalizeModel machinery
-    #The point of this test is to check that certain steps in the PenalizeModel machinery gives the same results as the model_run machinery under the correct conditions.
-
     #get kp value from the keep_config using model_run machinery
     keep_run_setup = model_run.prepare_run(testing_config_keep)
     model_solver.solve_model(keep_run_setup.ea_model, testing_config_keep.time_limit)
@@ -116,21 +118,6 @@ def test_kp1(testing_config_keep, testing_config_penalty):
 
 
 def test_kp2(testing_config_exclude, testing_config_penalty):
-    #to test that kp2 is correctly defined on line 57
-    #Define:
-    #  exclude_config = test_config_exclude.yaml
-    #  penalize_config = test_config_pentalty.yaml
-    #run
-    #  exclude_model = polling_model_factory(dist_df, alpha, exclude_config)
-    #  solve_model(exclude_model)
-    #  exclude_obj_value =  pyo.value(exclude_model.obj)
-    #  kp2 = the value of line 57 when run on penalize_config
-    #check that kp2 == exclude_obj_value
-
-    #Note, exclude_config is not a model with penalties, and therefore should be run on the model_run machinery, not the PenalizeModel machinery.
-    #penalize_config should be run on the PenalizeModel machinery
-    #The point of this test is to check that certain steps in the PenalizeModel machinery gives the same results as the model_run machinery under the correct conditions.
-    
     #get kp value from the exclue_config using model_run machinery
     exclude_run_setup = model_run.prepare_run(testing_config_exclude)
     model_solver.solve_model(exclude_run_setup.ea_model, testing_config_exclude.time_limit)
