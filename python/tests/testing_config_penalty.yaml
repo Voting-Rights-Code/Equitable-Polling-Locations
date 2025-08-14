@@ -17,3 +17,4 @@ maxpctnew: 1 # in interval [0,1]
 minpctold: .5 # in interval [0,1]
 penalized_sites:
     - 'College Campus - Potential'
+    - 'Fire Station - Potential'
