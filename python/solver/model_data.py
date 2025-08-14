@@ -216,6 +216,12 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
         # pylint: disable-next=line-too-long
         raise ValueError('Census data from table P4 not found. Download using api or manually following download instruction from README.')
 
+    #3. Census geographic data
+    block_source_file = get_block_source_file_path(census_year, location)
+    blocks_gdf = gpd.read_file(block_source_file)
+
+    block_group_source_file = get_block_group_block_source_file_path(census_year, location)
+    blockgroup_gdf = gpd.read_file(block_group_source_file)
 
     #######
     #Clean data
@@ -594,7 +600,8 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
             print(f'distances missing for {len(missing_dests)} destination(s): {missing_dests}')
         if len(missing_origs) > 0:
             print(f'distances missing for {len(missing_origs)} origin(s): {missing_origs}')
-        raise ValueError('Some distances are missing for current config setting.')
+        raise ValueError(f'Some distances are missing for current config setting.')
+
 
     #create other useful columns
     result_df['Weighted_dist'] = result_df['population'] * result_df['distance_m']

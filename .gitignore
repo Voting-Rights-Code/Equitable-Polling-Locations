@@ -178,7 +178,7 @@ logs
 Equitable-Polling-Locations.Rproj
 
 #non code files
-#*.csv
+*.csv
 *.png
 *.shp
 *.prj
