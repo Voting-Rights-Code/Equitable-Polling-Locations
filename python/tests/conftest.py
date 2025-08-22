@@ -66,7 +66,7 @@ def driving_locations_results_df(tmp_path_factory, driving_testing_config):
     model_data.build_source(
         'csv',
         census_year=driving_testing_config.census_year,
-        location=TEST_LOCATION,
+        location=driving_testing_config.location, # TEST_LOCATION,
         driving=driving_testing_config.driving,
         log_distance=driving_testing_config.log_distance,
         map_source_date=MAP_SOURCE_DATE,

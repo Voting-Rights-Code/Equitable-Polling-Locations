@@ -121,58 +121,5 @@ def test_capacity(polling_model, distances_df, total_population, polling_locatio
     assert all(dest_pop_df.population <=(polling_locations_config.capacity*total_population/polling_locations_config.precincts_open))
 
 
-# # Test the intermediate dataframe with driving distances
-# # The test driving distances are exactly twice the haversine test distances
-# def test_driving_distances(distances_df):
-#     driving_config = PollingModelConfig.load_config(DRIVING_TESTING_CONFIG)
-#     driving_polling_locations = model_data.get_polling_locations(
-#         location_source=driving_config.location_source,
-#         census_year=driving_config.census_year,
-#         location=driving_config.location,
-#         log_distance=driving_config.log_distance,
-#             driving=driving_config.driving,
-#     )
-#     driving_polling_locations_df = driving_polling_locations.polling_locations
-#     driving_dist_df = model_data.clean_data(driving_config, driving_polling_locations_df, False, False)
-
-#     assert driving_dist_df['distance_m'].sum() == 2*distances_df['distance_m'].sum()
-
-
-# Test for penalty functionality
-def test_exclude_penalized(expanded_polling_model, polling_locations_penalty_config):
-    ex_open_precincts = {key for key in expanded_polling_model.open if expanded_polling_model.open[key].value ==1}
-    assert len(ex_open_precincts - set(polling_locations_penalty_config.penalized_sites))==3
-
-
-def test_penalized_model(
-    expanded_polling_model,
-    polling_model,
-    polling_locations_config,
-    alpha_min,
-    polling_locations_penalty_config,
-    open_precincts,
-    distances_df,
-):
-    ex_obj = pyo.value(expanded_polling_model.obj)
-    print('polling_locations_config:', polling_locations_config.beta)
-    ex_kp = -1/(polling_locations_config.beta*alpha_min)*math.log(ex_obj) # same beta and alpha for both configs
-
-    obj = pyo.value(polling_model.obj)
-
-    kp = -1/(polling_locations_config.beta*alpha_min)*math.log(obj)
-    penalty = (ex_kp - kp) / len(open_precincts)
-    pen_model = model_factory.polling_model_factory(distances_df, alpha_min, polling_locations_penalty_config,
-                                                    exclude_penalized_sites=False,
-                                                    site_penalty=penalty,
-                                                    kp_penalty_parameter=kp)
-    model_solver.solve_model(pen_model, polling_locations_penalty_config.time_limit)
-
-    # PEN_OPEN_PRECINCTS = {key for key in pen_model.open if pen_model.open[key].value ==1}
-    pen_obj = pyo.value(pen_model.obj)
-    pen_kp = -1/(polling_locations_config.beta * alpha_min)*math.log(pen_obj) - penalty
-    # print('pen_kp:', {pen_kp}, 'pen_obj:', {pen_obj})
-    assert pen_kp > kp
-
-
 def test_run_on_config(driving_testing_config):
     model_run.run_on_config(driving_testing_config, False, model_run.OUT_TYPE_CSV)

@@ -40,7 +40,7 @@ def test_build_source_locations(driving_testing_config, driving_locations_result
     # Get the demographics block so we can get the expected GEO_IDs for id_orig
     demographics_block_df = model_data.get_demographics_block(
         census_year=driving_testing_config.census_year,
-        location=TEST_LOCATION,
+        location=driving_testing_config.location,
     )
     # Get the blockgroup to get the expected Locations
     blockgroup = model_data.get_blockgroup_gdf(driving_testing_config.census_year, TEST_LOCATION)
