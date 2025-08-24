@@ -1,0 +1,22 @@
+config_set: testing
+config_name: testing_auto_generate_config
+bad_types:
+- Community Center - Potential
+- Fire Station - Potential
+- Library - Potential
+- Municipal - Potential
+- bg_centroid
+beta: -1
+capacity: 1.8
+driving: false
+fixed_capacity_site_number: null
+location: Richmond_city_VA
+max_min_mult: 5
+maxpctnew: 1
+minpctold: 1
+penalized_sites: null
+precincts_open: null
+time_limit: 360000
+census_year: 2020
+year:
+- '2024'
