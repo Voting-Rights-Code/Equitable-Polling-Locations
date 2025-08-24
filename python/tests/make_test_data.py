@@ -1,12 +1,16 @@
+import os
 import pandas as pd
 from random import sample, seed
 
-from python.utils.constants import DATASETS_DIR, RESULTS_BASE_DIR
+from python.utils.constants import POLLING_DIR
+from .constants import TESTING_RESULTS_DIR
+
+OUTFILE = os.path.join(TESTING_RESULTS_DIR, 'testing.csv')
 
 #set seed
 seed(157934)
 
-df = pd.read_csv(f'{DATASETS_DIR}/polling/Gwinnett_County_GA/Gwinnett_County_GA.csv')
+df = pd.read_csv(f'{POLLING_DIR}/Gwinnett_County_GA/Gwinnett_County_GA_2020.csv')
 df = df[df.population > 0 ]
 
 #pick 10 random places of origin
@@ -31,4 +35,6 @@ random_dests =  random_polls + random_potentials
 #select these (70) rows from df
 sample_df = df[df.id_orig.isin(random_origs) & df.id_dest.isin(random_dests)]
 
-sample_df.to_csv(f'{RESULTS_BASE_DIR}/testing_results/testing.csv', index = False)
+
+print(f'Writing {len(sample_df)} rows to {OUTFILE}')
+sample_df.to_csv(OUTFILE, index = False)
