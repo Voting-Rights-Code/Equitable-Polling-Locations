@@ -152,11 +152,13 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
             log=log,
         )
     elif outtype == OUT_TYPE_CSV:
-        result_folder = os.path.join(RESULTS_BASE_DIR, config.config_set)
+        result_folder = os.path.join(RESULTS_BASE_DIR, f'{config.config_set}_results')
+
+        file_prefix = f'{config.config_set}.{config.config_name}'
 
         write_results_csv(
             result_folder,
-            config.config_name,
+            file_prefix,
             result_df,
             demographic_prec,
             demographic_res,

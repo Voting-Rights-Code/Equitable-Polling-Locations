@@ -144,7 +144,7 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
 @timer
 def write_results_csv(
     result_folder: str,
-    config_name: str,
+    file_prefix: str,
     result_df: pd.DataFrame,
     demographic_prec: pd.DataFrame,
     demographic_res: pd.DataFrame,
@@ -156,10 +156,10 @@ def write_results_csv(
     if not os.path.exists(result_folder):
         os.makedirs(result_folder)
 
-    result_file = build_results_file_path(result_folder, config_name)
-    precinct_summary_file = build_precinct_summary_file_path(result_folder, config_name)
-    residence_summary_file = build_residence_summary_file_path(result_folder, config_name)
-    y_ede_summary_file = build_y_ede_summary_file_path(result_folder, config_name)
+    result_file = build_results_file_path(result_folder, file_prefix)
+    precinct_summary_file = build_precinct_summary_file_path(result_folder, file_prefix)
+    residence_summary_file = build_residence_summary_file_path(result_folder, file_prefix)
+    y_ede_summary_file = build_y_ede_summary_file_path(result_folder, file_prefix)
 
     result_df.to_csv(result_file, index = True)
     demographic_prec.to_csv(precinct_summary_file, index = True)
