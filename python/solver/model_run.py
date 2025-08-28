@@ -63,7 +63,7 @@ def prepare_run(config: PollingModelConfig, log: bool=False) -> RunSetup:
                 location=config.location,
                 driving=config.driving,
                 log_distance=config.log_distance,
-                map_source_date=config.maps_source_date,
+                map_source_date=config.map_source_date,
                 log=log,
             )
 

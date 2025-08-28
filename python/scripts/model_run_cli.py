@@ -35,7 +35,7 @@ def load_configs(config_paths: list[str], logdir: str) -> tuple[bool, list[Polli
             valid = False
             continue
 
-        config: PollingModelConfig
+        config: PollingModelConfig = None
         try:
             config = PollingModelConfig.load_config(config_path)
             if logdir:
@@ -57,7 +57,7 @@ def load_configs(config_paths: list[str], logdir: str) -> tuple[bool, list[Polli
         config_folder = os.path.basename(os.path.dirname(config_abs_path))
 
         # Return invalid if the config_set configured in the config does not match the folder name (case insensitive)
-        if config_folder.upper() != config.config_set.upper():
+        if config and config_folder.upper() != config.config_set.upper():
             # pylint: disable-next=line-too-long
             print(f'Config folder "{config_folder}" name does not match config_set field "{config.config_set}" for config file {config_abs_path}')
             valid = False
