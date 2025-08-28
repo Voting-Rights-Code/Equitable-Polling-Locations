@@ -33,22 +33,34 @@ def load_configs(config_paths: list[str], logdir: str) -> tuple[bool, list[Polli
         if not os.path.isfile(config_path):
             print(f'Invalid path {config_path}')
             valid = False
-        else:
-            try:
-                config = PollingModelConfig.load_config(config_path)
-                if logdir:
-                    config_file_basename = os.path.basename(config.config_file_path)
-                    log_file_name = f'{log_date_prefix}_{config_file_basename}.log'
-                    config.log_file_path = os.path.join(
-                       logdir,
-                       log_file_name,
-                    )
-                results.append(config)
+            continue
 
-            # pylint: disable-next=broad-exception-caught
-            except Exception as exception:
-                print(f'Failed to parse {config_path} due to:\n{exception}')
-                valid = False
+        config: PollingModelConfig
+        try:
+            config = PollingModelConfig.load_config(config_path)
+            if logdir:
+                config_file_basename = os.path.basename(config.config_file_path)
+                log_file_name = f'{log_date_prefix}_{config_file_basename}.log'
+                config.log_file_path = os.path.join(
+                    logdir,
+                    log_file_name,
+                )
+            results.append(config)
+
+        # pylint: disable-next=broad-exception-caught
+        except Exception as exception:
+            print(f'Failed to parse {config_path} due to:\n{exception}')
+            valid = False
+
+        # Get the folder name that contains the config
+        config_abs_path = os.path.abspath(config_path)
+        config_folder = os.path.basename(os.path.dirname(config_abs_path))
+
+        # Return invalid if the config_set configured in the config does not match the folder name (case insensitive)
+        if config_folder.upper() != config.config_set.upper():
+            # pylint: disable-next=line-too-long
+            print(f'Config folder "{config_folder}" name does not match config_set field "{config.config_set}" for config file {config_abs_path}')
+            valid = False
 
     return (valid, results)
 
