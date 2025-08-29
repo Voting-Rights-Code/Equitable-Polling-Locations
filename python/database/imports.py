@@ -326,9 +326,9 @@ def import_results(
     ''' Imports an existing precinct distances csv into the database for a given mode_run_id. '''
 
     column_renames = {
-        'non-hispanic': 'non_hispanic',
-        'Weighted_dist': 'weighted_dist',
-        'KP_factor': 'kp_factor',
+        #'non-hispanic': 'non_hispanic',
+        #'Weighted_dist': 'weighted_dist',
+        #'KP_factor': 'kp_factor',
     }
     ignore_columns = ['V1']
     add_columns = { 'model_run_id': model_run_id }

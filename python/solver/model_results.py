@@ -122,14 +122,14 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
         demographics = demographic_by_res.merge(distances, left_index = True, right_index = True, how = 'outer')
 
         #add in a KP factor column
-        demographics['KP_factor'] =  math.e**(-beta*alpha*demographics['distance_m'])
+        demographics['kp_factor'] =  math.e**(-beta*alpha*demographics['distance_m'])
         #calculate the summand for the objective function
-        demographics['demo_res_obj_summand'] = demographics['demo_pop']*demographics['KP_factor']
+        demographics['demo_res_obj_summand'] = demographics['demo_pop']*demographics['kp_factor']
 
         #compute the ede for each demographic group
         demographic_ede = demographics[['demographic','demo_res_obj_summand', 'demo_pop']].groupby('demographic').agg('sum')
-        demographic_ede['avg_KP_weight'] =  demographic_ede.demo_res_obj_summand/demographic_ede.demo_pop
-        demographic_ede['y_EDE'] = (-1/(beta * alpha))*np.log(demographic_ede['avg_KP_weight'])
+        demographic_ede['avg_kp_weight'] =  demographic_ede.demo_res_obj_summand/demographic_ede.demo_pop
+        demographic_ede['y_EDE'] = (-1/(beta * alpha))*np.log(demographic_ede['avg_kp_weight'])
 
         #merge the datasets
         demographic_summary = pd.concat([demographic_summary[['weighted_dist', 'avg_dist']], demographic_ede], axis = 1)

@@ -604,7 +604,7 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
 
 
     #create other useful columns
-    result_df['Weighted_dist'] = result_df['population'] * result_df['distance_m']
+    result_df['weighted_dist'] = result_df['population'] * result_df['distance_m']
 
     return result_df
 
