@@ -63,7 +63,7 @@ def prepare_run(config: PollingModelConfig, log: bool=False) -> RunSetup:
                 location=config.location,
                 driving=config.driving,
                 log_distance=config.log_distance,
-                map_source_date=config.maps_source_date,
+                map_source_date=config.map_source_date,
                 log=log,
             )
 
@@ -152,11 +152,13 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OU
             log=log,
         )
     elif outtype == OUT_TYPE_CSV:
-        result_folder = os.path.join(RESULTS_BASE_DIR, config.config_set)
+        result_folder = os.path.join(RESULTS_BASE_DIR, f'{config.config_set}_results')
+
+        file_prefix = f'{config.config_set}.{config.config_name}'
 
         write_results_csv(
             result_folder,
-            config.config_name,
+            file_prefix,
             result_df,
             demographic_prec,
             demographic_res,

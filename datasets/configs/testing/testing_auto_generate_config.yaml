@@ -1,3 +1,5 @@
+config_set: testing
+config_name: testing_auto_generate_config
 bad_types:
 - Community Center - Potential
 - Fire Station - Potential
@@ -6,8 +8,6 @@ bad_types:
 - bg_centroid
 beta: -1
 capacity: 1.8
-config_name: Richmond_city_original_2024
-config_set: test_configs
 driving: false
 fixed_capacity_site_number: null
 location: Richmond_city_VA

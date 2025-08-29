@@ -122,14 +122,14 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
         demographics = demographic_by_res.merge(distances, left_index = True, right_index = True, how = 'outer')
 
         #add in a KP factor column
-        demographics['KP_factor'] =  math.e**(-beta*alpha*demographics['distance_m'])
+        demographics['kp_factor'] =  math.e**(-beta*alpha*demographics['distance_m'])
         #calculate the summand for the objective function
-        demographics['demo_res_obj_summand'] = demographics['demo_pop']*demographics['KP_factor']
+        demographics['demo_res_obj_summand'] = demographics['demo_pop']*demographics['kp_factor']
 
         #compute the ede for each demographic group
         demographic_ede = demographics[['demographic','demo_res_obj_summand', 'demo_pop']].groupby('demographic').agg('sum')
-        demographic_ede['avg_KP_weight'] =  demographic_ede.demo_res_obj_summand/demographic_ede.demo_pop
-        demographic_ede['y_EDE'] = (-1/(beta * alpha))*np.log(demographic_ede['avg_KP_weight'])
+        demographic_ede['avg_kp_weight'] =  demographic_ede.demo_res_obj_summand/demographic_ede.demo_pop
+        demographic_ede['y_EDE'] = (-1/(beta * alpha))*np.log(demographic_ede['avg_kp_weight'])
 
         #merge the datasets
         demographic_summary = pd.concat([demographic_summary[['weighted_dist', 'avg_dist']], demographic_ede], axis = 1)
@@ -144,7 +144,7 @@ def demographic_summary(demographic_df, result_df, beta, alpha):
 @timer
 def write_results_csv(
     result_folder: str,
-    config_name: str,
+    file_prefix: str,
     result_df: pd.DataFrame,
     demographic_prec: pd.DataFrame,
     demographic_res: pd.DataFrame,
@@ -156,10 +156,10 @@ def write_results_csv(
     if not os.path.exists(result_folder):
         os.makedirs(result_folder)
 
-    result_file = build_results_file_path(result_folder, config_name)
-    precinct_summary_file = build_precinct_summary_file_path(result_folder, config_name)
-    residence_summary_file = build_residence_summary_file_path(result_folder, config_name)
-    y_ede_summary_file = build_y_ede_summary_file_path(result_folder, config_name)
+    result_file = build_results_file_path(result_folder, file_prefix)
+    precinct_summary_file = build_precinct_summary_file_path(result_folder, file_prefix)
+    residence_summary_file = build_residence_summary_file_path(result_folder, file_prefix)
+    y_ede_summary_file = build_y_ede_summary_file_path(result_folder, file_prefix)
 
     result_df.to_csv(result_file, index = True)
     demographic_prec.to_csv(precinct_summary_file, index = True)

@@ -29,7 +29,7 @@ def import_locations(
     log: bool = False,
 ) -> ImportResult:
     column_renames = {
-        'non-hispanic': 'non_hispanic',
+        #'non-hispanic': 'non_hispanic',
     }
     ignore_columns = ['id', 'V1']
     add_columns = {

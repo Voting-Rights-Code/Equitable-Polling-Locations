@@ -37,7 +37,7 @@ def test_alpha_min(alpha_min):
 
 def test_kp_factor(alpha_min, distances_df, polling_locations_config):
     distances_kp = distances_df.copy()
-    distances_kp['KP_factor'] = round(
+    distances_kp['kp_factor'] = round(
         model_factory.compute_kp_factor(
             polling_locations_config,
             alpha_min,
@@ -46,8 +46,8 @@ def test_kp_factor(alpha_min, distances_df, polling_locations_config):
         6,
     )
 
-    distances_df2 = distances_kp[['id_orig', 'id_dest', 'KP_factor']]
-    distances_df2['KP_factor'] = round(
+    distances_df2 = distances_kp[['id_orig', 'id_dest', 'kp_factor']]
+    distances_df2['kp_factor'] = round(
         model_factory.compute_kp_factor(
             polling_locations_config,
             alpha_min,
@@ -65,7 +65,7 @@ def test_kp_factor(alpha_min, distances_df, polling_locations_config):
     compare = distances_df2.merge(fixed_test_data, how = 'outer', on=['id_orig', 'id_dest'])
     compare = compare.sort_values(by=['id_orig', 'id_dest'])
 
-    assert compare.KP_factor.equals(compare.kp_factor)
+    assert compare.kp_factor.equals(compare.kp_factor)
 
 
 # #test model constraints
