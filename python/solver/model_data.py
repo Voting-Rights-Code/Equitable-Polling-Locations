@@ -346,7 +346,7 @@ def build_source(
     # pylint: disable-next=line-too-long
     full_df = full_df.rename(columns = {'GEO_ID': 'id_orig', 'Address': 'address', 'Latitude':'dest_lat', 'Longitude':'dest_lon', 'INTPTLAT20':'orig_lat', 'INTPTLON20':'orig_lon', 'Location type': 'location_type', 'Location': 'id_dest'})
     full_df = full_df[FULL_DF_COLS]
-
+    
     #####
     # Calculate appropriate distance
     #####
@@ -361,7 +361,7 @@ def build_source(
             driving_distances_df = get_db_driving_distances(driving_distance_set.id)
         else:
             driving_distances_df = get_csv_driving_distances(census_year, map_source_date, location)
-
+        
         full_df = insert_driving_distances(full_df, driving_distances_df)
     else:
         # pylint: disable-next=line-too-long
@@ -381,7 +381,7 @@ def build_source(
 
     full_df['id_orig'] = full_df['id_orig'].astype(str)
     full_df['id_dest'] = full_df['id_dest'].astype(str)
-
+    
     full_df.to_csv(output_path, index = True)
     return result
 

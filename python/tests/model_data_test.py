@@ -9,12 +9,12 @@ import pytest
 
 from python.solver import model_data
 
-from .constants import TESTING_LOCATIONS_ONLY_PATH, TEST_LOCATION, MAP_SOURCE_DATE
+from .constants import TESTING_LOCATIONS_ONLY_PATH, TESTING_DRIVING_DISTANCES_PATH, TEST_LOCATION, MAP_SOURCE_DATE
 
 
 def test_build_source_columns(driving_locations_results_df):
     ''' Checks that the columns in the locations_results_df match the expected columns. '''
-
+    
     expected_columns = [
         'id_orig', 'id_dest', 'address', 'dest_lat', 'dest_lon', 'orig_lat',
         'orig_lon', 'location_type', 'dest_type', 'population', 'hispanic',
@@ -23,7 +23,7 @@ def test_build_source_columns(driving_locations_results_df):
     ]
 
     actual_columns = driving_locations_results_df.columns.tolist()
-
+    
     assert actual_columns == expected_columns, (
         f'Column mismatch.\n'
         f'Expected: {expected_columns}\n'
@@ -104,41 +104,20 @@ def test_build_source_driving_distances(driving_testing_config, driving_location
         'Distance mismatches found for the following (id_orig, id_dest) pairs:\n' + '\n'.join(mismatches)
 
 def test_build_source_column_output(driving_locations_results_df):
-    ''' Check that the coulmns from a very small sample of rows from from build_source are as expected. '''
+    ''' Checks the distances in driving_locations_results_df against those store in testing_driving_distances '''
+    
+    #read in driving distance data
+    from_csv = model_data.load_driving_distances_csv(TESTING_DRIVING_DISTANCES_PATH) 
+    
+    # Select 'id_orig' and 'id_dest' and 'distance_m' from build source to compare 
+    df = driving_locations_results_df[['id_orig', 'id_dest', 'distance_m']]
 
-    #read in data from testing    
+    #merge for comparison
+    merged_data = pd.merge(from_csv, df, on = ['id_orig', 'id_dest'], suffixes = ('_from_csv', '_from_test' ))
 
-    # Set 'id_orig' and 'id_dest' as the index for easier lookup.
-    df = driving_locations_results_df.set_index(['id_orig', 'id_dest'])
-
-    for expected_row in expected_sample:
-        # Extract the key for lookup from the expected row
-        lookup_key = (expected_row['id_orig'], expected_row['id_dest'])
-
-        # Check if the row exists
-        assert lookup_key in df.index, f"Row with id_orig={lookup_key[0]} and id_dest='{lookup_key[1]}' not found in DataFrame."
-
-        # Retrieve the matching row from the DataFrame
-        actual_row = df.loc[lookup_key]
-
-        # Compare all columns for the matched row
-        for column_name, expected_value in expected_row.items():
-            # Skip the index columns as they were used for the lookup
-            if column_name in ['id_orig', 'id_dest']:
-                continue
-
-            # Get the actual value from the DataFrame row
-            actual_value = actual_row[column_name]
-
-            # For floating point numbers, use pytest.approx for safe comparison
-            if isinstance(expected_value, float):
-                assert actual_value == pytest.approx(expected_value), \
-                    f"Mismatch in column '{column_name}' for row {lookup_key}. Expected: {expected_value}, Got: {actual_value}"
-            else:
-                # For all other data types, use a direct comparison
-                assert actual_value == expected_value, \
-                    f"Mismatch in column '{column_name}' for row {lookup_key}. Expected: {expected_value}, Got: {actual_value}"
-
+    divergence = merged_data[merged_data['distance_m_from_csv'] != merged_data['distance_m_from_test']] 
+    
+    assert divergence.shape[0] == 0, (f'the following origin, destination pairs have differing distances in the test and stored dataframes: {divergence}')
 
 def test_clean_data(driving_testing_config, driving_locations_results_df):
     bad_types_df = driving_locations_results_df[driving_locations_results_df['location_type'].isin(driving_testing_config.bad_types)]

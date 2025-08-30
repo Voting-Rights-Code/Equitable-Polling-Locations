@@ -57,15 +57,15 @@ def test_kp_factor(alpha_min, distances_df, polling_locations_config):
     )
 
     distances_df2 = distances_df2.sort_values(by=['id_orig', 'id_dest'])
-
+    
     fixed_test_data = load_kp_factor_data(TEST_KP_FACTOR) #data from R code
     fixed_test_data.kp_factor = round(fixed_test_data.kp_factor, 6)
     fixed_test_data = fixed_test_data.sort_values(by=['id_orig', 'id_dest'])
 
     compare = distances_df2.merge(fixed_test_data, how = 'outer', on=['id_orig', 'id_dest'])
     compare = compare.sort_values(by=['id_orig', 'id_dest'])
-
-    assert compare.kp_factor.equals(compare.kp_factor)
+    
+    assert compare.kp_factor_x.equals(compare.kp_factor_y)
 
 
 # #test model constraints

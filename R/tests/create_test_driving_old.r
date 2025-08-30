@@ -1,5 +1,6 @@
 library(data.table)
 
+#note, will not run because this file is missing.
 driving <- fread('datasets/driving/Gwinnett_County_GA/Gwinnett_County_GA_driving_distances.csv')
 
 testing_base <- fread('datasets/polling/testing/testing_2020.csv') 
@@ -21,4 +22,4 @@ setnames(testing_driving_2020, 'distance_m.y', 'distance_m')
 cols2 <- names(testing_driving_2020)[names(testing_driving_2020)!= 'V1']
 setcolorder(testing_driving_2020, c('V1', cols2)) 
 
-fwrite(testing_driving_2020, 'datasets/driving/testing/testing_driving_2020.csv')
+fwrite(testing_driving_2020, 'datasets/polling/testing/testing_driving_2020.csv')
