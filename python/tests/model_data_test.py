@@ -52,7 +52,7 @@ def test_build_source_locations(driving_testing_config, driving_locations_result
 
     # Check that the built locations contain all the expected id_orig and id_dest pairs
     actual_permutations = set(driving_locations_results_df[['id_orig', 'id_dest']].apply(tuple, axis=1)) #.drop_duplicates())
-
+    
     assert actual_permutations == expected_permutations, (
         f'Permutations mismatch.\n'
         f'Missing permutations: {expected_permutations - actual_permutations}\n'
@@ -106,14 +106,7 @@ def test_build_source_driving_distances(driving_testing_config, driving_location
 def test_build_source_column_output(driving_locations_results_df):
     ''' Check that the coulmns from a very small sample of rows from from build_source are as expected. '''
 
-    expected_sample = [
-        {'id_orig':'131350501051000','id_dest':'Gwinnett College - Lilburn Campus','address':'4230 US-29 #11, Lilburn, GA 30047','dest_lat':33.9158499213,'dest_lon':-84.1203301157,'orig_lat':34.135637,'orig_lon':-83.9763925,'location_type':'College Campus - Potential','dest_type':'potential','population':2,'hispanic':0,'non_hispanic':2,'white':0,'black':0,'native':0,'asian':2,'pacific_islander':0,'other':0,'multiple_races':0,'distance_m':33072.52,'source':'driving distance'},
-        {'id_orig':'131350501051000','id_dest':'UGA Gwinnett Campus','address':'2530 Sever Rd NW, Lawrenceville, GA 30043','dest_lat':34.0103872256,'dest_lon':-84.0729515756,'orig_lat':34.135637,'orig_lon':-83.9763925,'location_type':'College Campus - Potential','dest_type':'potential','population':2,'hispanic':0,'non_hispanic':2,'white':0,'black':0,'native':0,'asian':2,'pacific_islander':0,'other':0,'multiple_races':0,'distance_m':20726.93,'source':'driving distance'},
-        {'id_orig':'131350501051000','id_dest':'E Center','address':'5019 W Broad St NE, Sugar Hill, GA 30518','dest_lat':34.1188454492,'dest_lon':-84.0336851381,'orig_lat':34.135637,'orig_lon':-83.9763925,'location_type':'Community Center - Potential','dest_type':'potential','population':2,'hispanic':0,'non_hispanic':2,'white':0,'black':0,'native':0,'asian':2,'pacific_islander':0,'other':0,'multiple_races':0,'distance_m':10919.36,'source':'driving distance'},
-        {'id_orig':'131350501051000','id_dest':'Highway 78 Community Imprvmnt','address':'2463 Heritage Village # 106, Snellville, GA 30078','dest_lat':33.8734931136,'dest_lon':-84.0194951064,'orig_lat':34.135637,'orig_lon':-83.9763925,'location_type':'Community Center - Potential','dest_type':'potential','population':2,'hispanic':0,'non_hispanic':2,'white':0,'black':0,'native':0,'asian':2,'pacific_islander':0,'other':0,'multiple_races':0,'distance_m':35843.07,'source':'driving distance'},
-        {'id_orig':'131350501051000','id_dest':'CHESTNUT GROVE BAPTIST CHURCH','address':'2299 ROSEBUD RD','dest_lat':33.8865127446,'dest_lon':-83.9592403865,'orig_lat':34.135637,'orig_lon':-83.9763925,'location_type':'Elec Day Church - Potential','dest_type':'potential','population':2,'hispanic':0,'non_hispanic':2,'white':0,'black':0,'native':0,'asian':2,'pacific_islander':0,'other':0,'multiple_races':0,'distance_m':31408.65,'source':'driving distance'},
-        {'id_orig':'131350501051000','id_dest':'FORT DANIEL ELEMENTARY SCHOOL','address':'1725 AUBURN ROAD','dest_lat':34.0448930406,'dest_lon':-83.9233994405,'orig_lat':34.135637,'orig_lon':-83.9763925,'location_type':'Elec Day School - Potential','dest_type':'potential','population':2,'hispanic':0,'non_hispanic':2,'white':0,'black':0,'native':0,'asian':2,'pacific_islander':0,'other':0,'multiple_races':0,'distance_m':15702.33,'source':'driving distance'},
-    ]
+    #read in data from testing    
 
     # Set 'id_orig' and 'id_dest' as the index for easier lookup.
     df = driving_locations_results_df.set_index(['id_orig', 'id_dest'])
