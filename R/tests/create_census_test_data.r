@@ -39,10 +39,10 @@ testing_P4 <- read_census_data('datasets/census/redistricting/Gwinnett_County_GA
 testing_P3_bg <- read_census_data('datasets/census/redistricting/Gwinnett_County_GA/block group demographics/DECENNIALPL2020.P3-Data.csv', census_block_groups)
 testing_P4_bg <- read_census_data('datasets/census/redistricting/Gwinnett_County_GA/block group demographics/DECENNIALPL2020.P4-Data.csv', census_block_groups)
 
-fwrite(testing_P3, 'datasets/census/redistricting/testing/DECENNIALPL2020.P3-Data.csv')
-fwrite(testing_P4, 'datasets/census/redistricting/testing/DECENNIALPL2020.P4-Data.csv')
-fwrite(testing_P3_bg, 'datasets/census/redistricting/testing/block group demographics/DECENNIALPL2020.P3-Data.csv')
-fwrite(testing_P4_bg, 'datasets/census/redistricting/testing/block group demographics/DECENNIALPL2020.P4-Data.csv')
+fwrite(testing_P3, 'datasets/census/redistricting/testing/DECENNIALPL2020.P3-Data.csv', col.names = FALSE)
+fwrite(testing_P4, 'datasets/census/redistricting/testing/DECENNIALPL2020.P4-Data.csv', col.names = FALSE)
+fwrite(testing_P3_bg, 'datasets/census/redistricting/testing/block group demographics/DECENNIALPL2020.P3-Data.csv', col.names = FALSE)
+fwrite(testing_P4_bg, 'datasets/census/redistricting/testing/block group demographics/DECENNIALPL2020.P4-Data.csv', col.names = FALSE)
 
 tiger_bg <- read_sf('datasets/census/tiger/Gwinnett_County_GA/tl_2020_13135_bg20.shp')
 tiger_block <- read_sf('datasets/census/tiger/Gwinnett_County_GA/tl_2020_13135_tabblock20.shp')
