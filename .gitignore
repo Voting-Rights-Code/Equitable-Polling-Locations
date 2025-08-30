@@ -194,4 +194,5 @@ Equitable-Polling-Locations.Rproj
 !docs/README_Image.jpg
 !docs/VRC-Large-PNG.png
 !docs/VRC-Large-PNG.png
-
+!datasets/census/redistricting/testing/*
+!datasets/census/tiger/testing/*
