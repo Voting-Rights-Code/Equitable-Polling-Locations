@@ -1,7 +1,7 @@
 library(data.table)
 
 #note, will not run because this file is missing.
-driving <- fread('datasets/driving/Gwinnett_County_GA/Gwinnett_County_GA_driving_distances.csv')
+driving <- fread('datasets/driving/testing/Gwinnett_County_GA_driving_distances_for_test_building.csv')
 
 testing_base <- fread('datasets/polling/testing/testing_2020.csv') 
 testing_base_dest_orig <- testing_base[ , c('id_orig', 'id_dest')] 
