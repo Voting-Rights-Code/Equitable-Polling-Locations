@@ -171,7 +171,7 @@ def build_source(
 ) -> BuildSourceResult:
     locations_only_results = get_polling_locations_only(location_source, location)
     locations_only = locations_only_results.locations_only
-
+    print('loading data')
     if not is_int(census_year):
         raise ValueError(f'Invalid Census year {census_year} for location {location}')
 
@@ -226,7 +226,7 @@ def build_source(
     #######
     #Clean data
     #######
-
+    print('Cleaning data')
     #select columns for each data set
     locations_only = locations_only[LOCATIONS_COLS]
     p3_df.columns=[multicols[0] for multicols in p3_df.columns]
@@ -239,6 +239,7 @@ def build_source(
     #####
     #Make a demographics table
     #####
+    print('Making demographics table')
     #combine P3 and P4 data to make a joint demographics set
     demographics = p4_df.merge(p3_df, left_on=['GEO_ID', 'NAME'], right_on=['GEO_ID', 'NAME'],how = 'outer')
 
@@ -268,7 +269,7 @@ def build_source(
     #####
     #Make a polling locations table (including block group centroid)
     #####
-
+    print('making polling locations table')
     #the potential locations data needs further processing:
     #1. add a destination type column
     locations_only['dest_type'] = 'polling'
@@ -298,12 +299,14 @@ def build_source(
     #####
     # Cross join polling locations and demographics tables
     #####
+    print('cross joinging demographics and locations')
     full_df = demographics_block.merge(all_locations, how= 'cross')
 
 
     #####
     #Rename, select columns
     #####
+    print('renaming and selecting columns')
     # pylint: disable-next=line-too-long
     full_df = full_df.rename(columns = {'GEO_ID': 'id_orig', 'Address': 'address', 'Latitude':'dest_lat', 'Longitude':'dest_lon', 'INTPTLAT20':'orig_lat', 'INTPTLON20':'orig_lon', 'Location type': 'location_type', 'Location': 'id_dest'})
     full_df = full_df[FULL_DF_COLS]
@@ -311,7 +314,10 @@ def build_source(
     #####
     # Calculate appropriate distance
     #####
+    print('calculating distances')
 
+
+    
     if driving:
         if location_source == LOCATION_SOURCE_DB:
             driving_distance_set = query.find_driving_distance_set(census_year, map_source_date, location)
@@ -322,10 +328,11 @@ def build_source(
             driving_distances_df = get_db_driving_distances(driving_distance_set.id)
         else:
             driving_distances_df = get_csv_driving_distances(census_year, map_source_date, location)
-
+        print('insert driving distance')
         full_df = insert_driving_distances(full_df, driving_distances_df)
     else:
         # pylint: disable-next=line-too-long
+        print('calculate haversine distance')
         full_df['distance_m'] = full_df.apply(lambda row: haversine((row.orig_lat, row.orig_lon), (row.dest_lat, row.dest_lon)), axis=1)*1000
         full_df['source'] = 'haversine distance'
 
@@ -333,6 +340,7 @@ def build_source(
     if log_distance:
         full_df['source'] = 'log ' + full_df['source']
         #TODO: why are there 0 distances showing up?
+        print('calculate log distance')
         full_df['distance_m'].mask(full_df['distance_m'] == 0.0, 0.001, inplace=True)
         full_df['distance_m'] = np.log(full_df['distance_m'])
 
@@ -340,7 +348,7 @@ def build_source(
     #####
     #reformat and write to file
     #####
-
+    print('reformating and writing to file')
     full_df['id_orig'] = full_df['id_orig'].astype(str)
     full_df['id_dest'] = full_df['id_dest'].astype(str)
 
