@@ -314,10 +314,7 @@ def build_source(
     #####
     # Calculate appropriate distance
     #####
-    print('calculating distances')
-
-
-    
+    print('calculating distances')    
     if driving:
         if location_source == LOCATION_SOURCE_DB:
             driving_distance_set = query.find_driving_distance_set(census_year, map_source_date, location)
