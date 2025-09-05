@@ -43,7 +43,7 @@ class PollingModel(pyo.ConcreteModel):
     '''Precinct residence distances'''
     weighted_dist = pyo.Param
     '''population weighted distances'''
-    KP_factor = pyo.Param
+    kp_factor = pyo.Param
     '''KP factor for each reisdence, precinct pair'''
     new_locations = pyo.Param
     '''Boolean indicating whether a precint is a new location'''
@@ -74,7 +74,7 @@ def build_objective_rule(
             return (average_weighted_distances)
 
         def obj_rule_not_0(model):
-            average_weighted_distances = ((sum(model.population[pair[0]]* model.matching[pair]* model.KP_factor[pair]
+            average_weighted_distances = ((sum(model.population[pair[0]]* model.matching[pair]* model.kp_factor[pair]
                                               for pair in model.pairs)/total_pop)
                                           + math.exp(-config.beta*alpha*kp_penalty_parameter)*(model.penalty_exp-1))
             return (average_weighted_distances)
@@ -86,7 +86,7 @@ def build_objective_rule(
         def obj_rule_not_0(model):
             #take average by kp factor weight
             #pair[0] = residence
-            average_weighted_distances = sum(model.population[pair[0]]* model.matching[pair]* model.KP_factor[pair] for pair in model.pairs)/total_pop
+            average_weighted_distances = sum(model.population[pair[0]]* model.matching[pair]* model.kp_factor[pair] for pair in model.pairs)/total_pop
             return (average_weighted_distances)
 
     return obj_rule_not_0 if config.beta else obj_rule_0
@@ -262,15 +262,15 @@ def polling_model_factory(dist_df, alpha, config: PollingModelConfig, *,
 
     model.distance = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'distance_m']].set_index(['id_orig', 'id_dest']))
     #population weighted distances
-    model.weighted_dist = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'Weighted_dist']].set_index(['id_orig', 'id_dest']))
+    model.weighted_dist = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'weighted_dist']].set_index(['id_orig', 'id_dest']))
 
     #KP factor
-    dist_df['KP_factor'] = compute_kp_factor(config, alpha, dist_df)
+    dist_df['kp_factor'] = compute_kp_factor(config, alpha, dist_df)
     # math.e**(-config.beta*alpha*dist_df['distance_m'])
-    max_KP_factor = dist_df.groupby('id_orig')['KP_factor'].agg('max').max()
-    if max_KP_factor > 9e19:
-        warnings.warn(f'Max KP_factor is {max_KP_factor}. SCIP can only handle values up to {1e20}. Consider a less negative value of beta.')
-    model.KP_factor = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'KP_factor']].set_index(['id_orig', 'id_dest']))
+    max_kp_factor = dist_df.groupby('id_orig')['kp_factor'].agg('max').max()
+    if max_kp_factor > 9e19:
+        warnings.warn(f'Max kp_factor is {max_kp_factor}. SCIP can only handle values up to {1e20}. Consider a less negative value of beta.')
+    model.kp_factor = pyo.Param(model.pairs, initialize = dist_df[['id_orig', 'id_dest', 'kp_factor']].set_index(['id_orig', 'id_dest']))
     #new location marker
     dist_df['new_location'] = 0
     dist_df['new_location'].mask(dist_df['dest_type']!='polling', 1, inplace = True)

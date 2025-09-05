@@ -1,4 +1,6 @@
 # Constants for the optimization function
+config_set: testing
+config_name: testing_config_penalty
 location: testing
 census_year: 2020
 year:
@@ -17,3 +19,4 @@ maxpctnew: 1 # in interval [0,1]
 minpctold: .5 # in interval [0,1]
 penalized_sites:
     - 'College Campus - Potential'
+    - 'Fire Station - Potential'

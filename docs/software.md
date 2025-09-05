@@ -31,7 +31,7 @@ The algorithm for this model is as follows:
     - We average over census blocks rather than individual houses for computational feasibility
 
 1. Compute the Kolm-Pollak weight from each block group to each polling location
-    - KP_factor  = $e^{(- \beta * \alpha * distance)}$
+    - kp_factor  = $e^{(- \beta * \alpha * distance)}$
         - $\beta$ is a user defined parameter
         - $\alpha$ is a data derived normalization factor:
         $$
@@ -41,9 +41,9 @@ The algorithm for this model is as follows:
             \sum (block\hspace{1ex}population * distance\hspace{1ex}to\hspace{1ex}closest\hspace{1ex}poll^2)}
         $$
 
-    - The KP_factor plays the role of a weighted distance in a standard objective function.
-        1. The exponential in the KP_factor penalizes inequality in distances traveled
-        1. For instance a group of 5 people all having to travel 1 mile to a polling location would have a lower KP_factor than a situation where 4 people travel 1/2 a mile while the fifth travels 3, even though the average distance traveled in both cases is the same.
+    - The kp_factor plays the role of a weighted distance in a standard objective function.
+        1. The exponential in the kp_factor penalizes inequality in distances traveled
+        1. For instance a group of 5 people all having to travel 1 mile to a polling location would have a lower kp_factor than a situation where 4 people travel 1/2 a mile while the fifth travels 3, even though the average distance traveled in both cases is the same.
 
 1. Choose whether to minimize the average distance or the inequity penalized score ($Y_{EDE}$) in the model
     - Set $\beta$ = 0 for average distance
