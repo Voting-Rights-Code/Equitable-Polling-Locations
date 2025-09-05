@@ -166,7 +166,7 @@ load_results_from_csv <-function(config_dt, result_type){
 	location <- unique(config_dt$location)
 	config_folder <- unique(config_dt$config_set)
 	#get result folder(s)
-	result_folder <-paste(location, 'results/', sep = '_')
+	result_folder <-paste0('datasets/results/', location, '_results/')
 	#extract files
 	files <- list.files(result_folder)
 	#select files containing config_folder and result_type in name
@@ -178,13 +178,13 @@ load_results_from_csv <-function(config_dt, result_type){
 	#put together to form a file path
 	file_path <- paste0(result_folder, files)
 	names(file_path) <- names(files)
-
+	
 	#read data, add config_set and config_name columns
 	#note, this needs a local function
 	dt_list <- lapply(file_path, fread)
 	names(dt_list) <- names(file_path)
-	dt_list_appended <- mapply(function(data, list_name){data[, config_name:=list_name][ , config_set := config_folder]}, dt_list, names(dt_list), SIMPLIFY = FALSE)
-
+	dt_list_appended <- mapply(function(data, list_name){data[, config_name:=list_name][ , config_set := config_folder][ , location := location]}, dt_list, names(dt_list), SIMPLIFY = FALSE)
+	
 	#combine into one df
 	big_dt <- do.call(rbind, dt_list_appended)
 	return(big_dt)

@@ -47,7 +47,7 @@ source('R/result_analysis/utility_functions/regression_functions.R')
 ###
 #For inline testing only
 ###
-source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
+source('R/result_analysis/Basic_analysis_configs/Tarrant_County_original.r')
 
 #source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
 

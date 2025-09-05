@@ -154,6 +154,7 @@ bg_result_geom <- function(location, result_df){
 extract_unique_location <- function(df){
 	#extract location from data
 	location <- unique(df$location)
+	
 	if(length(location) >1){
 		stop(paste('Multiple locations in this result data from config set', df$config_set, 'with config name', df$config_name))
 		}
