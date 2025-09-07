@@ -1,11 +1,12 @@
 # Constants for the optimization function
+config_set: testing
+config_name: testing_config_no_bg
 location: testing
 census_year: 2020
 year:
     - '2020'
     - '2022'
 bad_types:
-    - 'Election Day Loc - Potential'
     - 'bg_centroid'
 beta: -2
 time_limit: 360000 #100 hours minutes
@@ -16,4 +17,3 @@ precincts_open: 3
 max_min_mult: 5 #scalar >= 1
 maxpctnew: 1 # in interval [0,1]
 minpctold: .5 # in interval [0,1]
-driving: True # True or False (default: False)

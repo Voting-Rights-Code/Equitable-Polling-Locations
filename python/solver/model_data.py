@@ -106,16 +106,19 @@ class PollingLocationsOnlyResult:
 def get_polling_locations_only(
         location_source: Literal['db', 'csv'],
         location: str,
+        locations_only_path_override: str = None,
 ) -> PollingLocationsOnlyResult:
+    location_only_set_id: str = None
     if location_source == LOCATION_SOURCE_DB:
         location_only_set = query.get_location_only_set(location)
         if not location_only_set:
             raise ValueError(f'Could not find location only set for {location} in the database.')
 
-        locations_only = query.get_locations_only(location_only_set.id)
+        location_only_set_id = location_only_set.id
+        locations_only_df = query.get_locations_only(location_only_set_id)
 
         # Rename databas columns to match csv columns
-        locations_only = locations_only.rename(
+        locations_only_df = locations_only_df.rename(
             {
                 'location': 'Location',
                 'address': 'Address',
@@ -123,71 +126,68 @@ def get_polling_locations_only(
                 'lat_lon': 'Lat, Long',
             }, axis=1)
 
-        if locations_only.empty:
+        if locations_only_df.empty:
             raise ValueError(f'No locations only for locations only set {location} id {location_only_set.id}.')
 
-        return PollingLocationsOnlyResult(
-            locations_only=locations_only,
-            polling_locations_only_set_id=location_only_set.id,
-        )
+
     else:
-        locations_only_source_file = build_locations_only_file_path(location)
+        if locations_only_path_override:
+            # If a path override is provided, use that instead of the default file path
+            locations_only_source_file = locations_only_path_override
+        else:
+            locations_only_source_file = build_locations_only_file_path(location)
 
         if os.path.exists(locations_only_source_file):
             #warnings.warn(f'{file_name} found. Last modified {os.path.getmtime(LOCATION_SOURCE_FILE)}.')
-            locations_only = pd.read_csv(locations_only_source_file)
+            locations_only_df = pd.read_csv(locations_only_source_file)
         else:
             raise ValueError(f'Potential polling location data ({locations_only_source_file}) not found.')
 
-        return PollingLocationsOnlyResult(locations_only=locations_only, output_path=locations_only_source_file)
 
+    locations_only_df = locations_only_df[LOCATIONS_COLS]
 
-@dataclass
-class BuildSourceResult:
-    location_source: Literal['db', 'csv']
-    census_year: str
-    location: str
-    driving: bool
-    log_distance: bool
-    map_source_date: str = None,
-    output_path: str = None
-    driving_distance_set_id: str = None
-    polling_locations_only_set_id: str = None
+    #the potential locations data needs further processing:
+    #1. add a destination type column
+    locations_only_df['dest_type'] = 'polling'
+    locations_only_df['dest_type'].mask(locations_only_df['Location type'].str.contains('Potential'), 'potential', inplace=True)
 
-##########################
-#read in data and write relevant dataframe for model to file
-##########################
-#build distance data set from census data and potential pollig location data.
-#using driving distances if driving = True
+    #2. change the lat, long into two columns
+    locations_only_df[['Latitude', 'Longitude']] = locations_only_df['Lat, Long'].str.split(pat = ', ', expand=True).astype(float)
+    locations_only_df.drop(['Lat, Long'], axis =1, inplace = True)
 
-def build_source(
-    location_source: Literal['db', 'csv'],
-    census_year: str,
-    location: str,
-    driving: bool,
-    log_distance: bool,
-    map_source_date: str = None,
-    log: bool = False,
-) -> BuildSourceResult:
-    locations_only_results = get_polling_locations_only(location_source, location)
-    locations_only = locations_only_results.locations_only
-    print('loading data')
-    if not is_int(census_year):
-        raise ValueError(f'Invalid Census year {census_year} for location {location}')
-
-    result = BuildSourceResult(
-        location_source=location_source,
-        census_year=census_year,
-        location=location,
-        driving=driving,
-        log_distance=log_distance,
-        map_source_date=map_source_date,
-        polling_locations_only_set_id=locations_only_results.polling_locations_only_set_id,
-        output_path=locations_only_results.output_path
+    return PollingLocationsOnlyResult(
+        locations_only=locations_only_df,
+        polling_locations_only_set_id=location_only_set_id,
     )
 
-    output_path = build_locations_distance_file_path(census_year, location, driving, log_distance)
-    result.output_path = output_path
+
+def get_blocks_gdf(census_year: str, location: str) -> gpd.GeoDataFrame:
+    block_source_file = get_block_source_file_path(census_year, location)
+    blocks_gdf = gpd.read_file(block_source_file)
+
+    blocks_gdf = blocks_gdf[BLOCK_SHAPE_COLS]
+
+    return blocks_gdf
+
+
+def get_blockgroup_gdf(census_year: str, location: str) -> gpd.GeoDataFrame:
+    block_group_source_file = get_block_group_block_source_file_path(census_year, location)
+    blockgroup_gdf = gpd.read_file(block_group_source_file)
+
+    blockgroup_gdf = blockgroup_gdf[BLOCK_GROUP_SHAPE_COLS]
+
+    #The block group needs to be processed to match the potential location table
+    # pylint: disable-next=line-too-long
+    blockgroup_gdf = blockgroup_gdf.rename(columns = {'GEOID20': 'Location', 'INTPTLAT20':'Latitude', 'INTPTLON20':'Longitude'})
+    blockgroup_gdf['Address'] = None
+    blockgroup_gdf['Location type'] = 'bg_centroid'
+    blockgroup_gdf['dest_type'] = 'bg_centroid'
+
+    return blockgroup_gdf
+
+
+def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
+    ''' Combine the P3 and P4 census data to generate demographic block data for a specific location and census year. '''
 
     demographics_dir = build_demographics_dir_path(location)
     p3_source_file = build_p3_source_file_path(census_year, location)
@@ -228,13 +228,11 @@ def build_source(
     #######
     print('Cleaning data')
     #select columns for each data set
-    locations_only = locations_only[LOCATIONS_COLS]
     p3_df.columns=[multicols[0] for multicols in p3_df.columns]
     p3_df = p3_df[P3_COLUMNS]
     p4_df.columns=[multicols[0] for multicols in p4_df.columns]
     p4_df = p4_df[P4_COLUMNS]
-    blocks_gdf = blocks_gdf[BLOCK_SHAPE_COLS]
-    blockgroup_gdf = blockgroup_gdf[BLOCK_GROUP_SHAPE_COLS]
+    # blockgroup_gdf = blockgroup_gdf[BLOCK_GROUP_SHAPE_COLS]
 
     #####
     #Make a demographics table
@@ -255,6 +253,8 @@ def build_source(
     #drop geo_id_prefix
     demographics['GEO_ID'] = demographics['GEO_ID'].str.replace(GEO_ID_PREFIX, '')
 
+    blocks_gdf = get_blocks_gdf(census_year, location)
+
     #join with block group shape files
     demographics_block = demographics.merge(blocks_gdf, left_on='GEO_ID', right_on = 'GEOID20',how='left')
 
@@ -266,28 +266,67 @@ def build_source(
     demographics_block = demographics_block.drop_duplicates() #put in to avoid duplications down the line.
     demographics_block = demographics_block[demographics_block['population']>0]
 
+    return demographics_block
+
+
+@dataclass
+class BuildSourceResult:
+    location_source: Literal['db', 'csv']
+    census_year: str
+    location: str
+    driving: bool
+    log_distance: bool
+    map_source_date: str = None,
+    output_path: str = None
+    driving_distance_set_id: str = None
+    polling_locations_only_set_id: str = None
+
+##########################
+#read in data and write relevant dataframe for model to file
+##########################
+#build distance data set from census data and potential pollig location data.
+#using driving distances if driving = True
+
+def build_source(
+    location_source: Literal['db', 'csv'],
+    census_year: str,
+    location: str,
+    driving: bool,
+    log_distance: bool,
+    map_source_date: str = None,
+    log: bool = False,
+    locations_only_path_override: str = None,
+    output_path_override: str = None,
+) -> BuildSourceResult:
+    locations_only_results = get_polling_locations_only(location_source, location, locations_only_path_override)
+    locations_only_df = locations_only_results.locations_only
+
+    if not is_int(census_year):
+        raise ValueError(f'Invalid Census year {census_year} for location {location}')
+
+    if not output_path_override:
+        output_path = build_locations_distance_file_path(census_year, location, driving, log_distance)
+    else:
+        output_path = output_path_override
+
+    result = BuildSourceResult(
+        location_source=location_source,
+        census_year=census_year,
+        location=location,
+        driving=driving,
+        log_distance=log_distance,
+        map_source_date=map_source_date,
+        polling_locations_only_set_id=locations_only_results.polling_locations_only_set_id,
+        output_path=output_path
+    )
+
     #####
     #Make a polling locations table (including block group centroid)
     #####
-    print('making polling locations table')
-    #the potential locations data needs further processing:
-    #1. add a destination type column
-    locations_only['dest_type'] = 'polling'
-    locations_only['dest_type'].mask(locations_only['Location type'].str.contains('Potential'), 'potential', inplace=True)
-
-    #2. change the lat, long into two columns
-    locations_only[['Latitude', 'Longitude']] = locations_only['Lat, Long'].str.split(pat = ', ', expand=True).astype(float)
-    locations_only.drop(['Lat, Long'], axis =1, inplace = True)
-
-    #The block group needs to be processed to match the potential location table
-    # pylint: disable-next=line-too-long
-    blockgroup_gdf = blockgroup_gdf.rename(columns = {'GEOID20': 'Location', 'INTPTLAT20':'Latitude', 'INTPTLON20':'Longitude'})
-    blockgroup_gdf['Address'] = None
-    blockgroup_gdf['Location type'] = 'bg_centroid'
-    blockgroup_gdf['dest_type'] = 'bg_centroid'
+    blockgroup_gdf = get_blockgroup_gdf(census_year, location)
 
     #Concatenate
-    all_locations = pd.concat([locations_only, blockgroup_gdf])
+    all_locations = pd.concat([locations_only_df, blockgroup_gdf])
 
     #Lat and Long current mix of string and geometry. Make them all floats
     all_locations['Latitude'] = pd.to_numeric(all_locations['Latitude'])
@@ -299,9 +338,8 @@ def build_source(
     #####
     # Cross join polling locations and demographics tables
     #####
-    print('cross joinging demographics and locations')
-    full_df = demographics_block.merge(all_locations, how= 'cross')
-
+    demographics_block_df = get_demographics_block(census_year, location)
+    full_df = demographics_block_df.merge(all_locations, how= 'cross')
 
     #####
     #Rename, select columns
@@ -310,7 +348,7 @@ def build_source(
     # pylint: disable-next=line-too-long
     full_df = full_df.rename(columns = {'GEO_ID': 'id_orig', 'Address': 'address', 'Latitude':'dest_lat', 'Longitude':'dest_lon', 'INTPTLAT20':'orig_lat', 'INTPTLON20':'orig_lon', 'Location type': 'location_type', 'Location': 'id_dest'})
     full_df = full_df[FULL_DF_COLS]
-
+    
     #####
     # Calculate appropriate distance
     #####
@@ -325,7 +363,7 @@ def build_source(
             driving_distances_df = get_db_driving_distances(driving_distance_set.id)
         else:
             driving_distances_df = get_csv_driving_distances(census_year, map_source_date, location)
-        print('insert driving distance')
+        
         full_df = insert_driving_distances(full_df, driving_distances_df)
     else:
         # pylint: disable-next=line-too-long
@@ -341,15 +379,13 @@ def build_source(
         full_df['distance_m'].mask(full_df['distance_m'] == 0.0, 0.001, inplace=True)
         full_df['distance_m'] = np.log(full_df['distance_m'])
 
-
     #####
     #reformat and write to file
     #####
     print('reformating and writing to file')
     full_df['id_orig'] = full_df['id_orig'].astype(str)
     full_df['id_dest'] = full_df['id_dest'].astype(str)
-
-
+    
     full_df.to_csv(output_path, index = True)
     return result
 
@@ -393,8 +429,7 @@ def get_csv_driving_distances(census_year: str, map_source_date: str, location: 
     if not os.path.exists(driving_distance_file_path):
         raise ValueError(f'Driving Distance File ({driving_distance_file_path}) not found.')
 
-    driving_distances = pd.read_csv(driving_distance_file_path)
-    return driving_distances
+    return load_driving_distances_csv(driving_distance_file_path)
 
 def get_db_driving_distances(driving_distance_set_id: str) -> pd.DataFrame:
     driving_distances = query.get_driving_distances(driving_distance_set_id)
@@ -404,6 +439,42 @@ def get_db_driving_distances(driving_distance_set_id: str) -> pd.DataFrame:
     del driving_distances['driving_distance_set_id']
 
     return driving_distances
+
+
+def load_locations_only_csv(path: str) -> pd.DataFrame:
+    '''
+    Load locations only from a CSV file.
+    '''
+    if not os.path.isfile(path):
+        raise ValueError(f'Polling locations file {path} does not exist.')
+
+    dtype_spec = {'Location': 'str', 'Address': 'str', 'Location type': 'str'}
+
+    return pd.read_csv(path, index_col=False, dtype=dtype_spec)
+
+def load_locations_csv(path: str) -> pd.DataFrame:
+    '''
+    Load locations from a CSV file.
+    '''
+    if not os.path.isfile(path):
+        raise ValueError(f'Polling locations file {path} does not exist.')
+
+    dtype_spec = {'id_orig': 'str', 'id_dest': 'str'}
+
+    return pd.read_csv(path, index_col=0, dtype=dtype_spec)
+
+
+def load_driving_distances_csv(path: str) -> pd.DataFrame:
+    '''
+    Load the driving distances from a CSV file.
+    '''
+    if not os.path.isfile(path):
+        raise ValueError(f'Driving distances file {path} does not exist.')
+
+    dtype_spec = {'id_orig': 'str', 'id_dest': 'str', 'distance_m': np.float64}
+
+    return pd.read_csv(path, index_col=False, dtype=dtype_spec)
+
 
 @dataclass
 class PollingLocationResults:
@@ -419,7 +490,6 @@ def get_polling_locations(
 ) -> PollingLocationResults:
     '''
     Loads the polling locations data either from local files or from the database based on config settings.
-
     '''
 
     if not census_year:
@@ -452,12 +522,25 @@ def get_polling_locations(
         if not os.path.isfile(file_path):
             raise ValueError(f'Do not currently have any data for {file_path} from location {location}')
 
-        df = pd.read_csv(file_path, index_col=0)
-        df = df.astype({'id_orig':'str'})
+        df = load_locations_csv(file_path)
 
         return PollingLocationResults(
             polling_locations=df,
         )
+
+
+def clean_dest_type(locations_df: pd.DataFrame, year_list: list[str]):
+    '''
+    Cleans the destination type column in the DataFrame.
+    This function is used to ensure that the destination type is set correctly based on the location type.
+    '''
+    #select data based on year
+    #mark everything but bg_centroid as potential
+    #then mark location_types with correct years as
+    locations_df['dest_type'].mask(locations_df['dest_type'] != 'bg_centroid', 'potential', inplace = True)
+
+    # Set the dest_type to polling for every row that has a location_type like "2018" or "2020" from the year_list
+    locations_df['dest_type'].mask(locations_df['location_type'].str.contains('|'.join(year_list)), 'polling', inplace = True)
 
 
 #########
@@ -497,11 +580,8 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
     #drop rows of bad location types in df
     result_df = result_df[~result_df['location_type'].isin(bad_location_list)]
 
-    #select data based on year
-    #mark everything but bg_centroid as potential
-    #then mark location_types with correct years as
-    result_df['dest_type'].mask(result_df['dest_type'] != 'bg_centroid', 'potential', inplace = True)
-    result_df['dest_type'].mask(result_df['location_type'].str.contains('|'.join(year_list)), 'polling', inplace = True)
+    clean_dest_type(result_df, year_list)
+
     #check that this hasn't created duplicates (should not have); drop these
     result_df = result_df.drop_duplicates()
 
@@ -528,7 +608,7 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
 
 
     #create other useful columns
-    result_df['Weighted_dist'] = result_df['population'] * result_df['distance_m']
+    result_df['weighted_dist'] = result_df['population'] * result_df['distance_m']
 
     return result_df
 

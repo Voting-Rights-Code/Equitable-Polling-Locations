@@ -1,12 +1,15 @@
 # Constants for the optimization function
+config_set: testing
+config_name: testing_config_no_bg_campus_fire
 location: testing
 census_year: 2020
 year:
     - '2020'
     - '2022'
 bad_types:
-    - 'Election Day Loc - Potential'
     - 'bg_centroid'
+    - 'College Campus - Potential'
+    - 'Fire Station - Potential'
 beta: -2
 time_limit: 360000 #100 hours minutes
 capacity: 5

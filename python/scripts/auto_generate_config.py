@@ -11,7 +11,7 @@ from sqlalchemy import inspect, sql
 from python.database import query
 from python.solver.model_config import PollingModelConfig
 from python.database import models as Models
-from python.utils.constants import CONFIG_BASE_DIR 
+from python.utils.constants import CONFIG_BASE_DIR
 
 def load_base_config(config_file):
     '''Load the base configuration from the provided YAML file.'''
@@ -38,7 +38,7 @@ def check_model_fields_match_input(input_config, model_inspect):
     if len(model_fields) != len(set(model_fields)):
         raise ValueError('There are repeated fields in the defined config model')
     if len(input_fields) != len(set(input_fields)):
-       raise ValueError('There are repeated fields in the config file given as input')
+        raise ValueError('There are repeated fields in the config file given as input')
     if len(missing_fields) >0:
         raise ValueError(f'missing required fields: {missing_fields}')
     if len(extra_fields) >0:
@@ -94,7 +94,7 @@ def generate_configs(base_config_file:str, config_base_dir = CONFIG_BASE_DIR):#,
 
     #validate config name and set
     config_set = base_config['config_set']
-    config_dir =  base_config_file.split(os.path.sep)[-2] 
+    config_dir = base_config_file.split(os.path.sep)[-2]
     config_file_name = os.path.splitext(os.path.basename(base_config_file))[0]
     config_name = base_config['config_name']
     if (config_dir != config_set):
