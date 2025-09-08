@@ -1,4 +1,4 @@
-config_set: Tarrant_County_TX_fair
+config_set: Tarrant_County_TX_fair_capacity_2
 config_name: Tarrant_County_TX_precincts_open_215
 location: Tarrant_County_TX
 census_year: '2020'
