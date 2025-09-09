@@ -47,7 +47,7 @@ source('R/result_analysis/utility_functions/regression_functions.R')
 ###
 #For inline testing only
 ###
-source('R/result_analysis/Basic_analysis_configs/Tarrant_County_original_and_fair.r')
+source('R/result_analysis/Basic_analysis_configs/Tarrant_County_original_and_fair_capacity_2.r')
 
 #source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
 
@@ -78,7 +78,7 @@ LOG_FLAG <- set_global_flag(config_dt_list, 'log_distance')
 #names of the output data in these lists
 #come from TABLES defined in graph_functions.R
 
-#orig_output_df_list <- read_result_data(orig_config_dt, field_of_interest = ORIG_FIELD_OF_INTEREST, descriptor_dict = DESCRIPTOR_DICT_ORIG)
+orig_output_df_list <- read_result_data(orig_config_dt, field_of_interest = ORIG_FIELD_OF_INTEREST, descriptor_dict = DESCRIPTOR_DICT_ORIG)
 
 potential_output_df_list <- read_result_data(potential_config_dt, field_of_interest = POTENTIAL_FIELD_OF_INTEREST, 
 descriptor_dict = DESCRIPTOR_DICT_POTENTIAL)
