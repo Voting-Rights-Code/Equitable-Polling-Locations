@@ -10,7 +10,7 @@ dt_2025 <- fread('datasets/results/Tarrant_County_TX_results/Tarrant_County_TX_o
 
 dt_optimal <- fread('datasets/results/Tarrant_County_TX_results/Tarrant_County_TX_fair_capacity_2.Tarrant_County_TX_precincts_open_215_precinct_distances.csv')
 
-#dt_all <- merge(dt_2024, dt_2025, all.x = TRUE, by = c('id_dest', 'demographic', 'demo_pop', 'source'))
+dt_all <- merge(dt_2024, dt_2025, all.x = TRUE, by = c('id_dest', 'demographic', 'source'))
 
 #dt_all[, dropped := FALSE][is.na(avg_dist.y) , dropped := TRUE]
 
