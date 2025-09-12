@@ -49,44 +49,43 @@ class PollingModelConfig:
     census_year: str
     ''' The census year to use. '''
 
-    penalized_sites: List[str] = field(default_factory=list)
-    '''A list of locations for which the preference is to only place a polling location there
-    if absolutely necessary for coverage, e.g. fire stations.'''
-
-    precincts_open: int = None
+    precincts_open: int
     '''The total number of precincts to be used this year. If no
     user input is given, this is calculated to be the number of
     polling places identified in the data.'''
-    maxpctnew: float = 1.0
+    maxpctnew: float
     '''The percent on new polling places (not already defined as a
-    polling location) permitted in the data. Default = 1. I.e. can replace all existing locations'''
-    minpctold: float = 0
+    polling location) permitted in the data. '''
+    minpctold: float
     '''The minimun number of polling places (those already defined as a
-    polling location) permitted in the data. Default = 0. I.e. can replace all existing locations'''
-    max_min_mult: float = 2
+    polling location) permitted in the data. '''
+    max_min_mult: float
     '''A multiplicative factor for the min_max distance caluclated
-    from the data. Should be >= 2. Default = 2'''
-    capacity: float = 2.0
+    from the data. Should be >= 2. '''
+    capacity: float
     '''A multiplicative factor for calculating the capacity constraint. Should be >= 1.
-    Default = 2.0
     Note, if this is not paired with fixed_capacity_site_number, then the capacity changes as a function of number of precincts.'''
+
+    fixed_capacity_site_number: int
+    '''If default number of open precincts if one wants to hold the number
+    #of people that can go to a location constant (as opposed to a function of the number of locations) '''
+
+    fixed_capacity_site_number: int
+    '''If default number of open precincts if one wants to hold the number
+    of people that can go to a location constant (as opposed to a function of the number of locations) '''
+
+    driving: bool
+    ''' Driving distances used if True and distance file exists in correct location '''
+
+    penalized_sites: List[str] = field(default_factory=list)
+    '''A list of locations for which the preference is to only place a polling location there
+    if absolutely necessary for coverage, e.g. fire stations.'''
 
     driving: bool = False
     ''' Driving distances used if True and distance file exists in correct location '''
 
     log_distance: bool = False
     ''' Log of the distance (driving or haversine) computed and used in optimization if True '''
-
-    fixed_capacity_site_number: int = None
-    '''If default number of open precincts if one wants to hold the number
-    #of people that can go to a location constant (as opposed to a function of the number of locations) '''
-
-    fixed_capacity_site_number: int = None
-    '''If default number of open precincts if one wants to hold the number
-    of people that can go to a location constant (as opposed to a function of the number of locations) '''
-
-    driving: bool = False
-    ''' Driving distances used if True and distance file exists in correct location '''
 
     commit_hash: str = None
     '''NOT CURRENTLY IN USE. Git commit under which this code was run'''
@@ -95,6 +94,7 @@ class PollingModelConfig:
 
     config_file_path: str = None
     ''' The path to the file that defines this config.  '''
+
     log_file_path: str = None
     ''' If specified, the location of the file to write logs to '''
 
