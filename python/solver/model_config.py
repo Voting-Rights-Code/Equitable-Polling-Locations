@@ -17,6 +17,9 @@ from python.utils.constants import LOCATION_SOURCE_CSV
 MODEL_CONFIG_ARRAY_NAMES = ['year', 'bad_types', 'penalized_sites']
 ''' These PollingModelConfig variables are expected to be arrays, not None '''
 
+NON_EMPTY_ARRAYS = ['year']
+''' These PollingModelConfig variables are expected to be non-empty arrays. '''
+
 # For now map_source_date is not required, map_source_date is for future proofing
 IGNORE_ON_LOAD = [
     'db_id', 'commit_hash', 'run_time', 'config_file_path',
@@ -142,6 +145,11 @@ class PollingModelConfig:
                     unknown_fields.append(key)
             if len(unknown_fields) > 0:
                 raise ValueError(f'Config file {config_yaml_path} contains unknown fields: {unknown_fields}.')
+
+            for key in NON_EMPTY_ARRAYS:
+                array_value = config.get(key)
+                if not isinstance(array_value, list) or len(array_value) == 0:
+                    raise ValueError(f'Config file {config_yaml_path} must specify at least one value for array field {key}.')
 
             result = PollingModelConfig(**config)
 
