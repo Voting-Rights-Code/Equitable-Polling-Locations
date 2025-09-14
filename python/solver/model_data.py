@@ -26,7 +26,7 @@ from python.utils import (
     is_int,
 )
 
-from python.utils.constants import LOCATION_SOURCE_DB
+from python.utils.constants import LOCATION_SOURCE_DB, POLLING_DIR
 from python.utils.pull_census_data import pull_census_data
 from python.utils import get_block_source_file_path, get_block_group_block_source_file_path
 from .model_config import PollingModelConfig
@@ -376,12 +376,14 @@ def build_source(
         full_df['distance_m'] = np.log(full_df['distance_m'])
 
     #####
-    #reformat and write to file
+    #reformat and write to file (making directory if it doesn't exist)
     #####
 
     full_df['id_orig'] = full_df['id_orig'].astype(str)
     full_df['id_dest'] = full_df['id_dest'].astype(str)
     
+    if not os.path.exists(output_path):
+        os.makedirs(os.path.join(POLLING_DIR, location))
     full_df.to_csv(output_path, index = True)
     return result
 
@@ -497,7 +499,7 @@ def get_polling_locations(
         # Load locations from the database
         polling_locations_set = query.get_location_set(census_year, location, log_distance, driving)
         if not polling_locations_set:
-            raise ValueError(f'Could not find location set for census_year: {census_year}, location: {location}, log_distance: {log_distance}, driving: {driving} in the database.')
+            raise ValueError(f'Could not find location set for census_year: {census_year}, location: {location}, log_distance: {log_distance}, driving: {driving} in the database. To import the data to the database, run python.scripts.db_import_locations_cli with the desired parameters.')
 
         df = query.get_locations(
             polling_locations_set_id=polling_locations_set.id,
