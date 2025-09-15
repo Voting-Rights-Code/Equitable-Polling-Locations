@@ -31,6 +31,7 @@ read_census_data <- function(file_name, census_unit){
     data <- fread(file_name, header = FALSE, skip = 2)
     testing_data <- data[V1 %in% census_unit, ]
     testing_data_with_header <- rbind(header, testing_data)
+
     return(testing_data_with_header)
 }
 
@@ -51,4 +52,4 @@ testing_tiger_bg <- tiger_bg[tiger_bg$GEOID20 %in% block_groups, ]
 testing_tiger_block <- tiger_block[tiger_block$GEOID20 %in% as.character(blocks), ]
 
 st_write(testing_tiger_bg, 'datasets/census/tiger/testing/tl_2020_13135_bg20.shp')
-st_write(testing_tiger_bg, 'datasets/census/tiger/testing/tl_2020_13135_tabblock20.shp')
+st_write(testing_tiger_block, 'datasets/census/tiger/testing/tl_2020_13135_tabblock20.shp')

@@ -64,7 +64,7 @@ def driving_locations_results_df(#tmp_path_factory,
     #commenting out because I can't find tmp_path_factory
     #tmp_path = tmp_path_factory.mktemp('driving_locations_results_test_data')
     build_source_ouput_tmp_path = os.path.join(POLLING_DIR, driving_testing_config.location, 'testing_driving_distances_tmp.csv')
-    
+
     model_data.build_source(
         'csv',
         census_year=driving_testing_config.census_year,
@@ -77,6 +77,7 @@ def driving_locations_results_df(#tmp_path_factory,
     )
     
     locations_results_df = model_data.load_locations_csv(build_source_ouput_tmp_path)
+    
     return locations_results_df
 
 @pytest.fixture(scope='session')
