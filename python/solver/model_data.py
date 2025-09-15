@@ -383,7 +383,7 @@ def build_source(
     full_df['id_dest'] = full_df['id_dest'].astype(str)
     
     if not os.path.exists(output_path):
-        os.makedirs(os.path.join(POLLING_DIR, location))
+        os.makedirs(os.path.basename(output_path))
     full_df.to_csv(output_path, index = True)
     return result
 
