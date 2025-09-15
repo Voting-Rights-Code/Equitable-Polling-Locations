@@ -14,7 +14,7 @@ from .constants import TESTING_LOCATIONS_ONLY_PATH, TESTING_DRIVING_DISTANCES_PA
 
 def test_build_source_columns(driving_locations_results_df):
     ''' Checks that the columns in the locations_results_df match the expected columns. '''
-    
+
     expected_columns = [
         'id_orig', 'id_dest', 'address', 'dest_lat', 'dest_lon', 'orig_lat',
         'orig_lon', 'location_type', 'dest_type', 'population', 'hispanic',
@@ -23,7 +23,7 @@ def test_build_source_columns(driving_locations_results_df):
     ]
 
     actual_columns = driving_locations_results_df.columns.tolist()
-    
+
     assert actual_columns == expected_columns, (
         f'Column mismatch.\n'
         f'Expected: {expected_columns}\n'
@@ -52,12 +52,15 @@ def test_build_source_locations(driving_testing_config, driving_locations_result
 
     # Check that the built locations contain all the expected id_orig and id_dest pairs
     actual_permutations = set(driving_locations_results_df[['id_orig', 'id_dest']].apply(tuple, axis=1)) #.drop_duplicates())
-    
+
     assert actual_permutations == expected_permutations, (
         f'Permutations mismatch.\n'
         f'Missing permutations: {expected_permutations - actual_permutations}\n'
         f'Unexpected permutations: {actual_permutations - expected_permutations}'
     )
+
+    assert driving_locations_results_df['orig_lat'].notna().all(), 'orig_lat should not have null values'
+    assert driving_locations_results_df['orig_lon'].notna().all(), 'orig_lon should not have null values'
 
 
 def test_build_source_driving_distances(driving_testing_config, driving_locations_results_df):
@@ -105,18 +108,18 @@ def test_build_source_driving_distances(driving_testing_config, driving_location
 
 def test_build_source_column_output(driving_locations_results_df):
     ''' Checks the distances in driving_locations_results_df against those store in testing_driving_distances '''
-    
+
     #read in driving distance data
-    from_csv = model_data.load_driving_distances_csv(TESTING_DRIVING_DISTANCES_PATH) 
-    
-    # Select 'id_orig' and 'id_dest' and 'distance_m' from build source to compare 
+    from_csv = model_data.load_driving_distances_csv(TESTING_DRIVING_DISTANCES_PATH)
+
+    # Select 'id_orig' and 'id_dest' and 'distance_m' from build source to compare
     df = driving_locations_results_df[['id_orig', 'id_dest', 'distance_m']]
 
     #merge for comparison
     merged_data = pd.merge(from_csv, df, on = ['id_orig', 'id_dest'], suffixes = ('_from_csv', '_from_test' ))
 
-    divergence = merged_data[merged_data['distance_m_from_csv'] != merged_data['distance_m_from_test']] 
-    
+    divergence = merged_data[merged_data['distance_m_from_csv'] != merged_data['distance_m_from_test']]
+
     assert divergence.shape[0] == 0, (f'the following origin, destination pairs have differing distances in the test and stored dataframes: {divergence}')
 
 def test_clean_data(driving_testing_config, driving_locations_results_df):
