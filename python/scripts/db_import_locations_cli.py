@@ -196,11 +196,11 @@ if __name__ == '__main__':
 Examples:
     To import linear distance haversine locations for 2020 census year for Contained_in_Madison_City_of_WI and Intersecting_Madison_City_of_WI
 :
-        python -m db_import_locations_cli 2020 Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
+        python -m python.scripts.db_import_locations_cli 2020 Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
 
     To import log distance driving locations for 2020 census year for Contained_in_Madison_City_of_WI and Intersecting_Madison_City_of_WI
 :
-        python -m db_import_locations_cli -t log -d 20250101 2020 Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
+        python -m python.scripts.db_import_locations_cli -t log -d 20250101 2020 Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
 
        '''
     )
