@@ -1,34 +1,41 @@
 # Input data
-There are three sets of data needed to run the optimization and analysis in this program:
-1. Census data for the county, aggregated at the block and block group level;
+Before running the model, create the following:
+1. A census API
 1. a *manually generated* dataset of past and potential polling locations, consistent with local laws;
 1.   a config file that contains the parameters for a given optimization.
 
 Additionally,
-1. if one wishes to analyze driving distances, there is an additional input file to capture this data.
+1. if one wishes to analyze driving distances, a dataset of distances from each potential polling location to each census block group centroid.
 
-## Config data
+## **Census Data (demographics and shapefiles)**:
+The sofware requires a free census API key to run new counties. You can [apply on the cenus site](https://api.census.gov/data/key_signup.html) and be approved in seconds.
 
-In the database, config data is stored with a unique `config_set` and `config_name` pair. When stored locally, `config_set` corresponds to the config_folder, while `config_name` corresponds to the file (.yaml) in the config_folder.
+    1. Create the directory authentication_files/
+    2. Inside authentication_files/ create a file called census_key.py
+    3. The file should have a single line reading: census_key = "YOUR_KEY_VALUE"
 
-There may be multiple `config_name`s sharing the same `config_set`. However, each of these datasets can only differ from each other by a single field (aside from `config_name`, `id` and `created_at` fields). **If this property does not hold, the analysis files will not run.**
+## Configuration files
+
+The configuration files setting the parameters for the model runs live in `datasets/configs/config_set/`. Each file is of the form `config_name.yaml`. 
+
+There may be multiple `config_name.yaml` files in the same `config_set` folder. However, each of these datasets can only differ from each other by a single field (aside from `config_name`, `id` and `created_at` fields). **If this property does not hold, the analysis files will not run.** 
 
 ### Creating config data
-To create config data, create an examplar config file and put it in the desired folder. The exemplar config file
-* must contain two extra fields that are not in the config file itself:
-    * field to vary: str; the name of the field in the config file that is allowed to vary in this config set
-    * new_range: list; the list of desired values that this field should take. Note, this can be a list of lists
-* should not end in `.yaml`. In these example, the exemplar files ends in `.yaml_template`
+1. Create the desired `config_set` directory in `datasets/configs/`. 
+1. Create a config template to generate the configuration files desired in this folder.
+   1. Copy `datasets\configs\template_configs\config_template_example.yaml_template` into the folder just created
+   1. Change values as needed to create the desired configurations
+1. Two fields specify how the .yaml files will be created:
+    1. field to vary: str; the name of the field in the config file that is allowed to vary in this config set
+    1. new_range: list; the list of desired values that this field should take. Note, this can be a list of lists    
+1. Run `python -m python.scripts.auto_generate_config -b 'datasets/configs/config_folder/exemplar_config.yaml_template'`
 
-Then run
-
- `python -m python.scripts.auto_generate_config -b 'datasets/configs/config_folder/exemplar_config.yaml_template'
-
-This will create a set of .yaml files in the indicaded `config_folder`, each with a different name (that is a combination of the indicated `field_to_change` and a value from the provided list.) It will also write these configs to the database.
+This will create a set of .yaml files in the indicaded `config_folder`, each with a different name (that is a combination of the indicated `field_to_change` and a value from the provided list.)
 
 **Note:**
+* This will also write these configs to the database.
+    * Namely, if you don't have a database connection, this will not work.
 * If a file by the config name already exists in the config_folder, the script will not run
-* The fields of the exemplar_config MUST match the fields in the sql_alchemy model. Otherwise, this script will not run.
 
 **Example:**
 To generate a set of configs for DuPage County, IL where the number of precincts open varies from 15 to 20, define
