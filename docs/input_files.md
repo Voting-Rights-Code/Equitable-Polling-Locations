@@ -87,7 +87,7 @@ in the `.yaml_template` file and then run
 python -m python.scripts.auto_generate_config -f 'DuPage_County_IL_potential_configs/example_config.yaml_template'
 ```
 ### Config fields
-All field in the Polling Model class (listed below) must be included in the .yaml_template file. See `python/solver/model_config.py`. <!--In addition to the fields listed below, and `id`, and `created_at` field are generated when uploaded to the database.-->
+The following fields from the PollingModelConfig class must be included in the .yaml_template file. (See `python/solver/model_config.py` for details on the class and fields). <!--In addition to the fields listed below, and `id`, and `created_at` field are generated when uploaded to the database.-->
 
 * config_set
     * str
