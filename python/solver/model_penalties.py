@@ -20,6 +20,10 @@ from .model_results import (
 from .model_solver import solve_model
 from .run_setup import RunSetup
 
+from .constants import (
+    SRC_LOCATION_TYPE, ID_DEST, SLV_MODEL2, SLV_PENALTY, UTF8
+)
+
 
 def get_log_path(config: PollingModelConfig, specifier: str):
     if config.log_file_path: #Inserted to avoid error when log_file_path empty
@@ -29,7 +33,7 @@ def get_log_path(config: PollingModelConfig, specifier: str):
 
 def compute_kp(config: PollingModelConfig, alpha: float, obj_value: float) -> float:
     if config.beta:
-        return -1/(config.beta*alpha)*math.log(obj_value)
+        return -1 / (config.beta*alpha) * math.log(obj_value)
 
     return obj_value
 
@@ -66,7 +70,7 @@ class PenalizeModel:
 
         self.selected_sites = set(self.result_df.id_dest)
         self.penalized_sites = set(
-            dist_df.loc[dist_df['location_type'].isin(config.penalized_sites), 'id_dest'].unique()
+            dist_df.loc[dist_df[SRC_LOCATION_TYPE].isin(config.penalized_sites), ID_DEST].unique()
         )
         self.penalized_selections = self.selected_sites.intersection(self.penalized_sites)
 
@@ -95,7 +99,7 @@ class PenalizeModel:
             self.run_setup.dist_df,
             self.run_setup.alpha,
             config,
-            exclude_penalized_sites=True
+            exclude_penalized_sites=True,
         )
         if self.log:
             print(f'Model 2 (excludes penalized sites) built for {self.run_prefix}')
@@ -104,7 +108,8 @@ class PenalizeModel:
             self.ea_model_exclusions,
             config.time_limit,
             log=self.log,
-            log_file_path=get_log_path(self.run_setup.config,'model2'))
+            log_file_path=get_log_path(self.run_setup.config, SLV_MODEL2),
+        )
 
         if self.log:
             print(f'Model 2 solved for {self.run_prefix}.')
@@ -130,7 +135,7 @@ class PenalizeModel:
         penalty = (kp2-kp1)/len(penalized_selections)
         '''
 
-        self.penalty = (self.kp2-self.kp1)/len(self.penalized_selections)
+        self.penalty = (self.kp2-self.kp1) / len(self.penalized_selections)
         if self.log:
             print(f'{self.kp1 = :.2f}, {self.kp2 = :.2f}')
             print(f'computed penalty is {self.penalty:.2f}')
@@ -157,7 +162,8 @@ class PenalizeModel:
             print(f'Model 3 (penalized model) built for {self.run_prefix}.')
 
         solve_model(
-            self.ea_model_penalized, config.time_limit, log=self.log, log_file_path=get_log_path(config,'model3')
+            self.ea_model_penalized, config.time_limit,
+            log=self.log, log_file_path=get_log_path(config,'model3'),
         )
 
         if self.log:
@@ -189,8 +195,9 @@ class PenalizeModel:
         self.kp_pen = compute_kp(
             self.run_setup.config,
             self.run_setup.alpha,
-            obj_value)
-        
+            obj_value,
+        )
+
         self.optimal_kp = compute_kp_score(self.penalized_result_df, config.beta, alpha=alpha)
 
         self._log_write(f'Penalized KP Optimal = {self.kp_pen:.2f}\n')
@@ -205,7 +212,11 @@ class PenalizeModel:
         '''
 
         if self.run_setup.config.log_file_path:
-            self.penalty_log = open(get_log_path(self.run_setup.config,'penalty'), 'a', encoding='utf-8')
+            self.penalty_log = open(
+                get_log_path(self.run_setup.config, SLV_PENALTY),
+                'a',
+                encoding=UTF8,
+            )
 
 
     def _log_write(self, message: str):
