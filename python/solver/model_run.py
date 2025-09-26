@@ -154,7 +154,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str=OUT_
             log=log,
         )
     elif outtype == OUT_TYPE_CSV:
-        result_folder = os.path.join(RESULTS_BASE_DIR, f'{config.config_set}_results')
+        result_folder = os.path.join(RESULTS_BASE_DIR, f'{config.location}_results')
 
         file_prefix = f'{config.config_set}.{config.config_name}'
 
