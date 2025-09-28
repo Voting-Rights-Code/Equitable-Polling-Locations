@@ -14,6 +14,7 @@ First activate the environment if not done so already:
     * Read/write from/to database:
         * Specified file list `python -m python.scripts.model_run_db_cli -c NUM -l LOG_DIR <config_set>/<config_name1> <config_set2>/<config_name>`
         * All files in a config set `python -m python.scripts.model_run_db_cli -c NUM -l LOG_DIR <config_set>`
+        * It is possible that the requisite [intermediate datasets](intermediate_datasets.md) is not in the database. In this case, the above commands will give instruct the user to run `python.scripts.db_import_locations_cli`. See [intermediate datasets](intermediate_datasets.md) for more details.
     * Parameters
         * LOG_DIR = Where to put log files. 
             * The directory must exist, or the program will not run

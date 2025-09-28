@@ -76,13 +76,13 @@ For detailed guides and technical information on the **Equitable Polling Locatio
 
 1. [Running the Program](to_run.md)
 
-1. [Database option for output storage](database.md)  
+1. [Intermediate Datasets](intermediate_datasets.md) 
 
 1. [Output Dataset](output_datasets.md) 
 
-1. [Intermediate Dataset](intermediate_dataset.md) 
-
 1. [Data analytics](result_analysis.md) 
+
+1. [Database option for output storage](database.md)  
 
 1. [Program Logging](logging.md) 
 
