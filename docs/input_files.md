@@ -2,7 +2,7 @@
 Before running the model, create the following:
 1. A census API
 1. a *manually generated* dataset of past and potential polling locations, consistent with local laws;
-1.   a config file that contains the parameters for a given optimization.
+1. a config file that contains the parameters for a given optimization.
 
 Additionally,
 1. if one wishes to analyze driving distances, a dataset of distances from each potential polling location to each census block group centroid.

@@ -7,25 +7,40 @@ First activate the environment if not done so already:
     conda activate equitable-polls
 ```
 
+Then create the requisite input files discussed in the [previous section](input_files.md).
+
+Next run the model.
 * There are two command line options, one to write data locally, and the other to write data to the database
     * Read/write locally: 
         * Specified file list `python -m python.scripts.model_run_cli -c NUM -l LOG_DIR datasets/config/<config_set>/<config_name1>.yaml datasets/config/<config_set2>/<config_name>.yaml`
         * All files in a config set `python -m python.scripts.model_run_cli -c NUM -l LOG_DIR datasets/config/<config_set>/*.yaml` Note the `.yaml`
-    * Read/write from/to database:
+    * Read/write from/to database if the appropriate [intermediate dataset](intermediate_datasets.md) has been created:
         * Specified file list `python -m python.scripts.model_run_db_cli -c NUM -l LOG_DIR <config_set>/<config_name1> <config_set2>/<config_name>`
         * All files in a config set `python -m python.scripts.model_run_db_cli -c NUM -l LOG_DIR <config_set>`
-        * It is possible that the requisite [intermediate datasets](intermediate_datasets.md) is not in the database. In this case, the above commands will give instruct the user to run `python.scripts.db_import_locations_cli`. See [intermediate datasets](intermediate_datasets.md) for more details.
-    * Parameters
-        * LOG_DIR = Where to put log files. 
-            * The directory must exist, or the program will not run
-        * NUM = number of cores to run the model on.
-            * Default = 1. 
-            * Cannot multi-thread the individual runs. 
-            * Multi-thread does not work on window machines 
-        * path to config file accepts wild cards to set of sequential runs
-            * config_set and config_name refer to the fields in the config data.
-    * For extra logging include the flag -vv.
-        Only works for one core
+            * When prompted, enter `equitable-polling-locations` for the project (default) and `equitable_polling_locations_prod` (or appropriate scratch dataset name) for dataset.
+            * If you do not want to write the outputs to the indicated datase, use the flag `-o csv` to write outputs locally.
+    * Read/write from/to database if not all files are already stored in the cloud:
+        * If the locations only file is not stored on the cloud:
+            * Run `python -m python.scripts.db_import_locations_only_cli <list of locations for which polling location data will be uploaded>`
+            * See [database](database.md) for more details.
+        * If the driving distances file is needed but not stored on the cloud:
+            * Run `python -m python.scripts.db_import_driving_distances_cli <census year> <list of locations for which driving distance data will be uploaded>`
+            * See [database](database.md) for more details.
+        * If the appropriate [intermediate dataset](intermediate_datasets.md) does not exist:
+            * Run `python.scripts.db_import_locations_cli <census year> <list of locations for which  intermediate datasets should be created> -t <distance type> -d <map date for driving distances>`. 
+            * See [intermediate datasets](intermediate_datasets.md) and [database](database.md) for more details.
+
+The parameters for `model_run_db_cli` are as follows:
+* LOG_DIR = Where to put log files. 
+    * The directory must exist, or the program will not run
+* NUM = number of cores to run the model on.
+    * Default = 1. 
+    * Cannot multi-thread the individual runs. 
+    * Multi-thread does not work on window machines 
+* path to config file accepts wild cards to set of sequential runs
+    * config_set and config_name refer to the fields in the config data.
+* To write files locally while using `model_run_db_cli`, use the flag `-o csv`
+* For extra logging written to screen include the flag `-vv`. This only works for one core
 
 ### Examples
 
