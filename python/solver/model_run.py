@@ -15,7 +15,7 @@ import warnings
 from python.utils import build_locations_distance_file_path
 from python.utils.constants import LOCATION_SOURCE_CSV, RESULTS_BASE_DIR
 
-from .constants import ID_DEST, ID_ORIG
+from .constants import LOC_ID_DEST, LOC_ID_ORIG
 
 from .run_setup import RunSetup
 
@@ -135,10 +135,10 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str=OUT_
     alpha_new = alpha_min(result_df)
 
     #calculate the average distances traveled by each demographic to the assigned precinct
-    demographic_prec = demographic_domain_summary(result_df, ID_DEST)
+    demographic_prec = demographic_domain_summary(result_df, LOC_ID_DEST)
 
     #calculate the average distances traveled by each demographic by residence
-    demographic_res = demographic_domain_summary(result_df, ID_ORIG)
+    demographic_res = demographic_domain_summary(result_df, LOC_ID_ORIG)
 
     #calculate the average distances (and y_ede if beta !=0) traveled by each demographic
     demographic_ede = demographic_summary(demographic_res, result_df, config.beta, alpha_new)

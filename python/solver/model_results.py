@@ -42,22 +42,22 @@ def incorporate_result(dist_df: pd.DataFrame, model: pyo.ConcreteModel):
 
     #turn matched solution into df
     matching_list= [(key[0], key[1], model.matching[key].value) for key in model.matching]
-    matching_df = pd.DataFrame(matching_list, columns = [ID_ORIG, ID_DEST, RSLT_MATCHING])
+    matching_df = pd.DataFrame(matching_list, columns = [LOC_ID_ORIG, LOC_ID_DEST, RESULT_MATCHING])
 
     #the matching doesn't always give an integer value. Replace the value with the integer it would round to   
-    matching_df[RSLT_MATCHING].mask(matching_df[RSLT_MATCHING] >= 0.5, 1, inplace=True)
-    matching_df[RSLT_MATCHING].mask(matching_df[RSLT_MATCHING] < 0.5, 0, inplace=True)
+    matching_df[RESULT_MATCHING].mask(matching_df[RESULT_MATCHING] >= 0.5, 1, inplace=True)
+    matching_df[RESULT_MATCHING].mask(matching_df[RESULT_MATCHING] < 0.5, 0, inplace=True)
 
     #merge with dist_df
-    result_df = pd.merge(dist_df, matching_df, on=[ID_ORIG, ID_DEST])
+    result_df = pd.merge(dist_df, matching_df, on=[LOC_ID_ORIG, LOC_ID_DEST])
 
     #keep only pairs that have been matched
     #if no matches, raise error
-    if all(result_df[RSLT_MATCHING].isnull()):
+    if all(result_df[RESULT_MATCHING].isnull()):
         raise ValueError('The model has no matched precincts')
-    if any(result_df[RSLT_MATCHING].isnull()):
+    if any(result_df[RESULT_MATCHING].isnull()):
         raise ValueError('The model has some unmatched precincts')
-    result_df = result_df.loc[result_df[RSLT_MATCHING] == 1]
+    result_df = result_df.loc[result_df[RESULT_MATCHING] == 1]
 
     return result_df
 
@@ -67,40 +67,40 @@ def demographic_domain_summary(result_df: pd.DataFrame, domain: str):
         domain-- [ID_DEST, ID_ORIG] either the precinct of residence
     Output: Calculate the average distances traveled by each demographic group that is assigned to each precinct or that lives in each residence.'''
 
-    if domain not in [ID_DEST, ID_ORIG]:
+    if domain not in [LOC_ID_DEST, LOC_ID_ORIG]:
         raise ValueError('domain much be in [id_dest, id_orig]')
     #extract unique source value for later
-    source_value = result_df[RSLT_SOURCE].unique()
+    source_value = result_df[LOC_SOURCE].unique()
     #Transform to get distance and population by demographic, destination pairs for each origin
     demographic_all = pd.melt(
-        result_df[[domain, DISTANCE_M, POPULATION, WHITE, BLACK, NATIVE, ASIAN, HISPANIC]],
-        id_vars=[domain, DISTANCE_M],
-        value_vars=[POPULATION,WHITE, BLACK, NATIVE, ASIAN, HISPANIC],
-        var_name=DEMOGRAPHIC,
-        value_name=DEMO_POP,
+        result_df[[domain, LOC_DISTANCE_M, LOC_TOTAL_POPULATION, LOC_WHITE, LOC_BLACK, LOC_NATIVE, LOC_ASIAN, LOC_HISPANIC]],
+        id_vars=[domain, LOC_DISTANCE_M],
+        value_vars=[LOC_TOTAL_POPULATION, LOC_WHITE, LOC_BLACK, LOC_NATIVE, LOC_ASIAN, LOC_HISPANIC],
+        var_name=RESULT_DEMOGRAPHIC,
+        value_name=RESULT_DEMO_POP,
     )
 
     #create a weighted distance column for people of each demographic
-    demographic_all[WEIGHTED_DIST] = demographic_all[DEMO_POP] * demographic_all[DISTANCE_M]
+    demographic_all[LOC_WEIGHTED_DIST] = demographic_all[RESULT_DEMO_POP] * demographic_all[LOC_DISTANCE_M]
 
     #calculate the total population of each demographic sent to each precinct
     demographic_pop = demographic_all[
-        [domain, DEMOGRAPHIC, DEMO_POP]
-    ].groupby([domain, DEMOGRAPHIC]).agg(SUM)
+        [domain, RESULT_DEMOGRAPHIC, RESULT_DEMO_POP]
+    ].groupby([domain, RESULT_DEMOGRAPHIC]).agg(SUM)
 
     #calculate the total distance traveled by each demographic group
     demographic_dist = demographic_all[
-        [domain, DEMOGRAPHIC, WEIGHTED_DIST]
-    ].groupby([domain, DEMOGRAPHIC]).agg(SUM)
+        [domain, RESULT_DEMOGRAPHIC, LOC_WEIGHTED_DIST]
+    ].groupby([domain, RESULT_DEMOGRAPHIC]).agg(SUM)
 
     #merge the demographic_pop and demographic_dist
     demographic_prec = pd.concat([demographic_dist, demographic_pop], axis=1)
 
     #calculate the average distance
-    demographic_prec[AVG_DIST] = demographic_prec[WEIGHTED_DIST] / demographic_prec[DEMO_POP]
+    demographic_prec[RESULT_AVG_DIST] = demographic_prec[LOC_WEIGHTED_DIST] / demographic_prec[RESULT_DEMO_POP]
 
     #add source data back in
-    demographic_prec[RSLT_SOURCE] = source_value[0]
+    demographic_prec[LOC_SOURCE] = source_value[0]
 
     return demographic_prec
 
@@ -112,26 +112,26 @@ def demographic_summary(demographic_df: pd.DataFrame, result_df: pd.DataFrame, b
     Output: Calculate the average distances traveled by each demographic group.'''
 
     #extract unique source value for later
-    source_value = result_df[RSLT_SOURCE].unique()
+    source_value = result_df[LOC_SOURCE].unique()
 
     #calculate the total distance traveled by each demographic group
-    demographic_dist = demographic_df[WEIGHTED_DIST].groupby(DEMOGRAPHIC).agg(SUM)
+    demographic_dist = demographic_df[LOC_WEIGHTED_DIST].groupby(RESULT_DEMOGRAPHIC).agg(SUM)
 
     #calculate the total population of each demographic sent to each precinct
-    demographic_population = demographic_df[DEMO_POP].groupby(DEMOGRAPHIC).agg(SUM)
+    demographic_population = demographic_df[RESULT_DEMO_POP].groupby(RESULT_DEMOGRAPHIC).agg(SUM)
 
     #merge the datasets
     result = pd.concat([demographic_dist, demographic_population], axis=1)
 
     #for base line comparison, or if config.beta ==0
-    result[AVG_DIST] = result[WEIGHTED_DIST] / result[DEMO_POP]
+    result[RESULT_AVG_DIST] = result[LOC_WEIGHTED_DIST] / result[RESULT_DEMO_POP]
 
     if beta !=0:
         #add the distance_m column back in from dist_df
         #1) first make demographics a column, not an index
-        demographic_by_res = demographic_df.reset_index([DEMOGRAPHIC])
+        demographic_by_res = demographic_df.reset_index([RESULT_DEMOGRAPHIC])
         #2) set index for results to ID_ORIG
-        distances = result_df[[ID_ORIG, DISTANCE_M]].set_index(ID_ORIG)
+        distances = result_df[[LOC_ID_ORIG, LOC_DISTANCE_M]].set_index(LOC_ID_ORIG)
         #3) merge on id_orig (index for both)
         demographics = demographic_by_res.merge(
             distances,
@@ -141,24 +141,24 @@ def demographic_summary(demographic_df: pd.DataFrame, result_df: pd.DataFrame, b
         )
 
         #add in a KP factor column
-        demographics[KP_FACTOR] = math.e ** (-beta * alpha * demographics[DISTANCE_M])
+        demographics[KP_FACTOR] = math.e ** (-beta * alpha * demographics[LOC_DISTANCE_M])
         #calculate the summand for the objective function
-        demographics[RSLT_DEMO_RES_OBJ_SUMMAND] = demographics[DEMO_POP] * demographics[KP_FACTOR]
+        demographics[RESULT_DEMO_RES_OBJ_SUMMAND] = demographics[RESULT_DEMO_POP] * demographics[KP_FACTOR]
 
         #compute the ede for each demographic group
         demographic_ede = demographics[
-            [DEMOGRAPHIC, RSLT_DEMO_RES_OBJ_SUMMAND, DEMO_POP]
-        ].groupby(DEMOGRAPHIC).agg(SUM)
-        demographic_ede[RSLT_AVG_KP_WEIGHT] = (
+            [RESULT_DEMOGRAPHIC, RESULT_DEMO_RES_OBJ_SUMMAND, RESULT_DEMO_POP]
+        ].groupby(RESULT_DEMOGRAPHIC).agg(SUM)
+        demographic_ede[RESULT_AVG_KP_WEIGHT] = (
             demographic_ede.demo_res_obj_summand / demographic_ede.demo_pop
         )
-        demographic_ede[RSLT_Y_EDE] = (-1 / (beta * alpha)) * np.log(demographic_ede[RSLT_AVG_KP_WEIGHT])
+        demographic_ede[RESULT_Y_EDE] = (-1 / (beta * alpha)) * np.log(demographic_ede[RESULT_AVG_KP_WEIGHT])
 
         #merge the datasets
-        result = pd.concat([result[[WEIGHTED_DIST, AVG_DIST]], demographic_ede], axis=1)
+        result = pd.concat([result[[LOC_WEIGHTED_DIST, RESULT_AVG_DIST]], demographic_ede], axis=1)
 
         #add source data back in
-        result[RSLT_SOURCE] = source_value[0]
+        result[LOC_SOURCE] = source_value[0]
 
     return result
 
@@ -276,8 +276,8 @@ def write_results_bigquery(
 
 
 def _compute_kp_alpha(df: pd.DataFrame):
-    num = sum(x * y for x, y in zip(df[POPULATION], df[DISTANCE_M]))
-    den = sum(x * y * y for x, y in zip(df[POPULATION], df[DISTANCE_M]))
+    num = sum(x * y for x, y in zip(df[LOC_TOTAL_POPULATION], df[LOC_DISTANCE_M]))
+    den = sum(x * y * y for x, y in zip(df[LOC_TOTAL_POPULATION], df[LOC_DISTANCE_M]))
 
     return num / den
 
@@ -286,18 +286,18 @@ def compute_kp_score(
     df: pd.DataFrame, beta: float,
     *,
     alpha: float=None,
-    population_column_name: str=POPULATION,
-    distance_column_name: str=DISTANCE_M
+    population_column_name: str=LOC_TOTAL_POPULATION,
+    distance_column_name: str=LOC_DISTANCE_M
 ):
     distance_df = df[[population_column_name, distance_column_name]].copy()
-    distance_df.columns = [POPULATION, DISTANCE_M]
+    distance_df.columns = [LOC_TOTAL_POPULATION, LOC_DISTANCE_M]
 
     if beta == 0:
         return (df.population*df.distance_m).sum() / df.population.sum()
 
     alpha = _compute_kp_alpha(distance_df) if not alpha else alpha
     kappa = alpha * beta
-    funky_sum = sum(x * math.exp(-kappa*y) for x, y in zip(df[POPULATION], df[DISTANCE_M]))
+    funky_sum = sum(x * math.exp(-kappa*y) for x, y in zip(df[LOC_TOTAL_POPULATION], df[LOC_DISTANCE_M]))
     tot_pop = distance_df.population.sum()
 
     return -math.log(funky_sum / tot_pop) / kappa

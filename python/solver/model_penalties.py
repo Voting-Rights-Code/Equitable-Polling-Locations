@@ -21,7 +21,7 @@ from .model_solver import solve_model
 from .run_setup import RunSetup
 
 from .constants import (
-    SRC_LOCATION_TYPE, ID_DEST, SLV_MODEL2, SLV_PENALTY, UTF8
+    LOC_LOCATION_TYPE, LOC_ID_DEST, SOLVER_MODEL2, SOLVER_PENALTY, UTF8
 )
 
 
@@ -70,7 +70,7 @@ class PenalizeModel:
 
         self.selected_sites = set(self.result_df.id_dest)
         self.penalized_sites = set(
-            dist_df.loc[dist_df[SRC_LOCATION_TYPE].isin(config.penalized_sites), ID_DEST].unique()
+            dist_df.loc[dist_df[LOC_LOCATION_TYPE].isin(config.penalized_sites), LOC_ID_DEST].unique()
         )
         self.penalized_selections = self.selected_sites.intersection(self.penalized_sites)
 
@@ -108,7 +108,7 @@ class PenalizeModel:
             self.ea_model_exclusions,
             config.time_limit,
             log=self.log,
-            log_file_path=get_log_path(self.run_setup.config, SLV_MODEL2),
+            log_file_path=get_log_path(self.run_setup.config, SOLVER_MODEL2),
         )
 
         if self.log:
@@ -213,7 +213,7 @@ class PenalizeModel:
 
         if self.run_setup.config.log_file_path:
             self.penalty_log = open(
-                get_log_path(self.run_setup.config, SLV_PENALTY),
+                get_log_path(self.run_setup.config, SOLVER_PENALTY),
                 'a',
                 encoding=UTF8,
             )

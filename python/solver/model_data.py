@@ -26,7 +26,7 @@ from python.utils import (
     is_int,
 )
 
-from python.utils.constants import LOCATION_SOURCE_DB, POLLING_DIR
+from python.utils.constants import LOCATION_SOURCE_DB
 from python.utils.pull_census_data import pull_census_data
 from python.utils import get_block_source_file_path, get_block_group_block_source_file_path
 from .model_config import PollingModelConfig
@@ -35,69 +35,69 @@ from .model_config import PollingModelConfig
 from .constants import *
 
 #define columns for each input data set
-LOCATIONS_COLS = [
-    LOC_LOCATION,
-    LOC_ADDRESS,
-    LOC_LOCATION_TYPE,
-    LOC_LAT_LON,
+LOCATION_ONLY_COLS = [
+    LOC_ONLY_LOCATION,
+    LOC_ONLY_ADDRESS,
+    LOC_ONLY_LOCATION_TYPE,
+    LOC_ONLY_LAT_LON,
 ]
 
 # Prefix to add to Shape files to join with demographic data.
 GEO_ID_PREFIX = '1000000US'
 
 P3_COLUMNS = [
-    CEN_GEO_ID,
-    CEN_NAME,
-    CEN_P3_001N, # Total population
-    CEN_P3_003N, # White alone
-    CEN_P3_004N, # Black or African American alone
-    CEN_P3_005N, # American Indian or Alaska Native alone
-    CEN_P3_006N, # Asian alone
-    CEN_P3_007N, # Native Hawaiian and Other Pacific Islander alone
-    CEN_P3_008N, # Some other race alone
-    CEN_P3_009N, # Two or More Races
+    CEN20_GEO_ID,
+    CEN20_NAME,
+    CEN20_P3_TOTAL_POPULATION, # Total population
+    CEN20_P3_WHITE, # White alone
+    CEN20_P3_BLACK, # Black or African American alone
+    CEN20_P3_NATIVE, # American Indian or Alaska Native alone
+    CEN20_P3_ASIAN, # Asian alone
+    CEN20_P3_PACIFIC_ISLANDER, # Native Hawaiian and Other Pacific Islander alone
+    CEN20_P3_OTHER, # Some other race alone
+    CEN20_P3_MULTIPLE_RACES, # Two or More Races
 ]
 
 P4_COLUMNS = [
-    CEN_GEO_ID,
-    CEN_NAME,
-    CEN_P4_001N, # Total population
-    CEN_P4_002N, # Total hispanic
-    CEN_P4_003N, # Total non_hispanic
+    CEN20_GEO_ID,
+    CEN20_NAME,
+    CEN20_P4_TOTAL_POPULATION, # Total population
+    CEN20_P4_HISPANIC, # Total hispanic
+    CEN20_NON_HISPANIC, # Total non_hispanic
 ]
 
 BLOCK_SHAPE_COLS = [
-    BLK_GEOID20,
-    BLK_INTPTLAT20,
-    BLK_INTPTLON20,
+    TIGER20_GEOID20,
+    TIGER20_INTPTLAT20,
+    TIGER20_INTPTLON20,
 ]
 
 BLOCK_GROUP_SHAPE_COLS = [
-    BLK_GEOID20,
-    BLK_INTPTLAT20,
-    BLK_INTPTLON20,
+    TIGER20_GEOID20,
+    TIGER20_INTPTLAT20,
+    TIGER20_INTPTLON20,
 ]
 
-FULL_DF_COLS = [
-    ID_ORIG,
-    ID_DEST,
-    SRC_ADDRESS,
-    SRC_DEST_LAT,
-    SRC_DEST_LON,
-    SRC_ORIG_LAT,
-    SRC_ORIG_LON,
-    SRC_LOCATION_TYPE,
-    DEST_TYPE,
-    SRC_POPULATION,
-    SRC_HISPANIC,
-    SRC_NON_HISPANIC,
-    SRC_WHITE,
-    SRC_BLACK,
-    SRC_NATIVE,
-    SRC_ASIAN,
-    SRC_PACIFIC_ISLANDER,
-    SRC_OTHER,
-    SRC_MULTIPLE_RACES,
+FULL_LOC_DF_COLS = [
+    LOC_ID_ORIG,
+    LOC_ID_DEST,
+    LOC_ADDRESS,
+    LOC_DEST_LAT,
+    LOC_DEST_LON,
+    LOC_ORIG_LAT,
+    LOC_ORIG_LON,
+    LOC_LOCATION_TYPE,
+    LOC_DEST_TYPE,
+    LOC_TOTAL_POPULATION,
+    LOC_HISPANIC,
+    LOC_NON_HISPANIC,
+    LOC_WHITE,
+    LOC_BLACK,
+    LOC_NATIVE,
+    LOC_ASIAN,
+    LOC_PACIFIC_ISLANDER,
+    LOC_OTHER,
+    LOC_MULTIPLE_RACES,
 ]
 
 @dataclass
@@ -124,10 +124,10 @@ def get_polling_locations_only(
         # Rename database columns to match csv columns
         locations_only_df = locations_only_df.rename(
             {
-                DB_LOCATION: LOC_LOCATION,
-                DB_ADDRESS: LOC_ADDRESS,
-                DB_LOCATION_TYPE: LOC_LOCATION_TYPE,
-                DB_LAT_LON: LOC_LAT_LON,
+                DB_LOCATION: LOC_ONLY_LOCATION,
+                DB_ADDRESS: LOC_ONLY_ADDRESS,
+                DB_LOCATION_TYPE: LOC_ONLY_LOCATION_TYPE,
+                DB_LAT_LON: LOC_ONLY_LAT_LON,
             },
             axis=1,
         )
@@ -150,23 +150,23 @@ def get_polling_locations_only(
             raise ValueError(f'Potential polling location data ({locations_only_source_file}) not found.')
 
 
-    locations_only_df = locations_only_df[LOCATIONS_COLS]
+    locations_only_df = locations_only_df[LOCATION_ONLY_COLS]
 
     #the potential locations data needs further processing:
     #1. add a destination type column
-    locations_only_df[DEST_TYPE] = LOC_DEST_TYPE_POLLING
-    locations_only_df[DEST_TYPE].mask(
-        locations_only_df[LOC_LOCATION_TYPE].str.contains(LOC_TYPE_POTENTIAL),
-        LOC_DEST_TYPE_POTENTIAL,
+    locations_only_df[LOC_DEST_TYPE] = LOC_ONLY_DEST_TYPE_POLLING
+    locations_only_df[LOC_DEST_TYPE].mask(
+        locations_only_df[LOC_ONLY_LOCATION_TYPE].str.contains(LOC_ONLY_POTENTIAL_LOCATION),
+        LOC_ONLY_DEST_TYPE_POTENTIAL,
         inplace=True,
     )
 
     #2. change the lat, long into two columns
-    locations_only_df[[LOC_LATITUDE, LOC_LONGITUDE]] = locations_only_df[
-        LOC_LAT_LON
+    locations_only_df[[LOC_ONLY_LATITUDE, LOC_ONLY_LONGITUDE]] = locations_only_df[
+        LOC_ONLY_LAT_LON
     ].str.split(pat=', ', expand=True).astype(float)
 
-    locations_only_df.drop([LOC_LAT_LON], axis=1, inplace=True)
+    locations_only_df.drop([LOC_ONLY_LAT_LON], axis=1, inplace=True)
 
     return PollingLocationsOnlyResult(
         locations_only=locations_only_df,
@@ -191,11 +191,11 @@ def get_blockgroup_gdf(census_year: str, location: str) -> gpd.GeoDataFrame:
 
     #The block group needs to be processed to match the potential location table
     blockgroup_gdf = blockgroup_gdf.rename(columns = {
-        BLK_GEOID20: LOC_LOCATION, BLK_INTPTLAT20: LOC_LATITUDE, BLK_INTPTLON20: LOC_LONGITUDE,
+        TIGER20_GEOID20: LOC_ONLY_LOCATION, TIGER20_INTPTLAT20: LOC_ONLY_LATITUDE, TIGER20_INTPTLON20: LOC_ONLY_LONGITUDE,
     })
-    blockgroup_gdf[LOC_ADDRESS] = None
-    blockgroup_gdf[LOC_LOCATION_TYPE] = BLK_BG_CENTROID
-    blockgroup_gdf[DEST_TYPE] = BLK_BG_CENTROID
+    blockgroup_gdf[LOC_ONLY_ADDRESS] = None
+    blockgroup_gdf[LOC_ONLY_LOCATION_TYPE] = TIGER20_BG_CENTROID
+    blockgroup_gdf[LOC_DEST_TYPE] = TIGER20_BG_CENTROID
 
     return blockgroup_gdf
 
@@ -255,44 +255,46 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
     #combine P3 and P4 data to make a joint demographics set
     demographics = p4_df.merge(
         p3_df,
-        left_on=[CEN_GEO_ID, CEN_NAME],
-        right_on=[CEN_GEO_ID, CEN_NAME],
+        left_on=[CEN20_GEO_ID, CEN20_NAME],
+        right_on=[CEN20_GEO_ID, CEN20_NAME],
         how=OUTER,
     )
 
     #Consistency check for the data pull
-    demographics[BLK_POP_DIFF] = demographics.P4_001N - demographics.P3_001N
-    if demographics.loc[demographics.Pop_diff != 0].shape[0] != 0:
+    demographics[TIGER20_POP_DIFF] = demographics[CEN20_P4_TOTAL_POPULATION] - demographics[CEN20_P3_TOTAL_POPULATION]
+    if demographics.loc[demographics[TIGER20_POP_DIFF] != 0].shape[0] != 0:
         raise ValueError('Populations different in P3 and P4. Are both pulled from the voting age universe?')
 
     #Change column names
-    demographics.drop([CEN_P4_001N, BLK_POP_DIFF], axis=1, inplace=True)
+    demographics.drop([CEN20_P4_TOTAL_POPULATION, TIGER20_POP_DIFF], axis=1, inplace=True)
     demographics = demographics.rename(columns = {
-        CEN_P4_002N: SRC_HISPANIC, CEN_P4_003N: SRC_NON_HISPANIC, CEN_P3_001N: SRC_POPULATION,
-        CEN_P3_003N: SRC_WHITE, CEN_P3_004N: SRC_BLACK, CEN_P3_005N: SRC_NATIVE, CEN_P3_006N: SRC_ASIAN,
-        CEN_P3_007N: SRC_PACIFIC_ISLANDER, CEN_P3_008N: SRC_OTHER, CEN_P3_009N: SRC_MULTIPLE_RACES,
+        CEN20_P4_HISPANIC: LOC_HISPANIC, CEN20_NON_HISPANIC: LOC_NON_HISPANIC,
+        CEN20_P3_TOTAL_POPULATION: LOC_TOTAL_POPULATION, CEN20_P3_WHITE: LOC_WHITE,
+        CEN20_P3_BLACK: LOC_BLACK, CEN20_P3_NATIVE: LOC_NATIVE, CEN20_P3_ASIAN: LOC_ASIAN,
+        CEN20_P3_PACIFIC_ISLANDER: LOC_PACIFIC_ISLANDER, CEN20_P3_OTHER: LOC_OTHER,
+        CEN20_P3_MULTIPLE_RACES: LOC_MULTIPLE_RACES,
     })
 
     #drop geo_id_prefix
-    demographics[CEN_GEO_ID] = demographics[CEN_GEO_ID].str.replace(GEO_ID_PREFIX, EMPTY_STRING)
+    demographics[CEN20_GEO_ID] = demographics[CEN20_GEO_ID].str.replace(GEO_ID_PREFIX, EMPTY_STRING)
 
     blocks_gdf = get_blocks_gdf(census_year, location)
 
     #join with block group shape files
     demographics_block = demographics.merge(
         blocks_gdf,
-        left_on=CEN_GEO_ID,
-        right_on=BLK_GEOID20,
+        left_on=CEN20_GEO_ID,
+        right_on=TIGER20_GEOID20,
         how=LEFT,
     )
 
     #make lat/ long floats
-    demographics_block.INTPTLAT20 = demographics_block.INTPTLAT20.astype(float)
-    demographics_block.INTPTLON20 = demographics_block.INTPTLON20.astype(float)
+    demographics_block[TIGER20_INTPTLAT20] = demographics_block[TIGER20_INTPTLAT20].astype(float)
+    demographics_block[TIGER20_INTPTLON20] = demographics_block[TIGER20_INTPTLON20].astype(float)
 
     #drop duplicates and empty block groups.  Put in to avoid duplications down the line.
     demographics_block = demographics_block.drop_duplicates()
-    demographics_block = demographics_block[demographics_block[SRC_POPULATION] > 0]
+    demographics_block = demographics_block[demographics_block[LOC_TOTAL_POPULATION] > 0]
 
     return demographics_block
 
@@ -360,8 +362,8 @@ def build_source(
     all_locations = pd.concat([locations_only_df, blockgroup_gdf])
 
     #Lat and Long current mix of string and geometry. Make them all floats
-    all_locations[LOC_LATITUDE] = pd.to_numeric(all_locations[LOC_LATITUDE])
-    all_locations[LOC_LONGITUDE] = pd.to_numeric(all_locations[LOC_LONGITUDE])
+    all_locations[LOC_ONLY_LATITUDE] = pd.to_numeric(all_locations[LOC_ONLY_LATITUDE])
+    all_locations[LOC_ONLY_LONGITUDE] = pd.to_numeric(all_locations[LOC_ONLY_LONGITUDE])
 
     if len(all_locations.Location) != len(set(all_locations.Location)):
         raise ValueError('Non-unique names in Location column. This will cause errors later.')
@@ -377,11 +379,11 @@ def build_source(
     #####
 
     full_df = full_df.rename(columns = {
-        CEN_GEO_ID: ID_ORIG, LOC_ADDRESS: SRC_ADDRESS, LOC_LATITUDE: SRC_DEST_LAT,
-        LOC_LONGITUDE: SRC_DEST_LON, BLK_INTPTLAT20: SRC_ORIG_LAT, BLK_INTPTLON20: SRC_ORIG_LON,
-        LOC_LOCATION_TYPE: SRC_LOCATION_TYPE, LOC_LOCATION: ID_DEST,
+        CEN20_GEO_ID: LOC_ID_ORIG, LOC_ONLY_ADDRESS: LOC_ADDRESS, LOC_ONLY_LATITUDE: LOC_DEST_LAT,
+        LOC_ONLY_LONGITUDE: LOC_DEST_LON, TIGER20_INTPTLAT20: LOC_ORIG_LAT, TIGER20_INTPTLON20: LOC_ORIG_LON,
+        LOC_ONLY_LOCATION_TYPE: LOC_LOCATION_TYPE, LOC_ONLY_LOCATION: LOC_ID_DEST,
     })
-    full_df = full_df[FULL_DF_COLS]
+    full_df = full_df[FULL_LOC_DF_COLS]
 
     #####
     # Calculate appropriate distance
@@ -400,26 +402,26 @@ def build_source(
 
         full_df = insert_driving_distances(full_df, driving_distances_df)
     else:
-        full_df[DISTANCE_M] = full_df.apply(
+        full_df[LOC_DISTANCE_M] = full_df.apply(
             lambda row: haversine((row.orig_lat, row.orig_lon), (row.dest_lat, row.dest_lon)),
             axis=1,
         ) * 1000
 
-        full_df[SRC_SOURCE] = SRC_HAVERSINE_DISTANCE
+        full_df[LOC_SOURCE] = LOC_SOURCE_HAVERSINE_DISTANCE
 
     #if log distance, modify the source and distance columns
     if log_distance:
-        full_df[SRC_SOURCE] = SRC_LOG_WITH_SPACE + full_df[SRC_SOURCE]
+        full_df[LOC_SOURCE] = LOC_SOURCE_LOG_WITH_SPACE + full_df[LOC_SOURCE]
         #TODO: why are there 0 distances showing up?
-        full_df[DISTANCE_M].mask(full_df[DISTANCE_M] == 0.0, 0.001, inplace=True)
-        full_df[DISTANCE_M] = np.log(full_df[DISTANCE_M])
+        full_df[LOC_DISTANCE_M].mask(full_df[LOC_DISTANCE_M] == 0.0, 0.001, inplace=True)
+        full_df[LOC_DISTANCE_M] = np.log(full_df[LOC_DISTANCE_M])
 
     #####
     #reformat and write to file (making directory if it doesn't exist)
     #####
 
-    full_df[ID_ORIG] = full_df[ID_ORIG].astype(str)
-    full_df[ID_DEST] = full_df[ID_DEST].astype(str)
+    full_df[LOC_ID_ORIG] = full_df[LOC_ID_ORIG].astype(str)
+    full_df[LOC_ID_DEST] = full_df[LOC_ID_DEST].astype(str)
 
     if not os.path.exists(output_path):
         os.makedirs(os.path.basename(output_path))
@@ -453,12 +455,12 @@ def insert_driving_distances(
 
     '''
 
-    if {ID_ORIG, ID_DEST, DISTANCE_M} - set(driving_distances_df.columns):
+    if {LOC_ID_ORIG, LOC_ID_DEST, LOC_DISTANCE_M} - set(driving_distances_df.columns):
         raise ValueError('Driving Distances must contain id_orig, id_dest, and distance_m columns')
 
-    combined_df = pd.merge(source_df, driving_distances_df, on=[ID_ORIG, ID_DEST], how=LEFT)
+    combined_df = pd.merge(source_df, driving_distances_df, on=[LOC_ID_ORIG, LOC_ID_DEST], how=LEFT)
 
-    combined_df[SRC_SOURCE] = SRC_DRIVING_DISTANCE
+    combined_df[LOC_SOURCE] = LOC_SOURCE_DRIVING_DISTANCE
     return combined_df
 
 
@@ -490,7 +492,7 @@ def load_locations_only_csv(path: str) -> pd.DataFrame:
     if not os.path.isfile(path):
         raise ValueError(f'Polling locations file {path} does not exist.')
 
-    dtype_spec = {LOC_LOCATION: DTYPE_STR, LOC_ADDRESS: DTYPE_STR, LOC_LOCATION_TYPE: DTYPE_STR}
+    dtype_spec = {LOC_ONLY_LOCATION: DTYPE_STR, LOC_ONLY_ADDRESS: DTYPE_STR, LOC_ONLY_LOCATION_TYPE: DTYPE_STR}
 
     return pd.read_csv(path, index_col=False, dtype=dtype_spec)
 
@@ -501,7 +503,7 @@ def load_locations_csv(path: str) -> pd.DataFrame:
     if not os.path.isfile(path):
         raise ValueError(f'Polling locations file {path} does not exist.')
 
-    dtype_spec = {ID_ORIG: DTYPE_STR, ID_DEST: DTYPE_STR}
+    dtype_spec = {LOC_ID_ORIG: DTYPE_STR, LOC_ID_DEST: DTYPE_STR}
 
     return pd.read_csv(path, index_col=0, dtype=dtype_spec)
 
@@ -513,7 +515,7 @@ def load_driving_distances_csv(path: str) -> pd.DataFrame:
     if not os.path.isfile(path):
         raise ValueError(f'Driving distances file {path} does not exist.')
 
-    dtype_spec = {ID_ORIG: DTYPE_STR, ID_DEST: DTYPE_STR, DISTANCE_M: np.float64}
+    dtype_spec = {LOC_ID_ORIG: DTYPE_STR, LOC_ID_DEST: DTYPE_STR, LOC_DISTANCE_M: np.float64}
 
     return pd.read_csv(path, index_col=False, dtype=dtype_spec)
 
@@ -582,16 +584,16 @@ def clean_dest_type(locations_df: pd.DataFrame, year_list: list[str]):
     #select data based on year
     #mark everything but bg_centroid as potential
     #then mark location_types with correct years as
-    locations_df[DEST_TYPE].mask(
-        locations_df[DEST_TYPE] != BLK_BG_CENTROID,
-        LOC_DEST_TYPE_POTENTIAL,
+    locations_df[LOC_DEST_TYPE].mask(
+        locations_df[LOC_DEST_TYPE] != TIGER20_BG_CENTROID,
+        LOC_ONLY_DEST_TYPE_POTENTIAL,
         inplace=True,
     )
 
     # Set the dest_type to polling for every row that has a location_type like "2018" or "2020" from the year_list
-    locations_df[DEST_TYPE].mask(
-        locations_df[SRC_LOCATION_TYPE].str.contains('|'.join(year_list)),
-        LOC_DEST_TYPE_POLLING,
+    locations_df[LOC_DEST_TYPE].mask(
+        locations_df[LOC_LOCATION_TYPE].str.contains('|'.join(year_list)),
+        LOC_ONLY_DEST_TYPE_POLLING,
         inplace=True,
     )
 
@@ -610,19 +612,19 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
     result_df = locations_df.copy(deep=True)
 
     #pull out unique location types is this data
-    unique_location_types = result_df[SRC_LOCATION_TYPE].unique()
+    unique_location_types = result_df[LOC_LOCATION_TYPE].unique()
 
     if for_alpha:
         bad_location_list = [
             location_type
             for location_type in unique_location_types
-            if LOC_TYPE_POTENTIAL in location_type or LOC_TYPE_CENTROID in location_type
+            if LOC_ONLY_POTENTIAL_LOCATION in location_type or LOC_ONLY_CENTROID_LOCATION in location_type
         ]
     else:
         bad_location_list = config.bad_types
 
     polling_location_types = set(
-        result_df[result_df.dest_type == LOC_DEST_TYPE_POLLING][SRC_LOCATION_TYPE]
+        result_df[result_df.dest_type == LOC_ONLY_DEST_TYPE_POLLING][LOC_LOCATION_TYPE]
     )
 
     for year in year_list:
@@ -636,7 +638,7 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
         raise ValueError(f'unrecognized bad location types {unrecognized} in {config.config_file_path}')
 
     #drop rows of bad location types in df
-    result_df = result_df[~result_df[SRC_LOCATION_TYPE].isin(bad_location_list)]
+    result_df = result_df[~result_df[LOC_LOCATION_TYPE].isin(bad_location_list)]
 
     clean_dest_type(result_df, year_list)
 
@@ -644,7 +646,7 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
     result_df = result_df.drop_duplicates()
 
     # check that population is unique by id_orig
-    pop_df = result_df.groupby(ID_ORIG)[SRC_POPULATION].agg(UNIQUE).str.len()
+    pop_df = result_df.groupby(LOC_ID_ORIG)[LOC_TOTAL_POPULATION].agg(UNIQUE).str.len()
     if any(pop_df>1):
         raise ValueError(f'Some id_orig has multiple associated populations from {config.config_file_path}')
 
@@ -666,7 +668,7 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
 
 
     #create other useful columns
-    result_df[SRC_WEIGHTED_DIST] = result_df[SRC_POPULATION] * result_df[DISTANCE_M]
+    result_df[LOC_WEIGHTED_DIST] = result_df[LOC_TOTAL_POPULATION] * result_df[LOC_DISTANCE_M]
 
     return result_df
 
@@ -677,7 +679,7 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
 
 #determines the maximum of the minimum distances
 def get_max_min_dist(dist_df: pd.DataFrame):
-    min_dist = dist_df[[ID_ORIG, DISTANCE_M]].groupby(ID_ORIG).agg(MIN)
+    min_dist = dist_df[[LOC_ID_ORIG, LOC_DISTANCE_M]].groupby(LOC_ID_ORIG).agg(MIN)
     max_min_dist = min_dist.distance_m.max()
     max_min_dist = math.ceil(max_min_dist)
 
@@ -687,13 +689,13 @@ def get_max_min_dist(dist_df: pd.DataFrame):
 #various alpha function. Really only use alpha_min
 def alpha_all(df: pd.DataFrame):
     #add a distance square column
-    df[SRC_DISTANCE_SQUARED] = df[DISTANCE_M] * df[DISTANCE_M]
+    df[LOC_DISTANCE_SQUARED] = df[LOC_DISTANCE_M] * df[LOC_DISTANCE_M]
 
     #population weighted distances
-    distance_sum = sum(df[SRC_POPULATION] * df[DISTANCE_M])
+    distance_sum = sum(df[LOC_TOTAL_POPULATION] * df[LOC_DISTANCE_M])
 
     #population weighted distance squared
-    distance_sq_sum = sum(df[SRC_POPULATION] * df[SRC_DISTANCE_SQUARED])
+    distance_sq_sum = sum(df[LOC_TOTAL_POPULATION] * df[LOC_DISTANCE_SQUARED])
 
     alpha = distance_sum / distance_sq_sum
 
@@ -702,14 +704,14 @@ def alpha_all(df: pd.DataFrame):
 
 def alpha_min(df: pd.DataFrame):
     #Find the minimal distance to polling location
-    min_df= df[[ID_ORIG, DISTANCE_M, SRC_POPULATION]].groupby(ID_ORIG).agg(MIN)
+    min_df= df[[LOC_ID_ORIG, LOC_DISTANCE_M, LOC_TOTAL_POPULATION]].groupby(LOC_ID_ORIG).agg(MIN)
 
     #find the square of the min distances
-    min_df[SRC_DISTANCE_SQUARED] = min_df[DISTANCE_M] * min_df[DISTANCE_M]
+    min_df[LOC_DISTANCE_SQUARED] = min_df[LOC_DISTANCE_M] * min_df[LOC_DISTANCE_M]
     #population weighted distances
-    distance_sum = sum(min_df[SRC_POPULATION] * min_df[DISTANCE_M])
+    distance_sum = sum(min_df[LOC_TOTAL_POPULATION] * min_df[LOC_DISTANCE_M])
     #population weighted distance squared
-    distance_sq_sum = sum(min_df[SRC_POPULATION] * min_df[SRC_DISTANCE_SQUARED])
+    distance_sq_sum = sum(min_df[LOC_TOTAL_POPULATION] * min_df[LOC_DISTANCE_SQUARED])
 
     alpha = distance_sum / distance_sq_sum
 
@@ -718,14 +720,14 @@ def alpha_min(df: pd.DataFrame):
 
 def alpha_mean(df: pd.DataFrame):
     #Find the mean distance to polling location
-    mean_df = df[[ID_ORIG, DISTANCE_M, SRC_POPULATION]].groupby(ID_ORIG).agg(MEAN)
+    mean_df = df[[LOC_ID_ORIG, LOC_DISTANCE_M, LOC_TOTAL_POPULATION]].groupby(LOC_ID_ORIG).agg(MEAN)
 
     #find the square of the min distances
-    mean_df[SRC_DISTANCE_SQUARED] = mean_df[DISTANCE_M] * mean_df[DISTANCE_M]
+    mean_df[LOC_DISTANCE_SQUARED] = mean_df[LOC_DISTANCE_M] * mean_df[LOC_DISTANCE_M]
     #population weighted distances
-    distance_sum = sum(mean_df[SRC_POPULATION] * mean_df[DISTANCE_M])
+    distance_sum = sum(mean_df[LOC_TOTAL_POPULATION] * mean_df[LOC_DISTANCE_M])
     #population weighted distance squared
-    distance_sq_sum = sum(mean_df[SRC_POPULATION] * mean_df[SRC_DISTANCE_SQUARED])
+    distance_sq_sum = sum(mean_df[LOC_TOTAL_POPULATION] * mean_df[LOC_DISTANCE_SQUARED])
 
     alpha = distance_sum / distance_sq_sum
 
