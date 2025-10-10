@@ -499,7 +499,7 @@ def get_polling_locations(
         # Load locations from the database
         polling_locations_set = query.get_location_set(census_year, location, log_distance, driving)
         if not polling_locations_set:
-            raise ValueError(f'Could not find location set for census_year: {census_year}, location: {location}, log_distance: {log_distance}, driving: {driving} in the database. To import the data to the database, run python.scripts.db_import_locations_cli with the desired parameters.')
+            raise ValueError(f'Could not find location set for census_year: {census_year}, location: {location}, log_distance: {log_distance}, driving: {driving} in the database. To import the data to the database, run python.scripts.db_import_locations_cli with the desired parameters. Please see documentation on how to run.')
 
         df = query.get_locations(
             polling_locations_set_id=polling_locations_set.id,
