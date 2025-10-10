@@ -19,6 +19,7 @@ TABBLOCK_SHP_FILE_SUFFIX = 'tabblock20.shp'
 
 BLOCK_GROUP_SHP_FILE_SUFFIX = 'bg20.shp'
 
+#TODO: typo
 CONSUS = 'census'
 
 TIGER = 'tiger'

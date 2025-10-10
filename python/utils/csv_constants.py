@@ -1,5 +1,6 @@
+#TODO: This documentation is a bit unclear. is this _locations_only? driving_distances? Where are we using bing lat/lon?
 '''
-This file contanins constants for the csv column headers used in pooling location address CSV files.
+This file contanins constants for the csv column headers used in polling location address CSV files.
 '''
 
 # Source file headers
