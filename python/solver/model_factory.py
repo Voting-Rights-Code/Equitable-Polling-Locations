@@ -18,8 +18,8 @@ from python.utils import timer
 
 from .constants import (
   LOC_ID_ORIG, LOC_ID_DEST, LOC_TOTAL_POPULATION, LOC_DISTANCE_M,
-  LOC_WEIGHTED_DIST, POLLING, LOC_LOCATION_TYPE, LOC_DEST_TYPE, MEAN,
-  KP_FACTOR, MAX, RESULT_NEW_LOCATION, UNIQUE,
+  LOC_WEIGHTED_DIST, LOC_DEST_POLLING, LOC_LOCATION_TYPE, LOC_DEST_TYPE, PD_MEAN,
+  RESULT_KP_FACTOR, PD_MAX, RESULT_NEW_LOCATION, PD_UNIQUE,
 )
 
 
@@ -298,7 +298,7 @@ def polling_model_factory(
     max_min = config.max_min_mult * global_max_min_dist
 
     #Calculate number of old polling locations
-    old_polls = len(set(dist_df[dist_df[LOC_DEST_TYPE] == POLLING][LOC_ID_DEST]))
+    old_polls = len(set(dist_df[dist_df[LOC_DEST_TYPE] == LOC_DEST_POLLING][LOC_ID_DEST]))
 
     #Calculate precincts open value from data if not provided by user
     if config.precincts_open is None:
@@ -313,7 +313,7 @@ def polling_model_factory(
 
     ####define constants####
     #total population
-    total_pop = dist_df.groupby(LOC_ID_ORIG)[LOC_TOTAL_POPULATION].agg(UNIQUE).str[0].sum()
+    total_pop = dist_df.groupby(LOC_ID_ORIG)[LOC_TOTAL_POPULATION].agg(PD_UNIQUE).str[0].sum()
     ####set model to be concrete####
     model = pyo.ConcreteModel()
 
@@ -340,7 +340,7 @@ def polling_model_factory(
     #Populations of residences
     model.population = pyo.Param(
         model.residences,
-        initialize=dist_df.groupby(LOC_ID_ORIG)[LOC_TOTAL_POPULATION].agg(MEAN),
+        initialize=dist_df.groupby(LOC_ID_ORIG)[LOC_TOTAL_POPULATION].agg(PD_MEAN),
     )
     #Precinct residence distances
 
@@ -357,9 +357,9 @@ def polling_model_factory(
     )
 
     #KP factor
-    dist_df[KP_FACTOR] = compute_kp_factor(config, alpha, dist_df)
+    dist_df[RESULT_KP_FACTOR] = compute_kp_factor(config, alpha, dist_df)
     # math.e**(-config.beta*alpha*dist_df[DISTANCE_M])
-    max_kp_factor = dist_df.groupby(LOC_ID_ORIG)[KP_FACTOR].agg(MAX).max()
+    max_kp_factor = dist_df.groupby(LOC_ID_ORIG)[RESULT_KP_FACTOR].agg(PD_MAX).max()
     if max_kp_factor > MAX_KP_FACTOR:
         # pylint: disable-next=line-too-long
         warnings.warn(f'Max kp_factor is {max_kp_factor}. SCIP can only handle values up to {MAX_KP_FACTOR+1}. Consider a less negative value of beta.')
@@ -367,14 +367,14 @@ def polling_model_factory(
     model.kp_factor = pyo.Param(
         model.pairs,
         initialize = dist_df[
-            [LOC_ID_ORIG, LOC_ID_DEST, KP_FACTOR]
+            [LOC_ID_ORIG, LOC_ID_DEST, RESULT_KP_FACTOR]
         ].set_index([LOC_ID_ORIG, LOC_ID_DEST]),
     )
 
     #new location marker
     dist_df[RESULT_NEW_LOCATION] = 0
     dist_df[RESULT_NEW_LOCATION].mask(
-        dist_df[LOC_DEST_TYPE] != POLLING,
+        dist_df[LOC_DEST_TYPE] != LOC_DEST_POLLING,
         1,
         inplace=True,
     )

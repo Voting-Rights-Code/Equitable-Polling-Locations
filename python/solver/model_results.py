@@ -1,9 +1,6 @@
-#######################################
-#Created on 6 December 2023
-#
-#@author: Voting Rights Code
-#@attribution: based off of code by Josh Murell
-#######################################
+'''
+Various utility methods to process the output of a model run
+'''
 
 import math
 import os
@@ -65,7 +62,8 @@ def incorporate_result(dist_df: pd.DataFrame, model: pyo.ConcreteModel):
 def demographic_domain_summary(result_df: pd.DataFrame, domain: str):
     '''Input: result_df-- the distance an demographic population data for the matched residences and precincts
         domain-- [ID_DEST, ID_ORIG] either the precinct of residence
-    Output: Calculate the average distances traveled by each demographic group that is assigned to each precinct or that lives in each residence.'''
+    Output: Calculate the average distances traveled by each demographic group that is assigned to each precinct
+        or that lives in each residence.'''
 
     if domain not in [LOC_ID_DEST, LOC_ID_ORIG]:
         raise ValueError('domain much be in [id_dest, id_orig]')
@@ -73,7 +71,9 @@ def demographic_domain_summary(result_df: pd.DataFrame, domain: str):
     source_value = result_df[LOC_SOURCE].unique()
     #Transform to get distance and population by demographic, destination pairs for each origin
     demographic_all = pd.melt(
-        result_df[[domain, LOC_DISTANCE_M, LOC_TOTAL_POPULATION, LOC_WHITE, LOC_BLACK, LOC_NATIVE, LOC_ASIAN, LOC_HISPANIC]],
+        result_df[[
+            domain, LOC_DISTANCE_M, LOC_TOTAL_POPULATION, LOC_WHITE, LOC_BLACK, LOC_NATIVE, LOC_ASIAN, LOC_HISPANIC,
+        ]],
         id_vars=[domain, LOC_DISTANCE_M],
         value_vars=[LOC_TOTAL_POPULATION, LOC_WHITE, LOC_BLACK, LOC_NATIVE, LOC_ASIAN, LOC_HISPANIC],
         var_name=RESULT_DEMOGRAPHIC,
@@ -86,12 +86,12 @@ def demographic_domain_summary(result_df: pd.DataFrame, domain: str):
     #calculate the total population of each demographic sent to each precinct
     demographic_pop = demographic_all[
         [domain, RESULT_DEMOGRAPHIC, RESULT_DEMO_POP]
-    ].groupby([domain, RESULT_DEMOGRAPHIC]).agg(SUM)
+    ].groupby([domain, RESULT_DEMOGRAPHIC]).agg(PD_SUM)
 
     #calculate the total distance traveled by each demographic group
     demographic_dist = demographic_all[
         [domain, RESULT_DEMOGRAPHIC, LOC_WEIGHTED_DIST]
-    ].groupby([domain, RESULT_DEMOGRAPHIC]).agg(SUM)
+    ].groupby([domain, RESULT_DEMOGRAPHIC]).agg(PD_SUM)
 
     #merge the demographic_pop and demographic_dist
     demographic_prec = pd.concat([demographic_dist, demographic_pop], axis=1)
@@ -115,10 +115,10 @@ def demographic_summary(demographic_df: pd.DataFrame, result_df: pd.DataFrame, b
     source_value = result_df[LOC_SOURCE].unique()
 
     #calculate the total distance traveled by each demographic group
-    demographic_dist = demographic_df[LOC_WEIGHTED_DIST].groupby(RESULT_DEMOGRAPHIC).agg(SUM)
+    demographic_dist = demographic_df[LOC_WEIGHTED_DIST].groupby(RESULT_DEMOGRAPHIC).agg(PD_SUM)
 
     #calculate the total population of each demographic sent to each precinct
-    demographic_population = demographic_df[RESULT_DEMO_POP].groupby(RESULT_DEMOGRAPHIC).agg(SUM)
+    demographic_population = demographic_df[RESULT_DEMO_POP].groupby(RESULT_DEMOGRAPHIC).agg(PD_SUM)
 
     #merge the datasets
     result = pd.concat([demographic_dist, demographic_population], axis=1)
@@ -137,18 +137,18 @@ def demographic_summary(demographic_df: pd.DataFrame, result_df: pd.DataFrame, b
             distances,
             left_index=True,
             right_index=True,
-            how=OUTER,
+            how=PD_OUTER,
         )
 
         #add in a KP factor column
-        demographics[KP_FACTOR] = math.e ** (-beta * alpha * demographics[LOC_DISTANCE_M])
+        demographics[RESULT_KP_FACTOR] = math.e ** (-beta * alpha * demographics[LOC_DISTANCE_M])
         #calculate the summand for the objective function
-        demographics[RESULT_DEMO_RES_OBJ_SUMMAND] = demographics[RESULT_DEMO_POP] * demographics[KP_FACTOR]
+        demographics[RESULT_DEMO_RES_OBJ_SUMMAND] = demographics[RESULT_DEMO_POP] * demographics[RESULT_KP_FACTOR]
 
         #compute the ede for each demographic group
         demographic_ede = demographics[
             [RESULT_DEMOGRAPHIC, RESULT_DEMO_RES_OBJ_SUMMAND, RESULT_DEMO_POP]
-        ].groupby(RESULT_DEMOGRAPHIC).agg(SUM)
+        ].groupby(RESULT_DEMOGRAPHIC).agg(PD_SUM)
         demographic_ede[RESULT_AVG_KP_WEIGHT] = (
             demographic_ede.demo_res_obj_summand / demographic_ede.demo_pop
         )

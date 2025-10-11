@@ -2,43 +2,36 @@
 Constants for solver
 """
 
-RESULT_AVG_DIST = 'avg_dist'
-POLLING = 'polling'
-
-
-SOURCE = 'SOURCE'
-
-SUM = 'sum'
-MEAN = 'mean'
-MAX = 'max'
-MIN = 'min'
-UNIQUE = 'unique'
-OUTER = 'outer'
-LEFT = 'left'
-CROSS = 'cross'
-
 UTF8 = 'utf-8'
+''' Used for python file reads '''
+
 
 EMPTY_STRING = ''
+''' An empty string ( len(EMPTY_STRING) = 0 ). Used to clear out values in data frames. '''
 
-KP_FACTOR = 'kp_factor'
+# Pandas related constants
+PD_SUM = 'sum'
+PD_MEAN = 'mean'
+PD_MAX = 'max'
+PD_MIN = 'min'
+PD_UNIQUE = 'unique'
+PD_OUTER = 'outer'
+PD_LEFT = 'left'
+PD_CROSS = 'cross'
+PD_DTYPE_STR = 'str'
 
-YEAR = 'year'
-BAD_TYPES = 'bad_types'
-PENALIZED_SITES = 'penalized_sites'
 
-DB_ID = 'db_id'
-COMMIT_HASH = 'commit_hash'
-RUN_TIME = 'run_time'
+# Model config related constants
+CONFIG_YEAR = 'year'
+CONFIG_BAD_TYPES = 'bad_types'
+CONFIG_PENALIZED_SITES = 'penalized_sites'
+CONFIG_DB_ID = 'db_id'
+CONFIG_COMMIT_HASH = 'commit_hash'
+CONFIG_RUN_TIME = 'run_time'
 CONFIG_FILE_PATH = 'config_file_path'
-LOG_FILE_PATH = 'log_file_path'
-MAP_SOURCE_DATE = 'map_source_date'
-LOCATION_SOURCE = 'location_source'
-
-
-# Dtype related constants
-DTYPE_STR = 'str'
-
+CONFIG_LOG_FILE_PATH = 'log_file_path'
+CONFIG_MAP_SOURCE_DATE = 'map_source_date'
+CONFIG_LOCATION_SOURCE = 'location_source'
 
 # Location only data related constants
 LOC_ONLY_LOCATION = 'Location'
@@ -50,7 +43,7 @@ LOC_ONLY_LONGITUDE = 'Longitude'
 LOC_ONLY_DEST_TYPE_POLLING = 'polling'
 LOC_ONLY_DEST_TYPE_POTENTIAL = 'potential'
 
-# Location data related constants
+# Location data related column names
 LOC_ID_ORIG = 'id_orig'
 LOC_ID_DEST = 'id_dest'
 LOC_SOURCE = 'source'
@@ -75,12 +68,15 @@ LOC_WEIGHTED_DIST = 'weighted_dist'
 LOC_DISTANCE_SQUARED = 'distance_squared'
 LOC_DEST_TYPE = 'dest_type'
 
+
 LOC_SOURCE_HAVERSINE_DISTANCE = 'haversine distance'
-''' A type value for the LOC_LOCATION_TYPE field'''
+''' A type value for the LOC_LOCATION_TYPE field '''
 LOC_SOURCE_DRIVING_DISTANCE = 'driving distance'
-''' A type value for the LOC_LOCATION_TYPE field'''
+''' A type value for the LOC_LOCATION_TYPE field '''
 LOC_SOURCE_LOG_WITH_SPACE = 'log '
-''' A type value for the LOC_LOCATION_TYPE field that works with other types (e.g. "log haversine distance")'''
+''' A type value for the LOC_LOCATION_TYPE field that works with other types (e.g. "log haversine distance") '''
+LOC_DEST_POLLING = 'polling'
+''' A type value for the LOC_DEST_TYPE '''
 LOC_ONLY_POTENTIAL_LOCATION = 'Potential'
 ''' A flag in the field LOC_ONLY_LOCATION_TYPE indicating a potential location '''
 LOC_ONLY_CENTROID_LOCATION = 'centroid'
@@ -129,6 +125,8 @@ RESULT_DEMO_RES_OBJ_SUMMAND = 'demo_res_obj_summand'
 RESULT_AVG_KP_WEIGHT = 'avg_kp_weight'
 RESULT_Y_EDE = 'y_EDE'
 RESULT_NEW_LOCATION = 'new_location'
+RESULT_AVG_DIST = 'avg_dist'
+RESULT_KP_FACTOR = 'kp_factor'
 
 # DB Column related constants
 DB_LOCATION = 'location'

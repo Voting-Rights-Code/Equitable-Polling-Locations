@@ -1,9 +1,6 @@
-#######################################
-#Created on 6 December 2023
-#
-#@author: Voting Rights Code
-#@attribution: based off of code by Josh Murell
-#######################################
+'''
+Utilities to process the various sources files to run a model against
+'''
 
 from dataclasses import dataclass
 from typing import Literal
@@ -26,7 +23,7 @@ from python.utils import (
     is_int,
 )
 
-from python.utils.constants import LOCATION_SOURCE_DB
+from python.utils.directory_constants import LOCATION_SOURCE_DB
 from python.utils.pull_census_data import pull_census_data
 from python.utils import get_block_source_file_path, get_block_group_block_source_file_path
 from .model_config import PollingModelConfig
@@ -191,7 +188,8 @@ def get_blockgroup_gdf(census_year: str, location: str) -> gpd.GeoDataFrame:
 
     #The block group needs to be processed to match the potential location table
     blockgroup_gdf = blockgroup_gdf.rename(columns = {
-        TIGER20_GEOID20: LOC_ONLY_LOCATION, TIGER20_INTPTLAT20: LOC_ONLY_LATITUDE, TIGER20_INTPTLON20: LOC_ONLY_LONGITUDE,
+        TIGER20_GEOID20: LOC_ONLY_LOCATION, TIGER20_INTPTLAT20: LOC_ONLY_LATITUDE,
+        TIGER20_INTPTLON20: LOC_ONLY_LONGITUDE,
     })
     blockgroup_gdf[LOC_ONLY_ADDRESS] = None
     blockgroup_gdf[LOC_ONLY_LOCATION_TYPE] = TIGER20_BG_CENTROID
@@ -257,7 +255,7 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
         p3_df,
         left_on=[CEN20_GEO_ID, CEN20_NAME],
         right_on=[CEN20_GEO_ID, CEN20_NAME],
-        how=OUTER,
+        how=PD_OUTER,
     )
 
     #Consistency check for the data pull
@@ -285,7 +283,7 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
         blocks_gdf,
         left_on=CEN20_GEO_ID,
         right_on=TIGER20_GEOID20,
-        how=LEFT,
+        how=PD_LEFT,
     )
 
     #make lat/ long floats
@@ -325,6 +323,7 @@ def build_source(
     driving: bool,
     log_distance: bool,
     map_source_date: str=None,
+    # pylint: disable-next=unused-argument
     log: bool = False,
     locations_only_path_override: str=None,
     output_path_override: str=None,
@@ -372,7 +371,7 @@ def build_source(
     # Cross join polling locations and demographics tables
     #####
     demographics_block_df = get_demographics_block(census_year, location)
-    full_df = demographics_block_df.merge(all_locations, how=CROSS)
+    full_df = demographics_block_df.merge(all_locations, how=PD_CROSS)
 
     #####
     #Rename, select columns
@@ -458,7 +457,7 @@ def insert_driving_distances(
     if {LOC_ID_ORIG, LOC_ID_DEST, LOC_DISTANCE_M} - set(driving_distances_df.columns):
         raise ValueError('Driving Distances must contain id_orig, id_dest, and distance_m columns')
 
-    combined_df = pd.merge(source_df, driving_distances_df, on=[LOC_ID_ORIG, LOC_ID_DEST], how=LEFT)
+    combined_df = pd.merge(source_df, driving_distances_df, on=[LOC_ID_ORIG, LOC_ID_DEST], how=PD_LEFT)
 
     combined_df[LOC_SOURCE] = LOC_SOURCE_DRIVING_DISTANCE
     return combined_df
@@ -492,7 +491,7 @@ def load_locations_only_csv(path: str) -> pd.DataFrame:
     if not os.path.isfile(path):
         raise ValueError(f'Polling locations file {path} does not exist.')
 
-    dtype_spec = {LOC_ONLY_LOCATION: DTYPE_STR, LOC_ONLY_ADDRESS: DTYPE_STR, LOC_ONLY_LOCATION_TYPE: DTYPE_STR}
+    dtype_spec = {LOC_ONLY_LOCATION: PD_DTYPE_STR, LOC_ONLY_ADDRESS: PD_DTYPE_STR, LOC_ONLY_LOCATION_TYPE: PD_DTYPE_STR}
 
     return pd.read_csv(path, index_col=False, dtype=dtype_spec)
 
@@ -503,7 +502,7 @@ def load_locations_csv(path: str) -> pd.DataFrame:
     if not os.path.isfile(path):
         raise ValueError(f'Polling locations file {path} does not exist.')
 
-    dtype_spec = {LOC_ID_ORIG: DTYPE_STR, LOC_ID_DEST: DTYPE_STR}
+    dtype_spec = {LOC_ID_ORIG: PD_DTYPE_STR, LOC_ID_DEST: PD_DTYPE_STR}
 
     return pd.read_csv(path, index_col=0, dtype=dtype_spec)
 
@@ -515,7 +514,7 @@ def load_driving_distances_csv(path: str) -> pd.DataFrame:
     if not os.path.isfile(path):
         raise ValueError(f'Driving distances file {path} does not exist.')
 
-    dtype_spec = {LOC_ID_ORIG: DTYPE_STR, LOC_ID_DEST: DTYPE_STR, LOC_DISTANCE_M: np.float64}
+    dtype_spec = {LOC_ID_ORIG: PD_DTYPE_STR, LOC_ID_DEST: PD_DTYPE_STR, LOC_DISTANCE_M: np.float64}
 
     return pd.read_csv(path, index_col=False, dtype=dtype_spec)
 
@@ -605,6 +604,7 @@ def clean_dest_type(locations_df: pd.DataFrame, year_list: list[str]):
 #The call for alpha should only take the original polling locations.#########
 #########
 
+# pylint: disable-next=unused-argument
 def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha: bool, log: bool):
     location = config.location
     year_list = config.year
@@ -646,7 +646,7 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
     result_df = result_df.drop_duplicates()
 
     # check that population is unique by id_orig
-    pop_df = result_df.groupby(LOC_ID_ORIG)[LOC_TOTAL_POPULATION].agg(UNIQUE).str.len()
+    pop_df = result_df.groupby(LOC_ID_ORIG)[LOC_TOTAL_POPULATION].agg(PD_UNIQUE).str.len()
     if any(pop_df>1):
         raise ValueError(f'Some id_orig has multiple associated populations from {config.config_file_path}')
 
@@ -679,7 +679,7 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
 
 #determines the maximum of the minimum distances
 def get_max_min_dist(dist_df: pd.DataFrame):
-    min_dist = dist_df[[LOC_ID_ORIG, LOC_DISTANCE_M]].groupby(LOC_ID_ORIG).agg(MIN)
+    min_dist = dist_df[[LOC_ID_ORIG, LOC_DISTANCE_M]].groupby(LOC_ID_ORIG).agg(PD_MIN)
     max_min_dist = min_dist.distance_m.max()
     max_min_dist = math.ceil(max_min_dist)
 
@@ -704,7 +704,7 @@ def alpha_all(df: pd.DataFrame):
 
 def alpha_min(df: pd.DataFrame):
     #Find the minimal distance to polling location
-    min_df= df[[LOC_ID_ORIG, LOC_DISTANCE_M, LOC_TOTAL_POPULATION]].groupby(LOC_ID_ORIG).agg(MIN)
+    min_df= df[[LOC_ID_ORIG, LOC_DISTANCE_M, LOC_TOTAL_POPULATION]].groupby(LOC_ID_ORIG).agg(PD_MIN)
 
     #find the square of the min distances
     min_df[LOC_DISTANCE_SQUARED] = min_df[LOC_DISTANCE_M] * min_df[LOC_DISTANCE_M]
@@ -720,7 +720,7 @@ def alpha_min(df: pd.DataFrame):
 
 def alpha_mean(df: pd.DataFrame):
     #Find the mean distance to polling location
-    mean_df = df[[LOC_ID_ORIG, LOC_DISTANCE_M, LOC_TOTAL_POPULATION]].groupby(LOC_ID_ORIG).agg(MEAN)
+    mean_df = df[[LOC_ID_ORIG, LOC_DISTANCE_M, LOC_TOTAL_POPULATION]].groupby(LOC_ID_ORIG).agg(PD_MEAN)
 
     #find the square of the min distances
     mean_df[LOC_DISTANCE_SQUARED] = mean_df[LOC_DISTANCE_M] * mean_df[LOC_DISTANCE_M]

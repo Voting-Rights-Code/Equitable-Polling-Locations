@@ -1,6 +1,9 @@
-#Example call:
-# python auto_generate_config.py -b 'test_configs\Richmond_city_original_2024.yaml' -f 'year' -n '2014' -n '2016' -n '2018' '2020'
-#note that if there is a list of lists to be entered for the last argument, each list needs to be entered separately.
+'''
+A cli utility to generate model configs from templates.
+Example: python auto_generate_config.py -b 'test_configs/Richmond_city_original_2024.yaml'
+
+Note: that if there is a list of lists to be entered for the last argument, each list needs to be entered separately.
+'''
 
 import yaml
 import os
@@ -11,11 +14,12 @@ from sqlalchemy import inspect, sql
 from python.database import query
 from python.solver.model_config import PollingModelConfig
 from python.database import models as Models
-from python.utils.constants import CONFIG_BASE_DIR
+from python.utils.directory_constants import CONFIG_BASE_DIR
+from python.solver.constants import UTF8
 
 def load_base_config(config_file):
     '''Load the base configuration from the provided YAML file.'''
-    with open(config_file, 'r') as file:
+    with open(config_file, 'r', encoding=UTF8) as file:
         return yaml.safe_load(file)
 
 def check_model_fields_match_input(input_config, model_inspect):
@@ -57,9 +61,15 @@ def check_model_and_input_types_match(input_config, model_inspect):
         if isinstance(input_config[key], list) and isinstance(model_types[key], sql.sqltypes.ARRAY):
             if len(input_config[key]) == 0:
                 continue
-            elif all(isinstance(x, str) for x in input_config[key]) and isinstance(model_types[key].item_type, sql.sqltypes.String):
+            elif (
+                all(isinstance(x, str) for x in input_config[key])
+                and isinstance(model_types[key].item_type, sql.sqltypes.String)
+            ):
                 continue
-        if isinstance(input_config[key], (int, float)) and isinstance(model_types[key], (sql.sqltypes.Float, sql.sqltypes.Integer)):
+        if (
+            isinstance(input_config[key], (int, float))
+            and isinstance(model_types[key], (sql.sqltypes.Float, sql.sqltypes.Integer))
+        ):
             continue
         if isinstance(input_config[key], bool) and isinstance(model_types[key], sql.sqltypes.Boolean):
             continue
@@ -67,7 +77,10 @@ def check_model_and_input_types_match(input_config, model_inspect):
             raise ValueError(f'{key} is of wrong type. See models.model_config.py for correct types.')
     return
 
-def generate_configs(base_config_file:str, config_base_dir = CONFIG_BASE_DIR):#, field_to_vary:str, desired_range: list):
+def generate_configs(
+    base_config_file:str,
+    config_base_dir = CONFIG_BASE_DIR,
+):#, field_to_vary:str, desired_range: list):
     """
     Generate YAML configurations by varying specified parameters while keeping others constant.
     """
@@ -97,13 +110,13 @@ def generate_configs(base_config_file:str, config_base_dir = CONFIG_BASE_DIR):#,
     config_dir = base_config_file.split(os.path.sep)[-2]
     config_file_name = os.path.splitext(os.path.basename(base_config_file))[0]
     config_name = base_config['config_name']
-    if (config_dir != config_set):
+    if config_dir != config_set:
         raise ValueError(f'Config directory ({config_dir}) should match config_set value ({config_set})')
-    if (config_file_name != config_name):
+    if config_file_name != config_name:
         raise ValueError(f'Config file name ({config_file_name}) should match config_name value ({config_name})')
 
     #validate varying_field
-    if (not field_to_vary in base_config.keys()):
+    if not field_to_vary in base_config.keys():
         raise ValueError(f'{field_to_vary} not a valid field')
 
     for new_value in desired_range:
@@ -133,7 +146,7 @@ def generate_configs(base_config_file:str, config_base_dir = CONFIG_BASE_DIR):#,
         if os.path.isfile(file_path):
             raise ValueError(f'{file_path} already exists')
 
-        with open(file_path, 'w') as outfile:
+        with open(file_path, 'w', encoding=UTF8) as outfile:
             yaml.dump(config, outfile, default_flow_style=False, sort_keys= False)
 
         source_config = PollingModelConfig.load_config(file_path)
@@ -146,7 +159,8 @@ def generate_configs(base_config_file:str, config_base_dir = CONFIG_BASE_DIR):#,
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-b','--base_config_path', help="File path of the file to use as the template for the necessary .yaml files. This should not end in .yaml",
+        '-b','--base_config_path',
+        help='File path of the file to use as the template for the necessary .yaml files. This should not end in .yaml',
     )
 
     args = parser.parse_args()

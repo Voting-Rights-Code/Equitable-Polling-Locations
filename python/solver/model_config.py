@@ -11,23 +11,22 @@ from dataclasses import dataclass, field, fields, MISSING
 import yaml
 import datetime as dt
 
-from python.utils.constants import LOCATION_SOURCE_CSV
+from python.utils.directory_constants import LOCATION_SOURCE_CSV
 from .constants import (
-    DB_ID, COMMIT_HASH, RUN_TIME, CONFIG_FILE_PATH, LOG_FILE_PATH,
-    MAP_SOURCE_DATE, LOCATION_SOURCE, YEAR, BAD_TYPES, PENALIZED_SITES,
+    CONFIG_DB_ID, CONFIG_COMMIT_HASH, CONFIG_RUN_TIME, CONFIG_FILE_PATH, CONFIG_LOG_FILE_PATH,
+    CONFIG_MAP_SOURCE_DATE, CONFIG_LOCATION_SOURCE, CONFIG_YEAR, CONFIG_BAD_TYPES, CONFIG_PENALIZED_SITES,
 )
 
-
-MODEL_CONFIG_ARRAY_NAMES = [YEAR, BAD_TYPES, PENALIZED_SITES]
+MODEL_CONFIG_ARRAY_NAMES = [CONFIG_YEAR, CONFIG_BAD_TYPES, CONFIG_PENALIZED_SITES]
 ''' These PollingModelConfig variables are expected to be arrays, not None '''
 
-NON_EMPTY_ARRAYS = [YEAR]
+NON_EMPTY_ARRAYS = [CONFIG_YEAR]
 ''' These PollingModelConfig variables are expected to be non-empty arrays. '''
 
 # For now map_source_date is not required, map_source_date is for future proofing
 IGNORE_ON_LOAD = [
-    DB_ID, COMMIT_HASH, RUN_TIME, CONFIG_FILE_PATH,
-    LOG_FILE_PATH, MAP_SOURCE_DATE, LOCATION_SOURCE
+    CONFIG_DB_ID, CONFIG_COMMIT_HASH, CONFIG_RUN_TIME, CONFIG_FILE_PATH,
+    CONFIG_LOG_FILE_PATH, CONFIG_MAP_SOURCE_DATE, CONFIG_LOCATION_SOURCE,
 ]
 
 @dataclass

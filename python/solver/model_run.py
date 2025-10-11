@@ -13,7 +13,7 @@ import warnings
 
 
 from python.utils import build_locations_distance_file_path
-from python.utils.constants import LOCATION_SOURCE_CSV, RESULTS_BASE_DIR
+from python.utils.directory_constants import LOCATION_SOURCE_CSV, RESULTS_BASE_DIR
 
 from .constants import LOC_ID_DEST, LOC_ID_ORIG
 

@@ -1,8 +1,10 @@
+''' A simple cli to generate test data. '''
+
 import os
 import pandas as pd
 from random import sample, seed
 
-from python.utils.constants import POLLING_DIR
+from python.utils.directory_constants import POLLING_DIR
 from .constants import TESTING_RESULTS_DIR
 
 OUTFILE = os.path.join(TESTING_RESULTS_DIR, 'testing.csv')
@@ -18,10 +20,15 @@ random_origs = sample(list(df.id_orig.unique()), 10)
 
 #select unique location types
 unique_location_types = df['location_type'].unique()
-unique_potentials = [loc_type for loc_type in unique_location_types if 'Potential' in loc_type or 'centroid' in loc_type]
+unique_potentials = [
+  loc_type for loc_type in unique_location_types
+  if 'Potential' in loc_type or 'centroid' in loc_type
+]
 
 #pick 2 random locations of each type
-potentials_sampled = [sample(list(df[df.location_type == loc_type].id_dest.unique()) , 2) for loc_type in unique_potentials]
+potentials_sampled = [
+  sample(list(df[df.location_type == loc_type].id_dest.unique()) , 2) for loc_type in unique_potentials
+]
 
 #flatten list
 random_potentials = [loc for sampled_list in potentials_sampled for loc in sampled_list]
