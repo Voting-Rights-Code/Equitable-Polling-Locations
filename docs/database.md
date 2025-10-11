@@ -12,6 +12,8 @@ This section is about the inputs and outputs of the base model. For details abou
 
 ## Selecting which database to write to
 
+NOTE: This will be out of date once the -e feature is implemented.
+
 When using the `model_run_cli.py` or `model_run_db_cli.py` scripts, the database import tools, or the Alembic for database migrations, The Google Project and BigQuery dataset can be selected by setting the environemntal variables DB_PROJECT and DB_DATASET. 
 
 If these variables are not set then you will be prompted to choose which project and which dataset to use.
@@ -29,11 +31,22 @@ set DB_DATASET=equitable_polling_locations_prod
 ```
 
 ## Creating and selecting a scratch dataset
-TODO
-* When should one create a scratch dataset?
-* What is the preferred naming convention?
-* How does one set this up?
-* Should the section on setting up a new database just be moved up here?
+
+Use scratch datasets when testing and developing new fields or features in the data. To set up a new scratch dataset:
+1. Navigate to BigQuery: Open the Google Cloud Console and go to the [BigQuery section for the equitable-polling-locations project](https://console.cloud.google.com/bigquery?project=equitable-polling-locations).
+1. Create a New Dataset:
+    1. Under the "Explorer" window find the projec equitable-polling-locations and click the three vertical dots (⋮) and select Create dataset.
+    1. Fill out the Create dataset form:
+        * Dataset ID: Enter a unique name prefixed with scratch_, for example, scratch_jane_doe_01. This prefix is important for identifying temporary datasets.
+        * Data location: Select us-east4 (N. Virginia).
+    1. Under the Advanced options.
+        * Default table expiration: Check the box for "Enable table expiration" and set the default to 100 days. This automatically cleans up old tables to save on storage costs.
+        * Find the Time travel window setting and change it from 7 days to 0. This disables data recovery for deleted or modified data, which reduces storage costs.
+    1. Finalize: Click Create dataset. You can now create and test tables within your personal scratch dataset.
+1. Initialize your new database. I.e. Run migrations on it to create all the expected tables.
+    1. Initialize your envornment, if necessary. ```conda activate equitable-polls```
+    1. Run alembic: ```alembic upgrade head```
+1. To select this datase, when prompted enter the project and dataset that was created.
 
 ## Writing input and intermediate dataset to the database
 In order to run python.scripts.model_run_db_cli, the required datasources for the giving location must be imported into the database. See [input files](input_files.md), [intermediate datasets](intermediate_datasets.md) and [to run](to_run.md) for more details. These imports should occur in the following order:
@@ -156,8 +169,10 @@ Some work is needed to talk about the polling_locations_only, polling_locations 
 | polling_locations_only_sets | Table | The metadata for polling_location_only data[, containing a created at time stamp and the location].                               |
 | driving_distances          | Table | The driving distances data (used to generate the polling_locations table). This is optional and only used when driving is set to true in a config file. See [input files](input_files.md) for more details. |
 | driving_distance_sets      | Table | The metadata for driving distances ~~for polling locations~~ table ~~source~~[, containing a created at time stamp, location, census year and map date].              |
+| latest_driving_distance_sets| view | A view that **TODO:(CHAD) How is this obtained?**, associating the most recent driving_distances table with the census_year and map_date. |
 | polling_locations          | Table | The intermediate distances to polling locations data. See [intermediate datasets](intermediate_datasets.md) for more details. |
 | polling_locations_sets     | Table | The metadata for polling_locations table. This metadata includes the location, the polling_locations_only id, the driving distances id and whether the polling_locations data has driving or haversine distance, and if it is linear or log. |
+| Alembic | Table | The ```alembic_version``` table acts as a bookmark, storing a single value—the revision ID of the most recently applied database migration—which allows Alembic to know the current schema version and determine which migrations need to be run or reverted. For more information see the [Alembic project](https://alembic.sqlalchemy.org/en/latest/).|
 
 TODO:
 other tables to be put in
@@ -209,17 +224,6 @@ SELECT *
 # BigQuery Table Management
 
 Tables for the Equitable-Polling-Locations project are managed using Python's [SQLAlchemy](https://www.sqlalchemy.org/) and the [Alemebic](https://alembic.sqlalchemy.org/en/latest/) migration tool. See the folder `.../models` and `.../alembic` in this repository.  For example, the definition of the model_configs and model_runs tables can be found in `.../models/model_config.py`.
-
-### Setup a new database or upgrading an existing one with the latest schema
-
-Setting up a new database to work against is useful for development and testing.
-
-To setup a new database:
-1. Create a new dataset using the the [Google BigQuery Cloud Console](https://console.cloud.google.com/bigquery).
-2. Activate conda `$ conda activate equitable-polls` (see earlier instructions)
-3. Use the alembic upgrade command `$ alembic upgrade head`
-4. (When prompted enter the project and dataset that was created if DB_PROJECT and/or DB_dataset were not set in the environment.)
-
 
 ### Adding a columns to an existing table
 
