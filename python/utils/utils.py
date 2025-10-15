@@ -9,7 +9,10 @@ import uuid
 
 import numpy as np
 
-from python.utils.constants import BLOCK_GROUP_SHP_FILE_SUFFIX, CENSUS_TIGER_DIR, DATASETS_DIR, DRIVING_DIR, POLLING_DIR, TABBLOCK_SHP_FILE_SUFFIX
+from python.utils.directory_constants import (
+  BLOCK_GROUP_SHP_FILE_SUFFIX, CENSUS_TIGER_DIR, DATASETS_DIR,
+  DRIVING_DIR, POLLING_DIR, TABBLOCK_SHP_FILE_SUFFIX,
+)
 
 @dataclass
 class RegexEqual(str):
@@ -141,6 +144,7 @@ def build_locations_only_file_path(location: str) -> str:
 
     return locations_only_source_file
 
+# pylint: disable-next=unused-argument
 def build_driving_distances_file_path(census_year: str, map_source_date: str, location: str) -> str:
     ''' Returns the path to the locations file for this config '''
 

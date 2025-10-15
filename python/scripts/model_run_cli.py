@@ -18,7 +18,7 @@ from tqdm import tqdm
 from python.solver.model_config import PollingModelConfig
 from python.solver import model_run
 from python import utils
-from python.utils.constants import RESULTS_FOLDER_NAME
+from python.utils.directory_constants import RESULTS_FOLDER_NAME
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 

@@ -14,7 +14,7 @@ from python.database.models import PollingLocation
 from python.database import query
 from python.solver.model_data import build_source
 from python.utils import is_int
-from python.utils.constants import LOCATION_SOURCE_DB
+from python.utils.directory_constants import LOCATION_SOURCE_DB
 
 DEFAULT_LOG_DIR='logs'
 IMPORT_ERROR_LOG_FILE='locations_import_errors.csv'

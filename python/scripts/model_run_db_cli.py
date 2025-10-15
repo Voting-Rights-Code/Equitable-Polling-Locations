@@ -25,7 +25,7 @@ from python.solver.model_config import PollingModelConfig
 from python.solver import model_run
 from python.database.models import ModelConfig
 from python import utils
-from python.utils.constants import LOCATION_SOURCE_DB, RESULTS_FOLDER_NAME
+from python.utils.directory_constants import LOCATION_SOURCE_DB, RESULTS_FOLDER_NAME
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 
@@ -140,7 +140,9 @@ def main(args: argparse.Namespace):
     if args.concurrent > 1:
         print(f'Running concurrent with a pool size of {args.concurrent} against {total_files} config file(s)')
         with Pool(args.concurrent) as pool:
-            for _ in tqdm(pool.imap_unordered(lambda x: run_config(x, log, outtype, verbose), configs), total=total_files):
+            for _ in tqdm(
+                pool.imap_unordered(lambda x: run_config(x, log, outtype, verbose), configs), total=total_files
+            ):
                 pass
     else:
         # Disable function timers messages unless verbosity 2 or higher is set
@@ -175,7 +177,12 @@ Examples:
         python -m python.scripts.model_run_db_cli -l logs York_County_SC_original_configs_log/York_County_SC_year_2016
         '''
     )
-    parser.add_argument('configs', nargs='+', help='One or more config sets and optionally config names. e.g. York_County_SC_original_configs_log/York_County_SC_year_2016')
+    parser.add_argument(
+        'configs',
+        nargs='+',
+        # pylint: disable-next=line-too-long
+        help='One or more config sets and optionally config names. e.g. York_County_SC_original_configs_log/York_County_SC_year_2016',
+    )
     parser.add_argument(
         '-c',
         '--concurrent',

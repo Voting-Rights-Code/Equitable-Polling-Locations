@@ -11,19 +11,22 @@ from dataclasses import dataclass, field, fields, MISSING
 import yaml
 import datetime as dt
 
-from python.utils.constants import LOCATION_SOURCE_CSV
+from python.utils.directory_constants import LOCATION_SOURCE_CSV
+from .constants import (
+    CONFIG_DB_ID, CONFIG_COMMIT_HASH, CONFIG_RUN_TIME, CONFIG_FILE_PATH, CONFIG_LOG_FILE_PATH,
+    CONFIG_MAP_SOURCE_DATE, CONFIG_LOCATION_SOURCE, CONFIG_YEAR, CONFIG_BAD_TYPES, CONFIG_PENALIZED_SITES,
+)
 
-
-MODEL_CONFIG_ARRAY_NAMES = ['year', 'bad_types', 'penalized_sites']
+MODEL_CONFIG_ARRAY_NAMES = [CONFIG_YEAR, CONFIG_BAD_TYPES, CONFIG_PENALIZED_SITES]
 ''' These PollingModelConfig variables are expected to be arrays, not None '''
 
-NON_EMPTY_ARRAYS = ['year']
+NON_EMPTY_ARRAYS = [CONFIG_YEAR]
 ''' These PollingModelConfig variables are expected to be non-empty arrays. '''
 
 # For now map_source_date is not required, map_source_date is for future proofing
 IGNORE_ON_LOAD = [
-    'db_id', 'commit_hash', 'run_time', 'config_file_path',
-    'log_file_path', 'map_source_date', 'location_source'
+    CONFIG_DB_ID, CONFIG_COMMIT_HASH, CONFIG_RUN_TIME, CONFIG_FILE_PATH,
+    CONFIG_LOG_FILE_PATH, CONFIG_MAP_SOURCE_DATE, CONFIG_LOCATION_SOURCE,
 ]
 
 @dataclass
@@ -67,7 +70,8 @@ class PollingModelConfig:
     from the data. Should be >= 2. '''
     capacity: float
     '''A multiplicative factor for calculating the capacity constraint. Should be >= 1.
-    Note, if this is not paired with fixed_capacity_site_number, then the capacity changes as a function of number of precincts.'''
+    Note, if this is not paired with fixed_capacity_site_number, then the capacity
+    changes as a function of number of precincts.'''
 
     fixed_capacity_site_number: int
     '''If default number of open precincts if one wants to hold the number
@@ -149,6 +153,7 @@ class PollingModelConfig:
             for key in NON_EMPTY_ARRAYS:
                 array_value = config.get(key)
                 if not isinstance(array_value, list) or len(array_value) == 0:
+                    # pylint: disable-next=line-too-long
                     raise ValueError(f'Config file {config_yaml_path} must specify at least one value for array field {key}.')
 
             result = PollingModelConfig(**config)
