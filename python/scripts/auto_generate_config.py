@@ -1,5 +1,5 @@
-#Example call:
-# python auto_generate_config.py -b 'test_configs\Richmond_city_original_2024.yaml' -f 'year' -n '2014' -n '2016' -n '2018' '2020'
+# Example call:
+# python -m python.scripts.auto_generate_config -b 'datasets/configs/testing/Gwinnett_County_GA_capacity_test/Gwinnett_County_GA_capacity.yaml_template'
 #note that if there is a list of lists to be entered for the last argument, each list needs to be entered separately.
 
 import yaml
@@ -15,7 +15,7 @@ from python.utils.constants import CONFIG_BASE_DIR
 
 def load_base_config(config_file):
     '''Load the base configuration from the provided YAML file.'''
-    with open(config_file, 'r') as file:
+    with open(config_file, 'r', encoding='utf-8') as file:
         return yaml.safe_load(file)
 
 def check_model_fields_match_input(input_config, model_inspect):
@@ -67,7 +67,7 @@ def check_model_and_input_types_match(input_config, model_inspect):
             raise ValueError(f'{key} is of wrong type. See models.model_config.py for correct types.')
     return
 
-def generate_configs(base_config_file:str, config_base_dir = CONFIG_BASE_DIR):#, field_to_vary:str, desired_range: list):
+def generate_configs(base_config_file: str, config_base_dir: str=CONFIG_BASE_DIR, write_to_db: bool=False):
     """
     Generate YAML configurations by varying specified parameters while keeping others constant.
     """
@@ -97,13 +97,17 @@ def generate_configs(base_config_file:str, config_base_dir = CONFIG_BASE_DIR):#,
     config_dir = base_config_file.split(os.path.sep)[-2]
     config_file_name = os.path.splitext(os.path.basename(base_config_file))[0]
     config_name = base_config['config_name']
-    if (config_dir != config_set):
-        raise ValueError(f'Config directory ({config_dir}) should match config_set value ({config_set})')
-    if (config_file_name != config_name):
-        raise ValueError(f'Config file name ({config_file_name}) should match config_name value ({config_name})')
+    if config_dir != config_set:
+        raise ValueError(
+            f'Config directory ({config_dir}) should match config_set value ({config_set})'
+        )
+    if config_file_name != config_name:
+        raise ValueError(
+            f'Config file name ({config_file_name}) should match config_name value ({config_name})'
+        )
 
     #validate varying_field
-    if (not field_to_vary in base_config.keys()):
+    if not field_to_vary in base_config.keys():
         raise ValueError(f'{field_to_vary} not a valid field')
 
     for new_value in desired_range:
@@ -133,22 +137,30 @@ def generate_configs(base_config_file:str, config_base_dir = CONFIG_BASE_DIR):#,
         if os.path.isfile(file_path):
             raise ValueError(f'{file_path} already exists')
 
-        with open(file_path, 'w') as outfile:
+        with open(file_path, 'w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile, default_flow_style=False, sort_keys= False)
 
-        source_config = PollingModelConfig.load_config(file_path)
-        model_config = query.create_db_model_config(source_config)
-        model_config = query.find_or_create_model_config(model_config)
-        query.commit()
+        print(f'Wrote to: {file_path}')
+        if write_to_db:
+            source_config = PollingModelConfig.load_config(file_path)
+            model_config = query.create_db_model_config(source_config)
+            model_config = query.find_or_create_model_config(model_config)
+            query.commit()
 
 
 #Note this doesn't work
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-b','--base_config_path', help="File path of the file to use as the template for the necessary .yaml files. This should not end in .yaml",
+        '-b', '--base_config_path',
+        help='File path of the file to use as the template for the necessary .yaml files. This should not end in .yaml',
+    )
+    parser.add_argument(
+        '-d', '--database',
+        action='store_true',
+        help='Write the configs to the database',
     )
 
     args = parser.parse_args()
-    generate_configs(args.base_config_path)
+    generate_configs(args.base_config_path, write_to_db=args.database)
 
