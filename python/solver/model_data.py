@@ -23,7 +23,6 @@ from python.utils import (
     is_int,
 )
 
-from python.utils.directory_constants import LOCATION_SOURCE_DB
 from python.utils.pull_census_data import pull_census_data
 from python.utils import get_block_source_file_path, get_block_group_block_source_file_path
 from .model_config import PollingModelConfig
@@ -38,9 +37,6 @@ LOCATION_ONLY_COLS = [
     LOC_ONLY_LOCATION_TYPE,
     LOC_ONLY_LAT_LON,
 ]
-
-# Prefix to add to Shape files to join with demographic data.
-GEO_ID_PREFIX = '1000000US'
 
 P3_COLUMNS = [
     CEN20_GEO_ID,
@@ -110,7 +106,7 @@ def get_polling_locations_only(
         locations_only_path_override: str=None,
 ) -> PollingLocationsOnlyResult:
     location_only_set_id: str = None
-    if location_source == LOCATION_SOURCE_DB:
+    if location_source == DATA_SOURCE_DB:
         location_only_set = query.get_location_only_set(location)
         if not location_only_set:
             raise ValueError(f'Could not find location only set for {location} in the database.')
@@ -153,7 +149,7 @@ def get_polling_locations_only(
     #1. add a destination type column
     locations_only_df[LOC_DEST_TYPE] = LOC_ONLY_DEST_TYPE_POLLING
     locations_only_df[LOC_DEST_TYPE].mask(
-        locations_only_df[LOC_ONLY_LOCATION_TYPE].str.contains(LOC_ONLY_POTENTIAL_LOCATION),
+        locations_only_df[LOC_ONLY_LOCATION_TYPE].str.contains(LOC_ONLY_LOCATION_TYPE_POTENTIAL_SUBSTR),
         LOC_ONLY_DEST_TYPE_POTENTIAL,
         inplace=True,
     )
@@ -274,7 +270,7 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
     })
 
     #drop geo_id_prefix
-    demographics[CEN20_GEO_ID] = demographics[CEN20_GEO_ID].str.replace(GEO_ID_PREFIX, EMPTY_STRING)
+    demographics[CEN20_GEO_ID] = demographics[CEN20_GEO_ID].str.replace(TIGER20_GEOID_PREFIX, EMPTY_STRING)
 
     blocks_gdf = get_blocks_gdf(census_year, location)
 
@@ -389,7 +385,7 @@ def build_source(
     #####
 
     if driving:
-        if location_source == LOCATION_SOURCE_DB:
+        if location_source == DATA_SOURCE_DB:
             driving_distance_set = query.find_driving_distance_set(census_year, map_source_date, location)
             if not driving_distance_set:
                 # pylint: disable-next=line-too-long
@@ -538,7 +534,7 @@ def get_polling_locations(
     if not census_year:
         raise ValueError('Invalid Census year for location {location}')
 
-    if location_source == LOCATION_SOURCE_DB:
+    if location_source == DATA_SOURCE_DB:
         print(f'Loading polling locations for {location} from database')
 
         # Load locations from the database
@@ -618,7 +614,7 @@ def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha
         bad_location_list = [
             location_type
             for location_type in unique_location_types
-            if LOC_ONLY_POTENTIAL_LOCATION in location_type or LOC_ONLY_CENTROID_LOCATION in location_type
+            if LOC_ONLY_LOCATION_TYPE_POTENTIAL_SUBSTR in location_type or LOC_ONLY_LOCATION_TYPE_CENTROID_SUBSTR in location_type
         ]
     else:
         bad_location_list = config.bad_types

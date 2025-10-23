@@ -18,7 +18,7 @@ from python.utils import timer
 
 from .constants import (
   LOC_ID_ORIG, LOC_ID_DEST, LOC_TOTAL_POPULATION, LOC_DISTANCE_M,
-  LOC_WEIGHTED_DIST, LOC_DEST_POLLING, LOC_LOCATION_TYPE, LOC_DEST_TYPE, PD_MEAN,
+  LOC_WEIGHTED_DIST, LOC_ONLY_DEST_TYPE_POLLING, LOC_LOCATION_TYPE, LOC_DEST_TYPE, PD_MEAN,
   RESULT_KP_FACTOR, PD_MAX, RESULT_NEW_LOCATION, PD_UNIQUE,
 )
 
@@ -298,7 +298,7 @@ def polling_model_factory(
     max_min = config.max_min_mult * global_max_min_dist
 
     #Calculate number of old polling locations
-    old_polls = len(set(dist_df[dist_df[LOC_DEST_TYPE] == LOC_DEST_POLLING][LOC_ID_DEST]))
+    old_polls = len(set(dist_df[dist_df[LOC_DEST_TYPE] == LOC_ONLY_DEST_TYPE_POLLING][LOC_ID_DEST]))
 
     #Calculate precincts open value from data if not provided by user
     if config.precincts_open is None:
@@ -374,7 +374,7 @@ def polling_model_factory(
     #new location marker
     dist_df[RESULT_NEW_LOCATION] = 0
     dist_df[RESULT_NEW_LOCATION].mask(
-        dist_df[LOC_DEST_TYPE] != LOC_DEST_POLLING,
+        dist_df[LOC_DEST_TYPE] != LOC_ONLY_DEST_TYPE_POLLING,
         1,
         inplace=True,
     )

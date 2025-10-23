@@ -81,7 +81,7 @@ def demographic_domain_summary(result_df: pd.DataFrame, domain: str):
     )
 
     #create a weighted distance column for people of each demographic
-    demographic_all[LOC_WEIGHTED_DIST] = demographic_all[RESULT_DEMO_POP] * demographic_all[LOC_DISTANCE_M]
+    demographic_all[DOMAIN_WEIGHTED_DIST] = demographic_all[RESULT_DEMO_POP] * demographic_all[LOC_DISTANCE_M]
 
     #calculate the total population of each demographic sent to each precinct
     demographic_pop = demographic_all[
@@ -90,14 +90,14 @@ def demographic_domain_summary(result_df: pd.DataFrame, domain: str):
 
     #calculate the total distance traveled by each demographic group
     demographic_dist = demographic_all[
-        [domain, RESULT_DEMOGRAPHIC, LOC_WEIGHTED_DIST]
+        [domain, RESULT_DEMOGRAPHIC, DOMAIN_WEIGHTED_DIST]
     ].groupby([domain, RESULT_DEMOGRAPHIC]).agg(PD_SUM)
 
     #merge the demographic_pop and demographic_dist
     demographic_prec = pd.concat([demographic_dist, demographic_pop], axis=1)
 
     #calculate the average distance
-    demographic_prec[RESULT_AVG_DIST] = demographic_prec[LOC_WEIGHTED_DIST] / demographic_prec[RESULT_DEMO_POP]
+    demographic_prec[RESULT_AVG_DIST] = demographic_prec[DOMAIN_WEIGHTED_DIST] / demographic_prec[RESULT_DEMO_POP]
 
     #add source data back in
     demographic_prec[LOC_SOURCE] = source_value[0]
@@ -115,7 +115,7 @@ def demographic_summary(demographic_df: pd.DataFrame, result_df: pd.DataFrame, b
     source_value = result_df[LOC_SOURCE].unique()
 
     #calculate the total distance traveled by each demographic group
-    demographic_dist = demographic_df[LOC_WEIGHTED_DIST].groupby(RESULT_DEMOGRAPHIC).agg(PD_SUM)
+    demographic_dist = demographic_df[DOMAIN_WEIGHTED_DIST].groupby(RESULT_DEMOGRAPHIC).agg(PD_SUM)
 
     #calculate the total population of each demographic sent to each precinct
     demographic_population = demographic_df[RESULT_DEMO_POP].groupby(RESULT_DEMOGRAPHIC).agg(PD_SUM)
@@ -124,7 +124,7 @@ def demographic_summary(demographic_df: pd.DataFrame, result_df: pd.DataFrame, b
     result = pd.concat([demographic_dist, demographic_population], axis=1)
 
     #for base line comparison, or if config.beta ==0
-    result[RESULT_AVG_DIST] = result[LOC_WEIGHTED_DIST] / result[RESULT_DEMO_POP]
+    result[RESULT_AVG_DIST] = result[DOMAIN_WEIGHTED_DIST] / result[RESULT_DEMO_POP]
 
     if beta !=0:
         #add the distance_m column back in from dist_df
@@ -155,7 +155,7 @@ def demographic_summary(demographic_df: pd.DataFrame, result_df: pd.DataFrame, b
         demographic_ede[RESULT_Y_EDE] = (-1 / (beta * alpha)) * np.log(demographic_ede[RESULT_AVG_KP_WEIGHT])
 
         #merge the datasets
-        result = pd.concat([result[[LOC_WEIGHTED_DIST, RESULT_AVG_DIST]], demographic_ede], axis=1)
+        result = pd.concat([result[[DOMAIN_WEIGHTED_DIST, RESULT_AVG_DIST]], demographic_ede], axis=1)
 
         #add source data back in
         result[LOC_SOURCE] = source_value[0]

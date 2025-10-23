@@ -25,7 +25,8 @@ from python.solver.model_config import PollingModelConfig
 from python.solver import model_run
 from python.database.models import ModelConfig
 from python import utils
-from python.utils.directory_constants import LOCATION_SOURCE_DB, RESULTS_FOLDER_NAME
+from python.solver.constants import DATA_SOURCE_DB
+from python.utils.directory_constants import RESULTS_FOLDER_NAME
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 
@@ -104,7 +105,7 @@ def run_config(
         results_path = os.path.join(RESULTS_FOLDER_NAME, config.config_set)
         print(f'Starting config: {config_info} -> CSV output to directory {results_path}')
 
-    config.location_source = LOCATION_SOURCE_DB
+    config.location_source = DATA_SOURCE_DB
     model_run.run_on_config(config, log, outtype)
     if verbose:
         print(f'Finished config: {config_info}')

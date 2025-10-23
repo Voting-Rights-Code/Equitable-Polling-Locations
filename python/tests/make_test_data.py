@@ -4,6 +4,7 @@ import os
 import pandas as pd
 from random import sample, seed
 
+from python.solver.constants import LOCATION_TYPE_CENTROID_SUBSTR, LOCATION_TYPE_POTENTIAL_SUBSTR
 from python.utils.directory_constants import POLLING_DIR
 from .constants import TESTING_RESULTS_DIR
 
@@ -22,7 +23,7 @@ random_origs = sample(list(df.id_orig.unique()), 10)
 unique_location_types = df['location_type'].unique()
 unique_potentials = [
   loc_type for loc_type in unique_location_types
-  if 'Potential' in loc_type or 'centroid' in loc_type
+  if LOCATION_TYPE_POTENTIAL_SUBSTR in loc_type or LOCATION_TYPE_CENTROID_SUBSTR in loc_type
 ]
 
 #pick 2 random locations of each type

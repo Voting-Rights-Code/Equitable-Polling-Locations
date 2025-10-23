@@ -2,9 +2,6 @@
 
 import os
 
-LOCATION_SOURCE_DB = 'db'
-LOCATION_SOURCE_CSV = 'csv'
-
 RESULTS_FOLDER_NAME = 'results'
 
 POLLING_FOLDER_NAME = 'polling'

@@ -5,6 +5,8 @@ Constants for solver
 UTF8 = 'utf-8'
 ''' Used for python file reads '''
 
+DATA_SOURCE_DB = 'db'
+DATA_SOURCE_CSV = 'csv'
 
 EMPTY_STRING = ''
 ''' An empty string ( len(EMPTY_STRING) = 0 ). Used to clear out values in data frames. '''
@@ -40,8 +42,6 @@ LOC_ONLY_LOCATION_TYPE = 'Location type'
 LOC_ONLY_LAT_LON = 'Lat, Long'
 LOC_ONLY_LATITUDE = 'Latitude'
 LOC_ONLY_LONGITUDE = 'Longitude'
-LOC_ONLY_DEST_TYPE_POLLING = 'polling'
-LOC_ONLY_DEST_TYPE_POTENTIAL = 'potential'
 
 # Location data related column names
 LOC_ID_ORIG = 'id_orig'
@@ -75,12 +75,15 @@ LOC_SOURCE_DRIVING_DISTANCE = 'driving distance'
 ''' A type value for the LOC_LOCATION_TYPE field '''
 LOC_SOURCE_LOG_WITH_SPACE = 'log '
 ''' A type value for the LOC_LOCATION_TYPE field that works with other types (e.g. "log haversine distance") '''
-LOC_DEST_POLLING = 'polling'
-''' A type value for the LOC_DEST_TYPE '''
-LOC_ONLY_POTENTIAL_LOCATION = 'Potential'
+LOC_ONLY_LOCATION_TYPE_POTENTIAL_SUBSTR = 'Potential'
 ''' A flag in the field LOC_ONLY_LOCATION_TYPE indicating a potential location '''
-LOC_ONLY_CENTROID_LOCATION = 'centroid'
+LOC_ONLY_LOCATION_TYPE_CENTROID_SUBSTR = 'centroid'
 ''' A flag in the field LOC_ONLY_LOCATION_TYPE indicating a centroid '''
+LOC_ONLY_DEST_TYPE_POLLING = 'polling'
+LOC_ONLY_DEST_TYPE_POTENTIAL = 'potential'
+
+LOCATION_TYPE_POTENTIAL_SUBSTR = 'Potential'
+LOCATION_TYPE_CENTROID_SUBSTR = 'centroid'
 
 
 
@@ -111,11 +114,13 @@ CEN20_NON_HISPANIC = 'P4_003N'
 ''' Total non_hispanic '''
 
 # Census Block related constants
+TIGER20_GEOID_PREFIX = '1000000US'
 TIGER20_GEOID20 = 'GEOID20'
 TIGER20_INTPTLAT20 = 'INTPTLAT20'
 TIGER20_INTPTLON20 = 'INTPTLON20'
 TIGER20_BG_CENTROID = 'bg_centroid'
 TIGER20_POP_DIFF = 'Pop_diff'
+
 
 # Results related constants
 RESULT_MATCHING = 'matching'
@@ -127,6 +132,8 @@ RESULT_Y_EDE = 'y_EDE'
 RESULT_NEW_LOCATION = 'new_location'
 RESULT_AVG_DIST = 'avg_dist'
 RESULT_KP_FACTOR = 'kp_factor'
+
+DOMAIN_WEIGHTED_DIST = 'weighted_dist'
 
 # DB Column related constants
 DB_LOCATION = 'location'
