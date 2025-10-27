@@ -12,8 +12,6 @@ import googlemaps
 import json
 from haversine import haversine, Unit
 
-import python.utils.csv_constants as headers
-
 API_KEY_FILENAME = 'api.key'
 
 GEO_CODE_PAUSE_TIME = 0.1
@@ -25,12 +23,29 @@ The distance threshold between the original lat/lon and Google's.
 If this value is exceeded then the row will be marked with an error in the output file.
 '''
 
+ID_COL = 'id'
+ADDRESS_COL = 'address'
+CITY_COL = 'city'
+ZIP_COL = 'zip'
+STATE_COL = 'state'
+
+
 # Google maps geocode api query result keys
 GOOGLE_MAPS_GEOMETRY = 'geometry'
 GOOGLE_MAPS_LOCATION = 'location'
 GOOGLE_MAPS_ADDR_FORMATED = 'formatted_address'
 GOOGLE_MAPS_LAT = 'lat'
 GOOGLE_MAPS_LON = 'lng'
+GOOGLE_LAT_COL = 'google_lat'
+GOOGLE_LON_COL = 'google_lon'
+GOOGLE_ADDR_FORMATED_COL = 'google_address'
+
+BING_LAT_COL = 'bing_lat'
+BING_LON_COL = 'bing_lon'
+
+QC_DISTANCE = ''
+WITHIN_THRESHOLD_COL = 'within_threshold'
+
 
 class InvalidGecodeResult(Exception):
     pass
@@ -67,7 +82,7 @@ def validate_csv(api_key: str, source_file: str, dest_file: str):
         row_dict = row.to_dict()
 
         # Don't query google if we have the lat lon already.
-        already_geocoded = row_dict.get(headers.GOOGLE_LAT_COL) and row_dict.get(headers.GOOGLE_LAT_COL)
+        already_geocoded = row_dict.get(GOOGLE_LAT_COL) and row_dict.get(GOOGLE_LAT_COL)
         if already_geocoded:
             geo_code_result = {}
         else:
@@ -75,8 +90,8 @@ def validate_csv(api_key: str, source_file: str, dest_file: str):
 
         output_row = { **row_dict, **geo_code_result }
 
-        output_row[headers.QC_DISTANCE] = compute_distance(output_row)
-        output_row[headers.WITHIN_THRESHOLD_COL] = is_within_threadhold(output_row)
+        output_row[QC_DISTANCE] = compute_distance(output_row)
+        output_row[WITHIN_THRESHOLD_COL] = is_within_threadhold(output_row)
 
         print(json.dumps(output_row, indent=4))
 
@@ -96,14 +111,14 @@ def write_results_file(dest_file: str, data: list):
 
 
 def is_within_threadhold(row: dict) -> bool:
-    return row[headers.QC_DISTANCE] <= VALID_TRESHOLD_METERS
+    return row[QC_DISTANCE] <= VALID_TRESHOLD_METERS
 
 
 def compute_distance(output_row: dict) -> int:
     ''' Compute the distance from the source file's lat and lon to google's geocoded lat and lon '''
 
-    source_point = (output_row[headers.LAT_COL], output_row[headers.LON_COL])
-    google_point = (output_row[headers.GOOGLE_LAT_COL], output_row[headers.GOOGLE_LON_COL])
+    source_point = (output_row[BING_LAT_COL], output_row[BING_LON_COL])
+    google_point = (output_row[GOOGLE_LAT_COL], output_row[GOOGLE_LON_COL])
 
     distance = haversine(source_point, google_point, unit=Unit.METERS)
     return round(distance)
@@ -112,11 +127,11 @@ def compute_distance(output_row: dict) -> int:
 def make_query_address(row) -> str:
     ''' Parse out the address fields from the source csv and create a google api friendly address string '''
 
-    id_col = row[headers.ID_COL]
-    address_col = row[headers.ADDRESS_COL]
-    city_col = row[headers.CITY_COL]
-    state_col = row[headers.STATE_COL]
-    zip_col = row[headers.ZIP_COL]
+    id_col = row[ID_COL]
+    address_col = row[ADDRESS_COL]
+    city_col = row[CITY_COL]
+    state_col = row[STATE_COL]
+    zip_col = row[ZIP_COL]
     address = f'{id_col} {address_col}, {city_col}, {state_col} {zip_col}'
 
     return address
@@ -145,9 +160,9 @@ def parse_google_geocode(query_result: dict) -> dict:
     # print(location)
 
     return {
-        headers.GOOGLE_LAT_COL: lat,
-        headers.GOOGLE_LON_COL: lon,
-        headers.GOOGLE_ADDR_FORMATED_COL: google_address,
+        GOOGLE_LAT_COL: lat,
+        GOOGLE_LON_COL: lon,
+        GOOGLE_ADDR_FORMATED_COL: google_address,
     }
 
 

@@ -13,8 +13,11 @@ from python.database import models, query, imports
 from python.database.imports import print_all_import_results
 
 from python.solver.model_config import PollingModelConfig
-from python.utils import build_precinct_summary_file_path, build_residence_summary_file_path, build_results_file_path, build_y_ede_summary_file_path, current_time_utc
-from python.utils.constants import RESULTS_BASE_DIR
+from python.utils import (
+    build_precinct_summary_file_path, build_residence_summary_file_path,
+    build_results_file_path, build_y_ede_summary_file_path, current_time_utc,
+)
+from python.utils.directory_constants import RESULTS_BASE_DIR
 
 MODEL_RUN_ID = 'model_run_id'
 

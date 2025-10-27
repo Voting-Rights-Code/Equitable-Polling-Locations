@@ -11,11 +11,12 @@ from sqlalchemy import inspect, sql
 from python.database import query
 from python.solver.model_config import PollingModelConfig
 from python.database import models as Models
-from python.utils.constants import CONFIG_BASE_DIR
+from python.utils.directory_constants import CONFIG_BASE_DIR
+from python.solver.constants import UTF8
 
 def load_base_config(config_file):
     '''Load the base configuration from the provided YAML file.'''
-    with open(config_file, 'r', encoding='utf-8') as file:
+    with open(config_file, 'r', encoding=UTF8) as file:
         return yaml.safe_load(file)
 
 def check_model_fields_match_input(input_config, model_inspect):
@@ -57,9 +58,15 @@ def check_model_and_input_types_match(input_config, model_inspect):
         if isinstance(input_config[key], list) and isinstance(model_types[key], sql.sqltypes.ARRAY):
             if len(input_config[key]) == 0:
                 continue
-            elif all(isinstance(x, str) for x in input_config[key]) and isinstance(model_types[key].item_type, sql.sqltypes.String):
+            elif (
+                all(isinstance(x, str) for x in input_config[key])
+                and isinstance(model_types[key].item_type, sql.sqltypes.String)
+            ):
                 continue
-        if isinstance(input_config[key], (int, float)) and isinstance(model_types[key], (sql.sqltypes.Float, sql.sqltypes.Integer)):
+        if (
+            isinstance(input_config[key], (int, float))
+            and isinstance(model_types[key], (sql.sqltypes.Float, sql.sqltypes.Integer))
+        ):
             continue
         if isinstance(input_config[key], bool) and isinstance(model_types[key], sql.sqltypes.Boolean):
             continue
