@@ -155,7 +155,6 @@ def main(args: argparse.Namespace):
 
         # pylint: disable-next=broad-exception-caught
         except Exception as e:
-            raise e
             query.rollback()
             result =  ImportResult(
                 config_set=location,

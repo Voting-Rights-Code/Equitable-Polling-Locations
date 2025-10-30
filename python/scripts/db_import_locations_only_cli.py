@@ -127,7 +127,7 @@ Examples:
     To import locations only for Contained_in_Madison_City_of_WI and Intersecting_Madison_City_of_WI
 :
 
-        python ./db_import_locations_only_cli.py Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
+        python -m python.scripts.db_import_locations_only_cli Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
         '''
     )
     parser.add_argument('-e', '--environment', type=str, help='The environment to use')
