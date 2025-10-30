@@ -7,10 +7,11 @@ import os
 import sys
 
 from python.database.models import DrivingDistance
-from python.database import query
+from python.database.query import Query
 from python.database.imports import csv_to_bigquery, ImportResult, print_all_import_results
 
 from python.utils import is_int
+from python.utils.environments import Environment, load_env
 from python.utils.utils import build_driving_distances_file_path
 
 DEFAULT_LOG_DIR='logs'
@@ -20,6 +21,7 @@ IMPORT_ERROR_LOG_FILE='driving_distance_import_errors.csv'
 DISTANCE_FILE_SUFFIX = '_driving_distances.csv'
 
 def import_distances(
+    environment: Environment,
     location: str,
     driving_distance_set_id: str,
     csv_path: str,
@@ -30,6 +32,7 @@ def import_distances(
     add_columns = { 'driving_distance_set_id': driving_distance_set_id, 'source': 'driving distance' }
 
     return csv_to_bigquery(
+        environment=environment,
         config_set=location,
         config_name=csv_path,
         model_class=DrivingDistance,
@@ -46,7 +49,7 @@ def main(args: argparse.Namespace):
 
     logdir = args.logdir
 
-
+    environment = load_env(args.environment)
     locations: list[str] = args.locations
     census_year: str = args.census_year[0]
 
@@ -64,12 +67,14 @@ def main(args: argparse.Namespace):
 
 
     print('------------------------------------------')
-    print(f'Importing {num_imports} driving distance(s)\n')
+    print(f'Importing {num_imports} driving distance(s) into {environment}\n')
 
 
     results = []
 
     for i, location in enumerate(locations):
+        query = Query(environment)
+
         distance_file_path = build_driving_distances_file_path(census_year, map_source_date, location)
 
         print(f'Loading [{i+1}/{num_imports}] {distance_file_path}')
@@ -80,6 +85,7 @@ def main(args: argparse.Namespace):
         print(f'Importing driving distances from {distance_set}')
 
         import_distances_result = import_distances(
+            environment=environment,
             location=location,
             driving_distance_set_id=distance_set.id,
             csv_path=distance_file_path,
@@ -129,6 +135,7 @@ Examples:
     parser.add_argument('census_year', nargs=1, help='The year of the census data used to generate the distances')
     # Removed since map_source_date is not fully implemented
     # parser.add_argument('map_source_date', nargs=1, help='The date (YYYYMMDD) of the map data used to generate the distances')
+    parser.add_argument('-e', '--environment', type=str, help='The environment to use')
     parser.add_argument('locations', nargs='+', help='One or more locations to import for the specifed census year and map date')
     parser.add_argument('-l', '--logdir', default=DEFAULT_LOG_DIR, type=str, help='The directory to error files to ')
 

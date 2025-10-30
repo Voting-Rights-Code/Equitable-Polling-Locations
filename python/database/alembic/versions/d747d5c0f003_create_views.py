@@ -9,9 +9,10 @@ from typing import Sequence, Union
 
 from alembic import op
 
-from python.database.sqlalchemy_main import ReplaceableObject, get_db_dataset
+from python.database.sqlalchemy_main import ReplaceableObject
 
-DATASET = get_db_dataset()
+config = op.get_context().config
+db_dataset = config.get_main_option('DB_DATASET')
 
 # revision identifiers, used by Alembic.
 revision: str = 'd747d5c0f003'
@@ -28,7 +29,7 @@ model_config_runs = ReplaceableObject(
                 *,
                 ROW_NUMBER() OVER (PARTITION BY config_set, config_name ORDER BY created_at DESC) AS rn
             FROM
-                {DATASET}.model_configs
+                {db_dataset}.model_configs
         )
         SELECT
             lc.*,
@@ -41,14 +42,14 @@ model_config_runs = ReplaceableObject(
                 r.model_config_id,
                 MAX(r.created_at) AS max_timestamp
             FROM
-                {DATASET}.model_runs r
+                {db_dataset}.model_runs r
             WHERE
                 r.success = TRUE
             GROUP BY
                 r.model_config_id
         ) AS latest_run
             ON lc.id = latest_run.model_config_id
-        INNER JOIN {DATASET}.model_runs r ON
+        INNER JOIN {db_dataset}.model_runs r ON
             lc.id = r.model_config_id AND
             r.created_at = latest_run.max_timestamp
         WHERE
@@ -67,8 +68,8 @@ edes_extra_view = ReplaceableObject(
             c.id as config_id,
             c.config_set,
             c.config_name
-        FROM {DATASET}.edes e
-        LEFT JOIN {DATASET}.model_config_runs c
+        FROM {db_dataset}.edes e
+        LEFT JOIN {db_dataset}.model_config_runs c
             ON e.model_run_id = c.model_run_id
     ''')
 
@@ -83,8 +84,8 @@ precinct_distances_extra_view = ReplaceableObject(
             c.id as config_id,
             c.config_set,
             c.config_name
-        FROM {DATASET}.precinct_distances p
-        LEFT JOIN {DATASET}.model_config_runs c
+        FROM {db_dataset}.precinct_distances p
+        LEFT JOIN {db_dataset}.model_config_runs c
             ON p.model_run_id = c.model_run_id;
     ''')
 
@@ -99,8 +100,8 @@ residence_distances_extra_view = ReplaceableObject(
             c.id as config_id,
             c.config_set,
             c.config_name
-        FROM {DATASET}.residence_distances r
-        LEFT JOIN {DATASET}.model_config_runs c
+        FROM {db_dataset}.residence_distances r
+        LEFT JOIN {db_dataset}.model_config_runs c
             ON r.model_run_id = c.model_run_id
     ''')
 
@@ -115,8 +116,8 @@ result_extra_view = ReplaceableObject(
             c.id as config_id,
             c.config_set,
             c.config_name
-        FROM {DATASET}.results r
-        LEFT JOIN {DATASET}.model_config_runs c
+        FROM {db_dataset}.results r
+        LEFT JOIN {db_dataset}.model_config_runs c
             ON r.model_run_id = c.model_run_id
     ''')
 

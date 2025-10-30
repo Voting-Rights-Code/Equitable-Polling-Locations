@@ -16,6 +16,7 @@ from .constants import (
     CONFIG_DB_ID, CONFIG_COMMIT_HASH, CONFIG_RUN_TIME, CONFIG_FILE_PATH, CONFIG_LOG_FILE_PATH,
     CONFIG_MAP_SOURCE_DATE, CONFIG_LOCATION_SOURCE, CONFIG_YEAR, CONFIG_BAD_TYPES, CONFIG_PENALIZED_SITES,
 )
+from python.utils.environments import Environment
 
 MODEL_CONFIG_ARRAY_NAMES = [CONFIG_YEAR, CONFIG_BAD_TYPES, CONFIG_PENALIZED_SITES]
 ''' These PollingModelConfig variables are expected to be arrays, not None '''
@@ -23,10 +24,14 @@ MODEL_CONFIG_ARRAY_NAMES = [CONFIG_YEAR, CONFIG_BAD_TYPES, CONFIG_PENALIZED_SITE
 NON_EMPTY_ARRAYS = [CONFIG_YEAR]
 ''' These PollingModelConfig variables are expected to be non-empty arrays. '''
 
+
+ENVIRONMENT = 'environment'
+
 # For now map_source_date is not required, map_source_date is for future proofing
 IGNORE_ON_LOAD = [
     CONFIG_DB_ID, CONFIG_COMMIT_HASH, CONFIG_RUN_TIME, CONFIG_FILE_PATH,
     CONFIG_LOG_FILE_PATH, CONFIG_MAP_SOURCE_DATE, CONFIG_LOCATION_SOURCE,
+    ENVIRONMENT,
 ]
 
 @dataclass
@@ -113,6 +118,10 @@ class PollingModelConfig:
 
     map_source_date: str = None
     ''' The date (YYYYMMDD) of the maps source to use if driving distances are used. '''
+
+    environment: Environment = None
+    ''' Environment configs, specifically on which bigquery project and dataset
+        to use when connectingt to the database. '''
 
     def __post_init__(self):
         self.varnames = list(vars(self).keys()) # Not sure if this will work, let's see

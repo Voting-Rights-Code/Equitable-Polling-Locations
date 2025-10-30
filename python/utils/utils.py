@@ -71,31 +71,6 @@ def is_str(value):
 def is_boolean(value):
     return isinstance(value, bool)
 
-MEMORIZED_ENV_VALUES = None
-
-def get_env_var_or_prompt(var_name: str, default_value: str=None) -> str:
-    '''
-    Gets an environment variable or prompts the user for input.
-
-    Args:
-        var_name (str): The name of the environment variable.
-
-    Returns:
-        str: The value of the environment variable or the user's input.
-    '''
-    global MEMORIZED_ENV_VALUES
-    if not MEMORIZED_ENV_VALUES:
-        MEMORIZED_ENV_VALUES = {}
-    value = MEMORIZED_ENV_VALUES.get(var_name) or os.environ.get(var_name)
-    if not value:
-        if default_value:
-            prompt_default = f' [Default: {default_value}]'
-        else:
-            prompt_default = ''
-        value = input(f'Environment variable not found for {var_name}\nPlease enter the value{prompt_default}: ')
-        MEMORIZED_ENV_VALUES[var_name] = value
-    return value or default_value
-
 
 def build_results_file_path(result_path: str, config_name: str) -> str:
     ''' Builds the path for the optimization results csv file. '''

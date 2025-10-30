@@ -12,7 +12,7 @@ import os
 from haversine import haversine
 import geopandas as gpd
 
-from python.database import query
+from python.database.query import Query
 from python.utils import (
     build_driving_distances_file_path,
     build_locations_only_file_path,
@@ -21,10 +21,12 @@ from python.utils import (
     build_p3_source_file_path,
     build_p4_source_file_path,
     is_int,
+    get_block_source_file_path,
+    get_block_group_block_source_file_path,
+    timer,
 )
 
 from python.utils.pull_census_data import pull_census_data
-from python.utils import get_block_source_file_path, get_block_group_block_source_file_path
 from .model_config import PollingModelConfig
 
 # pylint: disable-next=wildcard-import,unused-wildcard-import
@@ -104,6 +106,7 @@ def get_polling_locations_only(
         location_source: Literal['db', 'csv'],
         location: str,
         locations_only_path_override: str=None,
+        query: Query=None,
 ) -> PollingLocationsOnlyResult:
     location_only_set_id: str = None
     if location_source == DATA_SOURCE_DB:
@@ -312,6 +315,7 @@ class BuildSourceResult:
 #build distance data set from census data and potential pollig location data.
 #using driving distances if driving = True
 
+@timer
 def build_source(
     location_source: Literal['db', 'csv'],
     census_year: str,
@@ -323,14 +327,25 @@ def build_source(
     log: bool = False,
     locations_only_path_override: str=None,
     output_path_override: str=None,
+    query: Query=None,
 ) -> BuildSourceResult:
-    locations_only_results = get_polling_locations_only(location_source, location, locations_only_path_override)
+    locations_only_results = get_polling_locations_only(
+        location_source,
+        location,
+        locations_only_path_override,
+        query=query,
+    )
     locations_only_df = locations_only_results.locations_only
 
     if not is_int(census_year):
-        raise ValueError(f'Invalid Census year {census_year} for location {location}')
+        raise ValueError(
+            f'Invalid Census year {census_year} for location {location}'
+        )
 
     if not output_path_override:
+        output_path = build_locations_distance_file_path(
+            census_year, location, driving, log_distance,
+        )
         output_path = build_locations_distance_file_path(
             census_year, location, driving, log_distance,
         )
@@ -386,14 +401,24 @@ def build_source(
 
     if driving:
         if location_source == DATA_SOURCE_DB:
-            driving_distance_set = query.find_driving_distance_set(census_year, map_source_date, location)
+            driving_distance_set = query.find_driving_distance_set(
+                census_year,
+                map_source_date,
+                location,
+            )
             if not driving_distance_set:
                 # pylint: disable-next=line-too-long
-                raise ValueError('DrivingDistance set not found in database for census_year {census_year}, map_source_date {map_source_date}, location {location}.')
+                raise ValueError(
+                    'DrivingDistance set not found in database for census_year {census_year}, map_source_date {map_source_date}, location {location}.',
+                )
             result.driving_distance_set_id = driving_distance_set.id
-            driving_distances_df = get_db_driving_distances(driving_distance_set.id)
+            driving_distances_df = get_db_driving_distances(query, driving_distance_set.id)
         else:
-            driving_distances_df = get_csv_driving_distances(census_year, map_source_date, location)
+            driving_distances_df = get_csv_driving_distances(
+                census_year,
+                map_source_date,
+                location,
+            )
 
         full_df = insert_driving_distances(full_df, driving_distances_df)
     else:
@@ -418,8 +443,9 @@ def build_source(
     full_df[LOC_ID_ORIG] = full_df[LOC_ID_ORIG].astype(str)
     full_df[LOC_ID_DEST] = full_df[LOC_ID_DEST].astype(str)
 
-    if not os.path.exists(output_path):
-        os.makedirs(os.path.basename(output_path))
+    output_dir = os.path.basename(output_path)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     full_df.to_csv(output_path, index = True)
     return result
@@ -470,7 +496,7 @@ def get_csv_driving_distances(census_year: str, map_source_date: str, location: 
     return load_driving_distances_csv(driving_distance_file_path)
 
 
-def get_db_driving_distances(driving_distance_set_id: str) -> pd.DataFrame:
+def get_db_driving_distances(query: Query, driving_distance_set_id: str) -> pd.DataFrame:
     driving_distances = query.get_driving_distances(driving_distance_set_id)
     if driving_distances.empty:
         raise ValueError(f'No driving distances for distance set {driving_distance_set_id}.')
@@ -518,14 +544,71 @@ def load_driving_distances_csv(path: str) -> pd.DataFrame:
 @dataclass
 class PollingLocationResults:
     polling_locations: pd.DataFrame
-    polling_locations_set_id: str=None
+    polling_locations_set_id: str = None
 
+def get_polling_locations_csv(
+        census_year: str,
+        location: str,
+        log_distance: bool,
+        driving: bool,
+        log: bool,
+) -> PollingLocationResults | None:
+    file_path = build_locations_distance_file_path(census_year, location, driving, log_distance)
+
+    if not os.path.isfile(file_path):
+        return None
+
+    if log:
+        print(f'Loading polling locations for {location} from {file_path}')
+
+    df = load_locations_csv(file_path)
+
+    return PollingLocationResults(
+        polling_locations=df,
+    )
+
+
+def get_polling_locations_db(
+        census_year: str,
+        location: str,
+        log_distance: bool,
+        driving: bool,
+        query: Query,
+        log: bool,
+) -> PollingLocationResults:
+    if log:
+        print(f'Loading polling locations for {location} from database')
+
+    # Load locations from the database
+    polling_locations_set = query.get_location_set(census_year, location, log_distance, driving)
+    if not polling_locations_set:
+        raise ValueError(
+            # pylint: disable-next=line-too-long
+            f'Could not find location set for census_year: {census_year}, location: {location}, log_distance: {log_distance}, driving: {driving} in the database. To import the data to the database, run python.scripts.db_import_locations_cli with the desired parameters.',
+        )
+
+    df = query.get_locations(
+        polling_locations_set_id=polling_locations_set.id,
+    )
+
+    # Remove aditional columns that are specific to the database
+    del df['polling_locations_set_id']
+
+    return PollingLocationResults(
+        polling_locations=df,
+        polling_locations_set_id=polling_locations_set.id,
+    )
+
+
+@timer
 def get_polling_locations(
     location_source: Literal['db', 'csv'],
     census_year: str,
     location: str,
     log_distance: bool,
     driving: bool,
+    query: Query=None,
+    log: bool=False,
 ) -> PollingLocationResults:
     '''
     Loads the polling locations data either from local files or from the database based on config settings.
@@ -534,41 +617,33 @@ def get_polling_locations(
     if not census_year:
         raise ValueError('Invalid Census year for location {location}')
 
-    if location_source == DATA_SOURCE_DB:
-        print(f'Loading polling locations for {location} from database')
+    # Attempt to get the locations locally first
+    results = get_polling_locations_csv(
+        census_year=census_year, location=location, log_distance=log_distance, driving=driving, log=log,
+    )
 
-        # Load locations from the database
-        polling_locations_set = query.get_location_set(census_year, location, log_distance, driving)
-        if not polling_locations_set:
-            # pylint: disable-next=line-too-long
-            raise ValueError(f'Could not find location set for census_year: {census_year}, location: {location}, log_distance: {log_distance}, driving: {driving} in the database. To import the data to the database, run python.scripts.db_import_locations_cli with the desired parameters.')
+    if results:
+        return results
 
-        df = query.get_locations(
-            polling_locations_set_id=polling_locations_set.id,
-        )
+    if location_source != DATA_SOURCE_DB:
+        # pylint: disable-next=line-too-long
+        raise ValueError(f'Polling location data cannot be found for census_year={census_year}, log_distance={log_distance}, driving={driving}, location {location}')
 
-        # Remove aditional columns that are specific to the database
-        del df['polling_locations_set_id']
+    results = get_polling_locations_db(
+        census_year=census_year, location=location, log_distance=log_distance, driving=driving, query=query, log=log,
+    )
 
-        return PollingLocationResults(
-            polling_locations=df,
-            polling_locations_set_id=polling_locations_set.id,
-        )
+    # Write the locations out locally
+    output_path = build_locations_distance_file_path(
+        census_year, location, driving, log_distance,
+    )
 
-    else:
-        file_path = build_locations_distance_file_path(
-            census_year, location, driving, log_distance,
-        )
-        print(f'Loading polling locations for {location} from {file_path}')
+    output_dir = os.path.basename(output_path)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    results.polling_locations.to_csv(output_path, index=True)
 
-        if not os.path.isfile(file_path):
-            raise ValueError(f'Do not currently have any data for {file_path} from location {location}')
-
-        df = load_locations_csv(file_path)
-
-        return PollingLocationResults(
-            polling_locations=df,
-        )
+    return results
 
 
 def clean_dest_type(locations_df: pd.DataFrame, year_list: list[str]):

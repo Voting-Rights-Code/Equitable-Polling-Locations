@@ -16,27 +16,28 @@ import argparse
 import datetime
 from multiprocessing import Pool
 import os
+from functools import partial
 import sys
 
 from tqdm import tqdm
 
-from python.database import query
+from python.database.query import Query
 from python.solver.model_config import PollingModelConfig
 from python.solver import model_run
 from python.database.models import ModelConfig
 from python import utils
 from python.solver.constants import DATA_SOURCE_DB
 from python.utils.directory_constants import RESULTS_FOLDER_NAME
+from python.utils.environments import load_env, Environment
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 
-def load_configs(config_args: list[str], logdir: str) -> list[PollingModelConfig]:
+def load_configs(config_args: list[str], logdir: str, environment: Environment=None) -> list[PollingModelConfig]:
     ''' Loads configs from the db '''
+
+    query = Query(environment)
+
     # valid = True
-    results: list[PollingModelConfig] = []
-
-    # log_date_prefix = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-
     results: list[PollingModelConfig] = []
 
     log_date_prefix = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
@@ -69,13 +70,15 @@ def load_configs(config_args: list[str], logdir: str) -> list[PollingModelConfig
             sys.exit(1)
 
         for config in configs:
-            # Convert the db config into a legacy polling model config object
+            # Convert the db config into a polling model config object
             polling_model_config = query.create_polling_model_config(config)
+            polling_model_config.environment = environment
 
             if logdir:
                 # Setup logs as needed
                 # pylint: disable-next=line-too-long
                 log_file_name = f'{log_date_prefix}_db_run_{polling_model_config.db_id}_{polling_model_config.config_set}_{polling_model_config.config_name}.log'
+                log_file_name = log_file_name.replace('/', '_')
                 polling_model_config.log_file_path = os.path.join(
                     logdir,
                     log_file_name,
@@ -84,15 +87,16 @@ def load_configs(config_args: list[str], logdir: str) -> list[PollingModelConfig
             results.append(polling_model_config)
 
             print(f'Config: {config.id} {config.config_set}/{config.config_name}')
+            print(polling_model_config.log_file_path)
 
     return results
 
 
 def run_config(
-        config: PollingModelConfig,
-        log: bool=False,
-        outtype: Literal['db', 'csv']=model_run.OUT_TYPE_DB,
-        verbose=False,
+    config: PollingModelConfig,
+    log: bool=False,
+    outtype: Literal['db', 'csv']=model_run.OUT_TYPE_DB,
+    verbose=False,
 ):
     ''' run a config file '''
 
@@ -118,8 +122,11 @@ def main(args: argparse.Namespace):
     outtype = args.outtype
     if outtype == model_run.OUT_TYPE_DB:
         #Force the database prompt immediately upon run, if running on DB
-        utils.get_env_var_or_prompt('DB_PROJECT', default_value='equitable-polling-locations')
-        utils.get_env_var_or_prompt('DB_DATASET')
+        # utils.get_env_var_or_prompt('DB_PROJECT', default_value='equitable-polling-locations')
+        # utils.get_env_var_or_prompt('DB_DATASET')
+        environment = load_env(args.environment)
+    else:
+        environment = None
 
     if logdir:
         if not os.path.exists(logdir):
@@ -130,7 +137,7 @@ def main(args: argparse.Namespace):
 
 
     # Check that all files are valid, exist if they do not exist
-    configs = load_configs(args.configs, logdir)
+    configs = load_configs(args.configs, logdir, environment)
 
     total_files: int = len(configs)
 
@@ -139,10 +146,19 @@ def main(args: argparse.Namespace):
     verbose: bool = args.verbose > 1
 
     if args.concurrent > 1:
-        print(f'Running concurrent with a pool size of {args.concurrent} against {total_files} config file(s)')
+        worker_func = partial(
+            run_config,
+            log=log,
+            outtype=outtype,
+            verbose=verbose
+        )
+
+        # pylint: disable-next=line-too-long
+        print(f'Running concurrent with a pool size of {args.concurrent} against {total_files} config file(s). Environment {environment}')
         with Pool(args.concurrent) as pool:
             for _ in tqdm(
-                pool.imap_unordered(lambda x: run_config(x, log, outtype, verbose), configs), total=total_files
+                pool.imap_unordered(worker_func, configs),
+                total=total_files,
             ):
                 pass
     else:
@@ -154,7 +170,8 @@ def main(args: argparse.Namespace):
 
         for config_file in configs:
             run_config(config_file, log, outtype, verbose)
-            print('--------------------------------------------------------------------------------')
+            if log:
+                print('--------------------------------------------------------------------------------')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -178,12 +195,14 @@ Examples:
         python -m python.scripts.model_run_db_cli -l logs York_County_SC_original_configs_log/York_County_SC_year_2016
         '''
     )
+    # pylint: disable-next=line-too-long
     parser.add_argument(
         'configs',
         nargs='+',
         # pylint: disable-next=line-too-long
         help='One or more config sets and optionally config names. e.g. York_County_SC_original_configs_log/York_County_SC_year_2016',
     )
+    parser.add_argument('-e', '--environment', type=str, help='The environment to use')
     parser.add_argument(
         '-c',
         '--concurrent',

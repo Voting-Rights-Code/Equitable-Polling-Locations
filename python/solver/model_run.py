@@ -12,6 +12,7 @@ import os
 import warnings
 
 
+from python.database.query import Query
 from python.utils import build_locations_distance_file_path
 from python.utils.directory_constants import LOCATION_SOURCE_CSV, RESULTS_BASE_DIR
 
@@ -55,6 +56,7 @@ def prepare_run(config: PollingModelConfig, log: bool=False) -> RunSetup:
         config.log_distance,
     )
 
+    query: Query = None
     # If we are using local files, build the source data if it doesn't already exist
     if config.location_source == LOCATION_SOURCE_CSV:
         if not os.path.exists(source_path):
@@ -68,6 +70,8 @@ def prepare_run(config: PollingModelConfig, log: bool=False) -> RunSetup:
                 map_source_date=config.map_source_date,
                 log=log,
             )
+    else:
+        query = Query(config.environment)
 
     polling_locations = get_polling_locations(
         location_source=config.location_source,
@@ -75,6 +79,8 @@ def prepare_run(config: PollingModelConfig, log: bool=False) -> RunSetup:
         location=config.location,
         log_distance=config.log_distance,
         driving=config.driving,
+        query=query,
+        log=log,
     )
 
     polling_locations_set_id = polling_locations.polling_locations_set_id
@@ -144,8 +150,10 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str=OUT_
     demographic_ede = demographic_summary(demographic_res, result_df, config.beta, alpha_new)
 
     if outtype == OUT_TYPE_DB:
+        query = Query(config.environment)
         write_results_bigquery(
             config=config,
+            query=query,
             polling_locations_set_id=run_setup.polling_locations_set_id,
             result_df=result_df,
             demographic_prec=demographic_prec,
