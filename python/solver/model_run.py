@@ -14,9 +14,9 @@ import warnings
 
 from python.database.query import Query
 from python.utils import build_locations_distance_file_path
-from python.utils.directory_constants import LOCATION_SOURCE_CSV, RESULTS_BASE_DIR
+from python.utils.directory_constants import RESULTS_BASE_DIR
 
-from .constants import LOC_ID_DEST, LOC_ID_ORIG
+from .constants import LOC_ID_DEST, LOC_ID_ORIG, DATA_SOURCE_CSV
 
 from .run_setup import RunSetup
 
@@ -58,11 +58,11 @@ def prepare_run(config: PollingModelConfig, log: bool=False) -> RunSetup:
 
     query: Query = None
     # If we are using local files, build the source data if it doesn't already exist
-    if config.location_source == LOCATION_SOURCE_CSV:
+    if config.location_source == DATA_SOURCE_CSV:
         if not os.path.exists(source_path):
             warnings.warn(f'File {source_path} not found. Creating it.')
             build_source(
-                location_source=LOCATION_SOURCE_CSV,
+                location_source=DATA_SOURCE_CSV,
                 census_year=config.census_year,
                 location=config.location,
                 driving=config.driving,
