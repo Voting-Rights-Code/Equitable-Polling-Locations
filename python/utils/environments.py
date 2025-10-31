@@ -57,7 +57,7 @@ def load_env(name: str=None) -> Environment:
     if not os.path.isfile(SETTINGS_PATH):
         print(f'Could not find {SETTINGS_PATH}')
 
-        raise FileNotFoundError(f'Could not find config file: {SETTINGS_PATH}')
+        raise FileNotFoundError(f'Could not find environment settings file: {SETTINGS_PATH}.')
 
     with open(SETTINGS_PATH, 'r', encoding='utf-8') as f:
         all_configs: dict = yaml.safe_load(f)
