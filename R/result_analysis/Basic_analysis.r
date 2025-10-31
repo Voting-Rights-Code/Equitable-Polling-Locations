@@ -34,22 +34,21 @@ source('R/result_analysis/utility_functions/regression_functions.R')
 #      functions in this file that uses this constant and their ouputs are 
 #      adjusted to ignore this input or return NULL.
 #     3. Note: for now, this only works for a unique location. Extending this to the location being the varying field is still a TODO.
+#     4. run 
 #######
 
 # args = commandArgs(trailingOnly = TRUE)
 # if (length(args) != 1){
-#     stop("Must enter exactly one config file")
-# } else{#read constants from indicated config file
+#      stop("Must enter exactly one config file") 
+#     } else{#read constants from indicated config file
 #     config_path <- paste0('R/result_analysis/Basic_analysis_configs/', args[1])
 #     source(config_path)
-#  }
+# }
 
 ###
 #For inline testing only
 ###
 source('R/result_analysis/Basic_analysis_configs/Tarrant_County_original_and_fair_capacity_2.r')
-
-#source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
 
 #######
 #Check that location and folders valid
@@ -182,9 +181,9 @@ plot_historic_edes(orig_output_df_list$edes)
 orig_pop_scaled_edes <- ede_with_pop(orig_output_df_list)
 plot_historic_edes(orig_pop_scaled_edes, '_scaled')
 
-###maps####
 plot_population_densities(orig_regression_data)
 
+###maps####
 sapply(orig_list_prepped, function(x)make_bg_maps(x))
 
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'population'))

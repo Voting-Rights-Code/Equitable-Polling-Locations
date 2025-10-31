@@ -358,7 +358,7 @@ plot_poll_edes<-function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLA
 	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
 
 	ggplot(ede_df, aes(x = num_polls, y = y_EDE,
-		group = demographic, color = demographic)) +
+		group = demographic, color = demographic, shape = demographic)) +
 		geom_line()+ geom_point()+
 		labs(x = 'Number of polls', y = y_str, title = title_str, color = 'Demographic')+
 		scale_color_discrete(labels = demographic_legend_dict)
@@ -434,7 +434,7 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 	title_str = paste0(flag_strs$log_str, flag_strs$driving_str, 'distance by demographic and optimization run')
 	#plot with y_EDE
 	y_EDE = ggplot(orig_ede, aes(x = descriptor, y = y_EDE,
-		group = demographic, color = demographic))
+		group = demographic, color = demographic, shape = demographic))
 	if (scale_bool){
 		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) , alpha = .5) +
 			labs(x = 'Optimization run', y = y_EDE_label, color = 'Demographic', size = 'Percent Total Population')
@@ -451,9 +451,9 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 
 	#plot with avg_dist
 	avg = ggplot(orig_ede, aes(x = descriptor, y = avg_dist,
-		group = demographic, color = demographic))
-if (scale_bool){
-		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population), alpha = .5 ) +
+		group = demographic, color = demographic, shape = demographic))
+	if (scale_bool){
+		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) , alpha = .5) +
 			labs(x = 'Optimization run', y = y_avg_label, color = 'Demographic', size = 'Percent Total Population')
 	} else{
 		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order) ),size = 5, alpha = .5) +
@@ -544,7 +544,7 @@ plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_n
 plot_population_densities <- function(density_df){
 	ggplot(density_df[population != 0, ]) + 
 	   geom_point(aes(reorder(id_orig, pop_density_km), y = pop_density_km)) +
-	   labs(title = 'Block group population density / km', 'Density ordered Census Blocks', y = 'Population density / km') +
+	   labs(title = 'Block group population density / km', x = 'Density ordered Census Blocks', y = 'Population density / km') +
 	   theme(
 		axis.text.x = element_blank(),
         axis.ticks.x=element_blank())
