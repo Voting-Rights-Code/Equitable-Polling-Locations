@@ -14,7 +14,7 @@ from python.database.models import PollingLocation
 from python.database import query
 from python.solver.model_data import build_source
 from python.utils import is_int
-from python.utils.constants import LOCATION_SOURCE_DB
+from python.solver.constants import DATA_SOURCE_DB
 
 DEFAULT_LOG_DIR='logs'
 IMPORT_ERROR_LOG_FILE='locations_import_errors.csv'
@@ -64,7 +64,7 @@ def build_and_import_locations(
     # print('location_only_set --> :', location_only_set.id, '             <- :\n')
 
     build_source_result = build_source(
-        location_source=LOCATION_SOURCE_DB,
+        location_source=DATA_SOURCE_DB,
         census_year=census_year,
         location=location,
         driving=driving,
@@ -196,11 +196,11 @@ if __name__ == '__main__':
 Examples:
     To import linear distance haversine locations for 2020 census year for Contained_in_Madison_City_of_WI and Intersecting_Madison_City_of_WI
 :
-        python -m db_import_locations_cli 2020 Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
+        python -m python.scripts.db_import_locations_cli 2020 Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
 
     To import log distance driving locations for 2020 census year for Contained_in_Madison_City_of_WI and Intersecting_Madison_City_of_WI
 :
-        python -m db_import_locations_cli -t log -d 20250101 2020 Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
+        python -m python.scripts.db_import_locations_cli -t log -d 20250101 2020 Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
 
        '''
     )

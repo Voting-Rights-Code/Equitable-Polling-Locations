@@ -11,8 +11,7 @@ bad_types:
 beta: -2
 time_limit: 360000 #100 hours minutes
 capacity: 5
-
-####Optional#####
+fixed_capacity_site_number: null
 precincts_open: 3
 max_min_mult: 5 #scalar >= 1
 maxpctnew: 1 # in interval [0,1]

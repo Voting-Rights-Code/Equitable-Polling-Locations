@@ -410,7 +410,7 @@ def get_location_set(census_year: str, location: str, log_distance: bool, drivin
     )
 
     row = session.execute(query).fetchone()
-
+    
     if not row:
         return None
 

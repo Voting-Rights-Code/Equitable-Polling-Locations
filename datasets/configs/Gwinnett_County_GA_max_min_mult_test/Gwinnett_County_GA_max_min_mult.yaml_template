@@ -1,0 +1,39 @@
+# fields for the database
+config_set: 'Gwinnett_County_GA_max_min_mult_test' #should match folder name
+config_name: 'Gwinnett_County_GA_max_min_mult' #should match file name
+
+# Constants for the optimization function
+location: Gwinnett_County_GA
+census_year: '2020'
+year:
+    - '2020'
+bad_types:
+    - 'Elec Day School - Potential'
+    - 'Elec Day Church - Potential'
+    - 'Elec Day Other - Potential'
+    - 'College Campus - Potential'
+    - 'Community Center - Potential'
+    - 'Library - Potential'
+    - 'Other - Potential'
+    - 'bg_centroid'
+beta: -2
+time_limit: 360000 #100 hours minutes
+capacity: 5
+fixed_capacity_site_number: null
+
+####Optional#####
+precincts_open: null
+max_min_mult: 5 #scalar >= 1
+maxpctnew: 0 # in interval [0,1]
+minpctold: 1 # in interval [0,1]
+driving: True
+log_distance: True
+penalized_sites: null
+
+###### For config generation ######
+field_to_vary: 'max_min_mult'
+new_range:
+    - 1.5
+    - 1.25
+    - 1.125
+    - 1.0625

@@ -3,15 +3,12 @@ and checks that the resulta are consistent. As such, this is a point check only,
 
 # pylint: disable=redefined-outer-name
 
-import math
-
 import logging
 
 import numpy as np
 import pandas as pd
-import pyomo.environ as pyo
 
-from python.solver import model_factory, model_solver, model_run
+from python.solver import model_factory, model_run
 from python.tests.constants import TEST_KP_FACTOR
 
 pd.set_option('display.max_columns', None)
@@ -57,14 +54,14 @@ def test_kp_factor(alpha_min, distances_df, polling_locations_config):
     )
 
     distances_df2 = distances_df2.sort_values(by=['id_orig', 'id_dest'])
-    
+
     fixed_test_data = load_kp_factor_data(TEST_KP_FACTOR) #data from R code
     fixed_test_data.kp_factor = round(fixed_test_data.kp_factor, 6)
     fixed_test_data = fixed_test_data.sort_values(by=['id_orig', 'id_dest'])
 
     compare = distances_df2.merge(fixed_test_data, how = 'outer', on=['id_orig', 'id_dest'])
     compare = compare.sort_values(by=['id_orig', 'id_dest'])
-    
+
     assert compare.kp_factor_x.equals(compare.kp_factor_y)
 
 
