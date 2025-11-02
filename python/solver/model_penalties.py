@@ -169,7 +169,7 @@ class PenalizeModel:
         if self.log:
             print(f'Model 3 solved for {self.run_prefix}.')
 
-        self.penalized_result_df = incorporate_result(dist_df, self.ea_model_penalized)
+        self.penalized_result_df = incorporate_result(dist_df, self.ea_model_penalized, config.log_distance)
 
         # TODO clean this up - overlapping vairable names / confusing esp penalized_selections and selected_sites
         selected_sites = set(self.penalized_result_df.id_dest)

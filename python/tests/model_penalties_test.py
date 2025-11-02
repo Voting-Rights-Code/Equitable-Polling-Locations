@@ -7,6 +7,7 @@ import pyomo.environ as pyo
 from python.solver import model_run
 from python.solver import model_solver
 from python.solver import model_penalties
+from python.solver.model_config import PollingModelConfig
 from python.solver.model_penalties import PenalizeModel
 from python.solver.model_results import incorporate_result
 
@@ -58,7 +59,7 @@ def test_penalty_selection_true(testing_config_penalty):
     #testing that the penality function works correctly when no penalized sites are chosen
     penalty_run_setup = model_run.prepare_run(testing_config_penalty)
     model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit)
-    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
+    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model, testing_config_penalty.log_distance)
 
     penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
     penalty_model.run()
@@ -68,7 +69,7 @@ def test_penalty_selection_false(testing_config_penalty_unused):
     #testing that the penality function works correctly when no penalized sites are MOT chosen
     penalty_run_setup = model_run.prepare_run(testing_config_penalty_unused)
     model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty_unused.time_limit)
-    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
+    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model, testing_config_penalty_unused.log_distance)
 
     penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
     penalty_model.run()
@@ -80,7 +81,7 @@ def test_penalty_selection_true(testing_config_penalty):
     #testing that the penality function works correctly when no penalized sites are chosen
     penalty_run_setup = model_run.prepare_run(testing_config_penalty)
     model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit)
-    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
+    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model, testing_config_penalty.log_distance)
 
     penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
     penalty_model.run()
@@ -90,7 +91,7 @@ def test_penalty_selection_false(testing_config_penalty_unused):
     #testing that the penality function works correctly when no penalized sites are MOT chosen
     penalty_run_setup = model_run.prepare_run(testing_config_penalty_unused)
     model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty_unused.time_limit)
-    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
+    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model, testing_config_penalty_unused.log_distance)
 
     penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
     penalty_model.run()
@@ -109,7 +110,7 @@ def test_kp1(testing_config_keep, testing_config_penalty):
     #get kp1 value from the penalize_config using penalty machinery
     penalty_run_setup = model_run.prepare_run(testing_config_penalty)
     model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit)
-    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
+    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model, testing_config_penalty.log_distance)
 
     penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
     penalty_model.run()
@@ -128,7 +129,7 @@ def test_kp2(testing_config_exclude, testing_config_penalty):
     #get kp2 value from the penalize_config using penalty machinery
     penalty_run_setup = model_run.prepare_run(testing_config_penalty)
     model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit)
-    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
+    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model, testing_config_penalty.log_distance)
 
     penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
     penalty_model.run()
@@ -140,7 +141,7 @@ def test_kp_inequalities(testing_config_penalty):
 #kp_pen defined on line 97
     penalty_run_setup = model_run.prepare_run(testing_config_penalty)
     model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit)
-    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
+    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model, testing_config_penalty.log_distance)
 
     penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
     penalty_model.run()
@@ -153,7 +154,7 @@ def test_final_statistics(testing_config_penalty):
 
     penalty_run_setup = model_run.prepare_run(testing_config_penalty)
     model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit)
-    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
+    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model, testing_config_penalty.log_distance)
     
     penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
     penalty_model.run()
