@@ -31,7 +31,7 @@ from .model_config import PollingModelConfig
 lock = threading.Lock()
 
 @timer
-def incorporate_result(dist_df: pd.DataFrame, model: pyo.ConcreteModel):
+def incorporate_result(dist_df: pd.DataFrame, model: pyo.ConcreteModel, log_distance: bool):
     '''Input: dist_df--the main data frame containing the data for model
               model -- the solved model
               model.matching -- pyo boolean variable for when a residence is matched to a precinct (res, prec):bool
@@ -55,6 +55,8 @@ def incorporate_result(dist_df: pd.DataFrame, model: pyo.ConcreteModel):
     if any(result_df[RESULT_MATCHING].isnull()):
         raise ValueError('The model has some unmatched precincts')
     result_df = result_df.loc[result_df[RESULT_MATCHING] == 1]
+    if log_distance:
+        result_df[LOC_DISTANCE_M] = math.e**result_df[LOC_DISTANCE_M]
 
     return result_df
 
@@ -157,8 +159,8 @@ def demographic_summary(demographic_df: pd.DataFrame, result_df: pd.DataFrame, b
         #merge the datasets
         result = pd.concat([result[[DOMAIN_WEIGHTED_DIST, RESULT_AVG_DIST]], demographic_ede], axis=1)
 
-        #add source data back in
-        result[LOC_SOURCE] = source_value[0]
+    #add source data back in
+    result[LOC_SOURCE] = source_value[0]
 
     return result
 

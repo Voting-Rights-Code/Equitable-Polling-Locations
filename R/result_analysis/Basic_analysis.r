@@ -37,18 +37,20 @@ source('R/result_analysis/utility_functions/regression_functions.R')
 #     4. run 
 #######
 
-# args = commandArgs(trailingOnly = TRUE)
-# if (length(args) != 1){
-#      stop("Must enter exactly one config file") 
-#     } else{#read constants from indicated config file
-#     config_path <- paste0('R/result_analysis/Basic_analysis_configs/', args[1])
-#     source(config_path)
-# }
+args = commandArgs(trailingOnly = TRUE)
+if (length(args) != 1){
+     stop("Must enter exactly one config file") 
+    } else{#read constants from indicated config file
+    config_path <- paste0('R/result_analysis/Basic_analysis_configs/', args[1])
+    source(config_path)
+}
 
 ###
 #For inline testing only
 ###
-source('R/result_analysis/Basic_analysis_configs/Tarrant_County_original_and_fair_capacity_2.r')
+#source('R/result_analysis/Basic_analysis_configs/Tarrant_County_original_and_fair_capacity_2.r')
+#source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
+#source('R/result_analysis/Basic_analysis_configs/Tarrant_County_original.r')
 
 #######
 #Check that location and folders valid

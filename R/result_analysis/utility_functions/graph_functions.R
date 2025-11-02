@@ -227,12 +227,13 @@ assign_descriptor_to_result<- function(config_dt, result_type, field_of_interest
 	#result_type: in c((ede, precinct, residence, results)
 	#field_of_interest: string indicating the field to be used for a descriptor (in case the config folder has only 1 file)
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
-
+	
 	#read in descriptor data
 	vary_dt <- create_descriptor_field(config_dt, field_of_interest)
 	#drop varying field (because this changes across config_set)
 	vary_dt <- vary_dt [ , .(config_name, descriptor)]
-
+	
+	
 	#read in output data
 	if (read_from_csv){
 		result_type_dt <- load_results_from_csv(config_dt, result_type)
@@ -269,7 +270,7 @@ read_result_data<- function(config_dt, field_of_interest = '', descriptor_dict =
 	if(check_historic_flag(config_dt)){
 		return(NULL)
 	}
-
+	
 	#get a list of result data with a descriptor column attached to each data.table
 	df_list<- lapply(tables, function(x){assign_descriptor_to_result(config_dt, x, field_of_interest, read_from_csv, descriptor_dict)})
 	names(df_list) <- tables
@@ -307,7 +308,7 @@ make_flag_strs<- function(driving_flag, log_flag){
 	driving_str = ' straight line '
 	log_str = ''
 	if (driving_flag){driving_str = ' driving '} 
-	if (log_flag){log_str = 'log '}
+	#if (log_flag){log_str = 'log '}
 	return(as.list(c(driving_str = driving_str, log_str = log_str)))
 }
 
@@ -357,11 +358,14 @@ plot_poll_edes<-function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLA
 	title_str = paste0('Equity weighted', flag_strs$driving_str, 'distance to poll by demographic')
 	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
 
-	ggplot(ede_df, aes(x = num_polls, y = y_EDE,
+	graph = ggplot(ede_df, aes(x = num_polls, y = y_EDE,
 		group = demographic, color = demographic, shape = demographic)) +
 		geom_line()+ geom_point()+
-		labs(x = 'Number of polls', y = y_str, title = title_str, color = 'Demographic')+
-		scale_color_discrete(labels = demographic_legend_dict)
+		labs(x = 'Number of polls', y = y_str, title = title_str, color = 'Demographic', shape = 'Demographic')+
+		scale_color_discrete(labels = demographic_legend_dict) +
+		scale_shape(labels = demographic_legend_dict)
+	#TODO: make this work
+	#if(log_flag){graph = graph + scale_y_continuous(trans="log2")
 
 	graph_file_path = 'demographic_edes.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -377,7 +381,7 @@ plot_population_edes <- function(ede_df, driving_flag = DRIVING_FLAG, log_flag =
 	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
 
 
-	ggplot(ede_df[demographic == 'population', ], aes(x =  num_polls, y = y_EDE))+
+	graph = ggplot(ede_df[demographic == 'population', ], aes(x =  num_polls, y = y_EDE))+
 		geom_line()+ geom_point()+
 		labs(x = 'Number of polls', y = y_str, title = title_str)
 

@@ -13,7 +13,8 @@ import warnings
 
 
 from python.utils import build_locations_distance_file_path
-from python.utils.directory_constants import LOCATION_SOURCE_CSV, RESULTS_BASE_DIR
+from python.solver.constants import DATA_SOURCE_CSV
+from python.utils.directory_constants import RESULTS_BASE_DIR
 
 from .constants import LOC_ID_DEST, LOC_ID_ORIG
 
@@ -56,11 +57,11 @@ def prepare_run(config: PollingModelConfig, log: bool=False) -> RunSetup:
     )
 
     # If we are using local files, build the source data if it doesn't already exist
-    if config.location_source == LOCATION_SOURCE_CSV:
+    if config.location_source == DATA_SOURCE_CSV:
         if not os.path.exists(source_path):
             warnings.warn(f'File {source_path} not found. Creating it.')
             build_source(
-                location_source=LOCATION_SOURCE_CSV,
+                location_source=DATA_SOURCE_CSV,
                 census_year=config.census_year,
                 location=config.location,
                 driving=config.driving,
@@ -115,7 +116,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str=OUT_
     solve_model(run_setup.ea_model, config.time_limit, log=log, log_file_path=config.log_file_path)
 
     #incorporate result into main dataframe
-    result_df = incorporate_result(run_setup.dist_df, run_setup.ea_model)
+    result_df = incorporate_result(run_setup.dist_df, run_setup.ea_model, config.log_distance)
 
     #incorporate site penalties as appropriate
     # result_df = incorporate_penalties(

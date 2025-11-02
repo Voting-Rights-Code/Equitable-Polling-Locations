@@ -373,13 +373,6 @@ def build_source(
     #####
     #Rename, select columns
     #####
-<<<<<<< HEAD
-    print('renaming and selecting columns')
-    # pylint: disable-next=line-too-long
-    full_df = full_df.rename(columns = {'GEO_ID': 'id_orig', 'Address': 'address', 'Latitude':'dest_lat', 'Longitude':'dest_lon', 'INTPTLAT20':'orig_lat', 'INTPTLON20':'orig_lon', 'Location type': 'location_type', 'Location': 'id_dest'})
-    full_df = full_df[FULL_DF_COLS]
-    
-=======
 
     full_df = full_df.rename(columns = {
         CEN20_GEO_ID: LOC_ID_ORIG, LOC_ONLY_ADDRESS: LOC_ADDRESS, LOC_ONLY_LATITUDE: LOC_DEST_LAT,
@@ -388,7 +381,6 @@ def build_source(
     })
     full_df = full_df[FULL_LOC_DF_COLS]
 
->>>>>>> main
     #####
     # Calculate appropriate distance
     #####
@@ -406,42 +398,23 @@ def build_source(
 
         full_df = insert_driving_distances(full_df, driving_distances_df)
     else:
-<<<<<<< HEAD
-        # pylint: disable-next=line-too-long
-        print('calculate haversine distance')
-        full_df['distance_m'] = full_df.apply(lambda row: haversine((row.orig_lat, row.orig_lon), (row.dest_lat, row.dest_lon)), axis=1)*1000
-        full_df['source'] = 'haversine distance'
-=======
         full_df[LOC_DISTANCE_M] = full_df.apply(
             lambda row: haversine((row.orig_lat, row.orig_lon), (row.dest_lat, row.dest_lon)),
             axis=1,
         ) * 1000
 
         full_df[LOC_SOURCE] = LOC_SOURCE_HAVERSINE_DISTANCE
->>>>>>> main
 
     #if log distance, modify the source and distance columns
     if log_distance:
         full_df[LOC_SOURCE] = LOC_SOURCE_LOG_WITH_SPACE + full_df[LOC_SOURCE]
         #TODO: why are there 0 distances showing up?
-<<<<<<< HEAD
-        print('calculate log distance')
-        full_df['distance_m'].mask(full_df['distance_m'] == 0.0, 0.001, inplace=True)
-        full_df['distance_m'] = np.log(full_df['distance_m'])
-=======
         full_df[LOC_DISTANCE_M].mask(full_df[LOC_DISTANCE_M] == 0.0, 0.001, inplace=True)
         full_df[LOC_DISTANCE_M] = np.log(full_df[LOC_DISTANCE_M])
->>>>>>> main
 
     #####
     #reformat and write to file (making directory if it doesn't exist)
     #####
-<<<<<<< HEAD
-    print('reformating and writing to file')
-    full_df['id_orig'] = full_df['id_orig'].astype(str)
-    full_df['id_dest'] = full_df['id_dest'].astype(str)
-    
-=======
 
     full_df[LOC_ID_ORIG] = full_df[LOC_ID_ORIG].astype(str)
     full_df[LOC_ID_DEST] = full_df[LOC_ID_DEST].astype(str)
@@ -449,7 +422,6 @@ def build_source(
     if not os.path.exists(output_path):
         os.makedirs(os.path.basename(output_path))
 
->>>>>>> main
     full_df.to_csv(output_path, index = True)
     return result
 
