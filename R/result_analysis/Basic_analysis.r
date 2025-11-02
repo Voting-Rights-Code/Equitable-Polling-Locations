@@ -149,6 +149,9 @@ if(!HISTORICAL_FLAG){
     #Histogram of the original distributions and that for the desired number of polls
     plot_orig_ideal_hist(orig_output_df_list$residence_distances, potential_output_df_list$residence_distances, IDEAL_POLL_NUMBER)
 
+    #Histograms of the original distributions by race and that for the desired number of polls
+    plot_original_optimized_demographic_hists(potential_output_df_list$residence_distances, orig_output_df_list$residence_distances)
+
     #plot distance v density graphs and regressions
     plot_density_v_distance_bg(rbindlist(potential_bg_density_demo), LOCATION, DEMOGRAPHIC_LIST)
 

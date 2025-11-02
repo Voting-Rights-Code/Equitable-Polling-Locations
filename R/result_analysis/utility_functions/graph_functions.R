@@ -441,13 +441,15 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 		group = demographic, color = demographic, shape = demographic))
 	if (scale_bool){
 		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) , alpha = .5) +
-			labs(x = 'Optimization run', y = y_EDE_label, color = 'Demographic', size = 'Percent Total Population')
+			labs(x = 'Optimization run', y = y_EDE_label, shape = 'Demographic', color = 'Demographic', size = 'Percent Total Population')
 	} else{
 		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order)),size = 5, alpha = .5)+
-			labs(x = 'Optimization run', y = y_EDE_label, color = 'Demographic')
+			labs(x = 'Optimization run', y = y_EDE_label, shape = 'Demographic', color = 'Demographic')
 	}
-	y_EDE = y_EDE +	ylim(y_min, y_max) + ggtitle(paste('Equity weighted', title_str)) +
-		scale_color_discrete(labels = demographic_legend_dict)
+	y_EDE = y_EDE +	#ylim(y_min, y_max) + 
+				ggtitle(paste('Equity weighted', title_str)) +
+				scale_color_discrete(labels = demographic_legend_dict)+
+				scale_shape_discrete(labels = demographic_legend_dict)
 
 	graph_file_path = paste('orig', suffix, 'y_EDE.png', sep = '_')
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -458,13 +460,15 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 		group = demographic, color = demographic, shape = demographic))
 	if (scale_bool){
 		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) , alpha = .5) +
-			labs(x = 'Optimization run', y = y_avg_label, color = 'Demographic', size = 'Percent Total Population')
+			labs(x = 'Optimization run', y = y_avg_label, shape = 'Demographic', color = 'Demographic', size = 'Percent Total Population')
 	} else{
 		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order) ),size = 5, alpha = .5) +
-			labs(x = 'Optimization run', y = y_avg_label, color = 'Demographic')
+			labs(x = 'Optimization run', y = y_avg_label, shape = 'Demographic', color = 'Demographic')
 	}
-	avg = avg + ylim(y_min, y_max) + ggtitle(paste('Average', title_str)) +
-		scale_color_discrete(labels = demographic_legend_dict)
+	avg = avg + #ylim(y_min, y_max) + 
+			ggtitle(paste('Average', title_str)) +
+			scale_color_discrete(labels = demographic_legend_dict) +
+			scale_shape_discrete(labels = demographic_legend_dict)
 
 	graph_file_path = paste('orig', suffix, 'avg.png', sep = '_')
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -543,6 +547,35 @@ plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_n
 	add_graph_to_graph_file_manifest(graph_file_path)
 	ggsave(graph_file_path)
 }
+
+plot_demographic_hist<- function(df, demo, flag_strs){
+
+	y_str = paste0('Number of ', demo, ' people')
+	title_str = paste0('Distribution of distances traveled by ', demo, ' people by year or optimization')
+	hist = ggplot(df[demographic == demo, ], aes(x = avg_dist, fill = descriptor)) +
+		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
+		labs(x = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'), y = y_str, title =  title_str, fill = 'Optimization Run') + scale_x_continuous(transform = 'log')
+
+	graph_file_path = paste0(demo, ' avg_dist_distribution_hist.png')
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
+	return(hist)
+}
+
+plot_original_optimized_demographic_hists <- function(config_residence_df, orig_residence_df, demographic_list = DEMOGRAPHIC_LIST, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
+	flag_strs <- make_flag_strs(driving_flag, log_flag)
+
+	#select the relevant optimized runs
+	orig_num_polls <- unique(orig_residence_df$num_polls)
+	config_num_polls <- unique(config_residence_df$num_polls)
+	optimization_num_polls<- max(intersect(orig_num_polls, config_num_polls))
+	optimized_run_dfs <- config_residence_df[num_polls == optimization_num_polls]
+	orig_and_optimal <- rbind(orig_residence_df, optimized_run_dfs)
+	descriptor_list <- unique(orig_and_optimal$descriptor)
+
+	demographic_hists = lapply(demographic_list, function(x)plot_demographic_hist(orig_and_optimal, x, flag_strs))
+}
+
 
 #plot of population densities by block, ordered by density
 plot_population_densities <- function(density_df){
