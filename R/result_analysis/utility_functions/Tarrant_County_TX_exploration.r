@@ -26,96 +26,26 @@ dt_pop_polls <- dt_2024_pop[ , dropped_2025 := TRUE
                 ][ , dropped_optimal := TRUE][id_dest %in% polls_optimal, dropped_optimal := FALSE]
 
 #run models
+#Linear Probability Model intacting Latine and White
 latine_white_interaction_lpm_2025 <- lm(dropped_2025 ~ hispanic + white + (hispanic):(white), dt_pop_polls)
-interact_plot(latine_white_interaction_lpm_2025, hispanic, white)+ ylim(0, 1)
+interact_plot(latine_white_interaction_lpm_2025, hispanic, white, 
+  main.title ="Actual Effect of Latine Population on Probability of Poll Closure (LPM)", y.label = "Probability of Poll Closure", x.label = "Latine Population",
+  legend.main = "White Population") + ylim(0, 1)
 
 latine_white_interaction_lpm_optimal <- lm(dropped_optimal ~ hispanic + white + (hispanic):(white), dt_pop_polls)
-interact_plot(latine_white_interaction_lpm_optimal, hispanic, white)+ ylim(0, 1)
+interact_plot(latine_white_interaction_lpm_optimal, hispanic, white,
+  main.title ="Optimal Race-Blind Effect of Latine Population on Probability of Poll Closure (LPM)", y.label = "Probability of Poll Closure", x.label = "Latine Population",
+  legend.main = "White Population") + ylim(0, 1)
+
+#Logit interaction Latine and white
 
 latine_white_interaction_logit_2025 <- glm(dropped_2025 ~ hispanic + white + (hispanic):(white), dt_pop_polls, family = binomial(link = "logit"))
-interact_plot(latine_white_interaction_logit_2025, hispanic, white) + ylim(0, 1)
+interact_plot(latine_white_interaction_logit_2025, hispanic, white,
+  main.title ="Actual Effect of Latine Population on Probability of Poll Closure (Logistic)", y.label = "Probability of Poll Closure", x.label = "Latine Population",
+  legend.main = "White Population") + ylim(0, 1)
 
 latine_white_interaction_logit_optimal <- glm(dropped_optimal ~ hispanic + white + (hispanic):(white), dt_pop_polls,  family = binomial(link = "logit"))
-interact_plot(latine_white_interaction_logit_optimal, hispanic, white) + ylim(0, 1)
-
-latine_white_logit_nointeract_2025 <- glm(dropped_2025 ~ hispanic + white, dt_pop_polls, family = binomial(link = "logit"))
-interact_plot(latine_white_logit_nointeract_2025, hispanic, white) + ylim(0,1)
-
-latine_white_logit_nointeract_optimal <- glm(dropped_optimal ~ hispanic + white, dt_pop_polls, family = binomial(link = "logit"))
-interact_plot(latine_white_logit_nointeract_optimal, hispanic, white)+ ylim(0,1)
-
-#caluclate odds ratios or probabilities
-mean_hispanic <- mean(dt_pop_polls$hispanic)
-mean_white <- mean(dt_pop_polls$white)
-mean_whinteract <- mean(dt_pop_polls$hispanic*dt_pop_polls$white)
-
-sd_hispanic <- sd(dt_pop_polls$hispanic)
-sd_white <- sd(dt_pop_polls$white)
-sd_whinteract <- sd(dt_pop_polls$hispanic*dt_pop_polls$white)
+interact_plot(latine_white_interaction_logit_optimal, hispanic, white,
+  legend.main = "White Population") + ylim(0, 1)
 
 
-lpm_2025_hispanic_mean_white = latine_white_interaction_lpm_2025$coef['hispanic'] + latine_white_interaction_lpm_2025$coef['hispanic:white']*mean_white
-
-lpm_optimal_hispanic_mean_white = latine_white_interaction_lpm_optimal$coef['hispanic'] + latine_white_interaction_lpm_optimal$coef['hispanic:white']*mean_white
-
-lpm_2025_hispanic_SDpos_white = latine_white_interaction_lpm_2025$coef['hispanic'] + latine_white_interaction_lpm_2025$coef['hispanic:white']*(mean_white+ sd_white)
-
-lpm_optimal_hispanic_SDpos_white = latine_white_interaction_lpm_optimal$coef['hispanic'] + latine_white_interaction_lpm_optimal$coef['hispanic:white']*(mean_white+ sd_white)
-
-lpm_2025_hispanic_SDneg_white = latine_white_interaction_lpm_2025$coef['hispanic'] + latine_white_interaction_lpm_2025$coef['hispanic:white']*(mean_white- sd_white)
-
-lpm_optimal_hispanic_SDneg_white = latine_white_interaction_lpm_optimal$coef['hispanic'] + latine_white_interaction_lpm_optimal$coef['hispanic:white']*(mean_white- sd_white)
-
-#vectors of linear probabilities
-c(lpm_2025_hispanic_SDneg_white, lpm_2025_hispanic_mean_white, lpm_2025_hispanic_SDpos_white)*1000
-c(lpm_optimal_hispanic_SDneg_white, lpm_optimal_hispanic_mean_white, lpm_optimal_hispanic_SDpos_white)*1000
-
-
-logit_2025_hispanic_mean_white = latine_white_interaction_logit_2025$coef['hispanic'] + latine_white_interaction_logit_2025$coef['hispanic:white']*mean_white
-
-logit_optimal_hispanic_mean_white = latine_white_interaction_logit_optimal$coef['hispanic'] + latine_white_interaction_logit_optimal$coef['hispanic:white']*mean_white
-
-logit_2025_hispanic_SDpos_white = latine_white_interaction_logit_2025$coef['hispanic'] + latine_white_interaction_logit_2025$coef['hispanic:white']*(mean_white+ sd_white)
-
-logit_optimal_hispanic_SDpos_white = latine_white_interaction_logit_optimal$coef['hispanic'] + latine_white_interaction_logit_optimal$coef['hispanic:white']*(mean_white+ sd_white)
-
-logit_2025_hispanic_SDneg_white = latine_white_interaction_logit_2025$coef['hispanic'] + latine_white_interaction_logit_2025$coef['hispanic:white']*(mean_white- sd_white)
-
-logit_optimal_hispanic_SDneg_white = latine_white_interaction_logit_optimal$coef['hispanic'] + latine_white_interaction_logit_optimal$coef['hispanic:white']*(mean_white- sd_white)
-
-#vectors of odds ratios
-exp(c(logit_2025_hispanic_SDneg_white, logit_2025_hispanic_mean_white, logit_2025_hispanic_SDpos_white)*1000)
-exp(c(logit_optimal_hispanic_SDneg_white, logit_optimal_hispanic_mean_white, logit_optimal_hispanic_SDpos_white)*1000)
-
-
-
-
-#dt_all <- merge(dt_2024, dt_2025, all.x = TRUE, by = c('id_dest', 'demographic', 'source'))
-
-#dt_all[, dropped := FALSE][is.na(avg_dist.y) , dropped := TRUE]
-
-dropped_precincts <-  dt_2024[ , dropped_2025 := TRUE][id_dest %in% dt_2025$id_dest, dropped_2025 := FALSE]
-#dropped_precincts <-  dt_2024[ , dropped_optimal := TRUE][id_dest %in% dt_optimal$id_dest, dropped_optimal := FALSE]
-
-
-latine <- dropped_precincts[demographic == 'hispanic', ]
-white <- dropped_precincts[demographic == 'white', ]
-population <- dropped_precincts[demographic == 'population', ]
-
-latine_2025<- glm(dropped_2025 ~ demo_pop, family = binomial, latine)
-white_2025<- glm(dropped_2025 ~ demo_pop, family = binomial, white)
-population_2025<- glm(dropped_2025 ~ demo_pop, family = binomial, population)
-
-#latine_optimal <- glm(dropped_optimal ~ demo_pop, family = binomial, latine)
-#white_optimal <- glm(dropped_optimal ~ demo_pop, family = binomial, white)
-#population_optimal <-glm(dropped_optimal ~ demo_pop, family = binomial, population)
-
-
-
-ggplot(latine, aes(x= demo_pop, y = dropped_2025)) + geom_point()
-ggplot(latine, aes(x= demo_pop, y = dropped_optimal)) + geom_point()
-
-##Daniel Exploration Below here
-latine_white_comparison <- merge(latine, white, by="id_dest") 
-latine_white_interaction_lpm <- lm(dropped_2025.x ~ demo_pop.x + demo_pop.y + (demo_pop.x):(demo_pop.y), latine_white_comparison)
-interact_plot(latine_white_interaction_lpm, demo_pop.x,demo_pop.y)
