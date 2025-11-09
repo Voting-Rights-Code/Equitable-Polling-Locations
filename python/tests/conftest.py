@@ -7,22 +7,28 @@ import os
 import pandas as pd
 import pytest
 
-from python.solver import model_data, model_factory, model_run, model_solver, model_results, model_penalties
+from python.solver import model_data, model_factory, model_solver
+from python.solver.model_run import ModelRun
 from python.solver.model_config import PollingModelConfig
 
-from .constants import TESTING_CONFIG_BASE, TESTING_CONFIG_KEEP, TESTING_CONFIG_EXCLUDE, TESTING_CONFIG_PENALTY, TESTING_CONFIG_PENALTY_UNUSED, DRIVING_TESTING_CONFIG, TESTING_LOCATIONS_ONLY_PATH, TEST_LOCATION, MAP_SOURCE_DATE, POLLING_DIR
+from .constants import (
+  TESTING_CONFIG_BASE, TESTING_CONFIG_KEEP, TESTING_CONFIG_EXCLUDE, TESTING_CONFIG_PENALTY,
+  TESTING_CONFIG_PENALTY_UNUSED, DRIVING_TESTING_CONFIG, TESTING_LOCATIONS_ONLY_PATH, MAP_SOURCE_DATE,
+  POLLING_DIR,
+)
 
 def generate_penalties_df(config: PollingModelConfig) -> pd.DataFrame:
-    run_setup = model_run.prepare_run(config, False)
+    model_run = ModelRun(config)
+    # run_setup = model_run.prepare_run(config, False)
 
-    model_solver.solve_model(run_setup.ea_model, config.time_limit, log=False, log_file_path=config.log_file_path)
+    # model_solver.solve_model(run_setup.ea_model, config.time_limit, log=False, log_file_path=config.log_file_path)
 
-    incorporate_result_df = model_results.incorporate_result(run_setup.dist_df, run_setup.ea_model)
+    # incorporate_result_df = model_results.incorporate_result(run_setup.dist_df, run_setup.ea_model)
 
-    penalize_model = model_penalties.PenalizeModel(run_setup=run_setup, result_df=incorporate_result_df)
-    result = penalize_model.run()
+    # penalize_model = model_penalties.PenalizeModel(run_setup=run_setup, result_df=incorporate_result_df)
+    # result = penalize_model.run()
 
-    return result
+    return model_run.result_df
 
 @pytest.fixture(scope='session')
 def driving_testing_config():
@@ -57,7 +63,7 @@ def result_keep_df(testing_config_keep):
     return generate_penalties_df(testing_config_keep)
 
 @pytest.fixture(scope='session')
-def driving_locations_results_df(#tmp_path_factory, 
+def driving_locations_results_df(#tmp_path_factory,
                                     driving_testing_config):
     ''' Fixture to load the locations results DataFrame from the testing locations CSV. '''
 
@@ -75,9 +81,9 @@ def driving_locations_results_df(#tmp_path_factory,
         locations_only_path_override=TESTING_LOCATIONS_ONLY_PATH,
         output_path_override=build_source_ouput_tmp_path,
     )
-    
+
     locations_results_df = model_data.load_locations_csv(build_source_ouput_tmp_path)
-    
+
     return locations_results_df
 
 @pytest.fixture(scope='session')

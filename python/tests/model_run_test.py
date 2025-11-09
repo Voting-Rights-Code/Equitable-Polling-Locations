@@ -8,7 +8,8 @@ import logging
 import numpy as np
 import pandas as pd
 
-from python.solver import model_factory, model_run
+from python.solver import model_factory
+from python.solver.model_run import ModelRun
 from python.tests.constants import TEST_KP_FACTOR
 
 pd.set_option('display.max_columns', None)
@@ -119,4 +120,6 @@ def test_capacity(polling_model, distances_df, total_population, polling_locatio
 
 
 def test_run_on_config(driving_testing_config):
-    model_run.run_on_config(driving_testing_config, False, model_run.OUT_TYPE_CSV)
+    # model_run.run_on_config(driving_testing_config, False, model_run.OUT_TYPE_CSV)
+    model_run = ModelRun(config=driving_testing_config)
+    model_run.write_results_csv()

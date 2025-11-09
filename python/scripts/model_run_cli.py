@@ -17,7 +17,7 @@ import sys
 from tqdm import tqdm
 
 from python.solver.model_config import PollingModelConfig
-from python.solver import model_run
+from python.solver.model_run import ModelRun
 from python import utils
 from python.utils.directory_constants import RESULTS_FOLDER_NAME
 
@@ -77,7 +77,9 @@ def run_config(
         results_path = os.path.join(RESULTS_FOLDER_NAME, config.config_set)
         print(f'Starting config: {config.config_file_path} -> CSV output to directory {results_path}')
 
-    model_run.run_on_config(config, log, model_run.OUT_TYPE_CSV)
+    model_run = ModelRun(config, log)
+    model_run.write_results_csv()
+
     if verbose:
         print(f'Finished config: {config.config_file_path}')
 

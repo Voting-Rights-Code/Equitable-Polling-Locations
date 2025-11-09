@@ -23,7 +23,7 @@ from tqdm import tqdm
 
 from python.database.query import Query
 from python.solver.model_config import PollingModelConfig
-from python.solver import model_run
+from python.solver.model_run import ModelRun, OUT_TYPE_CSV, OUT_TYPE_DB
 from python.database.models import ModelConfig
 from python import utils
 from python.solver.constants import DATA_SOURCE_DB
@@ -95,22 +95,28 @@ def load_configs(config_args: list[str], logdir: str, environment: Environment=N
 def run_config(
     config: PollingModelConfig,
     log: bool=False,
-    outtype: Literal['db', 'csv']=model_run.OUT_TYPE_DB,
+    outtype: Literal['db', 'csv']=OUT_TYPE_DB,
     verbose=False,
 ):
     ''' run a config file '''
 
     config_info = f'{config.db_id} {config.config_set}/{config.config_name}'
 
-    if verbose and outtype == model_run.OUT_TYPE_DB:
+    if verbose and outtype == OUT_TYPE_DB:
         # pylint: disable-next=line-too-long
         print(f'Starting config: {config_info} -> BigQuery {outtype} output with config set {config.config_set} and name {config.config_name}')
-    elif verbose and outtype == model_run.OUT_TYPE_CSV:
+    elif verbose and outtype == OUT_TYPE_CSV:
         results_path = os.path.join(RESULTS_FOLDER_NAME, config.config_set)
         print(f'Starting config: {config_info} -> CSV output to directory {results_path}')
 
     config.location_source = DATA_SOURCE_DB
-    model_run.run_on_config(config, log, outtype)
+    model_run = ModelRun(config, log)
+
+    if outtype == OUT_TYPE_DB:
+        model_run.write_results_db()
+    else:
+        model_run.write_results_csv()
+
     if verbose:
         print(f'Finished config: {config_info}')
 
@@ -120,7 +126,7 @@ def main(args: argparse.Namespace):
 
     logdir = args.logdir
     outtype = args.outtype
-    if outtype == model_run.OUT_TYPE_DB:
+    if outtype == OUT_TYPE_DB:
         #Force the database prompt immediately upon run, if running on DB
         # utils.get_env_var_or_prompt('DB_PROJECT', default_value='equitable-polling-locations')
         # utils.get_env_var_or_prompt('DB_DATASET')
@@ -216,10 +222,10 @@ Examples:
     parser.add_argument(
         '-o',
         '--outtype',
-        choices=[model_run.OUT_TYPE_DB, model_run.OUT_TYPE_CSV],
-        default = model_run.OUT_TYPE_DB,
+        choices=[OUT_TYPE_DB, OUT_TYPE_CSV],
+        default = OUT_TYPE_DB,
         # pylint: disable-next=line-too-long
-        help = f'Output location, one of "{model_run.OUT_TYPE_DB}" (database) or "{model_run.OUT_TYPE_CSV}" (local CSV)',
+        help = f'Output location, one of "{OUT_TYPE_DB}" (database) or "{OUT_TYPE_CSV}" (local CSV)',
     )
 
 

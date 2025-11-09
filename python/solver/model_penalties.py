@@ -37,11 +37,11 @@ def compute_kp(config: PollingModelConfig, alpha: float, obj_value: float) -> fl
 
     return obj_value
 
-@dataclass
+
 class PenalizeModel:
     ''' A class to manage incorperating penalties into an existing model run '''
-    run_setup: RunSetup
-    result_df: pd.DataFrame
+    _run_setup: RunSetup
+    _result_df: pd.DataFrame
 
     log: bool = False
 
@@ -64,11 +64,15 @@ class PenalizeModel:
 
     penalty_log: TextIOWrapper = None
 
-    def _check_if_penalized_sites_selected(self):
-        dist_df = self.run_setup.dist_df
-        config = self.run_setup.config
+    def __init__(self, run_setup: RunSetup, result_df: pd.DataFrame):
+        self._run_setup = run_setup
+        self._result_df = result_df
 
-        self.selected_sites = set(self.result_df.id_dest)
+    def _check_if_penalized_sites_selected(self):
+        dist_df = self._run_setup.dist_df
+        config = self._run_setup.config
+
+        self.selected_sites = set(self._result_df.id_dest)
         self.penalized_sites = set(
             dist_df.loc[dist_df[LOC_LOCATION_TYPE].isin(config.penalized_sites), LOC_ID_DEST].unique()
         )
@@ -84,8 +88,8 @@ class PenalizeModel:
         Convert objective value to KP score (kp1)
         '''
 
-        obj_value = pyo.value(self.run_setup.ea_model.obj)
-        self.kp1 = compute_kp(self.run_setup.config, self.run_setup.alpha, obj_value)
+        obj_value = pyo.value(self._run_setup.ea_model.obj)
+        self.kp1 = compute_kp(self._run_setup.config, self._run_setup.alpha, obj_value)
         self._log_write(f'KP Objective = {self.kp1:.2f}\n')
 
 
@@ -93,11 +97,11 @@ class PenalizeModel:
         '''
         Compute optimal solution excluding penalized sites (model 2)
         '''
-        config = self.run_setup.config
+        config = self._run_setup.config
 
         self.ea_model_exclusions = polling_model_factory(
-            self.run_setup.dist_df,
-            self.run_setup.alpha,
+            self._run_setup.dist_df,
+            self._run_setup.alpha,
             config,
             exclude_penalized_sites=True,
         )
@@ -108,7 +112,7 @@ class PenalizeModel:
             self.ea_model_exclusions,
             config.time_limit,
             log=self.log,
-            log_file_path=get_log_path(self.run_setup.config, SOLVER_MODEL2),
+            log_file_path=get_log_path(self._run_setup.config, SOLVER_MODEL2),
         )
 
         if self.log:
@@ -123,8 +127,8 @@ class PenalizeModel:
         obj_value_exclusions = pyo.value(self.ea_model_exclusions.obj)
 
         self.kp2 = compute_kp(
-            self.run_setup.config,
-            self.run_setup.alpha,
+            self._run_setup.config,
+            self._run_setup.alpha,
             obj_value_exclusions,
         )
 
@@ -146,9 +150,9 @@ class PenalizeModel:
         compute optimal solution including penalized sites applying calculate penalty (model 3)
         '''
 
-        config = self.run_setup.config
-        dist_df = self.run_setup.dist_df
-        alpha = self.run_setup.alpha
+        config = self._run_setup.config
+        dist_df = self._run_setup.dist_df
+        alpha = self._run_setup.alpha
 
         self.ea_model_penalized = polling_model_factory(
             dist_df, alpha, config,
@@ -187,14 +191,14 @@ class PenalizeModel:
 
 
     def _report_final_statistics(self):
-        config = self.run_setup.config
-        alpha = self.run_setup.alpha
+        config = self._run_setup.config
+        alpha = self._run_setup.alpha
 
         # TODO make these results class variables for testing?
         obj_value = pyo.value(self.ea_model_penalized.obj)
         self.kp_pen = compute_kp(
-            self.run_setup.config,
-            self.run_setup.alpha,
+            self._run_setup.config,
+            self._run_setup.alpha,
             obj_value,
         )
 
@@ -211,9 +215,9 @@ class PenalizeModel:
         in the config instance.
         '''
 
-        if self.run_setup.config.log_file_path:
+        if self._run_setup.config.log_file_path:
             self.penalty_log = open(
-                get_log_path(self.run_setup.config, SOLVER_PENALTY),
+                get_log_path(self._run_setup.config, SOLVER_PENALTY),
                 'a',
                 encoding=UTF8,
             )
@@ -234,8 +238,8 @@ class PenalizeModel:
         ''' Computes the new results incorporating penalties '''
 
         #check if this is a penalized run
-        if not self.run_setup.config.penalized_sites:
-            return self.result_df
+        if not self._run_setup.config.penalized_sites:
+            return self._result_df
 
         self._setup_log()
 
@@ -244,7 +248,7 @@ class PenalizeModel:
             self._check_if_penalized_sites_selected()
             if not self.penalized_selections:
                 print('No penalized sites selected')
-                return self.result_df
+                return self._result_df
 
             self._compute_kp1()
             self._compute_optimal_solution()
