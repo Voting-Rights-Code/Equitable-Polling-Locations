@@ -143,4 +143,5 @@ DB_LAT_LON = 'lat_lon'
 
 # Solver related constants
 SOLVER_MODEL2 = 'model2'
+SOLVER_MODEL3 = 'model3'
 SOLVER_PENALTY = 'penalty'
