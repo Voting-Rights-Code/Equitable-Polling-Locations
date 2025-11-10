@@ -39,7 +39,7 @@ def incorporate_result(dist_df: pd.DataFrame, model: pyo.ConcreteModel):
     output: dataframe containing only the matched residences and precincts'''
 
     #turn matched solution into df
-    matching_list= [(key[0], key[1], model.matching[key].value) for key in model.matching]
+    matching_list = [(key[0], key[1], model.matching[key].value) for key in model.matching]
     matching_df = pd.DataFrame(matching_list, columns = [LOC_ID_ORIG, LOC_ID_DEST, RESULT_MATCHING])
 
     #the matching doesn't always give an integer value. Replace the value with the integer it would round to   
