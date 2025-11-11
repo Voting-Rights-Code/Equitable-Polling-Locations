@@ -63,7 +63,7 @@ def result_keep_df(testing_config_keep):
     return generate_penalties_df(testing_config_keep)
 
 @pytest.fixture(scope='session')
-def driving_locations_results_df(#tmp_path_factory,
+def location_df_with_driving(#tmp_path_factory,
                                     driving_testing_config):
     ''' Fixture to load the locations results DataFrame from the testing locations CSV. '''
 
@@ -82,9 +82,9 @@ def driving_locations_results_df(#tmp_path_factory,
         output_path_override=build_source_ouput_tmp_path,
     )
 
-    locations_results_df = model_data.load_locations_csv(build_source_ouput_tmp_path)
+    location_df_driving = model_data.load_locations_csv(build_source_ouput_tmp_path)
 
-    return locations_results_df
+    return location_df_driving
 
 @pytest.fixture(scope='session')
 def polling_locations_config():
