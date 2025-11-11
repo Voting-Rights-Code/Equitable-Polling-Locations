@@ -31,7 +31,7 @@ def test_build_source_columns(location_df_with_driving):
     )
 
 
-def test_build_source_locations(driving_testing_config, location_df_with_driving):
+def test_build_source_locations(testing_config_driving, location_df_with_driving):
     ''' Calls build_source with driving distances and checks the locations are as expected. '''
 
     locations_only_df = model_data.load_locations_only_csv(TESTING_LOCATIONS_ONLY_PATH)
@@ -39,11 +39,11 @@ def test_build_source_locations(driving_testing_config, location_df_with_driving
 
     # Get the demographics block so we can get the expected GEO_IDs for id_orig
     demographics_block_df = model_data.get_demographics_block(
-        census_year=driving_testing_config.census_year,
-        location=driving_testing_config.location,
+        census_year=testing_config_driving.census_year,
+        location=testing_config_driving.location,
     )
     # Get the blockgroup to get the expected Locations
-    blockgroup = model_data.get_blockgroup_gdf(driving_testing_config.census_year, TEST_LOCATION)
+    blockgroup = model_data.get_blockgroup_gdf(testing_config_driving.census_year, TEST_LOCATION)
 
     expected_id_orig = demographics_block_df['GEO_ID'].unique().tolist()
     expected_id_dest = locations_only_df['Location'].unique().tolist() + blockgroup['Location'].unique().tolist()
@@ -63,7 +63,7 @@ def test_build_source_locations(driving_testing_config, location_df_with_driving
     assert location_df_with_driving['orig_lon'].notna().all(), 'orig_lon should not have null values'
 
 
-def test_build_source_driving_distances(driving_testing_config, location_df_with_driving):
+def test_build_source_driving_distances(testing_config_driving, location_df_with_driving):
     ''' Checks that the driving distances in location_df_driving match those in the driving distances CSV. '''
 
     # Check that all location_df_driving sources are 'driving distance'
@@ -71,7 +71,7 @@ def test_build_source_driving_distances(driving_testing_config, location_df_with
     assert sources == ['driving distance'], f'Unexpected sources found: {sources}'
 
     driving_distances_df = model_data.get_csv_driving_distances(
-        driving_testing_config.census_year,
+        testing_config_driving.census_year,
         MAP_SOURCE_DATE,
         TEST_LOCATION,
     )
@@ -122,8 +122,8 @@ def test_build_source_column_output(location_df_with_driving):
 
     assert divergence.shape[0] == 0, (f'the following origin, destination pairs have differing distances in the test and stored dataframes: {divergence}')
 
-def test_clean_data(driving_testing_config, location_df_with_driving):
-    bad_types_df = location_df_with_driving[location_df_with_driving['location_type'].isin(driving_testing_config.bad_types)]
+def test_clean_data(testing_config_driving, location_df_with_driving):
+    bad_types_df = location_df_with_driving[location_df_with_driving['location_type'].isin(testing_config_driving.bad_types)]
     num_bad_types = len(bad_types_df)
     assert num_bad_types > 0, (
         'Test data should have some bad types, but found none.'
@@ -134,8 +134,8 @@ def test_clean_data(driving_testing_config, location_df_with_driving):
     print(driving_locations_results_dest_types)
 
     # Check that clean_data removes bad types when for_alpha is False
-    cleaned_data_df = model_data.clean_data(driving_testing_config, location_df_with_driving, False, False)
-    cleaned_data_bad_types_df = cleaned_data_df[cleaned_data_df['location_type'].isin(driving_testing_config.bad_types)]
+    cleaned_data_df = model_data.clean_data(testing_config_driving, location_df_with_driving, False, False)
+    cleaned_data_bad_types_df = cleaned_data_df[cleaned_data_df['location_type'].isin(testing_config_driving.bad_types)]
     num_cleaned_bad_types = len(cleaned_data_bad_types_df)
 
     assert num_cleaned_bad_types == 0, (
@@ -143,7 +143,7 @@ def test_clean_data(driving_testing_config, location_df_with_driving):
     )
 
     # Check that clean_data with alpha set to true removes all location_types that contain 'Potential' or 'centroid'
-    cleaned_data_with_alpha_df = model_data.clean_data(driving_testing_config, location_df_with_driving, True, False)
+    cleaned_data_with_alpha_df = model_data.clean_data(testing_config_driving, location_df_with_driving, True, False)
     unique_location_types = cleaned_data_with_alpha_df['location_type'].unique()
 
     assert not any('Potential' in s or 'centroid' in s for s in unique_location_types), (
