@@ -30,14 +30,15 @@ def generate_penalties_df(config: PollingModelConfig) -> pd.DataFrame:
 
     return model_run.result_df
 
+#fixtures for loading configs
+
 @pytest.fixture(scope='session')
 def testing_config_driving():
     return PollingModelConfig.load_config(TESTING_CONFIG_DRIVING)
 
 @pytest.fixture(scope='session')
-def testling_config_base():
+def testing_config_base():
     yield PollingModelConfig.load_config(TESTING_CONFIG_BASE)
-
 
 @pytest.fixture(scope='session')
 def testing_config_exclude():
@@ -67,10 +68,12 @@ def result_penalized_df(testing_config_penalty):
 def result_keep_df(testing_config_keep):
     return generate_penalties_df(testing_config_keep)
 
+
+
 @pytest.fixture(scope='session')
 def location_df_with_driving(#tmp_path_factory,
                                     testing_config_driving):
-    ''' Fixture to load the locations results DataFrame from the testing locations CSV. '''
+    ''' Fixture to load the locations source data with driving distances from the testing locations CSV. '''
 
     #commenting out because I can't find tmp_path_factory
     #tmp_path = tmp_path_factory.mktemp('driving_locations_results_test_data')
@@ -93,29 +96,29 @@ def location_df_with_driving(#tmp_path_factory,
 
 
 @pytest.fixture(scope='module')
-def polling_locations_df(testling_config_base):
+def polling_locations_df(testing_config_base):
     polling_locations = model_data.get_polling_locations(
-        location_source='csv',
-        census_year=testling_config_base.census_year,
-        location=testling_config_base.location,
-        log_distance=testling_config_base.log_distance,
-        driving=testling_config_base.driving,
+        data_source='csv',
+        census_year=testing_config_base.census_year,
+        location=testing_config_base.location,
+        log_distance=testing_config_base.log_distance,
+        driving=testing_config_base.driving,
     )
     yield polling_locations.polling_locations
 
 @pytest.fixture(scope='module')
-def distances_df(testling_config_base, polling_locations_df):
-    yield model_data.clean_data(testling_config_base, polling_locations_df, False, False)
+def distances_df(testing_config_base, polling_locations_df):
+    yield model_data.clean_data(testing_config_base, polling_locations_df, False, False)
 
 @pytest.fixture(scope='module')
-def alpha_min(testling_config_base, polling_locations_df):
-    alpha_df = model_data.clean_data(testling_config_base, polling_locations_df, True, False)
+def alpha_min(testing_config_base, polling_locations_df):
+    alpha_df = model_data.clean_data(testing_config_base, polling_locations_df, True, False)
     yield model_data.alpha_min(alpha_df)
 
 @pytest.fixture(scope='module')
-def polling_model(distances_df, alpha_min, testling_config_base):
-    model = model_factory.polling_model_factory(distances_df, alpha_min, testling_config_base)
-    model_solver.solve_model(model, testling_config_base.time_limit)
+def polling_model(distances_df, alpha_min, testing_config_base):
+    model = model_factory.polling_model_factory(distances_df, alpha_min, testing_config_base)
+    model_solver.solve_model(model, testing_config_base.time_limit)
 
     yield model
 

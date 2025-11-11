@@ -109,7 +109,7 @@ def run_config(
         results_path = os.path.join(RESULTS_FOLDER_NAME, config.config_set)
         print(f'Starting config: {config_info} -> CSV output to directory {results_path}')
 
-    config.location_source = DATA_SOURCE_DB
+    config.data_source = DATA_SOURCE_DB
     model_run = ModelRun(config, log)
 
     if outtype == OUT_TYPE_DB:

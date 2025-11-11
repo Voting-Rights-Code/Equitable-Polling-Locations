@@ -148,12 +148,12 @@ class ModelRun():
         query: Query=None
 
         # If we are using local files, build the source data if it doesn't already exist
-        if self._config.location_source == DATA_SOURCE_CSV:
+        if self._config.data_source == DATA_SOURCE_CSV:
             # Check if the local source file exists for get_polling_locations, if it doesn't then build it
             if not os.path.exists(source_path):
                 warnings.warn(f'File {source_path} not found. Creating it.')
                 build_source(
-                    location_source=DATA_SOURCE_CSV,
+                    data_source=DATA_SOURCE_CSV,
                     census_year=self._config.census_year,
                     location=self._config.location,
                     driving=self._config.driving,
@@ -166,7 +166,7 @@ class ModelRun():
             query = self._query
 
         polling_locations = get_polling_locations(
-            location_source=self._config.location_source,
+            data_source=self._config.data_source,
             census_year=self._config.census_year,
             location=self._config.location,
             log_distance=self._config.log_distance,

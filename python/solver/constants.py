@@ -33,7 +33,7 @@ CONFIG_RUN_TIME = 'run_time'
 CONFIG_FILE_PATH = 'config_file_path'
 CONFIG_LOG_FILE_PATH = 'log_file_path'
 CONFIG_MAP_SOURCE_DATE = 'map_source_date'
-CONFIG_LOCATION_SOURCE = 'location_source'
+CONFIG_LOCATION_SOURCE = 'data_source'
 
 # Location only data related constants
 LOC_ONLY_LOCATION = 'Location'

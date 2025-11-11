@@ -103,13 +103,13 @@ class PollingLocationsOnlyResult:
 
 
 def get_polling_locations_only(
-        location_source: Literal['db', 'csv'],
+        data_source: Literal['db', 'csv'],
         location: str,
         locations_only_path_override: str=None,
         query: Query=None,
 ) -> PollingLocationsOnlyResult:
     location_only_set_id: str = None
-    if location_source == DATA_SOURCE_DB:
+    if data_source == DATA_SOURCE_DB:
         location_only_set = query.get_location_only_set(location)
         if not location_only_set:
             raise ValueError(f'Could not find location only set for {location} in the database.')
@@ -298,7 +298,7 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
 
 @dataclass
 class BuildSourceResult:
-    location_source: Literal['db', 'csv']
+    data_source: Literal['db', 'csv']
     census_year: str
     location: str
     driving: bool
@@ -317,7 +317,7 @@ class BuildSourceResult:
 
 @timer
 def build_source(
-    location_source: Literal['db', 'csv'],
+    data_source: Literal['db', 'csv'],
     census_year: str,
     location: str,
     driving: bool,
@@ -330,7 +330,7 @@ def build_source(
     query: Query=None,
 ) -> BuildSourceResult:
     locations_only_results = get_polling_locations_only(
-        location_source,
+        data_source,
         location,
         locations_only_path_override,
         query=query,
@@ -353,7 +353,7 @@ def build_source(
         output_path = output_path_override
 
     result = BuildSourceResult(
-        location_source=location_source,
+        data_source=data_source,
         census_year=census_year,
         location=location,
         driving=driving,
@@ -400,7 +400,7 @@ def build_source(
     #####
 
     if driving:
-        if location_source == DATA_SOURCE_DB:
+        if data_source == DATA_SOURCE_DB:
             driving_distance_set = query.find_driving_distance_set(
                 census_year,
                 map_source_date,
@@ -602,7 +602,7 @@ def get_polling_locations_db(
 
 @timer
 def get_polling_locations(
-    location_source: Literal['db', 'csv'],
+    data_source: Literal['db', 'csv'],
     census_year: str,
     location: str,
     log_distance: bool,
@@ -625,7 +625,7 @@ def get_polling_locations(
     if results:
         return results
 
-    if location_source != DATA_SOURCE_DB:
+    if data_source != DATA_SOURCE_DB:
         # pylint: disable-next=line-too-long
         raise ValueError(f'Polling location data cannot be found for census_year={census_year}, log_distance={log_distance}, driving={driving}, location {location}')
 
@@ -642,7 +642,7 @@ def get_polling_locations(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     results.polling_locations.to_csv(output_path, index=True)
-
+    breakpoint()
     return results
 
 

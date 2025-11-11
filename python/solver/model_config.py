@@ -113,7 +113,7 @@ class PollingModelConfig:
     db_id: str = None
     ''' Id if this PollingModelConfig initially came from the db '''
 
-    location_source: Literal['csv', 'db'] = DATA_SOURCE_CSV
+    data_source: Literal['csv', 'db'] = DATA_SOURCE_CSV
     ''' Where to retrieve the location data from, either a CSV file or the database. '''
 
     map_source_date: str = None

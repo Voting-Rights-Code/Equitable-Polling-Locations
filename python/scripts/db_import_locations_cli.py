@@ -60,7 +60,7 @@ def build_and_import_locations(
     log_distance: bool,
 ) -> ImportResult:
     build_source_result = build_source(
-        location_source=DATA_SOURCE_DB,
+        data_source=DATA_SOURCE_DB,
         census_year=census_year,
         location=location,
         driving=driving,
