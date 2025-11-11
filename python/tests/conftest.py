@@ -90,10 +90,6 @@ def driving_locations_results_df(#tmp_path_factory,
 def polling_locations_config():
     yield PollingModelConfig.load_config(TESTING_CONFIG_BASE)
 
-@pytest.fixture(scope='session')
-def polling_locations_penalty_config():
-    yield PollingModelConfig.load_config(TESTING_CONFIG_PENALTY)
-
 @pytest.fixture(scope='module')
 def polling_locations_df(polling_locations_config):
     polling_locations = model_data.get_polling_locations(
@@ -123,14 +119,14 @@ def polling_model(distances_df, alpha_min, polling_locations_config):
 
 #TODO: Should this be called the penaized polling model? where is this used?
 @pytest.fixture(scope='module')
-def expanded_polling_model(distances_df, alpha_min, polling_locations_penalty_config):
+def expanded_polling_model(distances_df, alpha_min, testing_config_penalty):
     model = model_factory.polling_model_factory(
         distances_df,
         alpha_min,
-        polling_locations_penalty_config,
+        testing_config_penalty,
         exclude_penalized_sites=True
     )
-    model_solver.solve_model(model, polling_locations_penalty_config.time_limit)
+    model_solver.solve_model(model, testing_config_penalty.time_limit)
 
     yield model
 
