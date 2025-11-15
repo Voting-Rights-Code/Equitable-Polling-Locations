@@ -28,18 +28,16 @@ def load_kp_factor_data(path: str) -> pd.DataFrame:
 
 
 def test_alpha_min(alpha_min):
-    print(f'alpha -> {alpha_min}')
-    print(f'alpha_min -> {alpha_min}')
-
+    
     assert round(alpha_min, 11) ==  7.992335e-05 #value from R code
 
-def test_kp_factor(alpha_min, distances_df, testing_config_base):
-    distances_kp = distances_df.copy()
+def test_kp_factor(alpha_min, clean_distances_df, testing_config_base):
+    distances_kp = clean_distances_df.copy()
     distances_kp['kp_factor'] = round(
         model_factory.compute_kp_factor(
             testing_config_base,
             alpha_min,
-            distances_df
+            clean_distances_df
         ),
         6,
     )
@@ -49,7 +47,7 @@ def test_kp_factor(alpha_min, distances_df, testing_config_base):
         model_factory.compute_kp_factor(
             testing_config_base,
             alpha_min,
-            distances_df
+            clean_distances_df
         ),
         6,
     )
@@ -79,19 +77,19 @@ def test_max_new_constraint(potential_precincts, open_precincts, testing_config_
     assert len(new_precincts) < testing_config_base.maxpctnew * testing_config_base.precincts_open
 
 
-def test_min_old_constraint(distances_df, open_precincts, potential_precincts, testing_config_base):
+def test_min_old_constraint(clean_distances_df, open_precincts, potential_precincts, testing_config_base):
     #number of old precincts more than minpctold of old polls
-    old_polls = len(distances_df[distances_df.location_type == 'polling'])
+    old_polls = len(clean_distances_df[clean_distances_df.location_type == 'polling'])
     old_precincts = open_precincts.difference(potential_precincts)
     assert len(old_precincts) >= testing_config_base.minpctold*old_polls
 
 
-def test_res_assigned(polling_model, distances_df):
+def test_res_assigned(polling_model, clean_distances_df):
     #each residence assigned to exactly one precinct
     #Note: ignoring the radius calculation here
     matched_residences = {key[0] for key in polling_model.matching if polling_model.matching[key].value ==1}
 
-    all_residences = set(distances_df.id_orig.unique())
+    all_residences = set(clean_distances_df.id_orig.unique())
 
     assert matched_residences == all_residences
 
@@ -103,7 +101,7 @@ def test_precinct_open(polling_model, open_precincts):
     assert matched_precincts == open_precincts
 
 
-def test_capacity(polling_model, distances_df, total_population, testing_config_base):
+def test_capacity(polling_model, clean_distances_df, total_population, testing_config_base):
     #each open precinct doesn't serve more that capacity * total pop / number open
     matching_list= [
         (key[0], key[1], polling_model.matching[key].value)
@@ -112,8 +110,8 @@ def test_capacity(polling_model, distances_df, total_population, testing_config_
     ]
     matching_df = pd.DataFrame(matching_list, columns = ['id_orig', 'id_dest', 'matching'])
 
-    #merge with distances_df
-    result_df = pd.merge(distances_df, matching_df, on = ['id_orig', 'id_dest'])
+    #merge with clean_distances_df
+    result_df = pd.merge(clean_distances_df, matching_df, on = ['id_orig', 'id_dest'])
     dest_pop_df = result_df[['id_dest', 'population']].groupby('id_dest').agg('sum')
     # pylint: disable-next=line-too-long
     assert all(dest_pop_df.population <=(testing_config_base.capacity*total_population/testing_config_base.precincts_open))

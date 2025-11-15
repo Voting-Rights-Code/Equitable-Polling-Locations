@@ -24,7 +24,7 @@ IMPORT_ERROR_LOG_FILE='locations_only_import_errors.csv'
 def import_locations_only(
     environment: Environment,
     location: str,
-    polling_locations_only_set_id: str,
+    locations_only_set_id: str,
     csv_path: str,
     log: bool = False,
 ) -> ImportResult:
@@ -37,7 +37,7 @@ def import_locations_only(
     }
     ignore_columns = ['V1', 'Latitude', 'Longitude']
     add_columns = {
-        'polling_locations_only_set_id': polling_locations_only_set_id
+        'locations_only_set_id': locations_only_set_id
     }
 
     return csv_to_bigquery(
@@ -86,7 +86,7 @@ def main(args: argparse.Namespace):
         import_locations_only_result = import_locations_only(
             environment=environment,
             location=location,
-            polling_locations_only_set_id=polling_locations_only_set.id,
+            locations_only_set_id=polling_locations_only_set.id,
             csv_path=locations_only_file_path,
             log=True,
         )

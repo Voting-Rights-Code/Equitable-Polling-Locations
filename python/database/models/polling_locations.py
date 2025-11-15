@@ -66,7 +66,7 @@ class PollingLocationOnly(ModelBase):
 
 
     # Relations
-    polling_locations_only_set_id = mapped_column(ForeignKey('polling_locations_only_sets.id'), nullable=False)
+    locations_only_set_id = mapped_column(ForeignKey('polling_locations_only_sets.id'), nullable=False)
     ''' The PollingLocationOnlySet id that this PollingLocationOnly belongs to '''
 
     polling_locations_only_set: Mapped['PollingLocationOnlySet'] = relationship(back_populates='polling_locations_only')
@@ -99,7 +99,7 @@ class PollingLocationSet(ModelBase):
     driving: bool = Column(Boolean, nullable=False)
 
    # Relations
-    polling_locations_only_set_id = mapped_column(ForeignKey('polling_locations_only_sets.id'), nullable=False)
+    locations_only_set_id = mapped_column(ForeignKey('polling_locations_only_sets.id'), nullable=False)
     ''' The PollingLocationOnlySet id that this PollingLocationSet is generated from. '''
 
     polling_locations_only_set: Mapped['PollingLocationOnlySet'] = relationship(back_populates='polling_locations_sets')

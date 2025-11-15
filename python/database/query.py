@@ -334,7 +334,7 @@ class Query:
 
     def create_db_polling_locations_set(
         self,
-        polling_locations_only_set_id: str,
+        locations_only_set_id: str,
         census_year: str,
         location: str,
         log_distance: bool,
@@ -342,7 +342,7 @@ class Query:
         driving_distance_set_id: str,
     ) -> models.PollingLocationSet:
         result = models.PollingLocationSet(
-            polling_locations_only_set_id=polling_locations_only_set_id,
+            locations_only_set_id=locations_only_set_id,
             census_year=census_year,
             location=location,
             log_distance=log_distance,
@@ -404,7 +404,7 @@ class Query:
 
         table_name = models.PollingLocationOnly.__tablename__
 
-        query = f'SELECT * FROM {table_name} WHERE polling_locations_only_set_id = "{polling_locations_set_id}"'
+        query = f'SELECT * FROM {table_name} WHERE locations_only_set_id = "{polling_locations_set_id}"'
 
         df = pd.read_sql(query, session.get_bind())
         return df

@@ -96,18 +96,20 @@ FULL_LOC_DF_COLS = [
 ]
 
 @dataclass
-class PollingLocationsOnlyResult:
+class PollingLocationsOnlyResult: #TODO: rename to LocationsOnlyData
+    #class for the locations_only data and associated metadata
     locations_only: pd.DataFrame
-    polling_locations_only_set_id: str=None
+    locations_only_set_id: str=None
     output_path: str=None
 
 
-def get_polling_locations_only(
+def get_polling_locations_only( 
         data_source: Literal['db', 'csv'],
         location: str,
         locations_only_path_override: str=None,
         query: Query=None,
 ) -> PollingLocationsOnlyResult:
+    #pulls locations_only data from db or csv
     location_only_set_id: str = None
     if data_source == DATA_SOURCE_DB:
         location_only_set = query.get_location_only_set(location)
@@ -166,9 +168,11 @@ def get_polling_locations_only(
 
     return PollingLocationsOnlyResult(
         locations_only=locations_only_df,
-        polling_locations_only_set_id=location_only_set_id,
+        locations_only_set_id=location_only_set_id,
     )
 
+
+#functions that are steps in build source class
 
 def get_blocks_gdf(census_year: str, location: str) -> gpd.GeoDataFrame:
     block_source_file = get_block_source_file_path(census_year, location)
@@ -306,7 +310,7 @@ class BuildSourceResult:
     map_source_date: str=None,
     output_path: str=None
     driving_distance_set_id: str=None
-    polling_locations_only_set_id: str=None
+    locations_only_set_id: str=None
 
 
 ##########################
@@ -329,7 +333,7 @@ def build_source(
     output_path_override: str=None,
     query: Query=None,
 ) -> BuildSourceResult:
-    locations_only_results = get_polling_locations_only(
+    locations_only_results = get_polling_locations_only( #get the *_locations_only data
         data_source,
         location,
         locations_only_path_override,
@@ -359,7 +363,7 @@ def build_source(
         driving=driving,
         log_distance=log_distance,
         map_source_date=map_source_date,
-        polling_locations_only_set_id=locations_only_results.polling_locations_only_set_id,
+        locations_only_set_id=locations_only_results.locations_only_set_id,
         output_path=output_path
     )
 
@@ -642,7 +646,7 @@ def get_polling_locations(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     results.polling_locations.to_csv(output_path, index=True)
-    breakpoint()
+
     return results
 
 

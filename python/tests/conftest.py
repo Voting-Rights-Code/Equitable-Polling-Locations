@@ -107,7 +107,7 @@ def polling_locations_df(testing_config_base):
     yield polling_locations.polling_locations
 
 @pytest.fixture(scope='module')
-def distances_df(testing_config_base, polling_locations_df):
+def clean_distances_df(testing_config_base, polling_locations_df):
     yield model_data.clean_data(testing_config_base, polling_locations_df, False, False)
 
 @pytest.fixture(scope='module')
@@ -116,17 +116,17 @@ def alpha_min(testing_config_base, polling_locations_df):
     yield model_data.alpha_min(alpha_df)
 
 @pytest.fixture(scope='module')
-def polling_model(distances_df, alpha_min, testing_config_base):
-    model = model_factory.polling_model_factory(distances_df, alpha_min, testing_config_base)
+def polling_model(clean_distances_df, alpha_min, testing_config_base):
+    model = model_factory.polling_model_factory(clean_distances_df, alpha_min, testing_config_base)
     model_solver.solve_model(model, testing_config_base.time_limit)
 
     yield model
 
 #TODO: Should this be called the penaized polling model? where is this used?
 @pytest.fixture(scope='module')
-def expanded_polling_model(distances_df, alpha_min, testing_config_penalty):
+def expanded_polling_model(clean_distances_df, alpha_min, testing_config_penalty):
     model = model_factory.polling_model_factory(
-        distances_df,
+        clean_distances_df,
         alpha_min,
         testing_config_penalty,
         exclude_penalized_sites=True
@@ -141,9 +141,9 @@ def open_precincts(polling_model):
     yield {key for key in polling_model.open if polling_model.open[key].value ==1}
 
 @pytest.fixture(scope='module')
-def total_population(distances_df):
-    yield distances_df.groupby('id_orig')['population'].agg('unique').str[0].sum()
+def total_population(clean_distances_df):
+    yield clean_distances_df.groupby('id_orig')['population'].agg('unique').str[0].sum()
 
 @pytest.fixture(scope='module')
-def potential_precincts(distances_df):
-    yield set(distances_df[distances_df.dest_type == 'potential'].id_dest)
+def potential_precincts(clean_distances_df):
+    yield set(clean_distances_df[clean_distances_df.dest_type == 'potential'].id_dest)

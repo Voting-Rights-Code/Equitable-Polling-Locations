@@ -70,7 +70,7 @@ def build_and_import_locations(
         query=query,
     )
     polling_locations_set = query.create_db_polling_locations_set(
-        polling_locations_only_set_id=build_source_result.polling_locations_only_set_id,
+        locations_only_set_id=build_source_result.locations_only_set_id,
         census_year=census_year,
         location=location,
         log_distance=log_distance,
