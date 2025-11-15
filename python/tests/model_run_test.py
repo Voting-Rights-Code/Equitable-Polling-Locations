@@ -42,23 +42,13 @@ def test_kp_factor(alpha_min, clean_distances_df, testing_config_base):
         6,
     )
 
-    distances_df2 = distances_kp[['id_orig', 'id_dest', 'kp_factor']]
-    distances_df2['kp_factor'] = round(
-        model_factory.compute_kp_factor(
-            testing_config_base,
-            alpha_min,
-            clean_distances_df
-        ),
-        6,
-    )
-
-    distances_df2 = distances_df2.sort_values(by=['id_orig', 'id_dest'])
+    distances_kp = distances_kp.sort_values(by=['id_orig', 'id_dest'])
 
     fixed_test_data = load_kp_factor_data(TEST_KP_FACTOR) #data from R code
     fixed_test_data.kp_factor = round(fixed_test_data.kp_factor, 6)
     fixed_test_data = fixed_test_data.sort_values(by=['id_orig', 'id_dest'])
 
-    compare = distances_df2.merge(fixed_test_data, how = 'outer', on=['id_orig', 'id_dest'])
+    compare = distances_kp.merge(fixed_test_data, how = 'outer', on=['id_orig', 'id_dest'])
     compare = compare.sort_values(by=['id_orig', 'id_dest'])
 
     assert compare.kp_factor_x.equals(compare.kp_factor_y)
