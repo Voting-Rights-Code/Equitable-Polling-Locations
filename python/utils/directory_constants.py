@@ -20,6 +20,8 @@ CENSUS_FOLDER_NAME = 'census'
 
 TIGER_FOLDER_NAME = 'tiger'
 
+SETTINGS_YAML = 'settings.yaml'
+
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 ''' The location of this constants file '''
 
@@ -43,3 +45,5 @@ DRIVING_DIR = os.path.join(DATASETS_DIR, DRIVING_FOLDER_NAME)
 
 CENSUS_TIGER_DIR = os.path.join(DATASETS_DIR, CENSUS_FOLDER_NAME, TIGER_FOLDER_NAME)
 ''' The base dir for where all the tiger data is located '''
+
+SETTINGS_PATH = os.path.join(PROJECT_ROOT_DIR, SETTINGS_YAML)

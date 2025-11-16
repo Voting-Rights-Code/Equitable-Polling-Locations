@@ -14,7 +14,7 @@ from sqlalchemy.engine.base import Engine
 from sqlalchemy.ext.declarative import declarative_base
 from alembic.operations import Operations, MigrateOperation
 
-from python import utils
+from python.utils.environments import Environment
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -23,50 +23,20 @@ DEFAULT_PROJECT = 'equitable-polling-locations'
 PRINT_QUERY_DEBUG=False
 ''' If set to true, SQLAlchemy will print sql queries. '''
 
-
-
 ModelBase = declarative_base()
 
 ModelBaseType = Type[ModelBase]
 
 bq_engine: Engine = None
 
+def get_database_url(project: str, dataset: str) -> str:
+    return f'bigquery://{project}/{dataset}'
 
-_project = None
-_datset = None
+def setup(environment: Environment) -> Engine: #config: Dict[str,  str]):
 
+    database_url = get_database_url(environment.project, environment.dataset)
 
-def get_db_project() -> str:
-    global _project
-    if not _project:
-        _project = utils.get_env_var_or_prompt('DB_PROJECT', DEFAULT_PROJECT)
-    return _project
-
-def get_db_dataset() -> str:
-    global _datset
-    if not _datset:
-        _datset = utils.get_env_var_or_prompt('DB_DATASET')
-    return _datset
-
-def get_database_url() -> str:
-    return f'bigquery://{get_db_project()}/{get_db_dataset()}'
-
-def setup(): #config: Dict[str,  str]):
-    global bq_engine
-
-    database_url = get_database_url()
-
-    if not bq_engine:
-        bq_engine = create_engine(url=database_url, echo=PRINT_QUERY_DEBUG)
-
-    return bq_engine
-
-def get_connection():
-    # global bq_engine
-    if bq_engine:
-        return bq_engine.connect()
-    return None
-
+    return create_engine(url=database_url, echo=PRINT_QUERY_DEBUG)
 
 class ReversibleOp(MigrateOperation):
     '''

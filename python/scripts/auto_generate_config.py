@@ -8,11 +8,12 @@ import argparse
 
 from sqlalchemy import inspect, sql
 
-from python.database import query
+from python.database.query import Query
 from python.solver.model_config import PollingModelConfig
 from python.database import models as Models
 from python.utils.directory_constants import CONFIG_BASE_DIR
 from python.solver.constants import UTF8
+from python.utils.environments import load_env
 
 def load_base_config(config_file):
     '''Load the base configuration from the provided YAML file.'''
@@ -74,7 +75,12 @@ def check_model_and_input_types_match(input_config, model_inspect):
             raise ValueError(f'{key} is of wrong type. See models.model_config.py for correct types.')
     return
 
-def generate_configs(base_config_file: str, config_base_dir: str=CONFIG_BASE_DIR, write_to_db: bool=False):
+def generate_configs(
+    base_config_file: str,
+    config_base_dir: str=CONFIG_BASE_DIR,
+    write_to_db: bool=False,
+    environment_name: str=None,
+):
     """
     Generate YAML configurations by varying specified parameters while keeping others constant.
     """
@@ -116,6 +122,10 @@ def generate_configs(base_config_file: str, config_base_dir: str=CONFIG_BASE_DIR
     #validate varying_field
     if not field_to_vary in base_config.keys():
         raise ValueError(f'{field_to_vary} not a valid field')
+
+    if write_to_db:
+        environment = load_env(environment_name)
+        query = Query(environment)
 
     for new_value in desired_range:
         config = base_config.copy()
@@ -167,7 +177,7 @@ if __name__ == '__main__':
         action='store_true',
         help='Write the configs to the database',
     )
+    parser.add_argument('-e', '--environment', type=str, help='The environment to use')
 
     args = parser.parse_args()
-    generate_configs(args.base_config_path, write_to_db=args.database)
-
+    generate_configs(args.base_config_path, write_to_db=args.database, environment_name=args.environment)

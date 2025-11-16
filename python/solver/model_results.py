@@ -11,7 +11,8 @@ import pandas as pd
 
 import pyomo.environ as pyo
 
-from python.database import imports, query
+from python.database import imports
+from python.database.query import Query
 
 from python.utils import (
   timer,
@@ -194,6 +195,7 @@ def write_results_csv(
 @timer
 def write_results_bigquery(
     config: PollingModelConfig,
+    query: Query,
     polling_locations_set_id: str,
     result_df: pd.DataFrame,
     demographic_prec: pd.DataFrame,
@@ -203,9 +205,7 @@ def write_results_bigquery(
 ):
     '''Write result, demographic_prec, demographic_res and demographic_ede to BigQuery SQL tables'''
 
-
-    # TODO clean this up once PollingModelConfig is eventually removed and remplaced with
-    # the SQLAlchmey model
+    environment = config.environment
 
     # Setup a thread lock so that only one write to bigquery happens at a time.
     # This is to prevent problems with tqdm being used in model_run_cli.py
@@ -240,15 +240,19 @@ def write_results_bigquery(
 
         # Import each DF for this run
         edes_import_result = imports.import_edes(
+            environment,
             config_set, config_name, model_run.id, df=demographic_ede, log=log,
         )
         results_import_result = imports.import_results(
+            environment,
             config_set, config_name, model_run.id, df=result_df, log=log,
         )
         precinct_distances_import_result = imports.import_precinct_distances(
+            environment,
             config_set, config_name, model_run.id, df=demographic_prec, log=log,
         )
         residence_distances_import_result = imports.import_residence_distances(
+            environment,
             config_set, config_name, model_run.id, df=demographic_res, log=log,
         )
 
