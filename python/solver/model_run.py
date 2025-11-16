@@ -12,10 +12,11 @@ import os
 import warnings
 
 
+from python.database.query import Query
 from python.utils import build_locations_distance_file_path
-from python.utils.directory_constants import LOCATION_SOURCE_CSV, RESULTS_BASE_DIR
+from python.utils.directory_constants import RESULTS_BASE_DIR
 
-from .constants import LOC_ID_DEST, LOC_ID_ORIG
+from .constants import LOC_ID_DEST, LOC_ID_ORIG, DATA_SOURCE_CSV
 
 from .run_setup import RunSetup
 
@@ -55,12 +56,13 @@ def prepare_run(config: PollingModelConfig, log: bool=False) -> RunSetup:
         config.log_distance,
     )
 
+    query: Query = None
     # If we are using local files, build the source data if it doesn't already exist
-    if config.location_source == LOCATION_SOURCE_CSV:
+    if config.location_source == DATA_SOURCE_CSV:
         if not os.path.exists(source_path):
             warnings.warn(f'File {source_path} not found. Creating it.')
             build_source(
-                location_source=LOCATION_SOURCE_CSV,
+                location_source=DATA_SOURCE_CSV,
                 census_year=config.census_year,
                 location=config.location,
                 driving=config.driving,
@@ -68,6 +70,8 @@ def prepare_run(config: PollingModelConfig, log: bool=False) -> RunSetup:
                 map_source_date=config.map_source_date,
                 log=log,
             )
+    else:
+        query = Query(config.environment)
 
     polling_locations = get_polling_locations(
         location_source=config.location_source,
@@ -75,6 +79,8 @@ def prepare_run(config: PollingModelConfig, log: bool=False) -> RunSetup:
         location=config.location,
         log_distance=config.log_distance,
         driving=config.driving,
+        query=query,
+        log=log,
     )
 
     polling_locations_set_id = polling_locations.polling_locations_set_id
@@ -115,7 +121,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str=OUT_
     solve_model(run_setup.ea_model, config.time_limit, log=log, log_file_path=config.log_file_path)
 
     #incorporate result into main dataframe
-    result_df = incorporate_result(run_setup.dist_df, run_setup.ea_model)
+    result_df = incorporate_result(run_setup.dist_df, run_setup.ea_model, config.log_distance)
 
     #incorporate site penalties as appropriate
     # result_df = incorporate_penalties(
@@ -144,8 +150,10 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str=OUT_
     demographic_ede = demographic_summary(demographic_res, result_df, config.beta, alpha_new)
 
     if outtype == OUT_TYPE_DB:
+        query = Query(config.environment)
         write_results_bigquery(
             config=config,
+            query=query,
             polling_locations_set_id=run_setup.polling_locations_set_id,
             result_df=result_df,
             demographic_prec=demographic_prec,

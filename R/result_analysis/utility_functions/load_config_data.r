@@ -95,11 +95,12 @@ convert_configs_to_dt <- function(config_list){
 
 read_config_folder_from_file <- function(config_folder){
 	#check that config_folder exists
-	if (!dir.exists(config_folder)){
-    	stop(paste('Config folder', config_folder, 'does not exist on file'))
+	config_folder_full_path <- paste0('datasets/configs/', config_folder)
+	if (!dir.exists(config_folder_full_path)){
+    	stop(paste('Config folder', config_folder_full_path, 'does not exist on file'))
 	}
 	#read config folder data from file
-	config_list <- read_config_as_list(config_folder)
+	config_list <- read_config_as_list(config_folder_full_path)
 	config_dt <- convert_configs_to_dt(config_list)
 	config_dt <- config_dt[ , config_set := config_folder]
 	return(config_dt)

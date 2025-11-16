@@ -11,7 +11,8 @@ import pandas as pd
 
 import pyomo.environ as pyo
 
-from python.database import imports, query
+from python.database import imports
+from python.database.query import Query
 
 from python.utils import (
   timer,
@@ -31,7 +32,7 @@ from .model_config import PollingModelConfig
 lock = threading.Lock()
 
 @timer
-def incorporate_result(dist_df: pd.DataFrame, model: pyo.ConcreteModel):
+def incorporate_result(dist_df: pd.DataFrame, model: pyo.ConcreteModel, log_distance: bool):
     '''Input: dist_df--the main data frame containing the data for model
               model -- the solved model
               model.matching -- pyo boolean variable for when a residence is matched to a precinct (res, prec):bool
@@ -55,6 +56,8 @@ def incorporate_result(dist_df: pd.DataFrame, model: pyo.ConcreteModel):
     if any(result_df[RESULT_MATCHING].isnull()):
         raise ValueError('The model has some unmatched precincts')
     result_df = result_df.loc[result_df[RESULT_MATCHING] == 1]
+    if log_distance:
+        result_df[LOC_DISTANCE_M] = math.e**result_df[LOC_DISTANCE_M]
 
     return result_df
 
@@ -157,8 +160,8 @@ def demographic_summary(demographic_df: pd.DataFrame, result_df: pd.DataFrame, b
         #merge the datasets
         result = pd.concat([result[[DOMAIN_WEIGHTED_DIST, RESULT_AVG_DIST]], demographic_ede], axis=1)
 
-        #add source data back in
-        result[LOC_SOURCE] = source_value[0]
+    #add source data back in
+    result[LOC_SOURCE] = source_value[0]
 
     return result
 
@@ -192,6 +195,7 @@ def write_results_csv(
 @timer
 def write_results_bigquery(
     config: PollingModelConfig,
+    query: Query,
     polling_locations_set_id: str,
     result_df: pd.DataFrame,
     demographic_prec: pd.DataFrame,
@@ -201,9 +205,7 @@ def write_results_bigquery(
 ):
     '''Write result, demographic_prec, demographic_res and demographic_ede to BigQuery SQL tables'''
 
-
-    # TODO clean this up once PollingModelConfig is eventually removed and remplaced with
-    # the SQLAlchmey model
+    environment = config.environment
 
     # Setup a thread lock so that only one write to bigquery happens at a time.
     # This is to prevent problems with tqdm being used in model_run_cli.py
@@ -238,15 +240,19 @@ def write_results_bigquery(
 
         # Import each DF for this run
         edes_import_result = imports.import_edes(
+            environment,
             config_set, config_name, model_run.id, df=demographic_ede, log=log,
         )
         results_import_result = imports.import_results(
+            environment,
             config_set, config_name, model_run.id, df=result_df, log=log,
         )
         precinct_distances_import_result = imports.import_precinct_distances(
+            environment,
             config_set, config_name, model_run.id, df=demographic_prec, log=log,
         )
         residence_distances_import_result = imports.import_residence_distances(
+            environment,
             config_set, config_name, model_run.id, df=demographic_res, log=log,
         )
 

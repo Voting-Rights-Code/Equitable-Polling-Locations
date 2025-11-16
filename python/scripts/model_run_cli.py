@@ -8,6 +8,7 @@
 
 import argparse
 import datetime
+from functools import partial
 from glob import glob
 from multiprocessing import Pool
 import os
@@ -109,9 +110,14 @@ def main(args: argparse.Namespace):
     verbose: bool = args.verbose > 1
 
     if args.concurrent > 1:
+        worker_func = partial(
+            run_config,
+            log=log,
+            verbose=verbose
+        )
         print(f'Running concurrent with a pool size of {args.concurrent} against {total_files} config file(s)')
         with Pool(args.concurrent) as pool:
-            for _ in tqdm(pool.imap_unordered(lambda x: run_config(x, log, verbose), configs), total=total_files):
+            for _ in tqdm(pool.imap_unordered(worker_func, configs), total=total_files):
                 pass
     else:
         # Disable function timers messages unless verbosity 2 or higher is set
@@ -122,7 +128,8 @@ def main(args: argparse.Namespace):
 
         for config_file in configs:
             run_config(config_file, log, verbose)
-            print('--------------------------------------------------------------------------------')
+            if log:
+                print('--------------------------------------------------------------------------------')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(

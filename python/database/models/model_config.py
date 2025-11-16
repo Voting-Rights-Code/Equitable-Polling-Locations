@@ -113,7 +113,7 @@ class ModelConfig(ModelBase):
         serialized_data = json.dumps(column_data, sort_keys=True)
         hash_object = hashlib.sha1(serialized_data.encode())
 
-        print(serialized_data)
+        # print(serialized_data)
         hex_dig = hash_object.hexdigest()
         return hex_dig
 

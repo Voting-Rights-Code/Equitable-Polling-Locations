@@ -10,11 +10,12 @@ import sys
 
 from python.database.imports import csv_to_bigquery, ImportResult, print_all_import_results
 from python.database.models import PollingLocation
+from python.database.query import Query
 
-from python.database import query
 from python.solver.model_data import build_source
 from python.utils import is_int
 from python.solver.constants import DATA_SOURCE_DB
+from python.utils.environments import Environment, load_env
 
 DEFAULT_LOG_DIR='logs'
 IMPORT_ERROR_LOG_FILE='locations_import_errors.csv'
@@ -23,6 +24,7 @@ LINEAR = 'linear'
 LOG = 'log'
 
 def import_locations(
+    environment: Environment,
     location: str,
     polling_locations_set_id: str,
     csv_path: str,
@@ -37,6 +39,7 @@ def import_locations(
     }
 
     return csv_to_bigquery(
+        environment=environment,
         config_set=location,
         config_name=csv_path,
         model_class=PollingLocation,
@@ -49,20 +52,13 @@ def import_locations(
 
 
 def build_and_import_locations(
+    query: Query,
     census_year: str,
     location: str,
     driving: bool,
     maps_source_date: str,
     log_distance: bool,
 ) -> ImportResult:
-
-    # location_only_set = query.get_location_only_set(location)
-
-    # if not location_only_set:
-    #     raise ValueError(f'Polling location only set not found for {location}.  Please make sure it was imported.')
-
-    # print('location_only_set --> :', location_only_set.id, '             <- :\n')
-
     build_source_result = build_source(
         location_source=DATA_SOURCE_DB,
         census_year=census_year,
@@ -71,8 +67,8 @@ def build_and_import_locations(
         log_distance=log_distance,
         map_source_date=maps_source_date,
         log=False,
+        query=query,
     )
-
     polling_locations_set = query.create_db_polling_locations_set(
         polling_locations_only_set_id=build_source_result.polling_locations_only_set_id,
         census_year=census_year,
@@ -92,6 +88,7 @@ def build_and_import_locations(
         raise ValueError(f'File {location_path} not found')
 
     import_locations_result = import_locations(
+        environment=query.environment,
         location=location,
         polling_locations_set_id=polling_locations_set.id,
         csv_path=location_path,
@@ -107,6 +104,8 @@ def main(args: argparse.Namespace):
     census_year: str = args.census_year[0]
     driving: bool = args.driving
 
+    environment = load_env(args.environment)
+
     if driving:
         # Use the default date for driving distances
         map_source_date = '20250101'
@@ -117,7 +116,7 @@ def main(args: argparse.Namespace):
     logdir = args.logdir
 
 
-    print('cencus_year:', census_year)
+    print('census_year:', census_year)
     print('locations:', locations)
     print('driving:', driving)
     print('map_source_date:', map_source_date)
@@ -129,16 +128,19 @@ def main(args: argparse.Namespace):
     num_imports = len(locations)
 
     print('------------------------------------------')
-    print(f'Importing {num_imports} location(s)\n')
+    print(f'Importing {num_imports} location(s) into {environment}\n')
 
 
     results = []
 
     for i, location in enumerate(locations):
+        query = Query(environment)
+
         print(f'Loading [{i+1}/{num_imports}] {location}')
 
         try:
             result = build_and_import_locations(
+                query=query,
                 census_year=census_year,
                 location=location,
                 driving=driving,
@@ -153,6 +155,7 @@ def main(args: argparse.Namespace):
 
         # pylint: disable-next=broad-exception-caught
         except Exception as e:
+            query.rollback()
             result =  ImportResult(
                 config_set=location,
                 config_name=location,
@@ -163,7 +166,6 @@ def main(args: argparse.Namespace):
                 exception=e,
             )
             results.append(result)
-
 
     success_results = [ result for result in results if result.success ]
     failed_results = [ result for result in results if not result.success ]
@@ -204,6 +206,7 @@ Examples:
 
        '''
     )
+    parser.add_argument('-e', '--environment', type=str, help='The environment to use')
     parser.add_argument('-l', '--logdir', default=DEFAULT_LOG_DIR, type=str, help='The directory to error files to')
     # pylint: disable-next=line-too-long
     parser.add_argument('-t', '--type', default=LINEAR, choices=[LINEAR, LOG], help=f'The type distance to use: {LINEAR} or {LOG}')

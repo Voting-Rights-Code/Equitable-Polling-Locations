@@ -10,9 +10,11 @@ First activate the environment if not done so already:
 * There are two command line options, one to write data locally, and the other to write data to the database
     * Read/write locally: `python -m python.scripts.model_run_cli -c NUM -l LOG_DIR ./path/to/config/file.yaml`
     * Read/write from/to database:
-        * `python -m python.scripts.model_run_db_cli -c NUM -l LOG_DIR config_set/config_name1 config_set2/config_name`
-        * `python -m python.scripts.model_run_db_cli -c NUM -l LOG_DIR config_set`
+        * `python -m python.scripts.model_run_db_cli -e ENV -c NUM -l LOG_DIR config_set/config_name1 config_set2/config_name`
+        * `python -m python.scripts.model_run_db_cli -e ENV -c NUM -l LOG_DIR config_set`
     * Parameters
+        * ENV = The environment to use. For cli utilities that connect to the database, you need to select an environment.  Typically this will be "prod" but others can be defined in settings.yaml in the project root directory. If an environment is not defined then you will be prompted to pick one.
+        * NUM = The number of configurations to run concurrently (default = 1).  If more than one is then multiple model runs can potentially be completed quicker depending on the resources available on your computer.
         * LOG_DIR = Where to put log files. The directory must exist, or will not run
         * path to config file accepts wild cards to set of sequential runs
         * config_set and config_name refer to the fields in the config data.
