@@ -235,7 +235,6 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
     #######
     #Clean data
     #######
-    print('Cleaning data')
     #select columns for each data set
     p3_df.columns=[multicols[0] for multicols in p3_df.columns]
     p3_df = p3_df[P3_COLUMNS]
@@ -246,7 +245,6 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
     #####
     #Make a demographics table
     #####
-    print('Making demographics table')
     #combine P3 and P4 data to make a joint demographics set
     demographics = p4_df.merge(
         p3_df,
@@ -384,7 +382,6 @@ def build_source(
     #####
     # Calculate appropriate distance
     #####
-    print('calculating distances')    
     if driving:
         if location_source == DATA_SOURCE_DB:
             driving_distance_set = query.find_driving_distance_set(census_year, map_source_date, location)
@@ -536,7 +533,6 @@ def get_polling_locations(
         raise ValueError('Invalid Census year for location {location}')
 
     if location_source == DATA_SOURCE_DB:
-        print(f'Loading polling locations for {location} from database')
 
         # Load locations from the database
         polling_locations_set = query.get_location_set(census_year, location, log_distance, driving)
@@ -560,7 +556,6 @@ def get_polling_locations(
         file_path = build_locations_distance_file_path(
             census_year, location, driving, log_distance,
         )
-        print(f'Loading polling locations for {location} from {file_path}')
 
         if not os.path.isfile(file_path):
             raise ValueError(f'Do not currently have any data for {file_path} from location {location}')
