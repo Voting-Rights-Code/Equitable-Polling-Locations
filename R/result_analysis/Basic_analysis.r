@@ -34,22 +34,23 @@ source('R/result_analysis/utility_functions/regression_functions.R')
 #      functions in this file that uses this constant and their ouputs are 
 #      adjusted to ignore this input or return NULL.
 #     3. Note: for now, this only works for a unique location. Extending this to the location being the varying field is still a TODO.
+#     4. run 
 #######
 
-# args = commandArgs(trailingOnly = TRUE)
-# if (length(args) != 1){
-#     stop("Must enter exactly one config file")
-# } else{#read constants from indicated config file
-#     config_path <- paste0('R/result_analysis/Basic_analysis_configs/', args[1])
-#     source(config_path)
-#  }
+args = commandArgs(trailingOnly = TRUE)
+if (length(args) != 1){
+     stop("Must enter exactly one config file") 
+    } else{#read constants from indicated config file
+    config_path <- paste0('R/result_analysis/Basic_analysis_configs/', args[1])
+    source(config_path)
+}
 
 ###
 #For inline testing only
 ###
-source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
-
-#source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
+#source('R/result_analysis/Basic_analysis_configs/Tarrant_County_original_and_fair_capacity_2.r')
+#source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
+#source('R/result_analysis/Basic_analysis_configs/Tarrant_County_original.r')
 
 #######
 #Check that location and folders valid
@@ -77,6 +78,7 @@ LOG_FLAG <- set_global_flag(config_dt_list, 'log_distance')
 
 #names of the output data in these lists
 #come from TABLES defined in graph_functions.R
+
 orig_output_df_list <- read_result_data(orig_config_dt, field_of_interest = ORIG_FIELD_OF_INTEREST, descriptor_dict = DESCRIPTOR_DICT_ORIG)
 
 potential_output_df_list <- read_result_data(potential_config_dt, field_of_interest = POTENTIAL_FIELD_OF_INTEREST, 
@@ -147,6 +149,9 @@ if(!HISTORICAL_FLAG){
     #Histogram of the original distributions and that for the desired number of polls
     plot_orig_ideal_hist(orig_output_df_list$residence_distances, potential_output_df_list$residence_distances, IDEAL_POLL_NUMBER)
 
+    #Histograms of the original distributions by race and that for the desired number of polls
+    plot_original_optimized_demographic_hists(potential_output_df_list$residence_distances, orig_output_df_list$residence_distances)
+
     #plot distance v density graphs and regressions
     plot_density_v_distance_bg(rbindlist(potential_bg_density_demo), LOCATION, DEMOGRAPHIC_LIST)
 
@@ -181,9 +186,9 @@ plot_historic_edes(orig_output_df_list$edes)
 orig_pop_scaled_edes <- ede_with_pop(orig_output_df_list)
 plot_historic_edes(orig_pop_scaled_edes, '_scaled')
 
-###maps####
 plot_population_densities(orig_regression_data)
 
+###maps####
 sapply(orig_list_prepped, function(x)make_bg_maps(x))
 
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'population'))

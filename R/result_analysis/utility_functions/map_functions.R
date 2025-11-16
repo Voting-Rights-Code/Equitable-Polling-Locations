@@ -154,6 +154,7 @@ bg_result_geom <- function(location, result_df){
 extract_unique_location <- function(df){
 	#extract location from data
 	location <- unique(df$location)
+	
 	if(length(location) >1){
 		stop(paste('Multiple locations in this result data from config set', df$config_set, 'with config name', df$config_name))
 		}
@@ -231,7 +232,7 @@ distance_bounds <- function(df){
 #Make block group maps
 ###############
 
-make_bg_maps <-function(prepped_data, demo_str = 'population', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, color_bounds = global_color_bounds){ 
+make_bg_maps <-function(prepped_data, demo_str = 'population', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, color_bounds = global_color_bounds, linear_color_gradient = LINEAR_COLOR_GRADIENT){ 
 	#use aggregated result data to color the map by distance to matched location, for population at large
 	#and plots the polling locations
 	
@@ -250,23 +251,31 @@ make_bg_maps <-function(prepped_data, demo_str = 'population', driving_flag = DR
 	
 	#make maps
 	#color by bg avg distance
-	plotted <- ggplot() +
-		geom_sf(data = bg_demo_sf, aes(fill = demo_avg_dist)) +
-		scale_fill_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = fill_str)
+	if(linear_color_gradient){
+		plotted <- ggplot() +
+			geom_sf(data = bg_demo_sf, aes(fill = demo_avg_dist)) +
+			scale_fill_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = fill_str)
+	} else{
+		break_vector = round(c(color_bounds[[1]], color_bounds[[1]] + (color_bounds[[2]]-color_bounds[[1]])/4, color_bounds[[1]] + (color_bounds[[2]]-color_bounds[[1]])/2, color_bounds[[1]] + 3*(color_bounds[[2]]-color_bounds[[1]])/4), digits = -2)
+		plotted <- ggplot() +
+			geom_sf(data = bg_demo_sf, aes(fill = demo_avg_dist)) +
+			scale_fill_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = fill_str, transform = 'log', breaks = break_vector)
+	}
+
 	#place polling locations
 	plotted = plotted +
 		geom_point(data = bg_demo_sf, aes(x = dest_lon, y = dest_lat, color = dest_type))+
 		scale_color_manual(breaks = c('polling', 'potential', 'bg_centroid'), values = c('red', 'black', 'dimgrey'), name = 'Poll Type') +  xlab('') + ylab('')
 	#add title
 	plotted = plotted + ggtitle(title_str, paste('Block group map', 'of', gsub('_', ' ', descriptor) ))
-
+	
 	#write to file
 	graph_file_path = paste0('distance_', descriptor, '_','polls.png')
 	add_graph_to_graph_file_manifest(graph_file_path)
 	ggsave(graph_file_path, plotted)
 }
 
-make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, color_bounds = global_color_bounds){
+make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, color_bounds = global_color_bounds, linear_color_gradient = LINEAR_COLOR_GRADIENT){
 	#use demographic residence_distances to put a dot in  the map colored by distance and sized by population
 	
 	#transform for prepped data for mapping
@@ -293,14 +302,25 @@ make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLA
 	#for ease of comparison across demographics)
 	max_pop <- max(prepped_data$demo_pop)
 
-	plotted <- ggplot() +
-		geom_sf(data = bg_demo_sf) +
-		geom_point(data = bg_demo_sf, aes(x = INTPTLON20, y = INTPTLAT20, size= demo_pop, color = demo_avg_dist)) +
-		scale_color_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = color_str) +
-		labs(size = paste(demographic_legend_dict[demo_str], 'population') ) +
-		xlab('') + ylab('') + scale_size(limits= c(0, max_pop)) +
-		ggtitle(paste(demographic_legend_dict[demo_str], title_str), paste('Block groups in', gsub('_', ' ', descriptor)))
-	
+	if(linear_color_gradient){
+		plotted <- ggplot() +
+			geom_sf(data = bg_demo_sf) +
+			geom_point(data = bg_demo_sf, aes(x = INTPTLON20, y = INTPTLAT20, size= demo_pop, color = demo_avg_dist)) +
+			scale_color_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = color_str) +
+			labs(size = paste(demographic_legend_dict[demo_str], 'population') ) +
+			xlab('') + ylab('') + scale_size(limits= c(0, max_pop)) +
+			ggtitle(paste(demographic_legend_dict[demo_str], title_str), paste('Block groups in', gsub('_', ' ', descriptor)))
+		} else{
+			break_vector = round(c(color_bounds[[1]], color_bounds[[1]] + (color_bounds[[2]]-color_bounds[[1]])/4, color_bounds[[1]] + (color_bounds[[2]]-color_bounds[[1]])/2, color_bounds[[1]] + 3*(color_bounds[[2]]-color_bounds[[1]])/4), digits = -2)
+			plotted <- ggplot() +
+				geom_sf(data = bg_demo_sf) +
+				geom_point(data = bg_demo_sf, aes(x = INTPTLON20, y = INTPTLAT20, size= demo_pop, color = demo_avg_dist)) +
+				scale_color_gradient(low='white', high='darkgreen', limits = c(color_bounds[[1]], color_bounds[[2]]), name = color_str, transform = 'log', breaks = break_vector) +
+				labs(size = paste(demographic_legend_dict[demo_str], 'population') ) +
+				xlab('') + ylab('') + scale_size(limits= c(0, max_pop)) +
+				ggtitle(paste(demographic_legend_dict[demo_str], title_str), paste('Block groups in', gsub('_', ' ', descriptor)))
+		}
+
 	#write to file
 	graph_file_path = paste0(demo_str, '_','pop_and_dist','_',descriptor, '_','polls.png')
 	add_graph_to_graph_file_manifest(graph_file_path)

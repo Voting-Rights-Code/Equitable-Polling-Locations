@@ -1,0 +1,31 @@
+# fields for the database
+config_set: 'Tarrant_County_TX_original_configs_capacity_2' #should match folder name
+config_name: 'config_template_Tarrant' #should match file name
+
+# Constants for the optimization function
+location: Tarrant_County_TX
+census_year: '2020'
+year:
+    - '2024'
+bad_types:
+- 'bg_centroid' 
+
+beta: -1
+time_limit: 360000 #100 hours minutes
+capacity: 2
+fixed_capacity_site_number: null
+
+####Optional#####
+precincts_open: null
+max_min_mult: 5 #scalar >= 1
+maxpctnew: 0 # in interval [0,1]
+minpctold: 1 # in interval [0,1]
+driving: False
+log_distance: True
+penalized_sites: null
+
+###### For config generation ######
+field_to_vary: 'year'
+new_range:
+    - - '2024'
+    - - '2025'

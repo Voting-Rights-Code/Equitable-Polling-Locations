@@ -238,7 +238,6 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
     #######
     #Clean data
     #######
-
     #select columns for each data set
     p3_df.columns=[multicols[0] for multicols in p3_df.columns]
     p3_df = p3_df[P3_COLUMNS]
@@ -398,7 +397,6 @@ def build_source(
     #####
     # Calculate appropriate distance
     #####
-
     if driving:
         if location_source == DATA_SOURCE_DB:
             driving_distance_set = query.find_driving_distance_set(

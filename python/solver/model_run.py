@@ -121,7 +121,7 @@ def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str=OUT_
     solve_model(run_setup.ea_model, config.time_limit, log=log, log_file_path=config.log_file_path)
 
     #incorporate result into main dataframe
-    result_df = incorporate_result(run_setup.dist_df, run_setup.ea_model)
+    result_df = incorporate_result(run_setup.dist_df, run_setup.ea_model, config.log_distance)
 
     #incorporate site penalties as appropriate
     # result_df = incorporate_penalties(
