@@ -7,10 +7,11 @@ import logging
 
 import numpy as np
 import pandas as pd
+import os
 
 from python.solver import model_factory
 from python.solver.model_run import ModelRun
-from python.tests.constants import TEST_KP_FACTOR
+from python.tests.constants import TEST_KP_FACTOR, TESTING_RESULTS_DIR, TESTING_CONFIG_BASE
 
 pd.set_option('display.max_columns', None)
 
@@ -107,7 +108,68 @@ def test_capacity(polling_model, clean_distances_df, total_population, testing_c
     assert all(dest_pop_df.population <=(testing_config_base.capacity*total_population/testing_config_base.precincts_open))
 
 
-def test_result_df(testing_config_driving):
-    # model_run.run_on_config(testing_config_driving, False, model_run.OUT_TYPE_CSV)
-    model_run = ModelRun(config=testing_config_driving)
-    model_run.write_results_csv()
+def test_result_df(testing_config_base):
+    # test that the result_df is correct
+    model_run = ModelRun(testing_config_base)
+    test_result_data = model_run.result_df
+    
+    file_name = testing_config_base.location + '.' + testing_config_base.config_name + '_results.csv'
+    file_result_data = pd.read_csv(os.path.join(TESTING_RESULTS_DIR, file_name), index_col = 0)
+    #convert ints to str for consistency
+    file_result_data['id_orig'] = file_result_data['id_orig'].astype(str)
+    #round to rid floating point errors
+    test_result_data['weighted_dist'] = test_result_data['weighted_dist'].round(9)
+    file_result_data['weighted_dist'] = file_result_data['weighted_dist'].round(9)
+
+    pd.testing.assert_frame_equal(left=test_result_data, right=file_result_data, check_exact=True)
+    
+
+
+def test_precinct_dist_df(testing_config_base):
+    #test that the precinct_distance_df is correct
+    model_run = ModelRun(testing_config_base)
+    test_precinct_dist_data = model_run.demographic_prec.reset_index()
+    file_name = testing_config_base.location + '.' + testing_config_base.config_name + '_precinct_distances.csv'
+    file_precinct_dist_data = pd.read_csv(os.path.join(TESTING_RESULTS_DIR, file_name), index_col= 0).reset_index()
+    
+    #round to rid floating point errors
+    test_precinct_dist_data['weighted_dist'] = test_precinct_dist_data['weighted_dist'].round(9)
+    test_precinct_dist_data['avg_dist'] = test_precinct_dist_data['avg_dist'].round(9)
+    file_precinct_dist_data['weighted_dist'] = file_precinct_dist_data['weighted_dist'].round(9)
+    file_precinct_dist_data['avg_dist'] = file_precinct_dist_data['avg_dist'].round(9)
+    pd.testing.assert_frame_equal(left=test_precinct_dist_data, right=file_precinct_dist_data, check_exact=True)
+
+def test_residence_dist_df(testing_config_base):
+    #test that the residence_distance_df is correct
+    
+    model_run = ModelRun(testing_config_base)
+    test_residence_dist_data = model_run.demographic_res.reset_index()
+    file_name = testing_config_base.location + '.' + testing_config_base.config_name + '_residence_distances.csv'
+    file_residence_dist_data = pd.read_csv(os.path.join(TESTING_RESULTS_DIR, file_name), index_col= 0).reset_index()
+
+    #convert ints to str for consistency
+    file_residence_dist_data['id_orig'] = file_residence_dist_data['id_orig'].astype(str)
+    #round to rid floating point errors
+    test_residence_dist_data['weighted_dist'] = test_residence_dist_data['weighted_dist'].round(9)
+    test_residence_dist_data['avg_dist'] = test_residence_dist_data['avg_dist'].round(9)
+    
+    file_residence_dist_data['weighted_dist'] = file_residence_dist_data['weighted_dist'].round(9)
+    file_residence_dist_data['avg_dist'] = file_residence_dist_data['avg_dist'].round(9)
+    
+    pd.testing.assert_frame_equal(left=test_residence_dist_data, right=file_residence_dist_data, check_exact=True)
+
+def test_ede_df(testing_config_base):
+    #test that the ede_df is correct
+    model_run = ModelRun(testing_config_base)
+    test_edes_data = model_run.demographic_edes
+    file_name = testing_config_base.location + '.' + testing_config_base.config_name + '_edes.csv'
+    file_edes_data = pd.read_csv(os.path.join(TESTING_RESULTS_DIR, file_name), index_col= 0)
+
+    #round to rid floating point errors
+    test_edes_data['y_EDE'] = test_edes_data['y_EDE'].round(9)
+    test_edes_data['avg_dist'] = test_edes_data['avg_dist'].round(9)
+    
+    file_edes_data['y_EDE'] = file_edes_data['y_EDE'].round(9)
+    file_edes_data['avg_dist'] = file_edes_data['avg_dist'].round(9)
+    
+    pd.testing.assert_frame_equal(left=test_edes_data, right=file_edes_data, check_exact=True)

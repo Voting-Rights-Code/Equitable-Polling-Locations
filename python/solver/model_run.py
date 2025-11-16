@@ -77,7 +77,7 @@ class ModelRun():
 
 
     @functools.cached_property
-    def _raw_result_df(self):
+    def _initial_result_df(self):
         '''
         The raw result DataFrame from the solved model containing only the matched residences
         and precinct, before penalties are applied.
@@ -94,7 +94,7 @@ class ModelRun():
         ''' The final result DataFrame from the solved model after penalties are applied.'''
         penalty_model = PenalizeModel(
             run_setup=self.run_setup,
-            result_df=self._raw_result_df,
+            result_df=self._initial_result_df,
         )
         return penalty_model.run()
 
@@ -118,7 +118,7 @@ class ModelRun():
 
 
     @functools.cached_property
-    def demographic_ede(self) -> pd.DataFrame:
+    def demographic_edes(self) -> pd.DataFrame:
         ''' The calculated average distances (and y_ede if beta !=0) traveled by each demographic '''
         return demographic_summary(
             self.demographic_res,

@@ -12,7 +12,7 @@ TEST_LOCATION = 'testing'
 MAP_SOURCE_DATE='20250101'
 
 TESTING_CONFIG_DIR = os.path.join(CONFIG_BASE_DIR, 'testing')
-TESTING_RESULTS_DIR = os.path.join(RESULTS_BASE_DIR, 'testing')
+TESTING_RESULTS_DIR = os.path.join(RESULTS_BASE_DIR, 'testing_results')
 
 TESTING_CONFIG_BASE = os.path.join(TESTING_CONFIG_DIR, 'testing_config_no_bg_school.yaml')
 TESTING_CONFIG_KEEP = os.path.join(TESTING_CONFIG_DIR, 'testing_config_no_bg.yaml')
