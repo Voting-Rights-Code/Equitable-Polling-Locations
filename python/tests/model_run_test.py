@@ -107,7 +107,7 @@ def test_capacity(polling_model, clean_distances_df, total_population, testing_c
     assert all(dest_pop_df.population <=(testing_config_base.capacity*total_population/testing_config_base.precincts_open))
 
 
-def test_run_on_config(testing_config_driving):
+def test_result_df(testing_config_driving):
     # model_run.run_on_config(testing_config_driving, False, model_run.OUT_TYPE_CSV)
     model_run = ModelRun(config=testing_config_driving)
     model_run.write_results_csv()
