@@ -11,19 +11,19 @@ import pandas as pd
 from .model_solver import solve_model
 
 from python.database.query import Query
-from python.utils import build_locations_distance_file_path
+from python.utils import build_distance_file_path
 from python.utils.directory_constants import RESULTS_BASE_DIR
 
-from .constants import LOC_ID_DEST, LOC_ID_ORIG, DATA_SOURCE_CSV
+from .constants import DISTANCE_ID_DEST, DISTANCE_ID_ORIG, DATA_SOURCE_CSV
 
 from .run_setup import RunSetup
 
 from .model_config import PollingModelConfig
 from .model_data import (
-    build_source,
-    clean_data,
     alpha_min,
-    get_polling_locations,
+    build_distance_data,
+    filter_distance_data,
+    get_distance_data,
 )
 from .model_factory import PollingModel, polling_model_factory
 from .model_penalties import PenalizeModel
@@ -37,6 +37,7 @@ from .model_results import (
 
 OUT_TYPE_DB = 'db'
 OUT_TYPE_CSV = 'csv'
+
 
 class ModelRun():
     '''
@@ -91,7 +92,7 @@ class ModelRun():
 
     @functools.cached_property
     def result_df(self):
-        ''' The final result DataFrame from the solved model after penalties are applied.'''
+        ''' The final result DataFrame from the solved model after penalties are applied. '''
         penalty_model = PenalizeModel(
             run_setup=self.run_setup,
             result_df=self._initial_result_df,
@@ -108,17 +109,17 @@ class ModelRun():
     @functools.cached_property
     def demographic_prec(self) -> pd.DataFrame:
         ''' The calculate average distances traveled by each demographic to the assigned precinct '''
-        return demographic_domain_summary(self.result_df, LOC_ID_DEST)
+        return demographic_domain_summary(self.result_df, DISTANCE_ID_DEST)
 
 
     @functools.cached_property
     def demographic_res(self) -> pd.DataFrame:
         ''' The calculated average distances traveled by each demographic by residence '''
-        return demographic_domain_summary(self.result_df, LOC_ID_ORIG)
+        return demographic_domain_summary(self.result_df, DISTANCE_ID_ORIG)
 
 
     @functools.cached_property
-    def demographic_edes(self) -> pd.DataFrame:
+    def demographic_ede(self) -> pd.DataFrame:
         ''' The calculated average distances (and y_ede if beta !=0) traveled by each demographic '''
         return demographic_summary(
             self.demographic_res,
@@ -137,7 +138,7 @@ class ModelRun():
 
         run_prefix = f'{self._config.config_set}/{self._config.config_name}'
 
-        source_path = build_locations_distance_file_path(
+        source_path = build_distance_file_path(
             self._config.census_year,
             self._config.location,
             self._config.driving,
@@ -152,7 +153,7 @@ class ModelRun():
             # Check if the local source file exists for get_polling_locations, if it doesn't then build it
             if not os.path.exists(source_path):
                 warnings.warn(f'File {source_path} not found. Creating it.')
-                build_source(
+                build_distance_data(
                     data_source=DATA_SOURCE_CSV,
                     census_year=self._config.census_year,
                     location=self._config.location,
@@ -165,7 +166,8 @@ class ModelRun():
             # Force evaluates _query to create a Query instance in order to get the polling locations from the database
             query = self._query
 
-        polling_locations = get_polling_locations(
+        # TODO finish renames
+        distance_data = get_distance_data(
             data_source=self._config.data_source,
             census_year=self._config.census_year,
             location=self._config.location,
@@ -175,24 +177,24 @@ class ModelRun():
             log=self._log,
         )
 
-        polling_locations_set_id = polling_locations.polling_locations_set_id
-        locations_df = polling_locations.polling_locations
+        distance_data_set_id = distance_data.distance_data_set_id
+        distance_df = distance_data.distance_df
 
-        #get main data frame
-        dist_df = clean_data(self._config, locations_df, False, self._log)
+        # get main data frame
+        dist_df = filter_distance_data(self._config, distance_df, False, self._log)
 
-        #get alpha
-        alpha_df = clean_data(self._config, locations_df, True, self._log)
+        # get alpha
+        alpha_df = filter_distance_data(self._config, distance_df, True, self._log)
         alpha = alpha_min(alpha_df)
 
-        #build model
+        # build model
         ea_model = polling_model_factory(dist_df, alpha, self._config)
         if self._log:
             print(f'model built for {run_prefix}.')
 
         return RunSetup(
-            locations_df=locations_df,
-            polling_locations_set_id=polling_locations_set_id,
+            distance_df=distance_df,
+            distance_data_set_id=distance_data_set_id,
             dist_df=dist_df,
             alpha=alpha,
             alpha_df=alpha_df,
@@ -203,11 +205,11 @@ class ModelRun():
 
 
     def write_results_db(self):
-        ''' Writes the model run results to the database configured in the environment specified in the config.'''
+        ''' Writes the model run results to the database configured in the environment specified in the config. '''
         write_results_bigquery(
             config=self._config,
             query=self._query,
-            polling_locations_set_id=self.run_setup.polling_locations_set_id,
+            distance_data_set_id=self.run_setup.distance_data_set_id,
             result_df=self.result_df,
             demographic_prec=self.demographic_prec,
             demographic_res=self.demographic_res,
@@ -217,7 +219,7 @@ class ModelRun():
 
 
     def write_results_csv(self):
-        ''' Writes the model run results to CSV files in the results directory.'''
+        ''' Writes the model run results to CSV files in the results directory. '''
         result_folder = os.path.join(RESULTS_BASE_DIR, f'{self._config.location}_results')
 
         file_prefix = f'{self._config.config_set}.{self._config.config_name}'

@@ -5,7 +5,7 @@ import os
 from python.utils.directory_constants import POLLING_DIR, CONFIG_BASE_DIR, RESULTS_BASE_DIR, DRIVING_DIR
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-TESTING_LOCATIONS_ONLY_PATH = os.path.join(POLLING_DIR, 'testing', 'testing_locations_only.csv')
+TESTING_POTENTIAL_LOCATIONS_PATH = os.path.join(POLLING_DIR, 'testing', 'testing_potential_locations.csv')
 TESTING_DRIVING_DISTANCES_PATH = os.path.join(DRIVING_DIR, 'testing', 'testing_driving_distances.csv')
 
 TEST_LOCATION = 'testing'

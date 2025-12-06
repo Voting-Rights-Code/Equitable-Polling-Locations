@@ -34,7 +34,6 @@ class Query:
 
     _session: SessionMaker=None
 
-
     def __init__(self, environment: Environment, log: bool=False):
         '''
         Initializes the class with the given environment and logging option.
@@ -50,6 +49,7 @@ class Query:
         self.environment = environment
         self._log = log
 
+
     def get_session(self) -> SessionMaker:
         '''
         Returns the existing SQLAlchemy session, if one does not exist then one will be created.
@@ -60,12 +60,14 @@ class Query:
 
         return self._session
 
+
     def find_model_config(self, config_id: str) -> Optional[models.ModelConfig]:
         ''' Load a config model from the database if it exists, otherwise return None '''
         session = self.get_session()
         result = session.query(models.ModelConfig).filter(models.ModelConfig.id == config_id).first()
 
         return result
+
 
     def find_model_configs_by_config_set(self, config_set: str) -> List[models.ModelConfig]:
         ''' Returns all of the latest configs by a given config_set. '''
@@ -95,6 +97,7 @@ class Query:
             results.append(models.ModelConfig(**columns))
 
         return results
+
 
     def find_model_configs_by_config_set_and_config_name(
         self,
@@ -158,6 +161,7 @@ class Query:
 
         return result
 
+
     def create_polling_model_config(self, config: models.ModelConfig) -> PollingModelConfig:
         ''' Converts a SQLAlchemy config into the legacy PollingModelConfig dataclass '''
 
@@ -173,6 +177,7 @@ class Query:
 
         return polling_model_config
 
+
     def create_model_config(self, model_config: models.ModelConfig) -> models.ModelConfig:
         '''
         Creates a new ModelConfig object in the database.  Note: query.commit() must be
@@ -186,6 +191,7 @@ class Query:
         session.add_all([model_config])
 
         return model_config
+
 
     def find_or_create_model_config(self, model_config: models.ModelConfig, log: bool = False) -> models.ModelConfig:
         '''
@@ -205,10 +211,11 @@ class Query:
                 print(f'found model {model_info}')
         return result
 
+
     def create_model_run(
         self,
         model_config_id: str,
-        polling_locations_set_id: str,
+        distance_data_set_id: str,
         username: str,
         commit_hash: str,
         created_at: datetime=None,
@@ -221,7 +228,7 @@ class Query:
         model_run = models.ModelRun(
             id = utils.generate_uuid(),
             model_config_id = model_config_id,
-            polling_locations_set_id = polling_locations_set_id,
+            polling_locations_set_id = distance_data_set_id,
             username = username,
             commit_hash = commit_hash,
             created_at = created_at,
@@ -291,6 +298,7 @@ class Query:
         del columns['rn']
         return models.DrivingDistancesSet(**columns)
 
+
     def get_driving_distances(self, driving_distance_set_id: str) -> pd.DataFrame:
         session = self.get_session()
 
@@ -300,6 +308,7 @@ class Query:
 
         df = pd.read_sql(query, session.get_bind())
         return df
+
 
     def find_or_create_driving_distance_set(
         self,
@@ -332,9 +341,11 @@ class Query:
                 print(f'found model {result}')
         return result
 
-    def create_db_polling_locations_set(
+
+    # TODO finish renames in here as well
+    def create_db_distance_data_set(
         self,
-        locations_only_set_id: str,
+        potential_locations_set_id: str,
         census_year: str,
         location: str,
         log_distance: bool,
@@ -342,7 +353,7 @@ class Query:
         driving_distance_set_id: str,
     ) -> models.PollingLocationSet:
         result = models.PollingLocationSet(
-            locations_only_set_id=locations_only_set_id,
+            locations_only_set_id=potential_locations_set_id,
             census_year=census_year,
             location=location,
             log_distance=log_distance,
@@ -357,7 +368,8 @@ class Query:
 
         return result
 
-    def create_db_polling_locations_only_set(
+
+    def create_db_potential_locations_set(
         self,
         location: str,
     ) -> models.PollingLocationOnlySet:
@@ -372,7 +384,8 @@ class Query:
 
         return result
 
-    def get_location_only_set(self, location: str) -> models.PollingLocationOnlySet:
+
+    def get_potential_locations_set(self, location: str) -> models.PollingLocationOnlySet:
         session = self.get_session()
 
         subquery = select(
@@ -399,17 +412,19 @@ class Query:
         del columns['rn']
         return models.PollingLocationOnlySet(**columns)
 
-    def get_locations_only(self, polling_locations_set_id: str) -> pd.DataFrame:
+
+    def get_potential_locations(self, potential_locations_set_id: str) -> pd.DataFrame:
         session = self.get_session()
 
         table_name = models.PollingLocationOnly.__tablename__
 
-        query = f'SELECT * FROM {table_name} WHERE locations_only_set_id = "{polling_locations_set_id}"'
+        query = f'SELECT * FROM {table_name} WHERE locations_only_set_id = "{potential_locations_set_id}"'
 
         df = pd.read_sql(query, session.get_bind())
         return df
 
-    def get_location_set(
+
+    def get_distance_data_set(
         self,
         census_year: str,
         location: str,
@@ -450,7 +465,8 @@ class Query:
         del columns['rn']
         return models.PollingLocationSet(**columns)
 
-    def get_locations(
+
+    def get_distance_data(
         self,
         polling_locations_set_id: str
     ) -> pd.DataFrame:
@@ -464,6 +480,7 @@ class Query:
         df = pd.read_sql(query, session.get_bind())
         return df
 
+
     def commit(self):
         '''
         Commits the current SQLAlchemy session and sets the current one to None. If query.get_session()
@@ -472,6 +489,7 @@ class Query:
 
         self._session.commit()
         self._session = None
+
 
     def rollback(self):
         if self._session:

@@ -21,7 +21,7 @@ from .model_solver import solve_model
 from .run_setup import RunSetup
 
 from .constants import (
-    LOC_LOCATION_TYPE, LOC_ID_DEST, SOLVER_MODEL2, SOLVER_MODEL3, SOLVER_PENALTY, UTF8
+    DISTANCE_LOCATION_TYPE, DISTANCE_ID_DEST, SOLVER_MODEL2, SOLVER_MODEL3, SOLVER_PENALTY, UTF8
 )
 
 
@@ -63,8 +63,8 @@ class PenalizeModel:
 
         return set(
             dist_df.loc[
-                dist_df[LOC_LOCATION_TYPE].isin(self._run_setup.config.penalized_sites),
-                LOC_ID_DEST,
+                dist_df[DISTANCE_LOCATION_TYPE].isin(self._run_setup.config.penalized_sites),
+                DISTANCE_ID_DEST,
             ].unique()
         )
 
@@ -116,7 +116,7 @@ class PenalizeModel:
     def ea_model_exclusions(self) -> PollingModel:
         ''' Optimal solution excluding penalized sites (model 2) '''
         result = polling_model_factory(
-            dist_df=self._run_setup.dist_df,
+            distance_df=self._run_setup.dist_df,
             alpha=self._run_setup.alpha,
             config=self._run_setup.config,
             exclude_penalized_sites=True,
@@ -155,7 +155,7 @@ class PenalizeModel:
     @functools.cached_property
     def ea_model_penalized(self) -> PollingModel:
         result = polling_model_factory(
-            dist_df=self._run_setup.dist_df,
+            distance_df=self._run_setup.dist_df,
             alpha=self._run_setup.alpha,
             config=self._run_setup.config,
             exclude_penalized_sites=False,

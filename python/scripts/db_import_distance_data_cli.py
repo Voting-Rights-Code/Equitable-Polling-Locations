@@ -12,7 +12,7 @@ from python.database.imports import csv_to_bigquery, ImportResult, print_all_imp
 from python.database.models import PollingLocation
 from python.database.query import Query
 
-from python.solver.model_data import build_source
+from python.solver.model_data import build_distance_data
 from python.utils import is_int
 from python.solver.constants import DATA_SOURCE_DB
 from python.utils.environments import Environment, load_env
@@ -20,13 +20,15 @@ from python.utils.environments import Environment, load_env
 DEFAULT_LOG_DIR='logs'
 IMPORT_ERROR_LOG_FILE='locations_import_errors.csv'
 
+# TODO rename polling location names to distance_data
+
 LINEAR = 'linear'
 LOG = 'log'
 
-def import_locations(
+def import_distance_data(
     environment: Environment,
     location: str,
-    polling_locations_set_id: str,
+    distance_data_set_id: str,
     csv_path: str,
     log: bool = False,
 ) -> ImportResult:
@@ -34,8 +36,9 @@ def import_locations(
         #'non-hispanic': 'non_hispanic',
     }
     ignore_columns = ['id', 'V1']
+    # TODO don't forgtet to rename this in the db columns
     add_columns = {
-        'polling_locations_set_id': polling_locations_set_id,
+        'polling_locations_set_id': distance_data_set_id,
     }
 
     return csv_to_bigquery(
@@ -59,7 +62,7 @@ def build_and_import_locations(
     maps_source_date: str,
     log_distance: bool,
 ) -> ImportResult:
-    build_source_result = build_source(
+    build_distance_meta_data = build_distance_data(
         data_source=DATA_SOURCE_DB,
         census_year=census_year,
         location=location,
@@ -69,28 +72,28 @@ def build_and_import_locations(
         log=False,
         query=query,
     )
-    polling_locations_set = query.create_db_polling_locations_set(
-        locations_only_set_id=build_source_result.locations_only_set_id,
+    polling_locations_set = query.create_db_distance_data_set(
+        potential_locations_set_id=build_distance_meta_data.potential_locations_set_id,
         census_year=census_year,
         location=location,
         log_distance=log_distance,
         driving=driving,
-        driving_distance_set_id=build_source_result.driving_distance_set_id,
+        driving_distance_set_id=build_distance_meta_data.driving_distance_set_id,
     )
 
     print('polling_locations_set', polling_locations_set)
 
-    location_path = build_source_result.output_path
+    location_path = build_distance_meta_data.output_path
     print(f'Importing {location} driving={driving} log_distance={log_distance}')
     print(f'  {location_path}')
 
     if not os.path.isfile(location_path):
         raise ValueError(f'File {location_path} not found')
 
-    import_locations_result = import_locations(
+    import_locations_result = import_distance_data(
         environment=query.environment,
         location=location,
-        polling_locations_set_id=polling_locations_set.id,
+        distance_data_set_id=polling_locations_set.id,
         csv_path=location_path,
         log=True,
     )

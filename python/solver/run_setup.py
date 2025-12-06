@@ -9,8 +9,8 @@ from .model_factory import PollingModel
 
 @dataclass
 class RunSetup:
-    polling_locations_set_id: str
-    locations_df: pd.DataFrame
+    distance_data_set_id: str
+    distance_df: pd.DataFrame
     dist_df: pd.DataFrame
     alpha: float
     alpha_df: pd.DataFrame

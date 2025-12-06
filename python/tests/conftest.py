@@ -13,7 +13,7 @@ from python.solver.model_config import PollingModelConfig
 
 from .constants import (
   TESTING_CONFIG_BASE, TESTING_CONFIG_KEEP, TESTING_CONFIG_EXCLUDE, TESTING_CONFIG_PENALTY,
-  TESTING_CONFIG_PENALTY_UNUSED, TESTING_CONFIG_DRIVING, TESTING_LOCATIONS_ONLY_PATH, MAP_SOURCE_DATE,
+  TESTING_CONFIG_PENALTY_UNUSED, TESTING_CONFIG_DRIVING, TESTING_POTENTIAL_LOCATIONS_PATH, MAP_SOURCE_DATE,
   POLLING_DIR,
 )
 
@@ -71,48 +71,54 @@ def result_keep_df(testing_config_keep):
 
 
 @pytest.fixture(scope='session')
-def location_df_with_driving(#tmp_path_factory,
-                                    testing_config_driving):
+def location_df_with_driving(
+    #tmp_path_factory,
+    testing_config_driving,
+):
     ''' Fixture to load the locations source data with driving distances from the testing locations CSV. '''
 
     #commenting out because I can't find tmp_path_factory
     #tmp_path = tmp_path_factory.mktemp('driving_locations_results_test_data')
-    build_source_ouput_tmp_path = os.path.join(POLLING_DIR, testing_config_driving.location, 'testing_driving_distances_tmp.csv')
+    build_source_ouput_tmp_path = os.path.join(
+        POLLING_DIR,
+        testing_config_driving.location,
+        'testing_driving_distances_tmp.csv',
+    )
 
-    model_data.build_source(
+    model_data.build_distance_data(
         'csv',
         census_year=testing_config_driving.census_year,
         location=testing_config_driving.location, # TEST_LOCATION,
         driving=testing_config_driving.driving,
         log_distance=testing_config_driving.log_distance,
         map_source_date=MAP_SOURCE_DATE,
-        locations_only_path_override=TESTING_LOCATIONS_ONLY_PATH,
+        potential_locations_path_override=TESTING_POTENTIAL_LOCATIONS_PATH,
         output_path_override=build_source_ouput_tmp_path,
     )
 
-    location_df_driving = model_data.load_locations_csv(build_source_ouput_tmp_path)
+    location_df_driving = model_data.load_distance_data_csv(build_source_ouput_tmp_path)
 
     return location_df_driving
 
 
 @pytest.fixture(scope='module')
 def polling_locations_df(testing_config_base):
-    polling_locations = model_data.get_polling_locations(
+    polling_locations = model_data.get_distance_data(
         data_source='csv',
         census_year=testing_config_base.census_year,
         location=testing_config_base.location,
         log_distance=testing_config_base.log_distance,
         driving=testing_config_base.driving,
     )
-    yield polling_locations.polling_locations
+    yield polling_locations.distance_df
 
 @pytest.fixture(scope='module')
 def clean_distances_df(testing_config_base, polling_locations_df):
-    yield model_data.clean_data(testing_config_base, polling_locations_df, False, False)
+    yield model_data.filter_distance_data(testing_config_base, polling_locations_df, False, False)
 
 @pytest.fixture(scope='module')
 def alpha_min(testing_config_base, polling_locations_df):
-    alpha_df = model_data.clean_data(testing_config_base, polling_locations_df, True, False)
+    alpha_df = model_data.filter_distance_data(testing_config_base, polling_locations_df, True, False)
     yield model_data.alpha_min(alpha_df)
 
 @pytest.fixture(scope='module')

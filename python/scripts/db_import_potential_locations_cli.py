@@ -21,7 +21,7 @@ DEFAULT_LOG_DIR='logs'
 IMPORT_ERROR_LOG_FILE='potential_locations_import_errors.csv'
 
 
-def import_potential_locations(
+def import_locations_only(
     environment: Environment,
     location: str,
     potential_locations_set_id: str,
@@ -62,7 +62,8 @@ def main(args: argparse.Namespace):
     num_imports = len(locations)
 
     print('------------------------------------------')
-    print(f'Importing {num_imports} potential location(s) into {environment}\n')
+    print(f'Importing {num_imports} location(s) into {environment}\n')
+
 
     results = []
 
@@ -82,7 +83,7 @@ def main(args: argparse.Namespace):
             location=location,
         )
 
-        import_potential_locations_result = import_potential_locations(
+        import_potential_locations_result = import_locations_only(
             environment=environment,
             location=location,
             potential_locations_set_id=potential_locations_set.id,

@@ -123,6 +123,8 @@ class ModelConfig(ModelBase):
         return f"ModelConfig(id={self.id}, config_set='{self.config_set}', config_name='{self.config_name}', location='{self.location}', years='{year}')"
 
 
+# TODO rename polling_locations_* to to distance_data_*
+
 class ModelRun(ModelBase):
     ''' A SQLAlchemy record of a model run against an existing ModelConfig config.  '''
 

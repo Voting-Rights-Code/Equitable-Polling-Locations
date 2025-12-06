@@ -9,7 +9,7 @@ import pytest
 
 from python.solver import model_data
 
-from .constants import TESTING_LOCATIONS_ONLY_PATH, TESTING_DRIVING_DISTANCES_PATH, TEST_LOCATION, MAP_SOURCE_DATE
+from .constants import TESTING_POTENTIAL_LOCATIONS_PATH, TESTING_DRIVING_DISTANCES_PATH, TEST_LOCATION, MAP_SOURCE_DATE
 
 
 def test_build_source_columns(location_df_with_driving):
@@ -34,7 +34,7 @@ def test_build_source_columns(location_df_with_driving):
 def test_build_source_locations(testing_config_driving, location_df_with_driving):
     ''' Calls build_source with driving distances and checks the locations are as expected. '''
 
-    locations_only_df = model_data.load_locations_only_csv(TESTING_LOCATIONS_ONLY_PATH)
+    potential_locations_df = model_data.load_potential_locations_csv(TESTING_POTENTIAL_LOCATIONS_PATH)
     # location_df_with_driving = model_data.load_locations_csv(build_source_ouput_tmp_path)
 
     # Get the demographics block so we can get the expected GEO_IDs for id_orig
@@ -46,7 +46,7 @@ def test_build_source_locations(testing_config_driving, location_df_with_driving
     blockgroup = model_data.get_blockgroup_gdf(testing_config_driving.census_year, TEST_LOCATION)
 
     expected_id_orig = demographics_block_df['GEO_ID'].unique().tolist()
-    expected_id_dest = locations_only_df['Location'].unique().tolist() + blockgroup['Location'].unique().tolist()
+    expected_id_dest = potential_locations_df['Location'].unique().tolist() + blockgroup['Location'].unique().tolist()
 
     expected_permutations = set(product(expected_id_orig, expected_id_dest))
 
@@ -134,7 +134,7 @@ def test_clean_data(testing_config_driving, location_df_with_driving):
     print(driving_locations_results_dest_types)
 
     # Check that clean_data removes bad types when for_alpha is False
-    cleaned_data_df = model_data.clean_data(testing_config_driving, location_df_with_driving, False, False)
+    cleaned_data_df = model_data.filter_distance_data(testing_config_driving, location_df_with_driving, False, False)
     cleaned_data_bad_types_df = cleaned_data_df[cleaned_data_df['location_type'].isin(testing_config_driving.bad_types)]
     num_cleaned_bad_types = len(cleaned_data_bad_types_df)
 
@@ -143,7 +143,7 @@ def test_clean_data(testing_config_driving, location_df_with_driving):
     )
 
     # Check that clean_data with alpha set to true removes all location_types that contain 'Potential' or 'centroid'
-    cleaned_data_with_alpha_df = model_data.clean_data(testing_config_driving, location_df_with_driving, True, False)
+    cleaned_data_with_alpha_df = model_data.filter_distance_data(testing_config_driving, location_df_with_driving, True, False)
     unique_location_types = cleaned_data_with_alpha_df['location_type'].unique()
 
     assert not any('Potential' in s or 'centroid' in s for s in unique_location_types), (
