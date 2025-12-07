@@ -81,16 +81,16 @@ def build_and_import_locations(
         driving_distance_set_id=build_distance_meta_data.driving_distance_set_id,
     )
 
-    print('polling_locations_set', polling_locations_set)
+    print('polling_locations_set', polling_locations_set) 
 
-    location_path = build_distance_meta_data.output_path
+    location_path = build_distance_meta_data.output_path #location_path -> distance_data_path?
     print(f'Importing {location} driving={driving} log_distance={log_distance}')
     print(f'  {location_path}')
 
     if not os.path.isfile(location_path):
         raise ValueError(f'File {location_path} not found')
 
-    import_locations_result = import_distance_data(
+    import_locations_result = import_distance_data( #locations_result -> distance_data?
         environment=query.environment,
         location=location,
         distance_data_set_id=polling_locations_set.id,
