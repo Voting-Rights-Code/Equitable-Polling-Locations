@@ -237,16 +237,6 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
         raise ValueError('Census data from table P4 not found. Download using api or manually following download instruction from README.')
 
 
-    # TODO review with Susama if blocks_gdf and blockgroup_gdf are really needed here
-    # #3. Census geographic data
-
-    # block_source_file = get_block_source_file_path(census_year, location)
-    # blocks_gdf = gpd.read_file(block_source_file)
-
-    #
-    # block_group_source_file = get_block_group_block_source_file_path(census_year, location)
-    # blockgroup_gdf = gpd.read_file(block_group_source_file)
-
     #######
     #Clean data
     #######
@@ -256,7 +246,6 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
     p3_df = p3_df[P3_COLUMNS]
     p4_df.columns=[multicols[0] for multicols in p4_df.columns]
     p4_df = p4_df[P4_COLUMNS]
-    # blockgroup_gdf = blockgroup_gdf[BLOCK_GROUP_SHAPE_COLS]
 
     #####
     #Make a demographics table
@@ -287,6 +276,7 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
     #drop geo_id_prefix
     demographics[CEN20_GEO_ID] = demographics[CEN20_GEO_ID].str.replace(TIGER20_GEOID_PREFIX, EMPTY_STRING)
 
+    #get block group geographic
     blocks_gdf = get_blocks_gdf(census_year, location)
 
     #join with block group shape files
