@@ -80,17 +80,12 @@ DISTANCE_SOURCE_LOG_WITH_SPACE = 'log '
 ''' A type value for the LOC_LOCATION_TYPE field that works with other types (e.g. "log haversine distance") '''
 # TODO use POT_LOCS...
 
-POT_DISTANCE_LOCATION_TYPE_POTENTIAL_SUBSTR = 'Potential'
+POT_LOC_LOCATION_TYPE_POTENTIAL_SUBSTR = 'Potential'
 ''' A flag in the field POTENTIAL_LOC_LOCATION_TYPE indicating a potential location '''
-POT_DISTANCE_LOCATION_TYPE_CENTROID_SUBSTR = 'centroid'
+DISTANCE_LOCATION_TYPE_CENTROID_SUBSTR = 'centroid'
 ''' A flag in the field POTENTIAL_LOC_LOCATION_TYPE indicating a centroid '''
-POT_DISTANCE_DEST_TYPE_POLLING = 'polling'
-POT_DISTANCE_DEST_TYPE_POTENTIAL = 'potential'
-
-LOCATION_TYPE_POTENTIAL_SUBSTR = 'Potential'
-LOCATION_TYPE_CENTROID_SUBSTR = 'centroid'
-
-
+DISTANCE_DEST_TYPE_POLLING = 'polling'
+DISTANCE_DEST_TYPE_POTENTIAL = 'potential'
 
 # Census data related constants
 CEN20_GEO_ID = 'GEO_ID'

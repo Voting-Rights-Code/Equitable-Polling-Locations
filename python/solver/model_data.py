@@ -154,10 +154,10 @@ def get_potential_locations_data(
 
     #the potential locations data needs further processing:
     #1. add a destination type column
-    potential_locations_df[DISTANCE_DEST_TYPE] = POT_DISTANCE_DEST_TYPE_POLLING
+    potential_locations_df[DISTANCE_DEST_TYPE] = DISTANCE_DEST_TYPE_POLLING
     potential_locations_df[DISTANCE_DEST_TYPE].mask(
-        potential_locations_df[POT_LOC_LOCATION_TYPE].str.contains(POT_DISTANCE_LOCATION_TYPE_POTENTIAL_SUBSTR),
-        POT_DISTANCE_DEST_TYPE_POTENTIAL,
+        potential_locations_df[POT_LOC_LOCATION_TYPE].str.contains(POT_LOC_LOCATION_TYPE_POTENTIAL_SUBSTR),
+        DISTANCE_DEST_TYPE_POTENTIAL,
         inplace=True,
     )
 
@@ -697,14 +697,14 @@ def filter_dest_type(distance_df: pd.DataFrame, year_list: list[str]):
     #then mark location_types with correct years as
     distance_df[DISTANCE_DEST_TYPE].mask(
         distance_df[DISTANCE_DEST_TYPE] != TIGER20_BG_CENTROID,
-        POT_DISTANCE_DEST_TYPE_POTENTIAL,
+        DISTANCE_DEST_TYPE_POTENTIAL,
         inplace=True,
     )
 
     # Set the dest_type to polling for every row that has a location_type like "2018" or "2020" from the year_list
     distance_df[DISTANCE_DEST_TYPE].mask(
         distance_df[DISTANCE_LOCATION_TYPE].str.contains('|'.join(year_list)),
-        POT_DISTANCE_DEST_TYPE_POLLING,
+        DISTANCE_DEST_TYPE_POLLING,
         inplace=True,
     )
 
@@ -726,18 +726,19 @@ def filter_distance_data(config: PollingModelConfig, distance_df: pd.DataFrame, 
     #pull out unique location types is this data
     unique_location_types = filtered_distance_df[DISTANCE_LOCATION_TYPE].unique()
 
-    if for_alpha:
+    if for_alpha: #if this is running to calculate alpha, remove all potential locations and centroids. 
+                    #Note, this keeps all historical locations from all years.
         bad_location_list = [
             location_type
             for location_type in unique_location_types
-            if POT_DISTANCE_LOCATION_TYPE_POTENTIAL_SUBSTR in location_type
-                or POT_DISTANCE_LOCATION_TYPE_CENTROID_SUBSTR in location_type
+            if POT_LOC_LOCATION_TYPE_POTENTIAL_SUBSTR in location_type
+                or DISTANCE_LOCATION_TYPE_CENTROID_SUBSTR in location_type
         ]
     else:
         bad_location_list = config.bad_types
 
     polling_location_types = set(
-        filtered_distance_df[filtered_distance_df.dest_type == POT_DISTANCE_DEST_TYPE_POLLING][DISTANCE_LOCATION_TYPE]
+        filtered_distance_df[filtered_distance_df.dest_type == DISTANCE_DEST_TYPE_POLLING][DISTANCE_LOCATION_TYPE]
     )
 
     for year in year_list:
