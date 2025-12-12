@@ -10,7 +10,7 @@ import sys
 
 from python.database.imports import csv_to_bigquery, ImportResult, print_all_import_results
 from python.database.models import (
-    PollingLocationOnly,
+    PotentialLocations,
 )
 
 from python.database.query import Query
@@ -21,7 +21,7 @@ DEFAULT_LOG_DIR='logs'
 IMPORT_ERROR_LOG_FILE='potential_locations_import_errors.csv'
 
 
-def import_locations_only(
+def import_potential_locations(
     environment: Environment,
     location: str,
     potential_locations_set_id: str,
@@ -37,14 +37,14 @@ def import_locations_only(
     }
     ignore_columns = ['V1', 'Latitude', 'Longitude']
     add_columns = {
-        'locations_only_set_id': potential_locations_set_id
+        'potential_locations_set_id': potential_locations_set_id
     }
 
     return csv_to_bigquery(
         environment=environment,
         config_set=location,
         config_name=csv_path,
-        model_class=PollingLocationOnly,
+        model_class=PotentialLocations,
         ignore_columns=ignore_columns,
         column_renames=column_renames,
         add_columns=add_columns,
@@ -62,7 +62,7 @@ def main(args: argparse.Namespace):
     num_imports = len(locations)
 
     print('------------------------------------------')
-    print(f'Importing {num_imports} location(s) into {environment}\n')
+    print(f'Importing {num_imports} potential location(s) into {environment}\n')
 
 
     results = []
@@ -83,7 +83,7 @@ def main(args: argparse.Namespace):
             location=location,
         )
 
-        import_potential_locations_result = import_locations_only(
+        import_potential_locations_result = import_potential_locations(
             environment=environment,
             location=location,
             potential_locations_set_id=potential_locations_set.id,

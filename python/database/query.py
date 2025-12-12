@@ -226,12 +226,12 @@ class Query:
         '''
 
         model_run = models.ModelRun(
-            id = utils.generate_uuid(),
-            model_config_id = model_config_id,
-            polling_locations_set_id = distance_data_set_id,
-            username = username,
-            commit_hash = commit_hash,
-            created_at = created_at,
+            id=utils.generate_uuid(),
+            model_config_id=model_config_id,
+            distance_data_set_id=distance_data_set_id,
+            username=username,
+            commit_hash=commit_hash,
+            created_at=created_at,
         )
 
         session = self.get_session()
@@ -351,9 +351,9 @@ class Query:
         log_distance: bool,
         driving: bool,
         driving_distance_set_id: str,
-    ) -> models.PollingLocationSet:
-        result = models.PollingLocationSet(
-            locations_only_set_id=potential_locations_set_id,
+    ) -> models.DistanceDataSet:
+        result = models.DistanceDataSet(
+            potential_locations_set_id=potential_locations_set_id,
             census_year=census_year,
             location=location,
             log_distance=log_distance,
@@ -372,8 +372,8 @@ class Query:
     def create_db_potential_locations_set(
         self,
         location: str,
-    ) -> models.PollingLocationOnlySet:
-        result = models.PollingLocationOnlySet(
+    ) -> models.PotentialLocationsSet:
+        result = models.PotentialLocationsSet(
             location=location,
         )
 
@@ -385,16 +385,16 @@ class Query:
         return result
 
 
-    def get_potential_locations_set(self, location: str) -> models.PollingLocationOnlySet:
+    def get_potential_locations_set(self, location: str) -> models.PotentialLocationsSet:
         session = self.get_session()
 
         subquery = select(
-            models.PollingLocationOnlySet,
+            models.PotentialLocationsSet,
             func.
                 row_number().
                 over(
-                    partition_by=[models.PollingLocationOnlySet.location],
-                    order_by=desc(models.PollingLocationOnlySet.created_at)).
+                    partition_by=[models.PotentialLocationsSet.location],
+                    order_by=desc(models.PotentialLocationsSet.created_at)).
                 label('rn')
         ).subquery()
 
@@ -410,15 +410,15 @@ class Query:
 
         columns = row._asdict()
         del columns['rn']
-        return models.PollingLocationOnlySet(**columns)
+        return models.PotentialLocationsSet(**columns)
 
 
     def get_potential_locations(self, potential_locations_set_id: str) -> pd.DataFrame:
         session = self.get_session()
 
-        table_name = models.PollingLocationOnly.__tablename__
+        table_name = models.PotentialLocations.__tablename__
 
-        query = f'SELECT * FROM {table_name} WHERE locations_only_set_id = "{potential_locations_set_id}"'
+        query = f'SELECT * FROM {table_name} WHERE potential_locations_set_id = "{potential_locations_set_id}"'
 
         df = pd.read_sql(query, session.get_bind())
         return df
@@ -430,21 +430,21 @@ class Query:
         location: str,
         log_distance: bool,
         driving: bool,
-    ) -> models.PollingLocationSet:
+    ) -> models.DistanceDataSet:
         session = self.get_session()
 
         subquery = select(
-            models.PollingLocationSet,
+            models.DistanceDataSet,
             func.
                 row_number().
                 over(
                     partition_by=[
-                        models.PollingLocationSet.census_year,
-                        models.PollingLocationSet.location,
-                        models.PollingLocationSet.log_distance,
-                        models.PollingLocationSet.driving,
+                        models.DistanceDataSet.census_year,
+                        models.DistanceDataSet.location,
+                        models.DistanceDataSet.log_distance,
+                        models.DistanceDataSet.driving,
                     ],
-                    order_by=desc(models.PollingLocationSet.created_at)).
+                    order_by=desc(models.DistanceDataSet.created_at)).
                 label('rn')
         ).subquery()
 
@@ -463,19 +463,19 @@ class Query:
 
         columns = row._asdict()
         del columns['rn']
-        return models.PollingLocationSet(**columns)
+        return models.DistanceDataSet(**columns)
 
 
     def get_distance_data(
         self,
-        polling_locations_set_id: str
+        distance_data_set_id: str
     ) -> pd.DataFrame:
         session = self.get_session()
 
-        table_name = models.PollingLocation.__tablename__
+        table_name = models.DistanceData.__tablename__
 
         # pylint: disable-next=line-too-long
-        query = f'SELECT * FROM {table_name} WHERE polling_locations_set_id = "{polling_locations_set_id}"'
+        query = f'SELECT * FROM {table_name} WHERE distance_data_set_id = "{distance_data_set_id}"'
 
         df = pd.read_sql(query, session.get_bind())
         return df

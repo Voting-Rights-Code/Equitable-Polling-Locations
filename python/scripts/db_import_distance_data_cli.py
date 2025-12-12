@@ -9,7 +9,7 @@ import os
 import sys
 
 from python.database.imports import csv_to_bigquery, ImportResult, print_all_import_results
-from python.database.models import PollingLocation
+from python.database.models import DistanceData
 from python.database.query import Query
 
 from python.solver.model_data import build_distance_data
@@ -36,16 +36,15 @@ def import_distance_data(
         #'non-hispanic': 'non_hispanic',
     }
     ignore_columns = ['id', 'V1']
-    # TODO don't forgtet to rename this in the db columns
     add_columns = {
-        'polling_locations_set_id': distance_data_set_id,
+        'distance_data_set_id': distance_data_set_id,
     }
 
     return csv_to_bigquery(
         environment=environment,
         config_set=location,
         config_name=csv_path,
-        model_class=PollingLocation,
+        model_class=DistanceData,
         ignore_columns=ignore_columns,
         column_renames=column_renames,
         add_columns=add_columns,
@@ -54,7 +53,7 @@ def import_distance_data(
     )
 
 
-def build_and_import_locations(
+def build_and_import_distance_data(
     query: Query,
     census_year: str,
     location: str,
@@ -72,7 +71,7 @@ def build_and_import_locations(
         log=False,
         query=query,
     )
-    polling_locations_set = query.create_db_distance_data_set(
+    distance_data_set = query.create_db_distance_data_set(
         potential_locations_set_id=build_distance_meta_data.potential_locations_set_id,
         census_year=census_year,
         location=location,
@@ -81,20 +80,20 @@ def build_and_import_locations(
         driving_distance_set_id=build_distance_meta_data.driving_distance_set_id,
     )
 
-    print('polling_locations_set', polling_locations_set) 
+    # print('distance_data_set', distance_data_set)
 
-    location_path = build_distance_meta_data.output_path #location_path -> distance_data_path?
+    distance_data_path = build_distance_meta_data.output_path #location_path -> distance_data_path?
     print(f'Importing {location} driving={driving} log_distance={log_distance}')
-    print(f'  {location_path}')
+    print(f'  {distance_data_path}')
 
-    if not os.path.isfile(location_path):
-        raise ValueError(f'File {location_path} not found')
+    if not os.path.isfile(distance_data_path):
+        raise ValueError(f'File {distance_data_path} not found')
 
-    import_locations_result = import_distance_data( #locations_result -> distance_data?
+    import_locations_result = import_distance_data(
         environment=query.environment,
         location=location,
-        distance_data_set_id=polling_locations_set.id,
-        csv_path=location_path,
+        distance_data_set_id=distance_data_set.id,
+        csv_path=distance_data_path,
         log=True,
     )
     return import_locations_result
@@ -131,7 +130,7 @@ def main(args: argparse.Namespace):
     num_imports = len(locations)
 
     print('------------------------------------------')
-    print(f'Importing {num_imports} location(s) into {environment}\n')
+    print(f'Importing {num_imports} distance data into {environment}\n')
 
 
     results = []
@@ -142,13 +141,13 @@ def main(args: argparse.Namespace):
         print(f'Loading [{i+1}/{num_imports}] {location}')
 
         try:
-            result = build_and_import_locations(
+            result = build_and_import_distance_data(
                 query=query,
                 census_year=census_year,
                 location=location,
                 driving=driving,
                 maps_source_date=map_source_date,
-                log_distance=log_distance
+                log_distance=log_distance,
             )
             results.append(result)
 
@@ -159,10 +158,10 @@ def main(args: argparse.Namespace):
         # pylint: disable-next=broad-exception-caught
         except Exception as e:
             query.rollback()
-            result =  ImportResult(
+            result = ImportResult(
                 config_set=location,
                 config_name=location,
-                table_name='polling_locations',
+                table_name=DistanceData.__tablename__,
                 success=False,
                 source_file=location,
                 rows_written=0,

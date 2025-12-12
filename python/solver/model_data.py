@@ -152,8 +152,8 @@ def get_potential_locations_data(
 
     potential_locations_df = potential_locations_df[POTENTIAL_LOCATIONS_COLS]
 
-    #the potential locations data needs further processing:
-    #1. add a destination type column
+    # The potential locations data needs further processing:
+    # 1. add a destination type column
     potential_locations_df[DISTANCE_DEST_TYPE] = DISTANCE_DEST_TYPE_POLLING
     potential_locations_df[DISTANCE_DEST_TYPE].mask(
         potential_locations_df[POT_LOC_LOCATION_TYPE].str.contains(POT_LOC_LOCATION_TYPE_POTENTIAL_SUBSTR),
@@ -161,7 +161,7 @@ def get_potential_locations_data(
         inplace=True,
     )
 
-    #2. change the lat, long into two columns
+    # 2. change the lat, long into two columns
     potential_locations_df[[POT_LOC_LATITUDE, POT_LOC_LONGITUDE]] = potential_locations_df[
         POT_LOC_LAT_LON
     ].str.split(pat=', ', expand=True).astype(float)
@@ -248,9 +248,9 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
     p4_df = p4_df[P4_COLUMNS]
 
     #####
-    #Make a demographics table
+    # Make a demographics table
     #####
-    #combine P3 and P4 data to make a joint demographics set
+    # Combine P3 and P4 data to make a joint demographics set
     demographics = p4_df.merge(
         p3_df,
         left_on=[CEN20_GEO_ID, CEN20_NAME],
@@ -258,12 +258,12 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
         how=PD_OUTER,
     )
 
-    #Consistency check for the data pull
+    # Consistency check for the data pull
     demographics[TIGER20_POP_DIFF] = demographics[CEN20_P4_TOTAL_POPULATION] - demographics[CEN20_P3_TOTAL_POPULATION]
     if demographics.loc[demographics[TIGER20_POP_DIFF] != 0].shape[0] != 0:
         raise ValueError('Populations different in P3 and P4. Are both pulled from the voting age universe?')
 
-    #Change column names
+    # Change column names
     demographics.drop([CEN20_P4_TOTAL_POPULATION, TIGER20_POP_DIFF], axis=1, inplace=True)
     demographics = demographics.rename(columns = {
         CEN20_P4_HISPANIC: DISTANCE_HISPANIC, CEN20_NON_HISPANIC: DISTANCE_NON_HISPANIC,
@@ -463,19 +463,14 @@ def insert_driving_distances(
     will be renamed haversine_m.
 
     Arguments
-    df: A pandas DataFrame that contains id_orig and id_dest
-    driving_distance_file_path: the path to a file that contains a driving distance for each
-                                origin/destination pair. Each line will be of the form
-                                id_orig, id_dest, distance_m. This file must contain a distance
-                                for every possible origin/destination pair.
-    log: boolean - True if verbose
+    distance_df: A pandas DataFrame that contains id_orig and id_dest
+    driving_distances_df: driving distance data frame with id_orig, id_dest, and distance_m columns
 
     Raises
     ValueError - if anything goes wrong (missing file, bad format, missing data)
 
     Returns
     The original dataframe with the distance_m column populated with the driving distances.
-
     '''
 
     if {DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M} - set(driving_distances_df.columns):
@@ -486,10 +481,6 @@ def insert_driving_distances(
     combined_df[DISTANCE_SOURCE] = DISTANCE_SOURCE_DRIVING_DISTANCE
     return combined_df
 
-
-# TODO "There are a bunch of functions in model_data of the form load_* that seem to be deprecated.. At least, I can't find them called anywhere other than in the test files. Can these be cleaned up?"
-# TODO: Chad -> Susama, don't see any depeacted, please review
-# see if get_csv_driving_distances instead of load_ functions
 
 def get_csv_driving_distances(census_year: str, map_source_date: str, location: str) -> pd.DataFrame:
     '''
@@ -614,7 +605,7 @@ def get_distance_data_db(
         )
 
     df = query.get_distance_data(
-        polling_locations_set_id=polling_locations_set.id,
+        distance_data_set_id=polling_locations_set.id,
     )
 
     # Remove aditional columns that are specific to the database
@@ -713,10 +704,10 @@ def filter_distance_data(config: PollingModelConfig, distance_df: pd.DataFrame, 
 
     filtered_distance_df = distance_df.copy(deep=True)
 
-    #pull out unique location types is this data
+    # Pull out unique location types is this data
     unique_location_types = filtered_distance_df[DISTANCE_LOCATION_TYPE].unique()
 
-    if for_alpha: #if this is running to calculate alpha, remove all potential locations and centroids. 
+    if for_alpha: #if this is running to calculate alpha, remove all potential locations and centroids.
                     #Note, this keeps all historical locations from all years.
         bad_location_list = [
             location_type
@@ -735,26 +726,26 @@ def filter_distance_data(config: PollingModelConfig, distance_df: pd.DataFrame, 
         if not any(str(year) in poll for poll in polling_location_types):
             raise ValueError(f'Do not currently have any data for {location} for {year} from {config.config_file_path}')
 
-    # exclude bad location types
+    # Exclude bad location types
     # The bad types must be valid location types
     if not set(bad_location_list).issubset(set(unique_location_types)):
         unrecognized = set(bad_location_list).difference(set(unique_location_types))
         raise ValueError(f'unrecognized bad location types {unrecognized} in {config.config_file_path}')
 
-    #drop rows of bad location types in df
+    # Drop rows of bad location types in df
     filtered_distance_df = filtered_distance_df[~filtered_distance_df[DISTANCE_LOCATION_TYPE].isin(bad_location_list)]
 
     filter_dest_type(filtered_distance_df, year_list)
 
-    # check that this hasn't created duplicates (should not have); drop these
+    # Check that this hasn't created duplicates (should not have); drop these
     filtered_distance_df = filtered_distance_df.drop_duplicates()
 
-    # check that population is unique by id_orig
+    # Check that population is unique by id_orig
     pop_df = filtered_distance_df.groupby(DISTANCE_ID_ORIG)[DISTANCE_TOTAL_POPULATION].agg(PD_UNIQUE).str.len()
     if any(pop_df>1):
         raise ValueError(f'Some id_orig has multiple associated populations from {config.config_file_path}')
 
-    # raise error if there are any missing distances
+    # Raise error if there are any missing distances
     if len(filtered_distance_df[pd.isnull(filtered_distance_df.distance_m)]) > 0:
         # indicate destinations and origins that are missing driving distances
         all_orig = set(filtered_distance_df.id_orig)
@@ -770,7 +761,7 @@ def filter_distance_data(config: PollingModelConfig, distance_df: pd.DataFrame, 
             print(f'distances missing for {len(missing_origs)} origin(s): {missing_origs}')
         raise ValueError('Some distances are missing for current config setting.')
 
-    #create other useful columns
+    # Create other useful columns
     filtered_distance_df[DISTANCE_WEIGHTED_DIST] = (
         filtered_distance_df[DISTANCE_TOTAL_POPULATION] * filtered_distance_df[DISTANCE_DISTANCE_M]
     )

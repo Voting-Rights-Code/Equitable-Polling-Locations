@@ -8,7 +8,7 @@ import json
 from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, text, ARRAY
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 
-from .polling_locations import PollingLocationSet
+from .polling_locations import DistanceDataSet
 
 from ..sqlalchemy_main import ModelBase
 from python.utils import current_time_utc, generate_uuid
@@ -123,8 +123,6 @@ class ModelConfig(ModelBase):
         return f"ModelConfig(id={self.id}, config_set='{self.config_set}', config_name='{self.config_name}', location='{self.location}', years='{year}')"
 
 
-# TODO rename polling_locations_* to to distance_data_*
-
 class ModelRun(ModelBase):
     ''' A SQLAlchemy record of a model run against an existing ModelConfig config.  '''
 
@@ -159,11 +157,11 @@ class ModelRun(ModelBase):
     ''' The ModelConfig instance that this run is the result of '''
 
     # Relations
-    polling_locations_set_id = mapped_column(ForeignKey('polling_locations_sets.id'), nullable=True)
-    ''' The PollingLocationSet id that this ModelRun came from '''
+    distance_data_set_id = mapped_column(ForeignKey('distance_data_sets.id'), nullable=True)
+    ''' The DistanceDataSet id that this ModelRun came from '''
 
-    polling_locations_set: Mapped['PollingLocationSet'] = relationship()
-    ''' The PollingLocationSet instance that this ModelRun came from '''
+    distance_data_set: Mapped['DistanceDataSet'] = relationship()
+    ''' The DistanceDataSet instance that this ModelRun came from '''
 
     def __repr__(self):
         # pylint: disable-next=line-too-long

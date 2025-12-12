@@ -17,31 +17,38 @@ down_revision: Union[str, None] = '4a6823d917dd'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-config = op.get_context().config
-db_dataset = config.get_main_option('DB_DATASET')
 
-latest_driving_distance_set_view = ReplaceableObject(
-    'latest_driving_distance_sets',
-    f'''
-        WITH ranked_distance_sets AS (
+def build_latest_driving_distance_set_view(db_dataset: str) -> ReplaceableObject:
+    return ReplaceableObject(
+        'latest_driving_distance_sets',
+        f'''
+            WITH ranked_distance_sets AS (
+                SELECT
+                    *,
+                    ROW_NUMBER() OVER (PARTITION BY location ORDER BY created_at DESC) AS rn
+                FROM
+                    {db_dataset}.driving_distance_sets
+            )
             SELECT
-                *,
-                ROW_NUMBER() OVER (PARTITION BY location ORDER BY created_at DESC) AS rn
+                rds.*,
             FROM
-                {db_dataset}.driving_distance_sets
-        )
-        SELECT
-            rds.*,
-        FROM
-            ranked_distance_sets rds
-        WHERE
-            rds.rn = 1
-    '''
-)
+                ranked_distance_sets rds
+            WHERE
+                rds.rn = 1
+        '''
+    )
 
 def upgrade() -> None:
+    config = op.get_context().config
+    db_dataset = config.get_main_option('DB_DATASET')
+    latest_driving_distance_set_view = build_latest_driving_distance_set_view(db_dataset)
+
     op.create_view(latest_driving_distance_set_view)
 
 
 def downgrade() -> None:
+    config = op.get_context().config
+    db_dataset = config.get_main_option('DB_DATASET')
+    latest_driving_distance_set_view = build_latest_driving_distance_set_view(db_dataset)
+
     op.drop_view(latest_driving_distance_set_view)
