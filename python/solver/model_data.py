@@ -661,7 +661,7 @@ def get_distance_data(
     output_dir = os.path.dirname(output_path)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    breakpoint()
+    
     distance_data.distance_df.to_csv(output_path, index=True)
 
     return distance_data
