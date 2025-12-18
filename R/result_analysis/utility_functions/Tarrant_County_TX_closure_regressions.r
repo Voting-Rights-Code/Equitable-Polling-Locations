@@ -13,6 +13,8 @@ if (!file.exists(file.path(here(), paste0('result_analysis_outputs/', TARRANT_CO
 setwd(here())
 
 source('R/result_analysis/utility_functions/storage.R')
+source('R/result_analysis/Basic_analysis_configs/Tarrant_County_original_and_fair_capacity_2.r')
+
 
 #read in 2024, and 2025 historical precinct data, as well as the optimal assignments
 dt_2024 <- fread('datasets/results/Tarrant_County_TX_results/Tarrant_County_TX_original_configs_capacity_2.Tarrant_County_TX_year_2024_precinct_distances.csv')
@@ -93,3 +95,4 @@ add_graph_to_graph_file_manifest(graph_file_path)
 ggsave(graph_file_path)
 
 
+upload_graph_files_to_cloud_storage()
