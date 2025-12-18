@@ -150,7 +150,7 @@ class ModelRun():
 
         # If we are using local files, build the source data if it doesn't already exist
         if self._config.data_source == DATA_SOURCE_CSV:
-            # Check if the local source file exists for get_polling_locations, if it doesn't then build it
+            # Check if the local source file exists for the call get_distance_data below, if it doesn't then build it
             if not os.path.exists(source_path):
                 warnings.warn(f'File {source_path} not found. Creating it.')
                 build_distance_data(

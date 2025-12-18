@@ -15,7 +15,7 @@ from .driving_distances import DrivingDistancesSet
 LOCATION_TYPE_CONTAINED_IN_CITY = 'contained_in_city'
 LOCATION_TYPE_INTERSECTING_CITY = 'intersecting_city'
 
-# PollingLocationOnlySet -> PotentialLocationsSet
+
 class PotentialLocationsSet(ModelBase):
     ''' PotentialLocationsSet SQLAlchemy record  '''
 
@@ -45,7 +45,7 @@ class PotentialLocationsSet(ModelBase):
         # pylint: disable-next=line-too-long
         return f"PotentialLocationsSet(id={self.id}, election_year='{self.election_year}', location='{self.location}')"
 
-# PollingLocationOnly -> PotentialLocations
+
 class PotentialLocations(ModelBase):
     ''' PotentialLocations SQLAlchemy record  '''
 
@@ -72,7 +72,7 @@ class PotentialLocations(ModelBase):
     ''' The PotentialLocations instance that this PotentialLocations belongs to '''
 
 
-# PollingLocationSet -> DistanceDataSet
+
 class DistanceDataSet(ModelBase):
     ''' DistanceDataSet SQLAlchemy record  '''
 
@@ -120,7 +120,7 @@ class DistanceDataSet(ModelBase):
         return f"PollingLocationSet(id={self.id}, census_year='{self.census_year}', location='{self.location}', driving={self.driving}, log_distance={self.log_distance})"
 
 
-# PollingLocation -> DistanceData
+
 class DistanceData(ModelBase):
     ''' DistanceData SQLAlchemy record  '''
 
