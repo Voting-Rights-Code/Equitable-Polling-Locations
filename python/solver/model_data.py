@@ -658,9 +658,10 @@ def get_distance_data(
     )
 
     # The following writes the distance data to a local CSV file as a way to cache it for future use
-    output_dir = os.path.basename(output_path)
+    output_dir = os.path.dirname(output_path)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+    breakpoint()
     distance_data.distance_df.to_csv(output_path, index=True)
 
     return distance_data
