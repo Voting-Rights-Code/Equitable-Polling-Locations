@@ -609,7 +609,7 @@ def get_distance_data_db(
     )
 
     # Remove aditional columns that are specific to the database
-    del df['polling_locations_set_id']
+    del df['distance_data_set_id']
 
     return DistanceData(
         distance_df=df,
