@@ -597,15 +597,15 @@ def get_distance_data_db(
         print(f'Loading distance data for {location} from database')
 
     # Load locations from the database
-    polling_locations_set = query.get_distance_data_set(census_year, location, log_distance, driving)
-    if not polling_locations_set:
+    distance_data_set = query.get_distance_data_set(census_year, location, log_distance, driving)
+    if not distance_data_set:
         raise ValueError(
             # pylint: disable-next=line-too-long
             f'Could not find location set for census_year: {census_year}, location: {location}, log_distance: {log_distance}, driving: {driving} in the database. To import the data to the database, run python.scripts.db_import_locations_cli with the desired parameters.',
         )
 
     df = query.get_distance_data(
-        distance_data_set_id=polling_locations_set.id,
+        distance_data_set_id=distance_data_set.id,
     )
 
     # Remove aditional columns that are specific to the database
@@ -613,7 +613,7 @@ def get_distance_data_db(
 
     return DistanceData(
         distance_df=df,
-        distance_data_set_id=polling_locations_set.id,
+        distance_data_set_id=distance_data_set.id,
     )
 
 
@@ -661,7 +661,7 @@ def get_distance_data(
     output_dir = os.path.dirname(output_path)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    
+
     distance_data.distance_df.to_csv(output_path, index=True)
 
     return distance_data
