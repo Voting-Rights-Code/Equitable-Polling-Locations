@@ -39,9 +39,7 @@ CONFIG_LOCATION_SOURCE = 'data_source'
 POT_LOC_LOCATION = 'Location'
 POT_LOC_ADDRESS = 'Address'
 POT_LOC_LOCATION_TYPE = 'Location type'
-
-# TODO rename this to "Lat, Lon"
-POT_LOC_LAT_LON = 'Lat, Long'
+POT_LOC_LAT_LON = 'Lat, Lon'
 POT_LOC_LATITUDE = 'Latitude'
 POT_LOC_LONGITUDE = 'Longitude'
 

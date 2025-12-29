@@ -17,6 +17,15 @@ from python.database.query import Query
 from python.utils.environments import Environment, load_env
 from python.utils.utils import build_potential_locations_file_path
 
+from python.solver.constants import (
+    POT_LOC_LOCATION,
+    POT_LOC_ADDRESS,
+    POT_LOC_LOCATION_TYPE,
+    POT_LOC_LAT_LON,
+    POT_LOC_LATITUDE,
+    POT_LOC_LONGITUDE,
+)
+
 DEFAULT_LOG_DIR='logs'
 IMPORT_ERROR_LOG_FILE='potential_locations_import_errors.csv'
 
@@ -30,12 +39,12 @@ def import_potential_locations(
 ) -> ImportResult:
 
     column_renames = {
-        'Location': 'location',
-        'Address': 'address',
-        'Location type': 'location_type',
-        'Lat, Long': 'lat_lon',
+        POT_LOC_LOCATION: 'location',
+        POT_LOC_ADDRESS: 'address',
+        POT_LOC_LOCATION_TYPE: 'location_type',
+        POT_LOC_LAT_LON: 'lat_lon',
     }
-    ignore_columns = ['V1', 'Latitude', 'Longitude']
+    ignore_columns = ['V1', POT_LOC_LATITUDE, POT_LOC_LONGITUDE]
     add_columns = {
         'potential_locations_set_id': potential_locations_set_id
     }
