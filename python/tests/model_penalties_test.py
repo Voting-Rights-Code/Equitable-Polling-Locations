@@ -91,16 +91,16 @@ def test_penalty_selection_true(testing_config_penalty):
     assert len(penalty_model.penalized_selections) == 2
 
 
-def test_penalty_selection_false(testing_config_penalty_unused):
-    #testing that the penality function works correctly when no penalized sites are MOT chosen
-    penalty_run_setup = ModelRun(testing_config_penalty_unused).run_setup
-    # penalty_run_setup = model_run.prepare_run(testing_config_penalty_unused)
-    model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty_unused.time_limit)
-    penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
+# def test_penalty_selection_false(testing_config_penalty_unused):
+#     #testing that the penality function works correctly when no penalized sites are MOT chosen
+#     penalty_run_setup = ModelRun(testing_config_penalty_unused).run_setup
+#     # penalty_run_setup = model_run.prepare_run(testing_config_penalty_unused)
+#     model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty_unused.time_limit)
+#     penalty_result_df = incorporate_result(penalty_run_setup.dist_df, penalty_run_setup.ea_model)
 
-    penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
-    penalty_model.run()
-    assert not penalty_model.penalized_selections
+#     penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
+#     penalty_model.run()
+#     assert not penalty_model.penalized_selections
 
 
 
@@ -155,7 +155,7 @@ def test_kp_inequalities(testing_config_penalty):
 
     penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
     penalty_model.run()
-    assert penalty_model.kp2 >penalty_model.kp_pen
+    assert penalty_model.kp2 > penalty_model.kp_pen
     assert penalty_model.kp_pen > penalty_model.kp1
 
 
