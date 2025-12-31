@@ -72,18 +72,12 @@ def result_keep_df(testing_config_keep):
 
 @pytest.fixture(scope='session')
 def location_df_with_driving(
-    #tmp_path_factory,
+    tmp_path_factory,
     testing_config_driving,
 ):
     ''' Fixture to load the locations source data with driving distances from the testing locations CSV. '''
 
-    #commenting out because I can't find tmp_path_factory
-    #tmp_path = tmp_path_factory.mktemp('driving_locations_results_test_data')
-    build_source_ouput_tmp_path = os.path.join(
-        POLLING_DIR,
-        testing_config_driving.location,
-        'testing_driving_distances_tmp.csv',
-    )
+    tmp_path = tmp_path_factory.mktemp('driving_locations_results_test_data') / 'testing_driving_distances_tmp.csv'
 
     model_data.build_distance_data(
         'csv',
@@ -93,10 +87,10 @@ def location_df_with_driving(
         log_distance=testing_config_driving.log_distance,
         map_source_date=MAP_SOURCE_DATE,
         potential_locations_path_override=TESTING_POTENTIAL_LOCATIONS_PATH,
-        output_path_override=build_source_ouput_tmp_path,
+        output_path_override=tmp_path,
     )
 
-    location_df_driving = model_data.load_distance_data_csv(build_source_ouput_tmp_path)
+    location_df_driving = model_data.load_distance_data_csv(tmp_path)
 
     return location_df_driving
 
