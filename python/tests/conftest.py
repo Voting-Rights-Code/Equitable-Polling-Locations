@@ -95,6 +95,7 @@ def location_df_with_driving(
     return location_df_driving
 
 
+
 @pytest.fixture(scope='module')
 def polling_locations_df(testing_config_base):
     polling_locations = model_data.get_distance_data(
