@@ -167,7 +167,6 @@ class ModelRun():
             # Force evaluates _query to create a Query instance in order to get the polling locations from the database
             query = self._query
 
-        # TODO finish renames
         distance_data = get_distance_data(
             data_source=self._config.data_source,
             census_year=self._config.census_year,

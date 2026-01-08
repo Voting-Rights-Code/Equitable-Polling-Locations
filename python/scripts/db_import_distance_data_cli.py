@@ -20,8 +20,6 @@ from python.utils.environments import Environment, load_env
 DEFAULT_LOG_DIR='logs'
 IMPORT_ERROR_LOG_FILE='locations_import_errors.csv'
 
-# TODO rename polling location names to distance_data
-
 LINEAR = 'linear'
 LOG = 'log'
 

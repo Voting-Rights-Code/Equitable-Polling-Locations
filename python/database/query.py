@@ -341,8 +341,6 @@ class Query:
                 print(f'found model {result}')
         return result
 
-
-    # TODO finish renames in here as well
     def create_db_distance_data_set(
         self,
         potential_locations_set_id: str,

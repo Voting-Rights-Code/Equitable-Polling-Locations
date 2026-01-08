@@ -87,7 +87,7 @@ class DistanceDataSet(ModelBase):
     )
 
     location: str = Column(String(256), nullable=False)
-    ''' The name of the polling location set - TODO Rename this from name -> location'''
+    ''' The name of the polling location set'''
 
     census_year: str = Column(String(4), nullable=False)
     ''' The census year the polling locations block groups are in refrence to '''

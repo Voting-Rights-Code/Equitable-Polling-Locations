@@ -68,15 +68,12 @@ DISTANCE_WEIGHTED_DIST = 'weighted_dist'
 DISTANCE_DISTANCE_SQUARED = 'distance_squared'
 DISTANCE_DEST_TYPE = 'dest_type'
 
-# TODO rename LOC_... to DISTANCE_...
-
 DISTANCE_SOURCE_HAVERSINE_DISTANCE = 'haversine distance'
 ''' A type value for the LOC_LOCATION_TYPE field '''
 DISTANCE_SOURCE_DRIVING_DISTANCE = 'driving distance'
 ''' A type value for the LOC_LOCATION_TYPE field '''
 DISTANCE_SOURCE_LOG_WITH_SPACE = 'log '
 ''' A type value for the LOC_LOCATION_TYPE field that works with other types (e.g. "log haversine distance") '''
-# TODO use POT_LOCS...
 
 POT_LOC_LOCATION_TYPE_POTENTIAL_SUBSTR = 'Potential'
 ''' A flag in the field POTENTIAL_LOC_LOCATION_TYPE indicating a potential location '''
