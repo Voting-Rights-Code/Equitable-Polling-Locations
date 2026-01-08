@@ -87,6 +87,7 @@ class ModelRun():
         return incorporate_result(
             dist_df=self.run_setup.dist_df,
             model=self._solved_ea_model,
+            log_distance=self._config.log_distance,
         )
 
 

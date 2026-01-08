@@ -14,7 +14,6 @@ from python.solver.model_config import PollingModelConfig
 from .constants import (
   TESTING_CONFIG_BASE, TESTING_CONFIG_KEEP, TESTING_CONFIG_EXCLUDE, TESTING_CONFIG_PENALTY,
   TESTING_CONFIG_PENALTY_UNUSED, TESTING_CONFIG_DRIVING, TESTING_POTENTIAL_LOCATIONS_PATH, MAP_SOURCE_DATE,
-  POLLING_DIR,
 )
 
 def generate_penalties_df(config: PollingModelConfig) -> pd.DataFrame:

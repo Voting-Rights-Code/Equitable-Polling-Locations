@@ -186,6 +186,7 @@ class PenalizeModel:
         result = incorporate_result(
             dist_df=self._run_setup.dist_df,
             model=self.ea_model_penalized,
+            log_distance=self._run_setup.config.log_distance,
         )
 
         return result
