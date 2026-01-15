@@ -79,18 +79,26 @@ class PenalizeModel:
 
         return results
 
+    @functools.cached_property
+    def _ea_model_obj_value(self) -> float:
+        return pyo.value(self._run_setup.ea_model.obj)
 
     @functools.cached_property
     def kp1(self) -> float:
-        obj_value = pyo.value(self._run_setup.ea_model.obj)
+        # obj_value = pyo.value(self._run_setup.ea_model.obj)
         result = compute_kp(
             config=self._run_setup.config,
             alpha=self._run_setup.alpha,
-            obj_value=obj_value,
+            obj_value=self._ea_model_obj_value, #obj_value
         )
         self._log_write(f'KP1 Objective = {result:.2f}\n')
 
         return result
+
+
+    @functools.cached_property
+    def _ea_model_exclusions_obj_value(self) -> float:
+        return pyo.value(self.ea_model_exclusions.obj)
 
 
     @functools.cached_property
@@ -99,12 +107,12 @@ class PenalizeModel:
         The exclusions objective value to KP score (kp2)
         '''
 
-        obj_value_exclusions = pyo.value(self.ea_model_exclusions.obj)
+        # obj_value_exclusions = pyo.value(self.ea_model_exclusions.obj)
 
         result = compute_kp(
             config=self._run_setup.config,
             alpha=self._run_setup.alpha,
-            obj_value=obj_value_exclusions,
+            obj_value=self._ea_model_exclusions_obj_value, #obj_value_exclusions,
         )
 
         self._log_write(f'KP2 Objective = {result:.2f}\n')
