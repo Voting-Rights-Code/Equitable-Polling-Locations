@@ -70,6 +70,7 @@ class ModelRun():
         solve_model(
             model=self.run_setup.ea_model,
             time_limit=self._config.time_limit,
+            limits_gap=self._config.limits_gap,
             log=self._log,
             log_file_path=self._config.log_file_path,
         )
@@ -95,6 +96,7 @@ class ModelRun():
         penalize = PenalizeModel(
             run_setup=self.run_setup,
             result_df=self._initial_result_df,
+            log=self._log,
         )
         return penalize
 

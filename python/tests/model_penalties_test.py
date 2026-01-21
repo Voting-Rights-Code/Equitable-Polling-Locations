@@ -16,7 +16,7 @@ def test_penalty_selection_false(testing_config_penalty_unused):
     #testing that the penality function works correctly when no penalized sites are MOT chosen
     penalty_run_setup = ModelRun(testing_config_penalty_unused).run_setup
     # penalty_run_setup = model_run.prepare_run(testing_config_penalty_unused)
-    model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty_unused.time_limit)
+    model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty_unused.time_limit, limits_gap=0.0)
     penalty_result_df = incorporate_result(
         penalty_run_setup.dist_df,
         penalty_run_setup.ea_model,
@@ -32,7 +32,7 @@ def test_penalty_selection_true(testing_config_penalty):
     #testing that the penality function works correctly when no penalized sites are chosen
     penalty_run_setup = ModelRun(testing_config_penalty).run_setup
     # penalty_run_setup = model_run.prepare_run(testing_config_penalty)
-    model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit)
+    model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit, limits_gap=0.0)
     penalty_result_df = incorporate_result(
         penalty_run_setup.dist_df,
         penalty_run_setup.ea_model,
@@ -47,7 +47,7 @@ def test_kp1(testing_config_keep, testing_config_penalty):
     #get kp value from the keep_config using model_run machinery
     keep_run_setup = ModelRun(testing_config_keep).run_setup
     # keep_run_setup = model_run.prepare_run(testing_config_keep)
-    model_solver.solve_model(keep_run_setup.ea_model, testing_config_keep.time_limit)
+    model_solver.solve_model(keep_run_setup.ea_model, testing_config_keep.time_limit, limits_gap=0.0)
     #keep_result_df = incorporate_result(keep_run_setup.dist_df, keep_run_setup.ea_model)
     keep_obj_value = pyo.value(keep_run_setup.ea_model.obj)
     keep_kp = model_penalties.compute_kp(testing_config_keep, keep_run_setup.alpha, keep_obj_value)
@@ -55,7 +55,7 @@ def test_kp1(testing_config_keep, testing_config_penalty):
     #get kp1 value from the penalize_config using penalty machinery
     penalty_run_setup = ModelRun(testing_config_penalty).run_setup
     # penalty_run_setup = model_run.prepare_run(testing_config_penalty)
-    model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit)
+    model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit, limits_gap=0.0)
     penalty_result_df = incorporate_result(
         penalty_run_setup.dist_df,
         penalty_run_setup.ea_model,
@@ -72,7 +72,7 @@ def test_kp2(testing_config_exclude, testing_config_penalty):
     #get kp value from the exclue_config using model_run machinery
     exclude_run_setup = ModelRun(testing_config_exclude).run_setup
     # exclude_run_setup = model_run.prepare_run(testing_config_exclude)
-    model_solver.solve_model(exclude_run_setup.ea_model, testing_config_exclude.time_limit)
+    model_solver.solve_model(exclude_run_setup.ea_model, testing_config_exclude.time_limit, limits_gap=0.0)
     #keep_result_df = incorporate_result(keep_run_setup.dist_df, keep_run_setup.ea_model)
     exclude_obj_value = pyo.value(exclude_run_setup.ea_model.obj)
     exclude_kp = model_penalties.compute_kp(testing_config_exclude, exclude_run_setup.alpha, exclude_obj_value)
@@ -80,7 +80,7 @@ def test_kp2(testing_config_exclude, testing_config_penalty):
     #get kp2 value from the penalize_config using penalty machinery
     penalty_run_setup = ModelRun(testing_config_penalty).run_setup
     # penalty_run_setup = model_run.prepare_run(testing_config_penalty)
-    model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit)
+    model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit, limits_gap=0.0)
     penalty_result_df = incorporate_result(
         penalty_run_setup.dist_df,
         penalty_run_setup.ea_model,
@@ -110,7 +110,7 @@ def test_kp_inequalities(testing_config_penalty):
     # assert penalty_model.kp_pen > penalty_model.kp1
 
 
-    model_run = ModelRun(testing_config_penalty)
+    model_run = ModelRun(testing_config_penalty, True)
     penalize_model = model_run._penalize_model
     print(penalize_model._run_setup.config)
     config = penalize_model._run_setup.config
@@ -145,6 +145,7 @@ def test_kp_inequalities(testing_config_penalty):
     print(f'test_kp_inequalities dist_df hash: {dist_df_hash}')
     print(f'alpha: {penalize_model._run_setup.alpha}')
     print(f'_ea_model_obj_value: {penalize_model._ea_model_obj_value}')
+    print(f'_ea_model_penalized_obj_value: {penalize_model._ea_model_penalized_obj_value}')
     print(f'_ea_model_exclusions_obj_value: {penalize_model._ea_model_exclusions_obj_value}')
     print('-------------------------------------\n\n\n\n\n')
 
@@ -170,7 +171,7 @@ def test_final_statistics(testing_config_penalty):
 
     penalty_run_setup = model_run.run_setup
     # penalty_run_setup = model_run.prepare_run(testing_config_penalty)
-    model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit)
+    model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit, limits_gap=0.0)
     penalty_result_df = incorporate_result(
         penalty_run_setup.dist_df,
         penalty_run_setup.ea_model,
