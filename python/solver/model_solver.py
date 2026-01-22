@@ -9,8 +9,9 @@
 
 import pyomo.environ as pyo
 
+DEFAULT_LIMITS_GAP = 0.02
+
 SOLVER_NAME = 'scip'
-LIMITS_GAP = 0.02
 LP_THREADS = 1
 
 def solve_model(model, time_limit: int, limits_gap: float, log: bool=False, log_file_path=None):

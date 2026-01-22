@@ -169,7 +169,9 @@ class Query:
         column_names.sort()
 
         model_config_dict = {
-            field.name: getattr(config, field.name) for field in fields(PollingModelConfig) if field.name in column_names
+            field.name: getattr(config, field.name)
+            for field in fields(PollingModelConfig)
+            if field.name in column_names
         }
 
         polling_model_config = PollingModelConfig(**model_config_dict)
