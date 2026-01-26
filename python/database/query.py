@@ -12,6 +12,8 @@ from typing import Optional, List
 from datetime import datetime
 
 import pandas as pd
+import os
+os.environ["GRPC_DNS_RESOLVER"] = "native"
 
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import sessionmaker as SessionMaker
