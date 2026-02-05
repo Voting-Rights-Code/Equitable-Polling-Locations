@@ -8,7 +8,7 @@ services:
       - .:/app
       # Mounts your macOS GCP credentials
       #- ~/.config/gcloud:/root/.config/gcloud
-      - ${GCP_CREDS_PATH}:/root/.config/gcloud
+      - ${GCP_CREDS_PATH:-./.gcp_tmp}:/root/.config/gcloud
     environment:
       # Path inside the container where the mounted credentials live
       - GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json
