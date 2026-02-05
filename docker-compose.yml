@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    # Keeps it consistent if you have an Apple Silicon (M1/M2/M3) Mac
+    platform: linux/amd64
+    volumes:
+      # Mounts your current folder to /app inside the container
+      - .:/app
+      # Mounts your macOS GCP credentials
+      #- ~/.config/gcloud:/root/.config/gcloud
+      - ${GCP_CREDS_PATH}:/root/.config/gcloud
+    environment:
+      # Path inside the container where the mounted credentials live
+      - GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json
+      - PROJ_LIB=/opt/conda/envs/equitable-polls/share/proj
+      - GRPC_DNS_RESOLVER=native
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1

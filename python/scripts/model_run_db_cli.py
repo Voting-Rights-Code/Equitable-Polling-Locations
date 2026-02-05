@@ -27,7 +27,7 @@ from python.solver.model_run import ModelRun, OUT_TYPE_CSV, OUT_TYPE_DB
 from python.database.models import ModelConfig
 from python import utils
 from python.solver.constants import DATA_SOURCE_DB
-from python.utils.directory_constants import RESULTS_FOLDER_NAME
+from python.utils.directory_constants import DEFAULT_LOG_DIR, RESULTS_FOLDER_NAME
 from python.utils.environments import load_env, Environment
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
@@ -123,18 +123,15 @@ def run_config(
 
 def main(args: argparse.Namespace):
     ''' Main entrypoint '''
-
-    logdir = args.logdir
+    logdir = args.log and args.logdir
     outtype = args.outtype
     if outtype == OUT_TYPE_DB:
-        #Force the database prompt immediately upon run, if running on DB
-        # utils.get_env_var_or_prompt('DB_PROJECT', default_value='equitable-polling-locations')
-        # utils.get_env_var_or_prompt('DB_DATASET')
         environment = load_env(args.environment)
     else:
         environment = None
 
     if logdir:
+        os.makedirs(logdir, exist_ok=True)
         if not os.path.exists(logdir):
             print(f'Invalid log dir: {logdir}')
             sys.exit(1)
@@ -175,6 +172,7 @@ def main(args: argparse.Namespace):
         print(f'Running single process against {total_files} config file(s)')
 
         for config_file in configs:
+            print(f'Running config: {config_file.db_id} {config_file.config_set}/{config_file.config_name}')
             run_config(config_file, log, outtype, verbose)
             if log:
                 print('--------------------------------------------------------------------------------')
@@ -218,7 +216,14 @@ Examples:
             'Be mindful of ram availability - full runs can use in excess of 40 GB' +
             ' for each concurrent process.')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
-    parser.add_argument('-l', '--logdir', type=str, help='The directory to output log files to')
+    parser.add_argument('-l', '--log', action='store_true', help='Enable logging to file.')
+    parser.add_argument(
+        '-L',
+        '--logdir',
+        type=str,
+        default=DEFAULT_LOG_DIR,
+        help='The directory to output log files to',
+    )
     parser.add_argument(
         '-o',
         '--outtype',
