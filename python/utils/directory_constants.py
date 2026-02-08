@@ -47,3 +47,5 @@ CENSUS_TIGER_DIR = os.path.join(DATASETS_DIR, CENSUS_FOLDER_NAME, TIGER_FOLDER_N
 ''' The base dir for where all the tiger data is located '''
 
 SETTINGS_PATH = os.path.join(PROJECT_ROOT_DIR, SETTINGS_YAML)
+
+DEFAULT_LOG_DIR="logs"
