@@ -17,9 +17,10 @@ from python.solver.model_config import PollingModelConfig
 from python.utils import (
     build_precinct_summary_file_path, build_residence_summary_file_path,
     build_results_file_path, build_y_ede_summary_file_path, current_time_utc,
+    log_date_prefix,
 )
 from python.utils.environments import load_env
-from python.utils.directory_constants import RESULTS_BASE_DIR
+from python.utils.directory_constants import DEFAULT_LOG_DIR, RESULTS_BASE_DIR
 
 MODEL_RUN_ID = 'model_run_id'
 
@@ -28,7 +29,6 @@ PRECINCT_DISTANCES_PATH = 'precinct_distances_path'
 RESIDENCE_DISTANCES_PATH = 'residence_distances_path'
 EDE_PATH = 'EDE_PATH'
 
-DEFAULT_LOG_DIR='logs'
 IMPORT_ERROR_LOG_FILE='import_errors.csv'
 
 def output_file_paths(config: PollingModelConfig) -> dict[str, str]:
@@ -81,6 +81,13 @@ def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
     logdir = args.logdir
+    os.makedirs(logdir, exist_ok=True)
+    if not os.path.exists(logdir):
+        print(f'Invalid log dir: {logdir}')
+        sys.exit(1)
+    else:
+        print(f'Writing logs to dir: {logdir}')
+
     environment = load_env(args.environment)
 
 
@@ -162,10 +169,7 @@ def main(args: argparse.Namespace):
     print_all_import_results(failed_results)
 
     # Write any errors to the log dir
-    log_path = os.path.join(os.getcwd(), logdir)
-    if not os.path.exists(log_path):
-        os.makedirs(logdir)
-    output_path = os.path.join(log_path, IMPORT_ERROR_LOG_FILE)
+    output_path = os.path.join(logdir, f'{log_date_prefix()}_{IMPORT_ERROR_LOG_FILE}')
     print_all_import_results(failed_results, output_path=output_path)
 
     if num_failures:
@@ -185,6 +189,12 @@ Examples:
     )
     parser.add_argument('configs', nargs='+', help='One or more yaml configuration files to run.')
     parser.add_argument('-e', '--environment', type=str, help='The environment to use')
-    parser.add_argument('-l', '--logdir', default=DEFAULT_LOG_DIR, type=str, help='The directory to erros files to ')
+    parser.add_argument(
+        '-L',
+        '--logdir',
+        type=str,
+        default=DEFAULT_LOG_DIR,
+        help='The directory to output log files to',
+    )
 
     main(parser.parse_args())

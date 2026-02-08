@@ -10,11 +10,11 @@ from python.database.models import DrivingDistance
 from python.database.query import Query
 from python.database.imports import csv_to_bigquery, ImportResult, print_all_import_results
 
-from python.utils import is_int
+from python.utils import is_int, log_date_prefix
 from python.utils.environments import Environment, load_env
 from python.utils.utils import build_driving_distances_file_path
+from python.utils.directory_constants import DEFAULT_LOG_DIR
 
-DEFAULT_LOG_DIR='logs'
 IMPORT_ERROR_LOG_FILE='driving_distance_import_errors.csv'
 
 
@@ -48,6 +48,12 @@ def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
     logdir = args.logdir
+    verbose = args.verbose > 1
+
+    os.makedirs(logdir, exist_ok=True)
+    if verbose:
+        print(f'Writing logs to dir: {logdir}')
+
 
     environment = load_env(args.environment)
     locations: list[str] = args.locations
@@ -78,7 +84,6 @@ def main(args: argparse.Namespace):
         distance_file_path = build_driving_distances_file_path(census_year, map_source_date, location)
 
         print(f'Loading [{i+1}/{num_imports}] {distance_file_path}')
-
 
         distance_set = query.create_db_distance_set(census_year, map_source_date, location)
 
@@ -111,10 +116,7 @@ def main(args: argparse.Namespace):
     print_all_import_results(failed_results)
 
     # Write any errors to the log dir
-    log_path = os.path.join(os.getcwd(), logdir)
-    if not os.path.exists(log_path):
-        os.makedirs(logdir)
-    output_path = os.path.join(log_path, IMPORT_ERROR_LOG_FILE)
+    output_path = os.path.join(logdir, f'{log_date_prefix()}_{IMPORT_ERROR_LOG_FILE}')
     print_all_import_results(failed_results, output_path=output_path)
 
     if num_failures:
@@ -137,7 +139,12 @@ Examples:
     # parser.add_argument('map_source_date', nargs=1, help='The date (YYYYMMDD) of the map data used to generate the distances')
     parser.add_argument('-e', '--environment', type=str, help='The environment to use')
     parser.add_argument('locations', nargs='+', help='One or more locations to import for the specifed census year and map date')
-    parser.add_argument('-l', '--logdir', default=DEFAULT_LOG_DIR, type=str, help='The directory to error files to ')
-
+    parser.add_argument(
+        '-L',
+        '--logdir',
+        type=str,
+        default=DEFAULT_LOG_DIR,
+        help='The directory to output log files to',
+    )
     main(parser.parse_args())
 
