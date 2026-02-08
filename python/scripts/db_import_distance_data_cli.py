@@ -2,6 +2,7 @@
 A command line utility to read distances into the database.
 '''
 
+from email import utils
 from typing import List
 
 import argparse
@@ -13,11 +14,11 @@ from python.database.models import DistanceData
 from python.database.query import Query
 
 from python.solver.model_data import build_distance_data
-from python.utils import is_int
+from python.utils import is_int, log_date_prefix
 from python.solver.constants import DATA_SOURCE_DB
 from python.utils.environments import Environment, load_env
+from python.utils.directory_constants import DEFAULT_LOG_DIR
 
-DEFAULT_LOG_DIR='logs'
 IMPORT_ERROR_LOG_FILE='locations_import_errors.csv'
 
 LINEAR = 'linear'
@@ -100,6 +101,13 @@ def build_and_import_distance_data(
 def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
+    logdir = args.logdir
+    verbose = args.verbose > 1
+
+    os.makedirs(logdir, exist_ok=True)
+    if verbose:
+        print(f'Writing logs to dir: {logdir}')
+
     locations: List[str] = args.locations
     census_year: str = args.census_year[0]
     driving: bool = args.driving
@@ -113,8 +121,8 @@ def main(args: argparse.Namespace):
         map_source_date = None
     log_distance: bool = args.type == LOG
 
-    logdir = args.logdir
-
+    if verbose:
+        print(f'Writing logs to dir: {logdir}')
 
     print('census_year:', census_year)
     print('locations:', locations)
@@ -180,10 +188,8 @@ def main(args: argparse.Namespace):
     print_all_import_results(failed_results)
 
     # Write any errors to the log dir
-    log_path = os.path.join(os.getcwd(), logdir)
-    if not os.path.exists(log_path):
-        os.makedirs(logdir)
-    output_path = os.path.join(log_path, IMPORT_ERROR_LOG_FILE)
+    output_path = os.path.join(logdir, f'{log_date_prefix()}_{IMPORT_ERROR_LOG_FILE}')
+
     print_all_import_results(failed_results, output_path=output_path)
 
     if num_failures:
@@ -207,7 +213,14 @@ Examples:
        '''
     )
     parser.add_argument('-e', '--environment', type=str, help='The environment to use')
-    parser.add_argument('-l', '--logdir', default=DEFAULT_LOG_DIR, type=str, help='The directory to error files to')
+    parser.add_argument('-l', '--log', action='store_true', help='Enable logging to file.')
+    parser.add_argument(
+        '-L',
+        '--logdir',
+        type=str,
+        default=DEFAULT_LOG_DIR,
+        help='The directory to output log files to',
+    )
     # pylint: disable-next=line-too-long
     parser.add_argument('-t', '--type', default=LINEAR, choices=[LINEAR, LOG], help=f'The type distance to use: {LINEAR} or {LOG}')
     # pylint: disable-next=line-too-long

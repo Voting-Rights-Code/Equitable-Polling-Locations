@@ -40,7 +40,7 @@ def load_configs(config_args: list[str], logdir: str, environment: Environment=N
     # valid = True
     results: list[PollingModelConfig] = []
 
-    log_date_prefix = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+    log_date_prefix = utils.log_date_prefix()
 
     for config_arg in config_args:
         configs: list[ModelConfig] = None
@@ -123,7 +123,11 @@ def run_config(
 
 def main(args: argparse.Namespace):
     ''' Main entrypoint '''
-    logdir = args.log and args.logdir
+
+    log = args.log
+    logdir = log and args.logdir
+    verbose = args.verbose > 1
+
     outtype = args.outtype
     if outtype == OUT_TYPE_DB:
         environment = load_env(args.environment)
@@ -135,7 +139,7 @@ def main(args: argparse.Namespace):
         if not os.path.exists(logdir):
             print(f'Invalid log dir: {logdir}')
             sys.exit(1)
-        else:
+        elif verbose:
             print(f'Writing logs to dir: {logdir}')
 
 
@@ -144,16 +148,12 @@ def main(args: argparse.Namespace):
 
     total_files: int = len(configs)
 
-    # If any level of verbosity is set, the display SCIP logs
-    log: bool = args.verbose > 0
-    verbose: bool = args.verbose > 1
-
     if args.concurrent > 1:
         worker_func = partial(
             run_config,
             log=log,
             outtype=outtype,
-            verbose=verbose
+            verbose=verbose,
         )
 
         # pylint: disable-next=line-too-long
@@ -174,7 +174,7 @@ def main(args: argparse.Namespace):
         for config_file in configs:
             print(f'Running config: {config_file.db_id} {config_file.config_set}/{config_file.config_name}')
             run_config(config_file, log, outtype, verbose)
-            if log:
+            if verbose:
                 print('--------------------------------------------------------------------------------')
 
 if __name__ == '__main__':

@@ -7,7 +7,6 @@
 ''' Command line util to run models '''
 
 import argparse
-import datetime
 from functools import partial
 from glob import glob
 from multiprocessing import Pool
@@ -19,7 +18,7 @@ from tqdm import tqdm
 from python.solver.model_config import PollingModelConfig
 from python.solver.model_run import ModelRun
 from python import utils
-from python.utils.directory_constants import RESULTS_FOLDER_NAME
+from python.utils.directory_constants import DEFAULT_LOG_DIR, RESULTS_FOLDER_NAME
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 
@@ -28,7 +27,7 @@ def load_configs(config_paths: list[str], logdir: str) -> tuple[bool, list[Polli
     valid = True
     results: list[PollingModelConfig] = []
 
-    log_date_prefix = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+    log_date_prefix = utils.log_date_prefix()
 
     for config_path in config_paths:
         if not os.path.isfile(config_path):
@@ -87,13 +86,16 @@ def run_config(
 def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
-    logdir = args.logdir
+    log = args.log
+    logdir = log and args.logdir
+    verbose = args.verbose > 1
 
     if logdir:
+        os.makedirs(logdir, exist_ok=True)
         if not os.path.exists(logdir):
             print(f'Invalid log dir: {logdir}')
             sys.exit(1)
-        else:
+        elif verbose > 1:
             print(f'Writing logs to dir: {logdir}')
 
     # Handle wildcards in Windows properly
@@ -130,7 +132,7 @@ def main(args: argparse.Namespace):
 
         for config_file in configs:
             run_config(config_file, log, verbose)
-            if log:
+            if verbose:
                 print('--------------------------------------------------------------------------------')
 
 if __name__ == '__main__':
@@ -165,6 +167,13 @@ Examples:
             'Be mindful of ram availability - full runs can use in excess of 40 GB' +
             ' for each concurrent process.')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
-    parser.add_argument('-l', '--logdir', type=str, help='The directory to output log files to')
+    parser.add_argument('-l', '--log', action='store_true', help='Enable logging to file.')
+    parser.add_argument(
+        '-L',
+        '--logdir',
+        type=str,
+        default=DEFAULT_LOG_DIR,
+        help='The directory to output log files to',
+    )
 
     main(parser.parse_args())
