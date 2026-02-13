@@ -12,6 +12,8 @@ from typing import Optional, List
 from datetime import datetime
 
 import pandas as pd
+import os
+os.environ["GRPC_DNS_RESOLVER"] = "native"
 
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import sessionmaker as SessionMaker
@@ -169,7 +171,9 @@ class Query:
         column_names.sort()
 
         model_config_dict = {
-            field.name: getattr(config, field.name) for field in fields(PollingModelConfig) if field.name in column_names
+            field.name: getattr(config, field.name)
+            for field in fields(PollingModelConfig)
+            if field.name in column_names
         }
 
         polling_model_config = PollingModelConfig(**model_config_dict)

@@ -18,6 +18,7 @@ bad_types:
     - 'bg_centroid'
 beta: -2
 time_limit: 360000 #100 hours minutes
+limits_gap: 0.02
 capacity: 5
 fixed_capacity_site_number: null
 

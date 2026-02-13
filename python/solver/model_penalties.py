@@ -79,18 +79,26 @@ class PenalizeModel:
 
         return results
 
+    @functools.cached_property
+    def _ea_model_obj_value(self) -> float:
+        return pyo.value(self._run_setup.ea_model.obj)
 
     @functools.cached_property
     def kp1(self) -> float:
-        obj_value = pyo.value(self._run_setup.ea_model.obj)
+        # obj_value = pyo.value(self._run_setup.ea_model.obj)
         result = compute_kp(
             config=self._run_setup.config,
             alpha=self._run_setup.alpha,
-            obj_value=obj_value,
+            obj_value=self._ea_model_obj_value, #obj_value
         )
         self._log_write(f'KP1 Objective = {result:.2f}\n')
 
         return result
+
+
+    @functools.cached_property
+    def _ea_model_exclusions_obj_value(self) -> float:
+        return pyo.value(self.ea_model_exclusions.obj)
 
 
     @functools.cached_property
@@ -99,12 +107,12 @@ class PenalizeModel:
         The exclusions objective value to KP score (kp2)
         '''
 
-        obj_value_exclusions = pyo.value(self.ea_model_exclusions.obj)
+        # obj_value_exclusions = pyo.value(self.ea_model_exclusions.obj)
 
         result = compute_kp(
             config=self._run_setup.config,
             alpha=self._run_setup.alpha,
-            obj_value=obj_value_exclusions,
+            obj_value=self._ea_model_exclusions_obj_value, #obj_value_exclusions,
         )
 
         self._log_write(f'KP2 Objective = {result:.2f}\n')
@@ -127,6 +135,7 @@ class PenalizeModel:
         solve_model(
             model=result,
             time_limit=self._run_setup.config.time_limit,
+            limits_gap=self._run_setup.config.limits_gap,
             log=self.log,
             log_file_path=get_log_path(self._run_setup.config, SOLVER_MODEL2),
         )
@@ -169,6 +178,7 @@ class PenalizeModel:
         solve_model(
             model=result,
             time_limit=self._run_setup.config.time_limit,
+            limits_gap=self._run_setup.config.limits_gap,
             log=self.log,
             log_file_path=get_log_path(self._run_setup.config, SOLVER_MODEL3),
         )
@@ -177,6 +187,10 @@ class PenalizeModel:
             print(f'Model 3 solved for {self._run_setup.run_prefix}.')
 
         return result
+
+    @functools.cached_property
+    def _ea_model_penalized_obj_value(self) -> float:
+        return pyo.value(self.ea_model_penalized.obj)
 
 
     @functools.cached_property
@@ -216,11 +230,12 @@ class PenalizeModel:
 
     @functools.cached_property
     def kp_pen(self) -> float:
-        obj_value = pyo.value(self.ea_model_penalized.obj)
+        # obj_value = pyo.value(self.ea_model_penalized.obj)
+
         result = compute_kp(
             config=self._run_setup.config,
             alpha=self._run_setup.alpha,
-            obj_value=obj_value,
+            obj_value=self._ea_model_penalized_obj_value, #obj_value
         )
 
         self._log_write(f'Penalized KP Optimal = {result:.2f}\n')
@@ -246,16 +261,17 @@ class PenalizeModel:
 
 
     @functools.cached_property
-    def _penalty_log_file(self) -> FileIO:
-        return open(
-            get_log_path(self._run_setup.config, SOLVER_PENALTY),
-            'a',
-            encoding=UTF8,
-        )
+    def _penalty_log_file(self) -> FileIO|None:
+        path = get_log_path(self._run_setup.config, SOLVER_PENALTY)
+
+        if not path:
+            return None
+
+        return open(path, 'a', encoding=UTF8)
 
 
     def _log_write(self, message: str):
-        if self.log:
+        if self.log and self._penalty_log_file:
             self._penalty_log_file.write(message)
 
 

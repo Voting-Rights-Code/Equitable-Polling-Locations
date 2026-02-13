@@ -118,7 +118,7 @@ def alpha_min(testing_config_base, polling_locations_df):
 @pytest.fixture(scope='module')
 def polling_model(clean_distances_df, alpha_min, testing_config_base):
     model = model_factory.polling_model_factory(clean_distances_df, alpha_min, testing_config_base)
-    model_solver.solve_model(model, testing_config_base.time_limit)
+    model_solver.solve_model(model, testing_config_base.time_limit, limits_gap=0.0)
 
     yield model
 
@@ -131,7 +131,7 @@ def expanded_polling_model(clean_distances_df, alpha_min, testing_config_penalty
         testing_config_penalty,
         exclude_penalized_sites=True
     )
-    model_solver.solve_model(model, testing_config_penalty.time_limit)
+    model_solver.solve_model(model, testing_config_penalty.time_limit, limits_gap=0.0)
 
     yield model
 

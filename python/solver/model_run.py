@@ -70,6 +70,7 @@ class ModelRun():
         solve_model(
             model=self.run_setup.ea_model,
             time_limit=self._config.time_limit,
+            limits_gap=self._config.limits_gap,
             log=self._log,
             log_file_path=self._config.log_file_path,
         )
@@ -78,7 +79,7 @@ class ModelRun():
 
 
     @functools.cached_property
-    def _initial_result_df(self):
+    def _initial_result_df(self) -> pd.DataFrame:
         '''
         The raw result DataFrame from the solved model containing only the matched residences
         and precinct, before penalties are applied.
@@ -90,16 +91,19 @@ class ModelRun():
             log_distance=self._config.log_distance,
         )
 
-
     @functools.cached_property
-    def result_df(self):
-        ''' The final result DataFrame from the solved model after penalties are applied. '''
-        penalty_model = PenalizeModel(
+    def _penalize_model(self) -> PenalizeModel:
+        penalize = PenalizeModel(
             run_setup=self.run_setup,
             result_df=self._initial_result_df,
+            log=self._log,
         )
-        return penalty_model.run()
+        return penalize
 
+    @functools.cached_property
+    def result_df(self) -> pd.DataFrame:
+        ''' The final result DataFrame from the solved model after penalties are applied. '''
+        return self._penalize_model.run()
 
     @functools.cached_property
     def _alpha_new(self) -> float:

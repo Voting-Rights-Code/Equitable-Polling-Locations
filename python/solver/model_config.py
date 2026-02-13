@@ -57,6 +57,8 @@ class PollingModelConfig:
     mean. -2 isa good number '''
     time_limit: int
     '''How long the solver should try to find a solution'''
+    limits_gap: float
+    '''The acceptable optimality gap for the solver'''
     census_year: str
     ''' The census year to use. '''
 

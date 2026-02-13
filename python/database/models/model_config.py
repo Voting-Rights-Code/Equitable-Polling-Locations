@@ -12,6 +12,7 @@ from .locations import DistanceDataSet
 
 from ..sqlalchemy_main import ModelBase
 from python.utils import current_time_utc, generate_uuid
+from python.solver.model_solver import DEFAULT_LIMITS_GAP
 
 class ModelConfig(ModelBase):
     ''' Model Configuration SQLAlchemy record  '''
@@ -43,6 +44,9 @@ class ModelConfig(ModelBase):
 
     time_limit: float = Column(Float)
     '''How long the solver should try to find a solution'''
+
+    limits_gap: float = Column(Float, default=DEFAULT_LIMITS_GAP)
+    '''The acceptable optimality gap for the solver'''
 
     penalized_sites: List[str] = Column(ARRAY(String(256), as_tuple=False, dimensions=None, zero_indexes=False))
     '''
@@ -82,7 +86,7 @@ class ModelConfig(ModelBase):
     If default number of open precincts if one wants to hold the number
     of people that can go to a location constant (as opposed to a function of the number of locations).
     '''
-    log_distance: bool = Column(Boolean, nullable = True)
+    log_distance: bool = Column(Boolean, nullable=True)
     '''Flag indicating whether or not the log of the distances is to be used in the optimization'''
 
     census_year: str = Column(String(4), nullable=True, default='2020')

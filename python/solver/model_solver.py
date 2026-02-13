@@ -9,16 +9,17 @@
 
 import pyomo.environ as pyo
 
+DEFAULT_LIMITS_GAP = 0.02
+
 SOLVER_NAME = 'scip'
-LIMITS_GAP = 0.02
 LP_THREADS = 1
 
-def solve_model(model, time_limit, log: bool=False, log_file_path=None):
+def solve_model(model, time_limit: int, limits_gap: float, log: bool=False, log_file_path=None):
     ''' This funciton will execute scip '''
     #define solver
 
     solver = pyo.SolverFactory(SOLVER_NAME)
-    solver.options ={ 'limits/time': time_limit,  'limits/gap': LIMITS_GAP, 'lp/threads': LP_THREADS }
+    solver.options ={ 'limits/time': time_limit, 'limits/gap': limits_gap, 'lp/threads': LP_THREADS }
 
     results = solver.solve(model, tee=log, logfile=log_file_path)
 
