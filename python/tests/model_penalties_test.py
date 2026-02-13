@@ -71,15 +71,12 @@ def test_kp1(testing_config_keep, testing_config_penalty):
 def test_kp2(testing_config_exclude, testing_config_penalty):
     #get kp value from the exclue_config using model_run machinery
     exclude_run_setup = ModelRun(testing_config_exclude).run_setup
-    # exclude_run_setup = model_run.prepare_run(testing_config_exclude)
     model_solver.solve_model(exclude_run_setup.ea_model, testing_config_exclude.time_limit, limits_gap=0.0)
-    #keep_result_df = incorporate_result(keep_run_setup.dist_df, keep_run_setup.ea_model)
     exclude_obj_value = pyo.value(exclude_run_setup.ea_model.obj)
     exclude_kp = model_penalties.compute_kp(testing_config_exclude, exclude_run_setup.alpha, exclude_obj_value)
 
     #get kp2 value from the penalize_config using penalty machinery
     penalty_run_setup = ModelRun(testing_config_penalty).run_setup
-    # penalty_run_setup = model_run.prepare_run(testing_config_penalty)
     model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit, limits_gap=0.0)
     penalty_result_df = incorporate_result(
         penalty_run_setup.dist_df,
