@@ -46,15 +46,12 @@ def test_penalty_selection_true(testing_config_penalty):
 def test_kp1(testing_config_keep, testing_config_penalty):
     #get kp value from the keep_config using model_run machinery
     keep_run_setup = ModelRun(testing_config_keep).run_setup
-    # keep_run_setup = model_run.prepare_run(testing_config_keep)
     model_solver.solve_model(keep_run_setup.ea_model, testing_config_keep.time_limit, limits_gap=0.0)
-    #keep_result_df = incorporate_result(keep_run_setup.dist_df, keep_run_setup.ea_model)
     keep_obj_value = pyo.value(keep_run_setup.ea_model.obj)
     keep_kp = model_penalties.compute_kp(testing_config_keep, keep_run_setup.alpha, keep_obj_value)
 
     #get kp1 value from the penalize_config using penalty machinery
     penalty_run_setup = ModelRun(testing_config_penalty).run_setup
-    # penalty_run_setup = model_run.prepare_run(testing_config_penalty)
     model_solver.solve_model(penalty_run_setup.ea_model, testing_config_penalty.time_limit, limits_gap=0.0)
     penalty_result_df = incorporate_result(
         penalty_run_setup.dist_df,
@@ -64,7 +61,6 @@ def test_kp1(testing_config_keep, testing_config_penalty):
 
     penalty_model = PenalizeModel(penalty_run_setup, penalty_result_df)
     penalty_model.run()
-    #penalty_penalize_model._compute_kp1()
     assert penalty_model.kp1 == keep_kp
 
 
