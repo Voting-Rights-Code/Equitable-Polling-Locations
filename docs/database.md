@@ -75,7 +75,7 @@ To setup a new database:
 1. Create a new dataset using the the [Google BigQuery Cloud Console](https://console.cloud.google.com/bigquery).
 2. Activate conda `$ conda activate equitable-polls` (see earlier instructions)
 3. Use the alembic upgrade command `$ alembic upgrade head`
-4. (When prompted enter the project and dataset that was created if DB_PROJECT and/or DB_dataset were not set in the environment.)
+4. (When prompted enter the environment from settings.yaml.)
 
 
 ### Adding a columns to an existing table
@@ -129,20 +129,8 @@ With read only access, the user can
 ## Selecting which database to write to
 
 When using the model_run_cli.py or model_run_db_cli.py scripts, the database import tools, or the Alembic for database
-migrations, The Google Project and BigQuery dataset can be selected by setting the environemntal variables DB_PROJECT and
-DB_dataset. If these variables are not set then you will be prompted to chooose which project and which dataset to use.
-
-Setting Project and dataset for Linux/MacOS
-```bash
-export DB_PROJECT=equitable-polling-locations
-export DB_DATASET=equitable_polling_locations_prod
-```
-
-Setting Project and dataset for Windows
-```bash
-set DB_PROJECT=equitable-polling-locations
-set DB_DATASET=equitable_polling_locations_prod
-```
+migrations, The Google Project and BigQuery dataset is configured in ```settings.yaml```. See
+```settings_example.yaml``` for examples.
 
 ## Writting model run output to the database
 
