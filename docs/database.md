@@ -148,12 +148,12 @@ set DB_DATASET=equitable_polling_locations_prod
 
 To write ouput from the
 
-python.scripts.model_run_db_cli will write to output the to Google's BigQuery by default unless -o csv is selected.
+model_run_db_cli will write to output the to Google's BigQuery by default unless -o csv is selected.
 
 Example:
 
-```
-python3 run.py python.scripts.model_run_db_cli -vv Contained_in_Madison_City_of_WI_potential_configs_driving/Contained_in_Madison_City_of_WI_config_driving_change_1
+```bash
+python run.py model_run_db_cli -vv Contained_in_Madison_City_of_WI_potential_configs_driving/Contained_in_Madison_City_of_WI_config_driving_change_1
 ```
 
 # Database Imports
@@ -173,8 +173,8 @@ Polling locations only csv files, located in ```.../datasets/polling/[location]/
 
 Example of importing the latest Contained_in_Madison_City_of_WI and Gwinnett_County_GA locations only:
 
-```
-python3 run.py python.scripts.db_import_locations_only_cli Contained_in_Madison_City_of_WI Gwinnett_County_GA
+```bash
+python run.py db_import_locations_only_cli Contained_in_Madison_City_of_WI Gwinnett_County_GA
 ```
 
 Any errors importing will be written to the screen as well as the logs directory (by default) to the file `.../logs/locations_only_import_errors.csv`.
@@ -185,8 +185,8 @@ Driving distance csv files, located in ```.../datasets/driving/[location]/```, a
 
 Example of importing the latest Contained_in_Madison_City_of_WI and Gwinnett_County_GA driving for the 2020 census year:
 
-```
-python3 run.py python.scripts.db_import_driving_distances_cli 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
+```bash
+python run.py db_import_driving_distances_cli 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
 ```
 
 Any errors importing will be written to the screen as well as the logs directory (by default) to the file `.../logs/driving_distance_import_errors.csv`.
@@ -198,26 +198,26 @@ Locations which include distances are what the optimizer will run against using 
 
 Example of building and importing the latest Contained_in_Madison_City_of_WI and Gwinnett_County_GA linear, haversine locations for 2020 census year:
 
-```
-python3 run.py python.scripts.db_import_locations_cli -t linear 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
+```bash
+python run.py db_import_locations_cli -t linear 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
 ```
 
 Example of building and importing the latest Contained_in_Madison_City_of_WI and Gwinnett_County_GA log, haversine locations for 2020 census year:
 
-```
-python3 run.py python.scripts.db_import_locations_cli -t log 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
+```bash
+python run.py db_import_locations_cli -t log 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
 ```
 
 Example of building and importing the latest Contained_in_Madison_City_of_WI and Gwinnett_County_GA linear, driving locations for 2020 census year:
 
-```
-python3 run.py python.scripts.db_import_locations_cli -d -t linear 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
+```bash
+python run.py db_import_locations_cli -d -t linear 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
 ```
 
 Example of building and importing the latest Contained_in_Madison_City_of_WI and Gwinnett_County_GA log, driving locations for 2020 census year:
 
-```
-python3 run.py python.scripts.db_import_locations_cli -d -t log 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
+```bash
+python run.py db_import_locations_cli -d -t log 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
 ```
 
 Any errors importing will be written to the screen as well as the logs directory (by default) to the file `.../logs/locations_import_errors.csv`.
@@ -230,8 +230,8 @@ To import existing csv files into the BigQuery database, use the db_import_cli.p
 
 Here is an example of importing all results from Berkeley_County_SC_original_configs:
 
-```
-python3 run.py python.scripts.db_import_cli ./Berkeley_County_SC_original_configs/*.yaml
+```bash
+python run.py db_import_cli ./Berkeley_County_SC_original_configs/*.yaml
 ```
 
 Any errors importing will be written to the screen as well as the logs directory (by default) to the file `.../logs/import_errors.csv`.

@@ -187,16 +187,16 @@ Examples:
     To run all configs in the db from the config_set York_County_SC_original_configs_log, parallel processing 4 at a time, and write log files out to the logs
     directory:
 
-        python -m python.scripts.model_run_db_cli -c4 -l logs York_County_SC_original_configs_log
+        python run.py model_run_db_cli -c4 -l York_County_SC_original_configs_log
 
     To run all configs run one at a time, extra logging printed to the console,
     and write log files out to the logs directory:
 
-        python -m python.scripts.model_run_db_cli -vv -l logs York_County_SC_original_configs_log
+        python run.py model_run_db_cli -vv -l York_County_SC_original_configs_log
 
     To run only the config York_County_SC_year_2016 under the config set York_County_SC_original_configs_log:
 
-        python -m python.scripts.model_run_db_cli -l logs York_County_SC_original_configs_log/York_County_SC_year_2016
+        python run.py model_run_db_cli -l York_County_SC_original_configs_log/York_County_SC_year_2016
         '''
     )
     # pylint: disable-next=line-too-long
