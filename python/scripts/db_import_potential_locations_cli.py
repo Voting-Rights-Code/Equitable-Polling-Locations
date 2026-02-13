@@ -140,7 +140,7 @@ Examples:
     To import locations only for Contained_in_Madison_City_of_WI and Intersecting_Madison_City_of_WI
 :
 
-        python -m python.scripts.db_import_potential_locations_cli Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
+        python run.py db_import_potential_locations_cli Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
         '''
     )
     parser.add_argument('-e', '--environment', type=str, help='The environment to use')

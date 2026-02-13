@@ -131,7 +131,7 @@ if __name__ == '__main__':
 Examples:
     To import distance file for 2020 census year for Contained_in_Madison_City_of_WI_driving_distances.csv:
 ß
-        python -m python.scripts.db_import_driving_distances_cli 2020 Contained_in_Madison_City_of_WI
+        python run.py db_import_driving_distances_cli 2020 Contained_in_Madison_City_of_WI
         '''
     )
     parser.add_argument('census_year', nargs=1, help='The year of the census data used to generate the distances')

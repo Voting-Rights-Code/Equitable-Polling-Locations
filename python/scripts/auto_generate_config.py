@@ -1,5 +1,5 @@
 # Example call:
-# python -m python.scripts.auto_generate_config -b 'datasets/configs/testing/Gwinnett_County_GA_capacity_test/Gwinnett_County_GA_capacity.yaml_template'
+# python -m auto_generate_config -b 'datasets/configs/testing/Gwinnett_County_GA_capacity_test/Gwinnett_County_GA_capacity.yaml_template'
 #note that if there is a list of lists to be entered for the last argument, each list needs to be entered separately.
 
 import yaml

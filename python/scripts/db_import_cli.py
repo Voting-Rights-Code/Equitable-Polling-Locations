@@ -184,7 +184,7 @@ if __name__ == '__main__':
 Examples:
     To import all model data from the config set named Chesterfield_County_VA_potential_configs:
 
-        python -m python.scripts.db_import_cli ./Chesterfield_County_VA_potential_configs/*yaml
+        python run.py db_import_cli ./Chesterfield_County_VA_potential_configs/*yaml
         '''
     )
     parser.add_argument('configs', nargs='+', help='One or more yaml configuration files to run.')

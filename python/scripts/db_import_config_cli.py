@@ -56,7 +56,7 @@ if __name__ == '__main__':
 Examples:
     To import all Chesterfield_County_VA_potential_configs configs:
 
-        python -m python.scripts.db_import_config_cli ./datasets/configs/Chesterfield_County_VA_potential_configs/*yaml
+        python run.py db_import_config_cli ./datasets/configs/Chesterfield_County_VA_potential_configs/*yaml
         '''
     )
     parser.add_argument('configs', nargs='+', help='One or more yaml configuration files to run.')
