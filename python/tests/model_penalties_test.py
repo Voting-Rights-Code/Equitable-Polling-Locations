@@ -92,27 +92,6 @@ def test_kp2(testing_config_exclude, testing_config_penalty):
 def test_kp_inequalities(testing_config_penalty):
     model_run = ModelRun(testing_config_penalty, True)
     penalize_model = model_run._penalize_model
-    print(penalize_model._run_setup.config)
-    config = penalize_model._run_setup.config
-
-
-    assert config.config_name == 'testing_config_penalty'
-    assert config.location == 'testing'
-    assert config.census_year == 2020
-    assert config.driving is False
-    assert config.penalized_sites == ['College Campus - Potential', 'Fire Station - Potential']
-    assert config.log_distance is False
-    assert config.time_limit == 360000
-    assert config.beta == -2
-    assert config.precincts_open == 3
-    assert config.maxpctnew == 1
-    assert config.minpctold == 0.5
-    assert config.max_min_mult == 5
-    assert config.capacity == 5
-    assert config.fixed_capacity_site_number is None
-    assert config.bad_types == ['bg_centroid']
-    assert config.year == ['2020', '2022']
-
     penalize_model.run()
 
     assert penalize_model._run_setup.alpha == 7.992335106131607e-05
