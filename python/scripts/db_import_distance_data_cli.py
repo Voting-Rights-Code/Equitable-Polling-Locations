@@ -128,7 +128,7 @@ def main(args: argparse.Namespace):
     num_imports = len(locations)
 
     print('------------------------------------------')
-    print(f'Importing {num_imports} distance data into {environment}\n')
+    print(f'Importing {num_imports} distance datasets into {environment}\n')
 
 
     results = []
