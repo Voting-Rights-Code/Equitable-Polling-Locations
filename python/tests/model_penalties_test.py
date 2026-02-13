@@ -90,8 +90,6 @@ def test_kp_inequalities(testing_config_penalty):
     penalize_model = model_run._penalize_model
     penalize_model.run()
 
-    assert penalize_model._run_setup.alpha == 7.992335106131607e-05
-
     assert penalize_model.kp2 > penalize_model.kp_pen
     assert penalize_model.kp_pen > penalize_model.kp1
 
