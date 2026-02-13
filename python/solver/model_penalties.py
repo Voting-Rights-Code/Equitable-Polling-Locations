@@ -3,8 +3,8 @@ This module contains the PenalizeModel class which manages the process of incorp
 into an existing model run.
 '''
 
-from dataclasses import dataclass
-from io import TextIOWrapper
+import functools
+from io import FileIO
 from typing import Set
 import pandas as pd
 import pyomo.environ as pyo
@@ -21,7 +21,7 @@ from .model_solver import solve_model
 from .run_setup import RunSetup
 
 from .constants import (
-    LOC_LOCATION_TYPE, LOC_ID_DEST, SOLVER_MODEL2, SOLVER_PENALTY, UTF8
+    DISTANCE_LOCATION_TYPE, DISTANCE_ID_DEST, SOLVER_MODEL2, SOLVER_MODEL3, SOLVER_PENALTY, UTF8
 )
 
 
@@ -37,220 +37,264 @@ def compute_kp(config: PollingModelConfig, alpha: float, obj_value: float) -> fl
 
     return obj_value
 
-@dataclass
+
 class PenalizeModel:
     ''' A class to manage incorperating penalties into an existing model run '''
-    run_setup: RunSetup
-    result_df: pd.DataFrame
+    _run_setup: RunSetup
+    _result_df: pd.DataFrame
 
     log: bool = False
 
-    selected_sites: Set = None
-    penalized_sites: Set = None
-    penalized_selections: Set = None
+    def __init__(self, run_setup: RunSetup, result_df: pd.DataFrame, log=False):
+        self._run_setup = run_setup
+        self._result_df = result_df
+        self.log = log
 
-    #obj_value: float = None  #this is an internal value that gets called then dropped
-    kp1: float = None
-    kp2: float = None
-    kp_pen: float = None
-    optimal_kp: float = None
 
-    penalty: float = None
+    @functools.cached_property
+    def selected_sites(self) -> Set:
+        ''' A set of ids of the destinations from the model run results '''
+        return set(self._result_df.id_dest)
 
-    ea_model_exclusions: PollingModel = None
-    ea_model_penalized: PollingModel = None
 
-    penalized_result_df: pd.DataFrame = None
+    @functools.cached_property
+    def penalized_sites(self) -> Set:
+        dist_df = self._run_setup.dist_df
 
-    penalty_log: TextIOWrapper = None
-
-    def _check_if_penalized_sites_selected(self):
-        dist_df = self.run_setup.dist_df
-        config = self.run_setup.config
-
-        self.selected_sites = set(self.result_df.id_dest)
-        self.penalized_sites = set(
-            dist_df.loc[dist_df[LOC_LOCATION_TYPE].isin(config.penalized_sites), LOC_ID_DEST].unique()
+        return set(
+            dist_df.loc[
+                dist_df[DISTANCE_LOCATION_TYPE].isin(self._run_setup.config.penalized_sites),
+                DISTANCE_ID_DEST,
+            ].unique()
         )
-        self.penalized_selections = self.selected_sites.intersection(self.penalized_sites)
 
-        self._log_write(f'Selected {len(self.penalized_selections)} penalized sites:\n')
-        for s in sorted(self.penalized_selections):
+
+    @functools.cached_property
+    def penalized_selections(self) -> Set:
+        results = self.selected_sites.intersection(self.penalized_sites)
+
+        self._log_write(f'Selected {len(results)} penalized sites:\n')
+        for s in sorted(results):
             self._log_write(f'\t ---> {s}\n')
 
+        return results
 
-    def _compute_kp1(self):
+    @functools.cached_property
+    def _ea_model_obj_value(self) -> float:
+        return pyo.value(self._run_setup.ea_model.obj)
+
+    @functools.cached_property
+    def kp1(self) -> float:
+        # obj_value = pyo.value(self._run_setup.ea_model.obj)
+        result = compute_kp(
+            config=self._run_setup.config,
+            alpha=self._run_setup.alpha,
+            obj_value=self._ea_model_obj_value, #obj_value
+        )
+        self._log_write(f'KP1 Objective = {result:.2f}\n')
+
+        return result
+
+
+    @functools.cached_property
+    def _ea_model_exclusions_obj_value(self) -> float:
+        return pyo.value(self.ea_model_exclusions.obj)
+
+
+    @functools.cached_property
+    def kp2(self) -> float:
         '''
-        Convert objective value to KP score (kp1)
+        The exclusions objective value to KP score (kp2)
         '''
 
-        obj_value = pyo.value(self.run_setup.ea_model.obj)
-        self.kp1 = compute_kp(self.run_setup.config, self.run_setup.alpha, obj_value)
-        self._log_write(f'KP Objective = {self.kp1:.2f}\n')
+        # obj_value_exclusions = pyo.value(self.ea_model_exclusions.obj)
+
+        result = compute_kp(
+            config=self._run_setup.config,
+            alpha=self._run_setup.alpha,
+            obj_value=self._ea_model_exclusions_obj_value, #obj_value_exclusions,
+        )
+
+        self._log_write(f'KP2 Objective = {result:.2f}\n')
+
+        return result
 
 
-    def _compute_optimal_solution(self):
-        '''
-        Compute optimal solution excluding penalized sites (model 2)
-        '''
-        config = self.run_setup.config
-
-        self.ea_model_exclusions = polling_model_factory(
-            self.run_setup.dist_df,
-            self.run_setup.alpha,
-            config,
+    @functools.cached_property
+    def ea_model_exclusions(self) -> PollingModel:
+        ''' Optimal solution excluding penalized sites (model 2) '''
+        result = polling_model_factory(
+            distance_df=self._run_setup.dist_df,
+            alpha=self._run_setup.alpha,
+            config=self._run_setup.config,
             exclude_penalized_sites=True,
         )
         if self.log:
-            print(f'Model 2 (excludes penalized sites) built for {self.run_prefix}')
+            print(f'Model 2 (excludes penalized sites) built for {self._run_setup.run_prefix}')
 
         solve_model(
-            self.ea_model_exclusions,
-            config.time_limit,
+            model=result,
+            time_limit=self._run_setup.config.time_limit,
+            limits_gap=self._run_setup.config.limits_gap,
             log=self.log,
-            log_file_path=get_log_path(self.run_setup.config, SOLVER_MODEL2),
+            log_file_path=get_log_path(self._run_setup.config, SOLVER_MODEL2),
         )
 
         if self.log:
-            print(f'Model 2 solved for {self.run_prefix}.')
+            print(f'Model 2 solved for {self._run_setup.run_prefix}.')
+
+        return result
 
 
-    def _compute_kp2(self):
+    @functools.cached_property
+    def penalty(self) -> float:
         '''
-        Convert the exclusions objective value to KP score (kp2)
-        '''
-
-        obj_value_exclusions = pyo.value(self.ea_model_exclusions.obj)
-
-        self.kp2 = compute_kp(
-            self.run_setup.config,
-            self.run_setup.alpha,
-            obj_value_exclusions,
-        )
-
-
-    def _compute_penalty(self):
-        '''
-        Compute penalty as (kp2-kp1)/len(selected penalized sites in model 1)
+        Penalty as (kp2-kp1)/len(selected penalized sites in model 1)
         penalty = (kp2-kp1)/len(penalized_selections)
         '''
 
-        self.penalty = (self.kp2-self.kp1) / len(self.penalized_selections)
+        result = (self.kp2 - self.kp1) / len(self.penalized_selections)
         if self.log:
             print(f'{self.kp1 = :.2f}, {self.kp2 = :.2f}')
-            print(f'computed penalty is {self.penalty:.2f}')
+            print(f'computed penalty is {result:.2f}')
+
+        return result
 
 
-    def _compute_penalized_optimal_solution(self):
-        '''
-        compute optimal solution including penalized sites applying calculate penalty (model 3)
-        '''
-
-        config = self.run_setup.config
-        dist_df = self.run_setup.dist_df
-        alpha = self.run_setup.alpha
-
-        self.ea_model_penalized = polling_model_factory(
-            dist_df, alpha, config,
+    @functools.cached_property
+    def ea_model_penalized(self) -> PollingModel:
+        result = polling_model_factory(
+            distance_df=self._run_setup.dist_df,
+            alpha=self._run_setup.alpha,
+            config=self._run_setup.config,
             exclude_penalized_sites=False,
             site_penalty=self.penalty,
             kp_penalty_parameter=self.kp1,
         )
 
         if self.log:
-            # final_model = ('penalized', ea_model_penalized)
-            print(f'Model 3 (penalized model) built for {self.run_prefix}.')
+            print(f'Model 3 (penalized model) built for {self._run_setup.run_prefix}.')
 
         solve_model(
-            self.ea_model_penalized, config.time_limit,
-            log=self.log, log_file_path=get_log_path(config,'model3'),
+            model=result,
+            time_limit=self._run_setup.config.time_limit,
+            limits_gap=self._run_setup.config.limits_gap,
+            log=self.log,
+            log_file_path=get_log_path(self._run_setup.config, SOLVER_MODEL3),
         )
 
         if self.log:
-            print(f'Model 3 solved for {self.run_prefix}.')
+            print(f'Model 3 solved for {self._run_setup.run_prefix}.')
 
-        self.penalized_result_df = incorporate_result(dist_df, self.ea_model_penalized, config.log_distance)
+        return result
 
-        # TODO clean this up - overlapping vairable names / confusing esp penalized_selections and selected_sites
-        selected_sites = set(self.penalized_result_df.id_dest)
-        penalized_selections = self.penalized_sites.intersection(selected_sites)
+    @functools.cached_property
+    def _ea_model_penalized_obj_value(self) -> float:
+        return pyo.value(self.ea_model_penalized.obj)
+
+
+    @functools.cached_property
+    def penalized_result_df(self) -> pd.DataFrame:
+        ''' Optimal solution including penalized sites applying calculate penalty (model 3) '''
+
+        result = incorporate_result(
+            dist_df=self._run_setup.dist_df,
+            model=self.ea_model_penalized,
+            log_distance=self._run_setup.config.log_distance,
+        )
+
+        return result
+
+
+    @functools.cached_property
+    def selected_penalized_result_sites(self) -> Set:
+        return set(self.penalized_result_df.id_dest)
+
+
+    @functools.cached_property
+    def penalized_result_selections(self) -> Set:
+        result = self.penalized_sites.intersection(self.selected_penalized_result_sites)
 
         self._log_write('\nModel 3: penalized model\n')
         self._log_write(f'Penalty applied to each site = {self.penalty:.2f}\n')
 
-        if penalized_selections:
-            self._log_write(f'Selected {len(penalized_selections)} penalized sites:\n')
-            for s in sorted(penalized_selections):
+        if result:
+            self._log_write(f'Selected {len(result)} penalized sites:\n')
+            for s in sorted(result):
                 self._log_write(f'\t ---> {s}\n')
         else:
             self._log_write('Selected no penalized sites.\n')
 
+        return result
 
-    def _report_final_statistics(self):
-        config = self.run_setup.config
-        alpha = self.run_setup.alpha
 
-        # TODO make these results class variables for testing?
-        obj_value = pyo.value(self.ea_model_penalized.obj)
-        self.kp_pen = compute_kp(
-            self.run_setup.config,
-            self.run_setup.alpha,
-            obj_value,
+    @functools.cached_property
+    def kp_pen(self) -> float:
+        # obj_value = pyo.value(self.ea_model_penalized.obj)
+
+        result = compute_kp(
+            config=self._run_setup.config,
+            alpha=self._run_setup.alpha,
+            obj_value=self._ea_model_penalized_obj_value, #obj_value
         )
 
-        self.optimal_kp = compute_kp_score(self.penalized_result_df, config.beta, alpha=alpha)
+        self._log_write(f'Penalized KP Optimal = {result:.2f}\n')
 
-        self._log_write(f'Penalized KP Optimal = {self.kp_pen:.2f}\n')
-        self._log_write(f'KP Optimal = {self.optimal_kp:.2f}\n')
+        return result
+
+
+    @functools.cached_property
+    def optimal_kp(self) -> float:
+        result = compute_kp_score(
+            df=self.penalized_result_df,
+            beta=self._run_setup.config.beta,
+            alpha=self._run_setup.alpha,
+        )
+
+        self._log_write(f'KP Optimal = {result:.2f}\n')
+
+        return result
+
+
+    def _report_final_statistics(self):
         self._log_write(f'Penalty = {self.kp_pen-self.optimal_kp:.2f}\n')
 
 
-    def _setup_log(self):
-        '''
-        Opens a log file for appending output to if there is a log_file_path configured
-        in the config instance.
-        '''
+    @functools.cached_property
+    def _penalty_log_file(self) -> FileIO|None:
+        path = get_log_path(self._run_setup.config, SOLVER_PENALTY)
 
-        if self.run_setup.config.log_file_path:
-            self.penalty_log = open(
-                get_log_path(self.run_setup.config, SOLVER_PENALTY),
-                'a',
-                encoding=UTF8,
-            )
+        if not path:
+            return None
+
+        return open(path, 'a', encoding=UTF8)
 
 
     def _log_write(self, message: str):
-        if self.penalty_log:
-            self.penalty_log.write(message)
+        if self.log and self._penalty_log_file:
+            self._penalty_log_file.write(message)
 
 
     def _close_log(self):
-        if self.penalty_log:
-            self.penalty_log.close()
-            self.penalty_log = None
+        # Check if the log is available without causing it to evaluate
+        if '_penalty_log' in self.__dict__:
+            self._penalty_log_file.close()
+            del self._penalty_log_file
 
 
     def run(self) -> pd.DataFrame:
         ''' Computes the new results incorporating penalties '''
 
         #check if this is a penalized run
-        if not self.run_setup.config.penalized_sites:
-            return self.result_df
-
-        self._setup_log()
+        if not self._run_setup.config.penalized_sites:
+            return self._result_df
 
         try:
             self._log_write('Model 1: original model with no penalties\n')
-            self._check_if_penalized_sites_selected()
+            # self._check_if_penalized_sites_selected()
             if not self.penalized_selections:
-                print('No penalized sites selected')
-                return self.result_df
-
-            self._compute_kp1()
-            self._compute_optimal_solution()
-            self._compute_kp2()
-            self._compute_penalty()
-            self._compute_penalized_optimal_solution()
+                self._log_write('No penalized sites selected')
+                return self._result_df
 
             self._report_final_statistics()
 

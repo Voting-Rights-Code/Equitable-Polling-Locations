@@ -12,21 +12,20 @@ Factory function to build the pyomo population model
 import math
 import warnings
 
+import pandas as pd
+
 import pyomo.environ as pyo
 
 from python.utils import timer
 
 from .constants import (
-  LOC_ID_ORIG, LOC_ID_DEST, LOC_TOTAL_POPULATION, LOC_DISTANCE_M,
-  LOC_WEIGHTED_DIST, LOC_ONLY_DEST_TYPE_POLLING, LOC_LOCATION_TYPE, LOC_DEST_TYPE, PD_MEAN,
-  RESULT_KP_FACTOR, PD_MAX, RESULT_NEW_LOCATION, PD_UNIQUE,
+  DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_TOTAL_POPULATION, DISTANCE_DISTANCE_M,
+  DISTANCE_WEIGHTED_DIST, DISTANCE_DEST_TYPE_POLLING, DISTANCE_LOCATION_TYPE, DISTANCE_DEST_TYPE, PD_MEAN,
+  PD_MIN, RESULT_KP_FACTOR, PD_MAX, RESULT_NEW_LOCATION, PD_UNIQUE,
 )
 
 
 from .model_config import PollingModelConfig
-from .model_data import (
-    get_max_min_dist,
-)
 
 # SCIP can only handle values up to 1e20
 MAX_KP_FACTOR = 9e19
@@ -274,12 +273,21 @@ def build_capacity_rule(
 
 
 def compute_kp_factor(config: PollingModelConfig, alpha: float, dist_df):
-    return math.e**(-config.beta * alpha * dist_df[LOC_DISTANCE_M])
+    return math.e**(-config.beta * alpha * dist_df[DISTANCE_DISTANCE_M])
+
+
+def get_max_min_dist(distance_df: pd.DataFrame):
+    ''' Determines the maximum of the minimum distances '''
+    min_dist = distance_df[[DISTANCE_ID_ORIG, DISTANCE_DISTANCE_M]].groupby(DISTANCE_ID_ORIG).agg(PD_MIN)
+    max_min_dist = min_dist.distance_m.max()
+    max_min_dist = math.ceil(max_min_dist)
+
+    return max_min_dist
 
 
 @timer
 def polling_model_factory(
-    dist_df,
+    distance_df,
     alpha,
     config: PollingModelConfig, *,
     exclude_penalized_sites: bool=False,
@@ -294,11 +302,11 @@ def polling_model_factory(
         raise ValueError(f'kp_penalty_parameter must be positive if site_penalty is positive ({site_penalty=}')
 
     #define max_min parameter needed for certain calculations
-    global_max_min_dist = get_max_min_dist(dist_df)
+    global_max_min_dist = get_max_min_dist(distance_df)
     max_min = config.max_min_mult * global_max_min_dist
 
     #Calculate number of old polling locations
-    old_polls = len(set(dist_df[dist_df[LOC_DEST_TYPE] == LOC_ONLY_DEST_TYPE_POLLING][LOC_ID_DEST]))
+    old_polls = len(set(distance_df[distance_df[DISTANCE_DEST_TYPE] == DISTANCE_DEST_TYPE_POLLING][DISTANCE_ID_DEST]))
 
     #Calculate precincts open value from data if not provided by user
     if config.precincts_open is None:
@@ -308,28 +316,28 @@ def polling_model_factory(
     #The number of precincts to open might need to be reduced when
     #excluding penalized sites (penalty Model 2) to avoid infeasible model
     if exclude_penalized_sites:
-        num_dests = len(set(dist_df[LOC_ID_DEST]) - set(config.penalized_sites))
+        num_dests = len(set(distance_df[DISTANCE_ID_DEST]) - set(config.penalized_sites))
         precincts_open = min(precincts_open, num_dests)
 
     ####define constants####
     #total population
-    total_pop = dist_df.groupby(LOC_ID_ORIG)[LOC_TOTAL_POPULATION].agg(PD_UNIQUE).str[0].sum()
+    total_pop = distance_df.groupby(DISTANCE_ID_ORIG)[DISTANCE_TOTAL_POPULATION].agg(PD_UNIQUE).str[0].sum()
     ####set model to be concrete####
     model = pyo.ConcreteModel()
 
     ####define model simple indices####
     #all possible precinct locations (unique)
-    model.precincts = pyo.Set(initialize = list(set(dist_df[LOC_ID_DEST])))
+    model.precincts = pyo.Set(initialize = list(set(distance_df[DISTANCE_ID_DEST])))
     #all possible residence locations with population > 0 (unique)
-    model.residences = pyo.Set(initialize = list(set(dist_df[LOC_ID_ORIG])))
+    model.residences = pyo.Set(initialize = list(set(distance_df[DISTANCE_ID_ORIG])))
     #residence, precint pairs
     model.pairs = model.residences * model.precincts
     #penalized sites
     if config.penalized_sites:
         penalized_sites = list(set(
-            dist_df.loc[
-                dist_df[LOC_LOCATION_TYPE].isin(config.penalized_sites),
-                LOC_ID_DEST,
+            distance_df.loc[
+                distance_df[DISTANCE_LOCATION_TYPE].isin(config.penalized_sites),
+                DISTANCE_ID_DEST,
             ].unique())
         )
     else:
@@ -340,50 +348,50 @@ def polling_model_factory(
     #Populations of residences
     model.population = pyo.Param(
         model.residences,
-        initialize=dist_df.groupby(LOC_ID_ORIG)[LOC_TOTAL_POPULATION].agg(PD_MEAN),
+        initialize=distance_df.groupby(DISTANCE_ID_ORIG)[DISTANCE_TOTAL_POPULATION].agg(PD_MEAN),
     )
     #Precinct residence distances
 
     model.distance = pyo.Param(
-        model.pairs, initialize=dist_df[
-            [LOC_ID_ORIG, LOC_ID_DEST, LOC_DISTANCE_M]
-        ].set_index([LOC_ID_ORIG, LOC_ID_DEST]),
+        model.pairs, initialize=distance_df[
+            [DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M]
+        ].set_index([DISTANCE_ID_ORIG, DISTANCE_ID_DEST]),
     )
     #population weighted distances
     model.weighted_dist = pyo.Param(
-        model.pairs, initialize=dist_df[
-            [LOC_ID_ORIG, LOC_ID_DEST, LOC_WEIGHTED_DIST]
-        ].set_index([LOC_ID_ORIG, LOC_ID_DEST]),
+        model.pairs, initialize=distance_df[
+            [DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_WEIGHTED_DIST]
+        ].set_index([DISTANCE_ID_ORIG, DISTANCE_ID_DEST]),
     )
 
     #KP factor
-    dist_df[RESULT_KP_FACTOR] = compute_kp_factor(config, alpha, dist_df)
+    distance_df[RESULT_KP_FACTOR] = compute_kp_factor(config, alpha, distance_df)
     # math.e**(-config.beta*alpha*dist_df[DISTANCE_M])
-    max_kp_factor = dist_df.groupby(LOC_ID_ORIG)[RESULT_KP_FACTOR].agg(PD_MAX).max()
+    max_kp_factor = distance_df.groupby(DISTANCE_ID_ORIG)[RESULT_KP_FACTOR].agg(PD_MAX).max()
     if max_kp_factor > MAX_KP_FACTOR:
         # pylint: disable-next=line-too-long
         warnings.warn(f'Max kp_factor is {max_kp_factor}. SCIP can only handle values up to {MAX_KP_FACTOR+1}. Consider a less negative value of beta.')
 
     model.kp_factor = pyo.Param(
         model.pairs,
-        initialize = dist_df[
-            [LOC_ID_ORIG, LOC_ID_DEST, RESULT_KP_FACTOR]
-        ].set_index([LOC_ID_ORIG, LOC_ID_DEST]),
+        initialize = distance_df[
+            [DISTANCE_ID_ORIG, DISTANCE_ID_DEST, RESULT_KP_FACTOR]
+        ].set_index([DISTANCE_ID_ORIG, DISTANCE_ID_DEST]),
     )
 
     #new location marker
-    dist_df[RESULT_NEW_LOCATION] = 0
-    dist_df[RESULT_NEW_LOCATION].mask(
-        dist_df[LOC_DEST_TYPE] != LOC_ONLY_DEST_TYPE_POLLING,
+    distance_df[RESULT_NEW_LOCATION] = 0
+    distance_df[RESULT_NEW_LOCATION].mask(
+        distance_df[DISTANCE_DEST_TYPE] != DISTANCE_DEST_TYPE_POLLING,
         1,
         inplace=True,
     )
 
     model.new_locations = pyo.Param(
         model.precincts,
-        initialize=dist_df[
-            [LOC_ID_DEST, RESULT_NEW_LOCATION]
-        ].drop_duplicates().set_index([LOC_ID_DEST]),
+        initialize=distance_df[
+            [DISTANCE_ID_DEST, RESULT_NEW_LOCATION]
+        ].drop_duplicates().set_index([DISTANCE_ID_DEST]),
     )
 
     ####define model variables####

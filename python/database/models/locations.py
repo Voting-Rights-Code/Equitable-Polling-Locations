@@ -15,10 +15,11 @@ from .driving_distances import DrivingDistancesSet
 LOCATION_TYPE_CONTAINED_IN_CITY = 'contained_in_city'
 LOCATION_TYPE_INTERSECTING_CITY = 'intersecting_city'
 
-class PollingLocationOnlySet(ModelBase):
-    ''' PollingLocationsOnlySet SQLAlchemy record  '''
 
-    __tablename__ = 'polling_locations_only_sets'
+class PotentialLocationsSet(ModelBase):
+    ''' PotentialLocationsSet SQLAlchemy record  '''
+
+    __tablename__ = 'potential_locations_sets'
 
     id: str = Column(
         String(36),
@@ -34,22 +35,21 @@ class PollingLocationOnlySet(ModelBase):
     created_at: DateTime = Column(DateTime, nullable=False, default=current_time_utc)
     ''' The DateTime this model config was created. '''
 
-    polling_locations_only: Mapped[List['PollingLocationOnly']] = relationship(back_populates='polling_locations_only_set')
+    potential_locations: Mapped[List['PotentialLocations']] = relationship(back_populates='potential_locations_set')
     ''' The runs that were used against this model configuration '''
 
-    polling_locations_sets: Mapped[List['PollingLocationSet']] = relationship(back_populates='polling_locations_only_set')
+    distance_data_sets: Mapped[List['DistanceDataSet']] = relationship(back_populates='potential_locations_set')
     ''' The sets of polling locations that are built off of this PollingLocationOnlySet instance '''
-
 
     def __repr__(self):
         # pylint: disable-next=line-too-long
-        return f"PollingLocationOnlySet(id={self.id}, election_year='{self.election_year}', location='{self.location}')"
+        return f"PotentialLocationsSet(id={self.id}, election_year='{self.election_year}', location='{self.location}')"
 
 
-class PollingLocationOnly(ModelBase):
-    ''' PollingLocationOnly SQLAlchemy record  '''
+class PotentialLocations(ModelBase):
+    ''' PotentialLocations SQLAlchemy record  '''
 
-    __tablename__ = 'polling_locations_only'
+    __tablename__ = 'potential_locations'
 
     id: str = Column(
         String(36),
@@ -64,18 +64,19 @@ class PollingLocationOnly(ModelBase):
     location_type: str = Column(String(256), nullable=False)
     lat_lon: str = Column(String(256), nullable=False) # Note use lon, not long *
 
-
     # Relations
-    polling_locations_only_set_id = mapped_column(ForeignKey('polling_locations_only_sets.id'), nullable=False)
-    ''' The PollingLocationOnlySet id that this PollingLocationOnly belongs to '''
+    potential_locations_set_id = mapped_column(ForeignKey('potential_locations_sets.id'), nullable=False)
+    ''' The PotentialLocations.id that this PotentialLocations belongs to '''
 
-    polling_locations_only_set: Mapped['PollingLocationOnlySet'] = relationship(back_populates='polling_locations_only')
-    ''' The PollingLocationOnlySet instance that this PollingLocationOnly belongs to '''
+    potential_locations_set: Mapped['PotentialLocationsSet'] = relationship(back_populates='potential_locations')
+    ''' The PotentialLocations instance that this PotentialLocations belongs to '''
 
-class PollingLocationSet(ModelBase):
-    ''' PollingLocationSet SQLAlchemy record  '''
 
-    __tablename__ = 'polling_locations_sets'
+
+class DistanceDataSet(ModelBase):
+    ''' DistanceDataSet SQLAlchemy record  '''
+
+    __tablename__ = 'distance_data_sets'
 
     id: str = Column(
         String(36),
@@ -86,7 +87,7 @@ class PollingLocationSet(ModelBase):
     )
 
     location: str = Column(String(256), nullable=False)
-    ''' The name of the polling location set - TODO Rename this from name -> location'''
+    ''' The name of the polling location set'''
 
     census_year: str = Column(String(4), nullable=False)
     ''' The census year the polling locations block groups are in refrence to '''
@@ -98,12 +99,12 @@ class PollingLocationSet(ModelBase):
 
     driving: bool = Column(Boolean, nullable=False)
 
-   # Relations
-    polling_locations_only_set_id = mapped_column(ForeignKey('polling_locations_only_sets.id'), nullable=False)
-    ''' The PollingLocationOnlySet id that this PollingLocationSet is generated from. '''
+    # Relations
+    potential_locations_set_id = mapped_column(ForeignKey('potential_locations_sets.id'), nullable=False)
+    ''' The PotentialLocationsSet id that this DistanceDataSet is generated from. '''
 
-    polling_locations_only_set: Mapped['PollingLocationOnlySet'] = relationship(back_populates='polling_locations_sets')
-    ''' The PollingLocationOnlySet instance that this PollingLocationSet is generated from. '''
+    potential_locations_set: Mapped['PotentialLocationsSet'] = relationship(back_populates='distance_data_sets')
+    ''' The PotentialLocationsSet instance that this DistanceDataSet is generated from. '''
 
     driving_distance_set_id = mapped_column(ForeignKey('driving_distance_sets.id'), nullable=True)
     ''' The DrivingDistancesSet id that this PollingLocationSet is generated from. Null if driving is set to False. '''
@@ -111,7 +112,7 @@ class PollingLocationSet(ModelBase):
     driving_distance_set: Mapped['DrivingDistancesSet'] = relationship()
     ''' The DrivingDistancesSet instance that this PollingLocationSet is generated from. Null if driving is set to False. '''
 
-    polling_locations: Mapped[List['PollingLocation']] = relationship(back_populates='polling_locations_set')
+    distance_data: Mapped[List['DistanceData']] = relationship(back_populates='distance_data_set')
     ''' The polling locations in this PollingLocationSet '''
 
     def __repr__(self):
@@ -119,10 +120,11 @@ class PollingLocationSet(ModelBase):
         return f"PollingLocationSet(id={self.id}, census_year='{self.census_year}', location='{self.location}', driving={self.driving}, log_distance={self.log_distance})"
 
 
-class PollingLocation(ModelBase):
-    ''' PollingLocation SQLAlchemy record  '''
 
-    __tablename__ = 'polling_locations'
+class DistanceData(ModelBase):
+    ''' DistanceData SQLAlchemy record  '''
+
+    __tablename__ = 'distance_data'
 
     id: str = Column(
         String(36),
@@ -155,8 +157,8 @@ class PollingLocation(ModelBase):
     source: str = Column(String(256), nullable=False)
 
     # Relations
-    polling_locations_set_id = mapped_column(ForeignKey('polling_locations_sets.id'), nullable=False)
-    ''' The PollingLocationSet id that this PollingLocation belongs to '''
+    distance_data_set_id = mapped_column(ForeignKey('distance_data_sets.id'), nullable=False)
+    ''' The DistanceDataSet id that this DistanceData belongs to '''
 
-    polling_locations_set: Mapped['PollingLocationSet'] = relationship(back_populates='polling_locations')
-    ''' The PollingLocationSet instance that this PollingLocation belongs to '''
+    distance_data_set: Mapped['DistanceDataSet'] = relationship(back_populates='distance_data')
+    ''' The DistanceDataSet instance that this DistanceData belongs to '''

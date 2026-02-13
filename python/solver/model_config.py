@@ -57,6 +57,8 @@ class PollingModelConfig:
     mean. -2 isa good number '''
     time_limit: int
     '''How long the solver should try to find a solution'''
+    limits_gap: float
+    '''The acceptable optimality gap for the solver'''
     census_year: str
     ''' The census year to use. '''
 
@@ -113,7 +115,7 @@ class PollingModelConfig:
     db_id: str = None
     ''' Id if this PollingModelConfig initially came from the db '''
 
-    location_source: Literal['csv', 'db'] = DATA_SOURCE_CSV
+    data_source: Literal['csv', 'db'] = DATA_SOURCE_CSV
     ''' Where to retrieve the location data from, either a CSV file or the database. '''
 
     map_source_date: str = None

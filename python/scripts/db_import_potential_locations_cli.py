@@ -10,41 +10,50 @@ import sys
 
 from python.database.imports import csv_to_bigquery, ImportResult, print_all_import_results
 from python.database.models import (
-    PollingLocationOnly,
+    PotentialLocations,
 )
 
 from python.database.query import Query
 from python.utils.environments import Environment, load_env
-from python.utils.utils import build_locations_only_file_path
+from python.utils.utils import build_potential_locations_file_path
+
+from python.solver.constants import (
+    POT_LOC_LOCATION,
+    POT_LOC_ADDRESS,
+    POT_LOC_LOCATION_TYPE,
+    POT_LOC_LAT_LON,
+    POT_LOC_LATITUDE,
+    POT_LOC_LONGITUDE,
+)
 
 DEFAULT_LOG_DIR='logs'
-IMPORT_ERROR_LOG_FILE='locations_only_import_errors.csv'
+IMPORT_ERROR_LOG_FILE='potential_locations_import_errors.csv'
 
 
-def import_locations_only(
+def import_potential_locations(
     environment: Environment,
     location: str,
-    polling_locations_only_set_id: str,
+    potential_locations_set_id: str,
     csv_path: str,
     log: bool = False,
 ) -> ImportResult:
 
     column_renames = {
-        'Location': 'location',
-        'Address': 'address',
-        'Location type': 'location_type',
-        'Lat, Long': 'lat_lon',
+        POT_LOC_LOCATION: 'location',
+        POT_LOC_ADDRESS: 'address',
+        POT_LOC_LOCATION_TYPE: 'location_type',
+        POT_LOC_LAT_LON: 'lat_lon',
     }
-    ignore_columns = ['V1', 'Latitude', 'Longitude']
+    ignore_columns = ['V1', POT_LOC_LATITUDE, POT_LOC_LONGITUDE]
     add_columns = {
-        'polling_locations_only_set_id': polling_locations_only_set_id
+        'potential_locations_set_id': potential_locations_set_id
     }
 
     return csv_to_bigquery(
         environment=environment,
         config_set=location,
         config_name=csv_path,
-        model_class=PollingLocationOnly,
+        model_class=PotentialLocations,
         ignore_columns=ignore_columns,
         column_renames=column_renames,
         add_columns=add_columns,
@@ -62,7 +71,7 @@ def main(args: argparse.Namespace):
     num_imports = len(locations)
 
     print('------------------------------------------')
-    print(f'Importing {num_imports} location(s) into {environment}\n')
+    print(f'Importing {num_imports} potential location(s) into {environment}\n')
 
 
     results = []
@@ -72,25 +81,25 @@ def main(args: argparse.Namespace):
 
         print(f'Loading [{i+1}/{num_imports}] {location}')
 
-        locations_only_file_path = build_locations_only_file_path(location)
-        print('locations_only_file_path:', locations_only_file_path)
+        potential_locations_file_path = build_potential_locations_file_path(location)
+        print('potential_locations_file_path:', potential_locations_file_path)
 
-        if not os.path.isfile(locations_only_file_path):
-            print(f'Locations only file not found: {locations_only_file_path}')
+        if not os.path.isfile(potential_locations_file_path):
+            print(f'Potential locations file not found: {potential_locations_file_path}')
             continue
 
-        polling_locations_only_set = query.create_db_polling_locations_only_set(
+        potential_locations_set = query.create_db_potential_locations_set(
             location=location,
         )
 
-        import_locations_only_result = import_locations_only(
+        import_potential_locations_result = import_potential_locations(
             environment=environment,
             location=location,
-            polling_locations_only_set_id=polling_locations_only_set.id,
-            csv_path=locations_only_file_path,
+            potential_locations_set_id=potential_locations_set.id,
+            csv_path=potential_locations_file_path,
             log=True,
         )
-        results.append(import_locations_only_result)
+        results.append(import_potential_locations_result)
 
         query.commit()
 
@@ -120,19 +129,19 @@ def main(args: argparse.Namespace):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description='A command line utility to read in location csv files and import them into the database.',
+        description='A command line utility to read in potential location csv files and import them into the database.',
         # pylint: disable-next=line-too-long
         epilog='''
 Examples:
     To import locations only for Contained_in_Madison_City_of_WI and Intersecting_Madison_City_of_WI
 :
 
-        python -m python.scripts.db_import_locations_only_cli Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
+        python -m python.scripts.db_import_potential_locations_cli Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
         '''
     )
     parser.add_argument('-e', '--environment', type=str, help='The environment to use')
     parser.add_argument('-l', '--logdir', default=DEFAULT_LOG_DIR, type=str, help='The directory to error files to ')
-    parser.add_argument('locations', nargs='+', help='One or more locations only to import')
+    parser.add_argument('locations', nargs='+', help='One or more potential locations to import')
 
     main(parser.parse_args())
 
