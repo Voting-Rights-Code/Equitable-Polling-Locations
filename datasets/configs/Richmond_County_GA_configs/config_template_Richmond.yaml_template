@@ -15,7 +15,6 @@ bad_types:
 beta: -2
 time_limit: 360000 #100 hours minutes
 limits_gap: 0.02
-limits_gap: 0.02
 capacity: 1.8
 fixed_capacity_site_number: null
 
