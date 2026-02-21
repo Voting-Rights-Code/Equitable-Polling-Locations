@@ -66,7 +66,7 @@ get_density_data <- function(result_dt){
     
 	if(length(regression_list)>1){
 		regression_data <- rbindlist(regression_list, use.names = TRUE)
-	}else(regresssion_data <- regression_list[[1]])
+	}else(regression_data <- regression_list[[1]])
 
     return(regression_data)
 }

@@ -17,7 +17,7 @@ def generate_penalties_df(config: PollingModelConfig) -> pd.DataFrame:
 
     model_solver.solve_model(run_setup.ea_model, config.time_limit, log=False, log_file_path=config.log_file_path)
 
-    incorporate_result_df = model_results.incorporate_result(run_setup.dist_df, run_setup.ea_model)
+    incorporate_result_df = model_results.incorporate_result(run_setup.dist_df, run_setup.ea_model, config.log_distance)
 
     penalize_model = model_penalties.PenalizeModel(run_setup=run_setup, result_df=incorporate_result_df)
     result = penalize_model.run()

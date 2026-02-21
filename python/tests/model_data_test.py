@@ -14,7 +14,7 @@ from .constants import TESTING_LOCATIONS_ONLY_PATH, TESTING_DRIVING_DISTANCES_PA
 
 def test_build_source_columns(driving_locations_results_df):
     ''' Checks that the columns in the locations_results_df match the expected columns. '''
-
+    
     expected_columns = [
         'id_orig', 'id_dest', 'address', 'dest_lat', 'dest_lon', 'orig_lat',
         'orig_lon', 'location_type', 'dest_type', 'population', 'hispanic',

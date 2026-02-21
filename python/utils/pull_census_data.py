@@ -11,8 +11,6 @@ try:
 except:
     census_key = None
 
-census_key = None
-
 STATE_LOOKUP = {
     'AK': 'Alaska',
     'AL': 'Alabama',

@@ -1,0 +1,19 @@
+config_set: Tarrant_County_TX_original_configs
+config_name: Tarrant_County_TX_year_2025
+location: Tarrant_County_TX
+census_year: '2020'
+year:
+- '2025'
+bad_types:
+- 'bg_centroid'
+beta: -1
+time_limit: 360000
+capacity: 1.2
+fixed_capacity_site_number: null
+precincts_open: null
+max_min_mult: 5
+maxpctnew: 0
+minpctold: 1
+driving: false
+log_distance: true
+penalized_sites: null

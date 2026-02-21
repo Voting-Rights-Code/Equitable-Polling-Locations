@@ -1,9 +1,9 @@
 ''' Utilities to import csv files into the database.'''
 
 import os
+import re
 
 from dataclasses import dataclass
-from python import utils
 from typing import Dict, Optional, List
 
 import numpy as np
@@ -11,9 +11,17 @@ import pandas as pd
 import sqlalchemy
 from sqlalchemy import inspect
 
+from python.solver.model_config import PollingModelConfig
+from python.utils.environments import Environment
+from python import utils
+
 from . import models
 from . import query
 from . import sqlalchemy_main
+
+DB_INTEGER = 'INTEGER'
+DB_FLOAT = 'FLOAT'
+DB_BOOLEAN = 'BOOLEAN'
 
 @dataclass
 class ImportResult:
@@ -31,12 +39,14 @@ class ImportResult:
         if not self.timestamp:
             self.timestamp = utils.current_time_utc()
 
-def bigquery_bluk_insert_dataframe(table_name, df: pd.DataFrame, log: bool = False) -> int:
+
+def bigquery_bluk_insert_dataframe(environment: Environment, table_name, df: pd.DataFrame, log: bool = False) -> int:
     '''
     Uploads a dataframe into a bigquery table in bulk using the bigquery client library.
+    This function does not use sessions.
     '''
-    client = query.bigquery_client()
-    destination = f'{sqlalchemy_main.get_db_dataset()}.{table_name}'
+    client = query.bigquery_client(environment)
+    destination = f'{environment.dataset}.{table_name}'
 
     job = client.load_table_from_dataframe(
         df,
@@ -47,6 +57,8 @@ def bigquery_bluk_insert_dataframe(table_name, df: pd.DataFrame, log: bool = Fal
     if log:
         print(f'Wrote {job.output_rows} rows to table {destination}')
     return job.output_rows
+
+
 
 
 def build_model_column_types(model_class: sqlalchemy_main.ModelBaseType) -> Dict[str, str]:
@@ -154,6 +166,7 @@ def set_column_types(df: pd.DataFrame, model_class: sqlalchemy) -> pd.DataFrame:
     return df
 
 def csv_to_bigquery(
+    environment: Environment,
     config_set: str,
     config_name: str,
     model_class: sqlalchemy_main.ModelBaseType,
@@ -209,10 +222,10 @@ def csv_to_bigquery(
             print(f'--\nImporting into table `{table_name}` from {csv_path}')
 
         # Throw an error if there are any values in the df that do not meet expected types
-        query.validate_csv_columns(model_class, df)
+        validate_csv_columns(model_class, df)
 
         # Upload the data to bigquery in builk
-        rows_written = bigquery_bluk_insert_dataframe(table_name, df)
+        rows_written = bigquery_bluk_insert_dataframe(environment, table_name, df)
 
         return ImportResult(
             config_set=config_set,
@@ -238,12 +251,13 @@ def csv_to_bigquery(
         return result
 
 def import_edes(
-        config_set: str,
-        config_name: str,
-        model_run_id: str,
-        csv_path: str = None,
-        df: pd.DataFrame = None,
-        log: bool = False,
+    environment: Environment,
+    config_set: str,
+    config_name: str,
+    model_run_id: str,
+    csv_path: str = None,
+    df: pd.DataFrame = None,
+    log: bool = False,
 ) -> ImportResult:
     ''' Imports an existing EDEs csv into the database for a given mode_run_id. '''
 
@@ -252,6 +266,7 @@ def import_edes(
     add_columns = { 'model_run_id': model_run_id }
 
     return csv_to_bigquery(
+        environment=environment,
         config_set=config_set,
         config_name=config_name,
         model_class=models.EDES,
@@ -264,12 +279,13 @@ def import_edes(
     )
 
 def import_precinct_distances(
-        config_set: str,
-        config_name: str,
-        model_run_id: str,
-        csv_path: str = None,
-        df: pd.DataFrame = None,
-        log: bool = False,
+    environment: Environment,
+    config_set: str,
+    config_name: str,
+    model_run_id: str,
+    csv_path: str = None,
+    df: pd.DataFrame = None,
+    log: bool = False,
 ) -> ImportResult:
     ''' Imports an existing precinct distances csv into the database for a given mode_run_id. '''
 
@@ -278,6 +294,7 @@ def import_precinct_distances(
     add_columns = { 'model_run_id': model_run_id }
 
     return csv_to_bigquery(
+        environment=environment,
         config_set=config_set,
         config_name=config_name,
         model_class=models.PrecintDistance,
@@ -290,12 +307,13 @@ def import_precinct_distances(
     )
 
 def import_residence_distances(
-        config_set: str,
-        config_name: str,
-        model_run_id: str,
-        csv_path: str = None,
-        df: pd.DataFrame = None,
-        log: bool = False,
+    environment: Environment,
+    config_set: str,
+    config_name: str,
+    model_run_id: str,
+    csv_path: str = None,
+    df: pd.DataFrame = None,
+    log: bool = False,
 ) -> ImportResult:
     ''' Imports an existing residence distances csv into the database for a given mode_run_id. '''
 
@@ -304,6 +322,7 @@ def import_residence_distances(
     add_columns = { 'model_run_id': model_run_id }
 
     return csv_to_bigquery(
+        environment=environment,
         config_set=config_set,
         config_name=config_name,
         model_class=models.ResidenceDistance,
@@ -316,12 +335,13 @@ def import_residence_distances(
     )
 
 def import_results(
-        config_set: str,
-        config_name: str,
-        model_run_id: str,
-        csv_path: str = None,
-        df: pd.DataFrame = None,
-        log: bool = False,
+    environment: Environment,
+    config_set: str,
+    config_name: str,
+    model_run_id: str,
+    csv_path: str = None,
+    df: pd.DataFrame = None,
+    log: bool = False,
 ) -> ImportResult:
     ''' Imports an existing precinct distances csv into the database for a given mode_run_id. '''
 
@@ -336,6 +356,7 @@ def import_results(
         df.reset_index(drop=True, inplace=True)
 
     return csv_to_bigquery(
+        environment=environment,
         config_set=config_set,
         config_name=config_name,
         model_class=models.Result,
@@ -376,3 +397,60 @@ def print_all_import_results(import_results_list: List[ImportResult], output_pat
     else:
         # Write to the screen
         print(df.to_csv(index=False))
+
+
+def validate_csv_columns(model_class: sqlalchemy_main.ModelBaseType, df: pd.DataFrame, log: bool = False):
+    '''
+    Raises an error if the value loaded from the df does not match what is expected in the model
+    schema.
+    '''
+    inspector = inspect(model_class)
+    column_type_map: dict[str, str] = {}
+    for column in inspector.columns:
+        column_type_map[column.name] = str(column.type)
+
+    if log:
+        print(f'validate_csv_columns df:\n{df}')
+    # 1-index and adjust for header
+    row_num = 2
+    for _, row in df.iterrows():
+        # The row number of the source csv file
+        row_num += 1
+
+        for expected_name, expected_type in column_type_map.items():
+            if expected_name == 'id':
+                continue
+            val = row.get(expected_name)
+            # print(f'row_num: {row_num}, val: {val}, expected_type: {expected_type}')
+            if val is None or (val is pd.NA):
+                continue
+
+            if str(expected_type) == DB_FLOAT:
+                if val and not utils.is_float(val):
+                    raise ValueError(
+                        # pylint: disable-next=line-too-long
+                        f'Unexpected column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
+                    )
+            elif expected_type == DB_INTEGER:
+                if val and not utils.is_int(val):
+                    raise ValueError(
+                        # pylint: disable-next=line-too-long
+                        f'Unexpected column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
+                    )
+            elif re.match(r'^VARCHAR.*', str(expected_type)):
+                if val and not utils.is_str(val):
+                    raise ValueError(
+                        # pylint: disable-next=line-too-long
+                        f'Unexpected column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
+                    )
+            elif str(expected_type) == DB_BOOLEAN:
+                if not utils.is_boolean(val):
+                    raise ValueError(
+                        # pylint: disable-next=line-too-long
+                        f'Unexpected column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
+                    )
+            else:
+                raise ValueError(
+                    # pylint: disable-next=line-too-long
+                    f'Unknown value type for column `{expected_name}` type {expected_type} with value of "{val}" on row num {row_num}'
+                )

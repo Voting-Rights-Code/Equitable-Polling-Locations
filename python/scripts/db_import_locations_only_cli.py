@@ -13,7 +13,8 @@ from python.database.models import (
     PollingLocationOnly,
 )
 
-from python.database import query
+from python.database.query import Query
+from python.utils.environments import Environment, load_env
 from python.utils.utils import build_locations_only_file_path
 
 DEFAULT_LOG_DIR='logs'
@@ -21,6 +22,7 @@ IMPORT_ERROR_LOG_FILE='locations_only_import_errors.csv'
 
 
 def import_locations_only(
+    environment: Environment,
     location: str,
     polling_locations_only_set_id: str,
     csv_path: str,
@@ -39,6 +41,7 @@ def import_locations_only(
     }
 
     return csv_to_bigquery(
+        environment=environment,
         config_set=location,
         config_name=csv_path,
         model_class=PollingLocationOnly,
@@ -54,23 +57,26 @@ def main(args: argparse.Namespace):
 
     logdir = args.logdir
     locations: List[str] = args.locations
+    environment = load_env(args.environment)
 
     num_imports = len(locations)
 
     print('------------------------------------------')
-    print(f'Importing {num_imports} location(s)\n')
+    print(f'Importing {num_imports} location(s) into {environment}\n')
 
 
     results = []
 
     for i, location in enumerate(locations):
+        query = Query(environment)
+
         print(f'Loading [{i+1}/{num_imports}] {location}')
 
         locations_only_file_path = build_locations_only_file_path(location)
         print('locations_only_file_path:', locations_only_file_path)
 
         if not os.path.isfile(locations_only_file_path):
-            print('Locations only file not found: {locations_only_file_path}')
+            print(f'Locations only file not found: {locations_only_file_path}')
             continue
 
         polling_locations_only_set = query.create_db_polling_locations_only_set(
@@ -78,6 +84,7 @@ def main(args: argparse.Namespace):
         )
 
         import_locations_only_result = import_locations_only(
+            environment=environment,
             location=location,
             polling_locations_only_set_id=polling_locations_only_set.id,
             csv_path=locations_only_file_path,
@@ -120,9 +127,10 @@ Examples:
     To import locations only for Contained_in_Madison_City_of_WI and Intersecting_Madison_City_of_WI
 :
 
-        python ./db_import_locations_only_cli.py Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
+        python -m python.scripts.db_import_locations_only_cli Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
         '''
     )
+    parser.add_argument('-e', '--environment', type=str, help='The environment to use')
     parser.add_argument('-l', '--logdir', default=DEFAULT_LOG_DIR, type=str, help='The directory to error files to ')
     parser.add_argument('locations', nargs='+', help='One or more locations only to import')
 

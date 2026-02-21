@@ -198,5 +198,6 @@ Equitable-Polling-Locations.Rproj
 !datasets/census/tiger/testing/*
 !datasets/driving/testing/*
 !datasets/polling/testing/*
+!datasets/results/testing_results/*
 
 
