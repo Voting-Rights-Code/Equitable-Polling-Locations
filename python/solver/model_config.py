@@ -54,7 +54,7 @@ class PollingModelConfig:
     '''list of location types not to be considered in this model'''
     beta: float
     '''level of inequality aversion: [-10,0], where 0 indicates indifference, and thus uses the
-    mean. -2 isa good number '''
+    mean. -2 is a good number '''
     time_limit: int
     '''How long the solver should try to find a solution'''
     limits_gap: float
