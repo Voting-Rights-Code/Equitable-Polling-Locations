@@ -88,14 +88,15 @@ def main(args: argparse.Namespace):
 
     log = args.log
     logdir = log and args.logdir
-    verbose = args.verbose > 1
+    verbose = args.verbose > 0
 
     if logdir:
         os.makedirs(logdir, exist_ok=True)
         if not os.path.exists(logdir):
             print(f'Invalid log dir: {logdir}')
             sys.exit(1)
-        elif verbose > 1:
+
+        if verbose:
             print(f'Writing logs to dir: {logdir}')
 
     # Handle wildcards in Windows properly
@@ -108,10 +109,6 @@ def main(args: argparse.Namespace):
         sys.exit(1)
 
     total_files: int = len(configs)
-
-    # If any level of verbosity is set, the display SCIP logs
-    log: bool = args.verbose > 0
-    verbose: bool = args.verbose > 1
 
     if args.concurrent > 1:
         worker_func = partial(
@@ -128,7 +125,7 @@ def main(args: argparse.Namespace):
         if verbose:
             utils.set_timers_enabled(True)
 
-        print(f'Running single process against {total_files} config file(s)')
+            print(f'Running single process against {total_files} config file(s)')
 
         for config_file in configs:
             run_config(config_file, log, verbose)

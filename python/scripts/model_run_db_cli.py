@@ -126,7 +126,7 @@ def main(args: argparse.Namespace):
 
     log = args.log
     logdir = log and args.logdir
-    verbose = args.verbose > 1
+    verbose = args.verbose > 0
 
     outtype = args.outtype
     if outtype == OUT_TYPE_DB:
@@ -139,9 +139,9 @@ def main(args: argparse.Namespace):
         if not os.path.exists(logdir):
             print(f'Invalid log dir: {logdir}')
             sys.exit(1)
-        elif verbose:
-            print(f'Writing logs to dir: {logdir}')
 
+        if args.verbose:
+            print(f'Writing logs to dir: {logdir}')
 
     # Check that all files are valid, exist if they do not exist
     configs = load_configs(args.configs, logdir, environment)
@@ -169,7 +169,7 @@ def main(args: argparse.Namespace):
         if verbose:
             utils.set_timers_enabled(True)
 
-        print(f'Running single process against {total_files} config file(s)')
+            print(f'Running single process against {total_files} config file(s)')
 
         for config_file in configs:
             print(f'Running config: {config_file.db_id} {config_file.config_set}/{config_file.config_name}')
