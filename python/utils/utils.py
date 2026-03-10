@@ -146,8 +146,8 @@ def build_driving_distances_file_path(census_year: str, map_source_date: str, lo
     return driving_distances_file
 
 
-def build_demographics_dir_path(location: str) -> str:
-    return os.path.join(DATASETS_DIR, 'census', 'redistricting', location)
+def build_demographics_dir_path(census_data_type, location: str) -> str:
+    return os.path.join(DATASETS_DIR, 'census', census_data_type, location)
 
 
 def build_p3_source_file_path(census_year: str, location: str) -> str:

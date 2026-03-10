@@ -203,13 +203,13 @@ def get_blockgroup_gdf(census_year: str, location: str) -> gpd.GeoDataFrame:
     return blockgroup_gdf
 
 
-def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
+def get_demographics_block(census_year: str, location: str, census_data_type: str) -> pd.DataFrame:
     '''
     Combine the P3 and P4 census data to generate demographic block data for a specific location and
     census year.
     '''
 
-    demographics_dir = build_demographics_dir_path(location)
+    demographics_dir = build_demographics_dir_path(census_data_type, location)
     p3_source_file = build_p3_source_file_path(census_year, location)
     p4_source_file = build_p4_source_file_path(census_year, location)
 
@@ -320,8 +320,6 @@ def build_distance_data(
     driving: bool,
     log_distance: bool,
     map_source_date: str=None,
-    # pylint: disable-next=unused-argument
-    log: bool = False,
     potential_locations_path_override: str=None,
     output_path_override: str=None,
     query: Query=None,
