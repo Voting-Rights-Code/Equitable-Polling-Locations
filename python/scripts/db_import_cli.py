@@ -2,7 +2,9 @@
 A command line utility to read in legacy (pre-db) CSVs into the database from past model runs.
 '''
 
+import json
 from typing import List, Tuple
+from dataclasses import dataclass, asdict
 
 import argparse
 from glob import glob
@@ -13,6 +15,7 @@ from python.database import models, imports
 from python.database.query import Query
 from python.database.imports import print_all_import_results
 
+from python.solver import constants
 from python.solver.model_config import PollingModelConfig
 from python.utils import (
     build_precinct_summary_file_path, build_residence_summary_file_path,
@@ -113,11 +116,38 @@ def main(args: argparse.Namespace):
         config_set = model_config.config_set
         config_name = model_config.config_name
 
+
+        item_dict = {k: v for k, v in model_config.__dict__.items() if k != '_sa_instance_state'}
+
+        # Serialize to JSON
+        print(json.dumps(item_dict, indent=4))
+
+        if model_config.driving:
+            driving_distance_set = query.find_driving_distance_set(
+                census_year=model_config.census_year,
+                map_source_date=constants.DEFAULT_MAP_SOURCE_DATE,
+                location=model_config.location,
+            )
+
+            if not driving_distance_set:
+                raise ValueError(f'No driving distance set found for census year {model_config.census_year}, map source date {constants.DEFAULT_MAP_SOURCE_DATE}, and location {model_config.location}')
+
+            driving_distance_set_id = driving_distance_set.id
+        else:
+            driving_distance_set_id = None
+
         model_config = query.find_or_create_model_config(model_config)
         print(f'Importing result files from {model_config}')
 
+
         # TODO Fix the hard coding
-        model_run = query.create_model_run(model_config.id, 'chad', '', current_time_utc())
+        model_run = query.create_model_run(
+            model_config_id=model_config.id,
+            distance_data_set_id=driving_distance_set_id,
+            username='chad',
+            commit_hash='',
+            created_at=current_time_utc(),
+        )
         print(f'Created {model_run}')
 
         # Import each csv file for this run
@@ -155,6 +185,7 @@ def main(args: argparse.Namespace):
         print('\n\n')
 
         query.commit()
+
 
 
     success_results = [ result for result in results if result.success ]
