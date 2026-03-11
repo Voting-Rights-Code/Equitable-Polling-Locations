@@ -38,13 +38,12 @@ def load_configs(config_paths: list[str], logdir: str) -> tuple[bool, list[Polli
         config: PollingModelConfig = None
         try:
             config = PollingModelConfig.load_config(config_path)
-            if logdir:
-                config_file_basename = os.path.basename(config.config_file_path)
-                log_file_name = f'{log_date_prefix}_{config_file_basename}.log'
-                config.log_file_path = os.path.join(
-                    logdir,
-                    log_file_name,
-                )
+            config_file_basename = os.path.basename(config.config_file_path)
+            log_file_name = f'{log_date_prefix}_{config_file_basename}.log'
+            config.log_file_path = os.path.join(
+                logdir,
+                log_file_name,
+            )
             results.append(config)
 
         # pylint: disable-next=broad-exception-caught
@@ -86,18 +85,13 @@ def run_config(
 def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
-    log = args.log
-    logdir = log and args.logdir
+    logdir = args.logdir
     verbose = args.verbose > 0
 
-    if logdir:
-        os.makedirs(logdir, exist_ok=True)
-        if not os.path.exists(logdir):
-            print(f'Invalid log dir: {logdir}')
-            sys.exit(1)
+    os.makedirs(logdir, exist_ok=True)
 
-        if verbose:
-            print(f'Writing logs to dir: {logdir}')
+    if verbose:
+        print(f'Writing logs to dir: {logdir}')
 
     # Handle wildcards in Windows properly
     glob_paths = [ glob(item) for item in args.configs ]
@@ -113,7 +107,7 @@ def main(args: argparse.Namespace):
     if args.concurrent > 1:
         worker_func = partial(
             run_config,
-            log=log,
+            log=True,
             verbose=verbose
         )
         print(f'Running concurrent with a pool size of {args.concurrent} against {total_files} config file(s)')
@@ -128,7 +122,7 @@ def main(args: argparse.Namespace):
             print(f'Running single process against {total_files} config file(s)')
 
         for config_file in configs:
-            run_config(config_file, log, verbose)
+            run_config(config_file, True, verbose)
             if verbose:
                 print('--------------------------------------------------------------------------------')
 
@@ -164,7 +158,6 @@ Examples:
             'Be mindful of ram availability - full runs can use in excess of 40 GB' +
             ' for each concurrent process.')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
-    parser.add_argument('-l', '--log', action='store_true', help='Enable logging to file.')
     parser.add_argument(
         '-L',
         '--logdir',

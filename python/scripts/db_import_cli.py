@@ -82,11 +82,7 @@ def main(args: argparse.Namespace):
 
     logdir = args.logdir
     os.makedirs(logdir, exist_ok=True)
-    if not os.path.exists(logdir):
-        print(f'Invalid log dir: {logdir}')
-        sys.exit(1)
-    else:
-        print(f'Writing logs to dir: {logdir}')
+    print(f'Writing logs to dir: {logdir}')
 
     environment = load_env(args.environment)
 
