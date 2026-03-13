@@ -7,7 +7,6 @@
 ''' Command line util to run models '''
 
 import argparse
-import datetime
 from functools import partial
 from glob import glob
 from multiprocessing import Pool
@@ -19,7 +18,7 @@ from tqdm import tqdm
 from python.solver.model_config import PollingModelConfig
 from python.solver.model_run import ModelRun
 from python import utils
-from python.utils.directory_constants import RESULTS_FOLDER_NAME
+from python.utils.directory_constants import DEFAULT_LOG_DIR, RESULTS_FOLDER_NAME
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
 
@@ -28,7 +27,7 @@ def load_configs(config_paths: list[str], logdir: str) -> tuple[bool, list[Polli
     valid = True
     results: list[PollingModelConfig] = []
 
-    log_date_prefix = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+    log_date_prefix = utils.log_date_prefix()
 
     for config_path in config_paths:
         if not os.path.isfile(config_path):
@@ -39,13 +38,12 @@ def load_configs(config_paths: list[str], logdir: str) -> tuple[bool, list[Polli
         config: PollingModelConfig = None
         try:
             config = PollingModelConfig.load_config(config_path)
-            if logdir:
-                config_file_basename = os.path.basename(config.config_file_path)
-                log_file_name = f'{log_date_prefix}_{config_file_basename}.log'
-                config.log_file_path = os.path.join(
-                    logdir,
-                    log_file_name,
-                )
+            config_file_basename = os.path.basename(config.config_file_path)
+            log_file_name = f'{log_date_prefix}_{config_file_basename}.log'
+            config.log_file_path = os.path.join(
+                logdir,
+                log_file_name,
+            )
             results.append(config)
 
         # pylint: disable-next=broad-exception-caught
@@ -88,13 +86,12 @@ def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
     logdir = args.logdir
+    verbose = args.verbose > 0
 
-    if logdir:
-        if not os.path.exists(logdir):
-            print(f'Invalid log dir: {logdir}')
-            sys.exit(1)
-        else:
-            print(f'Writing logs to dir: {logdir}')
+    os.makedirs(logdir, exist_ok=True)
+
+    if verbose:
+        print(f'Writing logs to dir: {logdir}')
 
     # Handle wildcards in Windows properly
     glob_paths = [ glob(item) for item in args.configs ]
@@ -107,14 +104,10 @@ def main(args: argparse.Namespace):
 
     total_files: int = len(configs)
 
-    # If any level of verbosity is set, the display SCIP logs
-    log: bool = args.verbose > 0
-    verbose: bool = args.verbose > 1
-
     if args.concurrent > 1:
         worker_func = partial(
             run_config,
-            log=log,
+            log=True,
             verbose=verbose
         )
         print(f'Running concurrent with a pool size of {args.concurrent} against {total_files} config file(s)')
@@ -126,11 +119,11 @@ def main(args: argparse.Namespace):
         if verbose:
             utils.set_timers_enabled(True)
 
-        print(f'Running single process against {total_files} config file(s)')
+            print(f'Running single process against {total_files} config file(s)')
 
         for config_file in configs:
-            run_config(config_file, log, verbose)
-            if log:
+            run_config(config_file, True, verbose)
+            if verbose:
                 print('--------------------------------------------------------------------------------')
 
 if __name__ == '__main__':
@@ -143,16 +136,16 @@ Examples:
     To run all configs in a given folder, parallel processing 4 at a time, and write log files out to the logs
     directory:
 
-        python -m python.scripts.model_run_db_cli  -c4 -l logs ./Gwinnett_County_GA_no_bg_school_fire_configs/*.yaml
+        python run.py model_run_db_cli  -c4 -l ./Gwinnett_County_GA_no_bg_school_fire_configs/*.yaml
 
     To run all configs run one at a time, extra logging printed to the console,
     and write log files out to the logs directory:
 
-        python -m python.scripts.model_run_db_cli -vv -l logs ./Gwinnett_County_GA_no_bg_school_fire_configs/*.yaml
+        python run.py model_run_db_cli -vv -l ./Gwinnett_County_GA_no_bg_school_fire_configs/*.yaml
 
     To run only the Gwinnett_config_no_bg_11 config and write log files out to the logs directory:
 
-        python -m python.scripts.model_run_db_cli -l logs ./Gwinnett_County_GA_no_bg_school_fire_configs/Gwinnett_config_no_bg_11.yaml
+        python run.py model_run_db_cli -l ./Gwinnett_County_GA_no_bg_school_fire_configs/Gwinnett_config_no_bg_11.yaml
         '''
     )
     parser.add_argument('configs', nargs='+', help='One or more yaml configuration files to run.')
@@ -165,6 +158,12 @@ Examples:
             'Be mindful of ram availability - full runs can use in excess of 40 GB' +
             ' for each concurrent process.')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
-    parser.add_argument('-l', '--logdir', type=str, help='The directory to output log files to')
+    parser.add_argument(
+        '-L',
+        '--logdir',
+        type=str,
+        default=DEFAULT_LOG_DIR,
+        help='The directory to output log files to',
+    )
 
     main(parser.parse_args())

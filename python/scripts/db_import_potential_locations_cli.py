@@ -15,7 +15,8 @@ from python.database.models import (
 
 from python.database.query import Query
 from python.utils.environments import Environment, load_env
-from python.utils.utils import build_potential_locations_file_path
+from python.utils import build_potential_locations_file_path, log_date_prefix
+from python.utils.directory_constants import DEFAULT_LOG_DIR
 
 from python.solver.constants import (
     POT_LOC_LOCATION,
@@ -65,6 +66,12 @@ def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
     logdir = args.logdir
+    verbose = args.verbose > 1
+
+    os.makedirs(logdir, exist_ok=True)
+    if verbose:
+        print(f'Writing logs to dir: {logdir}')
+
     locations: List[str] = args.locations
     environment = load_env(args.environment)
 
@@ -117,10 +124,7 @@ def main(args: argparse.Namespace):
     print_all_import_results(failed_results)
 
     # Write any errors to the log dir
-    log_path = os.path.join(os.getcwd(), logdir)
-    if not os.path.exists(log_path):
-        os.makedirs(logdir)
-    output_path = os.path.join(log_path, IMPORT_ERROR_LOG_FILE)
+    output_path = os.path.join(logdir, f'{log_date_prefix()}_{IMPORT_ERROR_LOG_FILE}')
     print_all_import_results(failed_results, output_path=output_path)
 
     if num_failures:
@@ -136,11 +140,18 @@ Examples:
     To import locations only for Contained_in_Madison_City_of_WI and Intersecting_Madison_City_of_WI
 :
 
-        python -m python.scripts.db_import_potential_locations_cli Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
+        python run.py db_import_potential_locations_cli Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
         '''
     )
     parser.add_argument('-e', '--environment', type=str, help='The environment to use')
-    parser.add_argument('-l', '--logdir', default=DEFAULT_LOG_DIR, type=str, help='The directory to error files to ')
+    parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
+    parser.add_argument(
+        '-L',
+        '--logdir',
+        type=str,
+        default=DEFAULT_LOG_DIR,
+        help='The directory to output log files to',
+    )
     parser.add_argument('locations', nargs='+', help='One or more potential locations to import')
 
     main(parser.parse_args())

@@ -27,7 +27,7 @@ from python.solver.model_run import ModelRun, OUT_TYPE_CSV, OUT_TYPE_DB
 from python.database.models import ModelConfig
 from python import utils
 from python.solver.constants import DATA_SOURCE_DB
-from python.utils.directory_constants import RESULTS_FOLDER_NAME
+from python.utils.directory_constants import DEFAULT_LOG_DIR, RESULTS_FOLDER_NAME
 from python.utils.environments import load_env, Environment
 
 DEFAULT_MULTI_PROCESS_CONCURRENT = 1
@@ -40,7 +40,7 @@ def load_configs(config_args: list[str], logdir: str, environment: Environment=N
     # valid = True
     results: list[PollingModelConfig] = []
 
-    log_date_prefix = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+    log_date_prefix = utils.log_date_prefix()
 
     for config_arg in config_args:
         configs: list[ModelConfig] = None
@@ -74,15 +74,14 @@ def load_configs(config_args: list[str], logdir: str, environment: Environment=N
             polling_model_config = query.create_polling_model_config(config)
             polling_model_config.environment = environment
 
-            if logdir:
-                # Setup logs as needed
-                # pylint: disable-next=line-too-long
-                log_file_name = f'{log_date_prefix}_db_run_{polling_model_config.db_id}_{polling_model_config.config_set}_{polling_model_config.config_name}.log'
-                log_file_name = log_file_name.replace('/', '_')
-                polling_model_config.log_file_path = os.path.join(
-                    logdir,
-                    log_file_name,
-                )
+            # Setup logs as needed
+            # pylint: disable-next=line-too-long
+            log_file_name = f'{log_date_prefix}_db_run_{polling_model_config.db_id}_{polling_model_config.config_set}_{polling_model_config.config_name}.log'
+            log_file_name = log_file_name.replace('/', '_')
+            polling_model_config.log_file_path = os.path.join(
+                logdir,
+                log_file_name,
+            )
 
             results.append(polling_model_config)
 
@@ -125,38 +124,30 @@ def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
     logdir = args.logdir
+    verbose = args.verbose > 0
+
     outtype = args.outtype
     if outtype == OUT_TYPE_DB:
-        #Force the database prompt immediately upon run, if running on DB
-        # utils.get_env_var_or_prompt('DB_PROJECT', default_value='equitable-polling-locations')
-        # utils.get_env_var_or_prompt('DB_DATASET')
         environment = load_env(args.environment)
     else:
         environment = None
 
-    if logdir:
-        if not os.path.exists(logdir):
-            print(f'Invalid log dir: {logdir}')
-            sys.exit(1)
-        else:
-            print(f'Writing logs to dir: {logdir}')
+    os.makedirs(logdir, exist_ok=True)
 
+    if args.verbose:
+        print(f'Writing logs to dir: {logdir}')
 
     # Check that all files are valid, exist if they do not exist
     configs = load_configs(args.configs, logdir, environment)
 
     total_files: int = len(configs)
 
-    # If any level of verbosity is set, the display SCIP logs
-    log: bool = args.verbose > 0
-    verbose: bool = args.verbose > 1
-
     if args.concurrent > 1:
         worker_func = partial(
             run_config,
-            log=log,
+            log=True,
             outtype=outtype,
-            verbose=verbose
+            verbose=verbose,
         )
 
         # pylint: disable-next=line-too-long
@@ -172,11 +163,12 @@ def main(args: argparse.Namespace):
         if verbose:
             utils.set_timers_enabled(True)
 
-        print(f'Running single process against {total_files} config file(s)')
+            print(f'Running single process against {total_files} config file(s)')
 
         for config_file in configs:
-            run_config(config_file, log, outtype, verbose)
-            if log:
+            print(f'Running config: {config_file.db_id} {config_file.config_set}/{config_file.config_name}')
+            run_config(config_file, True, outtype, verbose)
+            if verbose:
                 print('--------------------------------------------------------------------------------')
 
 if __name__ == '__main__':
@@ -189,16 +181,16 @@ Examples:
     To run all configs in the db from the config_set York_County_SC_original_configs_log, parallel processing 4 at a time, and write log files out to the logs
     directory:
 
-        python -m python.scripts.model_run_db_cli -c4 -l logs York_County_SC_original_configs_log
+        python run.py model_run_db_cli -c4 -l York_County_SC_original_configs_log
 
     To run all configs run one at a time, extra logging printed to the console,
     and write log files out to the logs directory:
 
-        python -m python.scripts.model_run_db_cli -vv -l logs York_County_SC_original_configs_log
+        python run.py model_run_db_cli -vv -l York_County_SC_original_configs_log
 
     To run only the config York_County_SC_year_2016 under the config set York_County_SC_original_configs_log:
 
-        python -m python.scripts.model_run_db_cli -l logs York_County_SC_original_configs_log/York_County_SC_year_2016
+        python run.py model_run_db_cli -l York_County_SC_original_configs_log/York_County_SC_year_2016
         '''
     )
     # pylint: disable-next=line-too-long
@@ -218,7 +210,13 @@ Examples:
             'Be mindful of ram availability - full runs can use in excess of 40 GB' +
             ' for each concurrent process.')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
-    parser.add_argument('-l', '--logdir', type=str, help='The directory to output log files to')
+    parser.add_argument(
+        '-L',
+        '--logdir',
+        type=str,
+        default=DEFAULT_LOG_DIR,
+        help='The directory to output log files to',
+    )
     parser.add_argument(
         '-o',
         '--outtype',

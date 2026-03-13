@@ -48,6 +48,10 @@ def current_time_utc() -> datetime:
     ''' Returns a date time instance of the current time in utc. '''
     return datetime.datetime.now(datetime.timezone.utc)
 
+def log_date_prefix() -> str:
+    ''' Returns a string prefix for log files based on the current date and time. '''
+    return datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+
 
 def generate_uuid() -> str:
     ''' Returns a new uuid4 string. '''

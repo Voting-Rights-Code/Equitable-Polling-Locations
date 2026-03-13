@@ -22,7 +22,9 @@ To create config data, create an examplar config file and put it in the desired 
 
 Then run
 
- `python -m python.scripts.auto_generate_config -b 'datasets/configs/config_folder/exemplar_config.yaml_template'
+ ```bash
+ python run.py auto_generate_config -b 'datasets/configs/config_folder/exemplar_config.yaml_template'
+ ```
 
 This will create a set of .yaml files in the indicaded `config_folder`, each with a different name (that is a combination of the indicated `field_to_change` and a value from the provided list.) It will also write these configs to the database.
 
@@ -41,8 +43,8 @@ To generate a set of configs for DuPage County, IL where the number of precincts
     - 19
     - 20`
 in the `.yaml_template` file and then run
-```
-python -m python.scripts.auto_generate_config -b 'datasets/configs/DuPage_County_IL_potential_configs/example_config.yaml_template'
+```bash
+python run.py auto_generate_config -b 'datasets/configs/DuPage_County_IL_potential_configs/example_config.yaml_template'
 ```
 To generate a set of configs for DuPage County, IL where the set of bad locations varies are ['Elec Day School - Potential', 'Elec Day Church - Potential', 'bg_centroid'],  ['Elec Day Church - Potential', 'bg_centroid'], ['Elec Day School - Potential',  'bg_centroid'], and [ 'bg_centroid'] define
 `field_to_change: 'bad_locations'`
@@ -56,8 +58,8 @@ To generate a set of configs for DuPage County, IL where the set of bad location
       - 'bg_centroid'
     - - 'bg_centroid'`
 in the `.yaml_template` file and then run
-```
-python -m python.scripts.auto_generate_config -f 'DuPage_County_IL_potential_configs/example_config.yaml_template'
+```bash
+python run.py auto_generate_config -f 'DuPage_County_IL_potential_configs/example_config.yaml_template'
 ```
 ### Config fields
 These fields are determined by the sql_alchemy config model. See `models/model_config.py`. In addition to the fields listed below, and `id`, and `created_at` field are generated when uploaded to the database.
