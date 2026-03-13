@@ -19,6 +19,7 @@ from python.utils import (
     build_demographics_dir_path,
     build_p3_source_file_path,
     build_p4_source_file_path,
+    build_CVAP_source_file_path,
     is_int,
     get_block_source_file_path,
     get_block_group_block_source_file_path,
@@ -210,6 +211,7 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
     '''
 
     demographics_dir = build_demographics_dir_path(census_data_type, location)
+    CVAP_source_file = build_CVAP_source_file_path(census_year, census_data_type, location)
     p3_source_file = build_p3_source_file_path(census_year, location)
     p4_source_file = build_p4_source_file_path(census_year, location)
 
@@ -217,6 +219,10 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
         statecode = location[-2:]
         locality = location[:-3].replace('_', ' ')
         pull_census_data(statecode, locality)
+        if census_data_type == 'VCAP':
+            State_VCAP_data = get_vcap_data()
+            locality_VCAP_data = select_locality_data(location)
+
 
     if os.path.exists(p3_source_file):
         p3_df = pd.read_csv(p3_source_file,
