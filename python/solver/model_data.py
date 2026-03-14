@@ -16,9 +16,10 @@ from python.utils import (
     build_driving_distances_file_path,
     build_potential_locations_file_path,
     build_distance_file_path,
-    build_demographics_dir_path,
-    build_p3_source_file_path,
-    build_p4_source_file_path,
+    build_decennial_dir_path,
+    build_decennial_file_paths,
+#    build_p3_source_file_path,
+#    build_p4_source_file_path,
     build_CVAP_source_file_path,
     is_int,
     get_block_source_file_path,
@@ -210,19 +211,15 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
     census year.
     '''
 
-    demographics_dir = build_demographics_dir_path(census_data_type, location)
-    CVAP_source_file = build_CVAP_source_file_path(census_year, census_data_type, location)
-    p3_source_file = build_p3_source_file_path(census_year, location)
-    p4_source_file = build_p4_source_file_path(census_year, location)
+    demographics_dir = build_decennial_dir_path(location, 'block')
+    CVAP_source_file = build_CVAP_source_file_path(census_year, 'census_data_type', location)
+    p3_source_file = build_decennial_file_paths(census_year, 'block', 'p3', False)
+    p4_source_file = build_decennial_file_paths(census_year, 'block', 'p4', False)
 
     if not os.path.exists(demographics_dir):
         statecode = location[-2:]
         locality = location[:-3].replace('_', ' ')
-        pull_census_data(statecode, locality)
-        if census_data_type == 'VCAP':
-            State_VCAP_data = get_vcap_data()
-            locality_VCAP_data = select_locality_data(location)
-
+        pull_census_data(statecode, locality, census_year)
 
     if os.path.exists(p3_source_file):
         p3_df = pd.read_csv(p3_source_file,
@@ -241,6 +238,10 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
     else:
         # pylint: disable-next=line-too-long
         raise ValueError('Census data from table P4 not found. Download using api or manually following download instruction from README.')
+
+    if census_data_type == 'CVAP':
+        State_VCAP_data = get_cvap_data()
+        locality_VCAP_data = select_locality_data(location)
 
 
     #######

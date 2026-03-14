@@ -146,29 +146,48 @@ def build_driving_distances_file_path(census_year: str, map_source_date: str, lo
     return driving_distances_file
 
 
-def build_demographics_dir_path(census_data_type:str, location: str) -> str:
-    return os.path.join(DATASETS_DIR, 'census', census_data_type, location)
+def build_decennial_dir_path(location: str, geo: str) -> str:
+    "returns the directory for the decennial block or block group data"
+    
+    decennial_dir = os.path.join(DATASETS_DIR, 'census', 'redistricing', location)
+
+    if geo == 'block':
+        pass
+    elif geo == 'block group':
+        decennial_dir = os.path.join(decennial_dir, "block group demographics")
+    else:
+        raise ValueError(f'geo must be either block or block group')
+
+    return decennial_dir
 
 
-def build_p3_source_file_path(census_year: str, census_data_type: str, location: str) -> str:
-    ''' Returns the path to Census data p3 table '''
+def build_decennial_file_paths(census_year: str, geo: str, pnum: str, location: str, meta: bool) -> str:
+    ''' Returns the path to Census data p3 or p4 table or metadata'''
+    
+    if geo == 'block':
+        decennial_dir = build_decennial_dir_path(location, 'block')
+    elif geo == 'block group':
+        decennial_dir = build_decennial_dir_path(location, 'block_group')
+    else:
+        raise ValueError(f'geo must be either block or block group')
+    
+    if meta == False:
+        file_name = f'DECENNIALPL{census_year}.{pnum}-Data.csv'
+    else: #meta == True
+        file_name = f'DECENNIALPL{census_year}.{pnum}-Column-Metadata.csv'
 
-    file_name_p3 = f'DECENNIALPL{census_year}.P3-Data.csv'
-
-    demographics_dir = build_demographics_dir_path(census_data_type, location)
-
-    return os.path.join(demographics_dir, file_name_p3)
+    return os.path.join(decennial_dir, file_name)
 
 
-def build_p4_source_file_path(census_year: str, census_data_type: str, location: str) -> str:
+""" def build_p4_source_file_path(census_year: str, census_data_type: str, location: str) -> str:
     ''' Returns the path to Census data p4 table '''
 
     file_name_p4 = f'DECENNIALPL{census_year}.P4-Data.csv'
 
-    demographics_dir = build_demographics_dir_path(census_data_type, location)
+    demographics_dir = build_decennial_dir_path(census_data_type, location)
 
     return os.path.join(demographics_dir, file_name_p4)
-
+ """
 
 def build_tiger_location_dir(location: str) -> str:
     ''' Returns the path to the Census Tiger data for this location '''
@@ -180,7 +199,7 @@ def build_CVAP_source_file_path(census_year: str, census_data_type: str, locatio
 
     file_name_cvap = f'CVAP_{census_year}-Data.csv'
 
-    demographics_dir = build_demographics_dir_path(census_data_type, location)
+    demographics_dir = build_decennial_dir_path(census_data_type, location)
 
     return os.path.join(demographics_dir, file_name_cvap)
 
