@@ -165,6 +165,7 @@ cython_debug/
 
 # API keys and other folders
 authentication_files/
+
 #/test_configs
 
 # Misc
@@ -185,6 +186,10 @@ Equitable-Polling-Locations.Rproj
 *.dbf
 *.shx
 *.jpg
+
+#datasets to ignore
+datasets/census
+
 #Want to avoid keeping config files locally
 #and put them in the database
 *.yaml

@@ -149,7 +149,7 @@ def build_driving_distances_file_path(census_year: str, map_source_date: str, lo
 def build_decennial_dir_path(location: str, geo: str) -> str:
     "returns the directory for the decennial block or block group data"
     
-    decennial_dir = os.path.join(DATASETS_DIR, 'census', 'redistricing', location)
+    decennial_dir = os.path.join(DATASETS_DIR, 'census', 'redistricting', location)
 
     if geo == 'block':
         pass
@@ -167,7 +167,7 @@ def build_decennial_file_paths(census_year: str, geo: str, pnum: str, location: 
     if geo == 'block':
         decennial_dir = build_decennial_dir_path(location, 'block')
     elif geo == 'block group':
-        decennial_dir = build_decennial_dir_path(location, 'block_group')
+        decennial_dir = build_decennial_dir_path(location, 'block group')
     else:
         raise ValueError(f'geo must be either block or block group')
     

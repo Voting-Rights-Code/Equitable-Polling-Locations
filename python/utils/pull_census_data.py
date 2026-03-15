@@ -239,10 +239,10 @@ def pull_census_data(statecode, county, census_year, apikey = census_key, state_
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        'state', help="U.S. state of interest. Full name, with proper capitalization",
+        'state', help="U.S. state of interest. Two letter abbreviation, e.g. MD or NY",
     )
     parser.add_argument(
-        'county', help="County of interest. Full name, with proper capitalization"
+        'county', help="County of interest. Full name, with proper capitalization, e.g. Norfolk city or Gwinnett County"
     )
     parser.add_argument(
         'census_year', help="Decennial census data of interest"
