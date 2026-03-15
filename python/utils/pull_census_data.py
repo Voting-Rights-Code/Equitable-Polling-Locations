@@ -7,7 +7,11 @@ import argparse
 import pandas as pd
 
 from python.utils import build_decennial_dir_path, build_decennial_file_paths
-
+from python.utils.directory_constants import (
+DATASETS_FOLDER_NAME, CENSUS_FOLDER_NAME, TIGER_FOLDER_NAME, 
+TABBLOCK_FILE_SUFFIX, BLOCK_GROUP_FILE_SUFFIX, 
+BLOCK_GEO, BLOCK_GROUP_GEO
+)
 try:
     from authentication_files.census_key import census_key
 except:
@@ -124,9 +128,9 @@ def pull_ptable_data(geography, pnum, state_fips, county_code, census_year, api_
     """
     Pull P3 and P4 table data and column metadata
     """
-    if geography == 'block':
-        geo = 'block'
-    elif geography == 'block group':
+    if geography == BLOCK_GEO:
+        geo = BLOCK_GEO
+    elif geography == BLOCK_GROUP_GEO:
         geo="block%20group"
     r = requests.get(
         f"https://api.census.gov/data/{census_year}/dec/pl?get=group({pnum})&for={geo}:*&in=state:{state_fips}&in=county:{county_code}&in=tract:*&key={api_key}"
@@ -189,12 +193,12 @@ def pull_tiger_file(state, fips, county_ST, county_code, geo, census_year):
     """
     Pull and save tiger shapefile
     """
-    if geo == 'block':
-        geo = "tabblock20"
-    elif geo == 'block group':
-        geo = "bg20"
+    if geo == BLOCK_GEO:
+        geo = TABBLOCK_FILE_SUFFIX
+    elif geo == BLOCK_GROUP_GEO:
+        geo = BLOCK_GROUP_FILE_SUFFIX
     base_url = f"https://www2.census.gov/geo/tiger/TIGER{census_year}PL/STATE/{fips}_{state.upper()}/{fips}{county_code}/tl_{census_year}_{fips}{county_code}_{geo}.zip"
-    output_directory = Path(f"./datasets/census/tiger/{county_ST}/")
+    output_directory = Path(f"./{DATASETS_FOLDER_NAME}/{CENSUS_FOLDER_NAME}/{TIGER_FOLDER_NAME}/{county_ST}/")
     fname = download_file(base_url, output_directory)
     unzip_file(fname, output_directory)
     return base_url, output_directory
@@ -217,7 +221,7 @@ def pull_census_data(statecode, county, census_year, apikey = census_key, state_
     countycode = get_county_code(county, counties_codes)
 
     # pull and save block-level data and block group data
-    for geo in ('block', 'block group'):
+    for geo in (BLOCK_GEO, BLOCK_GROUP_GEO):
 
         # pull P3 and P4 census tables
         for pnum in ('P3', 'P4'):

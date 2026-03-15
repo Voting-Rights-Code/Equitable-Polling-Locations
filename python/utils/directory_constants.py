@@ -12,13 +12,19 @@ DATASETS_FOLDER_NAME = 'datasets'
 
 CONFIG_FOLDER_NAME = 'configs'
 
-TABBLOCK_SHP_FILE_SUFFIX = 'tabblock20.shp'
+TABBLOCK_FILE_SUFFIX = 'tabblock20'
 
-BLOCK_GROUP_SHP_FILE_SUFFIX = 'bg20.shp'
+BLOCK_GROUP_FILE_SUFFIX = 'bg20'
 
 CENSUS_FOLDER_NAME = 'census'
 
 TIGER_FOLDER_NAME = 'tiger'
+
+REDISTRICTING_FOLDER_NAME = 'redistricting'
+
+BLOCK_GEO = 'block'
+
+BLOCK_GROUP_GEO = 'block group'
 
 SETTINGS_YAML = 'settings.yaml'
 

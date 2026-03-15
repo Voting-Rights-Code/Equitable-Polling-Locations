@@ -211,10 +211,10 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
     census year.
     '''
 
-    demographics_dir = build_decennial_dir_path(location, 'block')
+    demographics_dir = build_decennial_dir_path(location, BLOCK_GEO)
     CVAP_source_file = build_CVAP_source_file_path(census_year, 'census_data_type', location)
-    p3_source_file = build_decennial_file_paths(census_year, 'block', 'p3', False)
-    p4_source_file = build_decennial_file_paths(census_year, 'block', 'p4', False)
+    p3_source_file = build_decennial_file_paths(census_year, BLOCK_GEO, 'p3', False)
+    p4_source_file = build_decennial_file_paths(census_year, BLOCK_GEO, 'p4', False)
 
     if not os.path.exists(demographics_dir):
         statecode = location[-2:]

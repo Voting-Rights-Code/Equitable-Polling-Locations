@@ -10,8 +10,10 @@ import uuid
 import numpy as np
 
 from python.utils.directory_constants import (
-  BLOCK_GROUP_SHP_FILE_SUFFIX, CENSUS_TIGER_DIR, DATASETS_DIR,
-  DRIVING_DIR, POLLING_DIR, TABBLOCK_SHP_FILE_SUFFIX,
+  BLOCK_GROUP_FILE_SUFFIX, CENSUS_FOLDER_NAME, CENSUS_TIGER_DIR, 
+  DATASETS_DIR, REDISTRICTING_FOLDER_NAME,
+  DRIVING_DIR, POLLING_DIR, TABBLOCK_FILE_SUFFIX,
+  BLOCK_GROUP_GEO, BLOCK_GEO
 )
 
 @dataclass
@@ -149,27 +151,20 @@ def build_driving_distances_file_path(census_year: str, map_source_date: str, lo
 def build_decennial_dir_path(location: str, geo: str) -> str:
     "returns the directory for the decennial block or block group data"
     
-    decennial_dir = os.path.join(DATASETS_DIR, 'census', 'redistricting', location)
-
-    if geo == 'block':
+    decennial_dir = os.path.join(DATASETS_DIR, CENSUS_FOLDER_NAME, REDISTRICTING_FOLDER_NAME, location)
+    if geo == BLOCK_GEO:
         pass
-    elif geo == 'block group':
+    elif geo == BLOCK_GROUP_GEO:
         decennial_dir = os.path.join(decennial_dir, "block group demographics")
     else:
         raise ValueError(f'geo must be either block or block group')
 
     return decennial_dir
 
-
 def build_decennial_file_paths(census_year: str, geo: str, pnum: str, location: str, meta: bool) -> str:
     ''' Returns the path to Census data p3 or p4 table or metadata'''
     
-    if geo == 'block':
-        decennial_dir = build_decennial_dir_path(location, 'block')
-    elif geo == 'block group':
-        decennial_dir = build_decennial_dir_path(location, 'block group')
-    else:
-        raise ValueError(f'geo must be either block or block group')
+    decennial_dir = build_decennial_dir_path(location, geo)
     
     if meta == False:
         file_name = f'DECENNIALPL{census_year}.{pnum}-Data.csv'
@@ -210,11 +205,11 @@ def get_block_source_file_path(census_year, location: str) -> str:
 
     prefix = f'tl_{census_year}_'
 
-    file_list = [f for f in file_list if f.startswith(prefix) and f.endswith(TABBLOCK_SHP_FILE_SUFFIX)]
+    file_list = [f for f in file_list if f.startswith(prefix) and f.endswith(f'{TABBLOCK_FILE_SUFFIX}.shp')]
 
     if not file_list:
         # pylint: disable-next=line-too-long
-        raise ValueError(f'No block file matching {prefix}.*{TABBLOCK_SHP_FILE_SUFFIX} found for location {location} in {geography_dir}. Reinstall using api or manually following download instruction from README.')
+        raise ValueError(f'No block file matching {prefix}.*{TABBLOCK_FILE_SUFFIX}.shp found for location {location} in {geography_dir}. Reinstall using api or manually following download instruction from README.')
 
     block_filename = file_list[0]
 
@@ -227,11 +222,11 @@ def get_block_group_block_source_file_path(census_year, location: str) -> str:
 
     prefix = f'tl_{census_year}_'
 
-    file_list = [f for f in file_list if f.startswith(prefix) and f.endswith(BLOCK_GROUP_SHP_FILE_SUFFIX)]
+    file_list = [f for f in file_list if f.startswith(prefix) and f.endswith(f'{BLOCK_GROUP_FILE_SUFFIX}.shp')]
 
     if not file_list:
         # pylint: disable-next=line-too-long
-        raise ValueError(f'No block group file matching {prefix}.*{BLOCK_GROUP_SHP_FILE_SUFFIX} found for location {location} in {geography_dir}. Reinstall using api or manually following download instruction from README.')
+        raise ValueError(f'No block group file matching {prefix}.*{BLOCK_GROUP_FILE_SUFFIX}.shp found for location {location} in {geography_dir}. Reinstall using api or manually following download instruction from README.')
 
     block_group_filename = file_list[0]
 
