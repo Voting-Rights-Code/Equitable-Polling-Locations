@@ -10,7 +10,7 @@ from python.utils import build_decennial_dir_path, build_decennial_file_paths
 from python.utils.directory_constants import (
 DATASETS_FOLDER_NAME, CENSUS_FOLDER_NAME, TIGER_FOLDER_NAME, 
 TABBLOCK_FILE_SUFFIX, BLOCK_GROUP_FILE_SUFFIX, 
-BLOCK_GEO, BLOCK_GROUP_GEO
+BLOCK_GEO, BLOCK_GROUP_GEO, P3_NAME, P4_NAME
 )
 try:
     from authentication_files.census_key import census_key
@@ -223,8 +223,8 @@ def pull_census_data(statecode, county, census_year, apikey = census_key, state_
     # pull and save block-level data and block group data
     for geo in (BLOCK_GEO, BLOCK_GROUP_GEO):
 
-        # pull P3 and P4 census tables
-        for pnum in ('P3', 'P4'):
+        # pull P3_NAME and P4_NAME census tables
+        for pnum in (P3_NAME, P4_NAME):
             print(f"Now pulling {pnum} data for {geo} geography")
             # pull data
             data, metadata = pull_ptable_data(geo, pnum, fipscode, countycode, census_year, apikey)

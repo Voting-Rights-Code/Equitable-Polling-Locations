@@ -26,6 +26,9 @@ from python.utils import (
     get_block_group_block_source_file_path,
     timer,
 )
+from python.utils.directory_constants import (
+BLOCK_GEO, P3_NAME, P4_NAME
+)
 
 from python.utils.pull_census_data import pull_census_data
 from .model_config import PollingModelConfig
@@ -213,8 +216,8 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
 
     demographics_dir = build_decennial_dir_path(location, BLOCK_GEO)
     CVAP_source_file = build_CVAP_source_file_path(census_year, 'census_data_type', location)
-    p3_source_file = build_decennial_file_paths(census_year, BLOCK_GEO, 'p3', False)
-    p4_source_file = build_decennial_file_paths(census_year, BLOCK_GEO, 'p4', False)
+    p3_source_file = build_decennial_file_paths(census_year, BLOCK_GEO, 'P3_NAME', False)
+    p4_source_file = build_decennial_file_paths(census_year, BLOCK_GEO, 'P4_NAME', False)
 
     if not os.path.exists(demographics_dir):
         statecode = location[-2:]
@@ -228,7 +231,7 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
         )
     else:
         # pylint: disable-next=line-too-long
-        raise ValueError(f'Census data from table P3 not found. Download using api or manually following download instruction from README. {p3_source_file}')
+        raise ValueError(f'Census data from table {P3_NAME} not found. Download using api or manually following download instruction from README. {p3_source_file}')
 
     if os.path.exists(p4_source_file):
         p4_df = pd.read_csv(p4_source_file,
@@ -267,7 +270,7 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
     # Consistency check for the data pull
     demographics[TIGER20_POP_DIFF] = demographics[CEN20_P4_TOTAL_POPULATION] - demographics[CEN20_P3_TOTAL_POPULATION]
     if demographics.loc[demographics[TIGER20_POP_DIFF] != 0].shape[0] != 0:
-        raise ValueError('Populations different in P3 and P4. Are both pulled from the voting age universe?')
+        raise ValueError(f'Populations different in {P3_NAME} and {P4_NAME}. Are both pulled from the voting age universe?')
 
     # Change column names
     demographics.drop([CEN20_P4_TOTAL_POPULATION, TIGER20_POP_DIFF], axis=1, inplace=True)

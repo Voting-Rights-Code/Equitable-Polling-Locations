@@ -26,6 +26,10 @@ BLOCK_GEO = 'block'
 
 BLOCK_GROUP_GEO = 'block group'
 
+P3_NAME = 'P3'
+
+P4_NAME = 'P4'
+
 SETTINGS_YAML = 'settings.yaml'
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
