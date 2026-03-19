@@ -203,6 +203,35 @@ def e2e_test_data(e2e_session_id):
     _apply_log_transform(_SRC_DISTANCES, distances_log_path)
     _apply_log_transform(_SRC_DRIVING_DISTANCES, driving_distances_log_path)
 
+    # --- DB-import-ready distance CSVs (stripped of 'county' column) ----------
+    # The db_import_distance_data_cli import function ignores 'id' and 'V1'
+    # but 'county' is not in the DistanceData model and would cause a schema
+    # mismatch.  Create import-ready copies with 'county' removed.
+    distance_data_import_cols = [
+        'id_orig', 'id_dest', 'distance_m', 'address', 'dest_lat', 'dest_lon',
+        'orig_lat', 'orig_lon', 'location_type', 'dest_type', 'population',
+        'hispanic', 'non_hispanic', 'white', 'black', 'native', 'asian',
+        'pacific_islander', 'other', 'multiple_races', 'source',
+    ]
+
+    distances_import_path = os.path.join(polling_subdir, f'{sid}_distances_2020_import.csv')
+    distances_log_import_path = os.path.join(polling_subdir, f'{sid}_distances_2020_log_import.csv')
+    driving_distances_import_dd_path = os.path.join(
+        polling_subdir, f'{sid}_driving_distances_2020_import.csv',
+    )
+    driving_distances_log_import_dd_path = os.path.join(
+        polling_subdir, f'{sid}_driving_distances_2020_log_import.csv',
+    )
+
+    for src, dest in [
+        (distances_path, distances_import_path),
+        (distances_log_path, distances_log_import_path),
+        (driving_distances_path, driving_distances_import_dd_path),
+        (driving_distances_log_path, driving_distances_log_import_dd_path),
+    ]:
+        df = pd.read_csv(src)
+        df[[c for c in distance_data_import_cols if c in df.columns]].to_csv(dest, index=False)
+
     # --- Config YAMLs --------------------------------------------------------
 
     with open(_SRC_BASE_CONFIG, 'r', encoding='utf-8') as fh:
@@ -244,11 +273,15 @@ def e2e_test_data(e2e_session_id):
         'driving_distances': driving_distances_path,
         'driving_distances_log': driving_distances_log_path,
         'driving_distances_import': driving_distances_import_path,
+        'distances_import': distances_import_path,
+        'distances_log_import': distances_log_import_path,
+        'driving_distances_import_dd': driving_distances_import_dd_path,
+        'driving_distances_log_import_dd': driving_distances_log_import_dd_path,
         'configs': config_paths,
         'autogen_template': autogen_template_path,
     }
 
-    # Teardown — remove the three directories unconditionally.
+    # Teardown — remove the directories unconditionally.
     for dirpath in (polling_subdir, driving_subdir, config_subdir):
         if os.path.isdir(dirpath):
             shutil.rmtree(dirpath)
@@ -463,6 +496,12 @@ def imported_distance_data_all(
 ):
     """Import all four distance-data permutations for the e2e session into the DB.
 
+    Rather than calling ``db_import_distance_data_cli`` (which rebuilds distance
+    data from Census Tiger shapefiles — a cross-join producing ~500 MB for a
+    full county), this fixture directly imports the pre-computed test CSV data.
+    It creates the ``DistanceDataSet`` records and uses the CLI's
+    ``import_distance_data`` function to load the CSV rows.
+
     The four permutations are:
 
     - linear haversine (no flags)
@@ -480,17 +519,56 @@ def imported_distance_data_all(
     Returns:
         None
     """
+    # Import lazily to avoid pulling in DB/CLI dependencies at collection time.
+    from python.database.query import Query  # pylint: disable=import-outside-toplevel
+    from python.scripts.db_import_distance_data_cli import import_distance_data  # pylint: disable=import-outside-toplevel
+
     sid = e2e_test_data['sid']
     census_year = '2020'
 
-    # linear haversine
-    run_cli('python.scripts.db_import_distance_data_cli', census_year, sid, '-t', 'linear', '-e', 'test')
-    # log haversine
-    run_cli('python.scripts.db_import_distance_data_cli', census_year, sid, '-t', 'log', '-e', 'test')
-    # linear driving
-    run_cli('python.scripts.db_import_distance_data_cli', census_year, sid, '-t', 'linear', '-d', '-e', 'test')
-    # log driving
-    run_cli('python.scripts.db_import_distance_data_cli', census_year, sid, '-t', 'log', '-d', '-e', 'test')
+    query = Query(test_environment)
+
+    # Look up the set IDs created by earlier import fixtures.
+    # Capture scalar IDs immediately — commit() will expire ORM objects.
+    pl_set = query.get_potential_locations_set(sid)
+    assert pl_set is not None, f"PotentialLocationsSet not found for '{sid}'"
+    pl_set_id = pl_set.id
+
+    driving_set = query.find_driving_distance_set(census_year, '20250101', sid)
+    driving_set_id = driving_set.id if driving_set else None
+
+    permutations = [
+        # (log_distance, driving, csv_key)
+        (False, False, 'distances_import'),
+        (True, False, 'distances_log_import'),
+        (False, True, 'driving_distances_import_dd'),
+        (True, True, 'driving_distances_log_import_dd'),
+    ]
+
+    for log_distance, driving, csv_key in permutations:
+        ds = query.create_db_distance_data_set(
+            potential_locations_set_id=pl_set_id,
+            census_year=census_year,
+            location=sid,
+            log_distance=log_distance,
+            driving=driving,
+            driving_distance_set_id=driving_set_id if driving else None,
+        )
+        # Capture the id before commit() expires the ORM object.
+        ds_id = ds.id
+        query.commit()
+
+        csv_path = e2e_test_data[csv_key]
+        result = import_distance_data(
+            environment=test_environment,
+            location=sid,
+            distance_data_set_id=ds_id,
+            csv_path=csv_path,
+        )
+        assert result.success, (
+            f"Distance data import failed for log_distance={log_distance}, "
+            f"driving={driving}: {result.exception}"
+        )
 
 
 @pytest.fixture(scope='session')

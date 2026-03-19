@@ -127,10 +127,9 @@ def main(args: argparse.Namespace):
     verbose = args.verbose > 0
 
     outtype = args.outtype
-    if outtype == OUT_TYPE_DB:
-        environment = load_env(args.environment)
-    else:
-        environment = None
+    # Always load the environment — configs are fetched from the DB regardless
+    # of output type, so Query() always needs a valid environment.
+    environment = load_env(args.environment)
 
     os.makedirs(logdir, exist_ok=True)
 
