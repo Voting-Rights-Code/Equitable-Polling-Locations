@@ -25,6 +25,24 @@ def get_scripts() -> list[str]:
     return sorted([f.stem for f in scripts_dir.glob("*.py")])
 
 def main():
+    # Special command: e2e_tests bypasses script discovery and runs pytest
+    if len(sys.argv) > 1 and sys.argv[1] == 'e2e_tests':
+        env = os.environ.copy()
+        env["GCP_CREDS_PATH"] = get_gcp_creds_path()
+        extra_args = sys.argv[2:]
+        cmd = [
+            "docker", "compose", "run", "--rm", "app",
+            "pytest", "python/tests/e2e/"
+        ] + extra_args
+        try:
+            subprocess.run(cmd, env=env, check=True)
+        except subprocess.CalledProcessError as e:
+            sys.exit(e.returncode)
+        except KeyboardInterrupt:
+            print("\n[Terminated by User]")
+            sys.exit(130)
+        return
+
     available_scripts = get_scripts()
 
     script_list = "\n  ".join(available_scripts)
