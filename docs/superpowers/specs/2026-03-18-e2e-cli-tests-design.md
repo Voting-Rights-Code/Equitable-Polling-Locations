@@ -72,15 +72,17 @@ Therefore, the `e2e_test_data` fixture must place test data at these **conventio
 
 ### Templating Process (session-scoped `e2e_test_data` fixture)
 
-1. Create data directories at conventional paths:
+1. Create data directories at conventional paths. File names must match what `build_distance_file_path()` and `build_potential_locations_file_path()` in `python/utils/utils.py` produce:
    ```
    datasets/
      polling/{session_id}/
        {session_id}_potential_locations.csv
-       {session_id}_distances_2020.csv
-       {session_id}_driving_2020.csv
+       {session_id}_distances_2020.csv              # haversine distances
+       {session_id}_distances_2020_log.csv           # log-transformed haversine
+       {session_id}_driving_distances_2020.csv       # driving distances
+       {session_id}_driving_distances_2020_log.csv   # log-transformed driving
      driving/{session_id}/
-       {session_id}_driving_distances.csv
+       {session_id}_driving_distances.csv            # for db_import_driving_distances_cli
      configs/{session_id}/
        {session_id}_config_basic.yaml
        {session_id}_config_driving.yaml
@@ -90,11 +92,24 @@ Therefore, the `e2e_test_data` fixture must place test data at these **conventio
        {session_id}_config_low_beta.yaml
        {session_id}_config_capacity.yaml
        {session_id}_config_constrained.yaml
-     configs/{session_id}/
        {session_id}_autogen_template.yaml_template
    ```
 
-2. CSVs are copied from `datasets/polling/testing/` and `datasets/driving/testing/`, renaming files to match the session ID (e.g., `testing_potential_locations.csv` → `{session_id}_potential_locations.csv`).
+   **File naming conventions** (from `python/utils/utils.py`):
+   - `build_potential_locations_file_path(location)` → `{location}_potential_locations.csv`
+   - `build_distance_file_path(census_year, location, driving=False, log_distance=False)` → `{location}_distances_{census_year}.csv`
+   - `build_distance_file_path(census_year, location, driving=True, log_distance=False)` → `{location}_driving_distances_{census_year}.csv`
+   - `build_distance_file_path(census_year, location, driving=False, log_distance=True)` → `{location}_distances_{census_year}_log.csv`
+   - `build_distance_file_path(census_year, location, driving=True, log_distance=True)` → `{location}_driving_distances_{census_year}_log.csv`
+   - `build_driving_distances_file_path(census_year, map_source_date, location)` → `{location}_driving_distances.csv` (in `datasets/driving/`)
+
+2. CSVs are copied from `datasets/polling/testing/` source files, renaming to match the session ID. The log-transformed variants (`_log.csv`) are generated from the base distance files by applying `log(distance_m)` to the `distance_m` column and updating the `source` column accordingly. Source file mapping:
+   - `testing_potential_locations.csv` → `{session_id}_potential_locations.csv`
+   - `testing_distances_2020.csv` → `{session_id}_distances_2020.csv`
+   - `testing_distances_2020.csv` → `{session_id}_distances_2020_log.csv` (with log transform)
+   - `testing_driving_2020.csv` → `{session_id}_driving_distances_2020.csv`
+   - `testing_driving_2020.csv` → `{session_id}_driving_distances_2020_log.csv` (with log transform)
+   - `testing_driving_2020.csv` → `{session_id}_driving_distances.csv` (in `datasets/driving/{session_id}/`)
 
 3. YAML configs are generated from existing `datasets/configs/testing/*.yaml` files (using `testing_config_no_bg.yaml` as the base template) with substitutions:
    - `config_set` → `{session_id}`
