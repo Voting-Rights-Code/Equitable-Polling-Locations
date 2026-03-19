@@ -191,7 +191,14 @@ def e2e_test_data(e2e_session_id):
     shutil.copy(_SRC_POTENTIAL_LOCATIONS, potential_locations_path)
     shutil.copy(_SRC_DISTANCES, distances_path)
     shutil.copy(_SRC_DRIVING_DISTANCES, driving_distances_path)
-    shutil.copy(_SRC_DRIVING_DISTANCES, driving_distances_import_path)
+    # The db_import_driving_distances_cli only expects columns matching the
+    # DrivingDistance model (id_orig, id_dest, distance_m) plus V1 (ignored).
+    # The source CSV has extra columns (county, demographics, etc.) that would
+    # cause a BigQuery schema mismatch, so strip to the required columns.
+    _driving_df = pd.read_csv(_SRC_DRIVING_DISTANCES)
+    _driving_df[['id_orig', 'id_dest', 'distance_m']].to_csv(
+        driving_distances_import_path, index=False,
+    )
 
     _apply_log_transform(_SRC_DISTANCES, distances_log_path)
     _apply_log_transform(_SRC_DRIVING_DISTANCES, driving_distances_log_path)
