@@ -213,7 +213,9 @@ def e2e_test_data(e2e_session_id):
 
     autogen_template = dict(base_config)
     autogen_template['config_set'] = sid
+    autogen_template['config_name'] = f'{sid}_autogen'
     autogen_template['location'] = sid
+    autogen_template['census_year'] = '2020'
     autogen_template['field_to_vary'] = 'year'
     autogen_template['new_range'] = [['2020'], ['2022']]
     autogen_template['driving'] = False
