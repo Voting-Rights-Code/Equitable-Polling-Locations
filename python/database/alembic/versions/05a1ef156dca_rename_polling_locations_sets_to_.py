@@ -24,8 +24,8 @@ def upgrade() -> None:
     # Note: RENAME COLUMN has to happen first, doing the other way around
     # causes the column rename to fail sliently
     op.execute(
-        f'ALTER TABLE `{db_dataset}.polling_locations_sets`'
-        f'RENAME COLUMN `polling_locations_only_set_id` TO `potential_locations_set_id`'
+        f'ALTER TABLE `{db_dataset}.polling_locations_sets` '
+        f'RENAME COLUMN `locations_only_set_id` TO `potential_locations_set_id`'
     )
 
     op.execute(
@@ -41,7 +41,7 @@ def downgrade() -> None:
     # causes the column rename to fail sliently
     op.execute(
         f'ALTER TABLE `{db_dataset}.distance_data_sets` '
-        f'RENAME COLUMN `potential_locations_set_id` TO `polling_locations_only_set_id`'
+        f'RENAME COLUMN `potential_locations_set_id` TO `locations_only_set_id`'
     )
 
     op.execute(
