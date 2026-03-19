@@ -48,21 +48,39 @@ python/tests/e2e/
 - DB tests: skip if no `test` entry in `settings.yaml` with message `"No 'test' environment in settings.yaml — skipping DB tests"`
 - CSV tests: always run, no external dependencies
 
+## Excluded Scripts
+
+The following scripts are intentionally excluded from this test suite:
+- `address_validator.py` — requires a Google Maps API key and results depend on external API state. May be added later.
+- `db_import_cli.py` — legacy import script for pre-DB CSV results. Low priority for e2e testing.
+
 ## Session Data Templating
 
 ### Session Isolation
 
 Each test session generates a unique ID: `e2e_{uuid4_hex[:6]}` (e.g., `e2e_a3f7b2`). This ID becomes the `location`, `config_set`, and prefix for all config names. This ensures concurrent test runs against the same BigQuery dataset do not collide.
 
+### File Path Convention
+
+Several DB import scripts (`db_import_potential_locations_cli`, `db_import_driving_distances_cli`) construct file paths from the location name using helper functions in `python/utils/utils.py`:
+- `build_potential_locations_file_path(location)` → `datasets/polling/{location}/{location}_potential_locations.csv`
+- `build_driving_distances_file_path(census_year, map_source_date, location)` → `datasets/driving/{location}/{location}_driving_distances.csv`
+
+Similarly, `model_run_cli` builds distance data paths from the `location` field in the config.
+
+Therefore, the `e2e_test_data` fixture must place test data at these **conventional paths** within the project's `datasets/` directory (not in an arbitrary temp directory). The fixture creates session-named subdirectories under `datasets/polling/` and `datasets/driving/` and cleans them up after the session.
+
 ### Templating Process (session-scoped `e2e_test_data` fixture)
 
-1. Create a temp directory structure:
+1. Create data directories at conventional paths:
    ```
-   {tmpdir}/
+   datasets/
      polling/{session_id}/
        {session_id}_potential_locations.csv
        {session_id}_distances_2020.csv
        {session_id}_driving_2020.csv
+     driving/{session_id}/
+       {session_id}_driving_distances.csv
      configs/{session_id}/
        {session_id}_config_basic.yaml
        {session_id}_config_driving.yaml
@@ -72,19 +90,43 @@ Each test session generates a unique ID: `e2e_{uuid4_hex[:6]}` (e.g., `e2e_a3f7b
        {session_id}_config_low_beta.yaml
        {session_id}_config_capacity.yaml
        {session_id}_config_constrained.yaml
-     configs/template_configs/
-       {session_id}_template.yaml_template
+     configs/{session_id}/
+       {session_id}_autogen_template.yaml_template
    ```
 
-2. CSVs are copied from `datasets/polling/testing/` and `datasets/driving/testing/` — no content changes needed since location is set in the config, not in the CSV data.
+2. CSVs are copied from `datasets/polling/testing/` and `datasets/driving/testing/`, renaming files to match the session ID (e.g., `testing_potential_locations.csv` → `{session_id}_potential_locations.csv`).
 
-3. YAML configs are generated from existing `datasets/configs/testing/*.yaml` files with substitutions:
+3. YAML configs are generated from existing `datasets/configs/testing/*.yaml` files (using `testing_config_no_bg.yaml` as the base template) with substitutions:
    - `config_set` → `{session_id}`
    - `config_name` → `{session_id}_{variant}`
    - `location` → `{session_id}`
    - Option-specific fields adjusted per variant.
 
-4. Template config generated similarly for `auto_generate_config` tests.
+4. Template config for `auto_generate_config` tests: generated as a `.yaml_template` file with `field_to_vary` and `new_range` fields added, placed under `configs/{session_id}/`.
+
+5. **Cleanup:** a session-scoped finalizer removes the `datasets/polling/{session_id}/`, `datasets/driving/{session_id}/`, and `datasets/configs/{session_id}/` directories after the test session completes.
+
+### Required Config Fields
+
+All generated YAML configs include these fields (values from the base `testing_config_no_bg.yaml` unless overridden by the variant):
+
+```yaml
+config_set: {session_id}
+config_name: {session_id}_{variant}
+location: {session_id}
+census_year: 2020
+year: ['2020', '2022']
+bad_types: ['bg_centroid']
+beta: -2
+time_limit: 360000
+limits_gap: 0.0
+capacity: 5
+fixed_capacity_site_number: null
+precincts_open: 3
+max_min_mult: 5
+maxpctnew: 1
+minpctold: 0.5
+```
 
 ### Config Variants
 
@@ -127,7 +169,16 @@ test_environment  (loads & validates 'test' env from settings.yaml)
 
 - `clean_test_data` fixture runs at session start, before any imports
 - Deletes all rows where `config_set` or `location` matches `e2e_%` pattern
-- Covers all tables: model_configs, model_runs (cascades to results/edes/precinct_distances/residence_distances), potential_locations_sets (cascades to potential_locations), driving_distance_sets (cascades to driving_distances), distance_data_sets (cascades to distance_data)
+- **No cascade deletes exist in the database models**, so deletions must be performed explicitly in dependency order (children before parents):
+  1. `results`, `edes`, `precinct_distances`, `residence_distances` (by `model_run_id` from matching model_runs)
+  2. `model_runs` (by `model_config_id` from matching model_configs)
+  3. `model_configs` (where `config_set` LIKE `e2e_%`)
+  4. `distance_data` (by `distance_data_set_id` from matching distance_data_sets)
+  5. `distance_data_sets` (where `location` LIKE `e2e_%`)
+  6. `driving_distances` (by `driving_distance_set_id` from matching driving_distance_sets)
+  7. `driving_distance_sets` (where `location` LIKE `e2e_%`)
+  8. `potential_locations` (by `potential_locations_set_id` from matching sets)
+  9. `potential_locations_sets` (where `location` LIKE `e2e_%`)
 - Garbage collects all `e2e_*` data from any session, not just current — handles stale data from crashed runs
 
 ### Distance Data Import Permutations
@@ -146,12 +197,24 @@ All tests call scripts via `subprocess.run(["python", "-m", "python.scripts.<scr
 - Output capture included in pytest failure messages
 - Logging of all invocations for post-mortem debugging
 
+**Important:** `model_run_cli` and `model_run_db_cli` use **positional** `configs` arguments (not a `-l` flag). Example invocations:
+```
+python -m python.scripts.model_run_cli path/to/config.yaml
+python -m python.scripts.model_run_db_cli config_set/config_name -e test
+```
+
+**`db_import_distance_data_cli` arguments:**
+```
+python -m python.scripts.db_import_distance_data_cli <census_year> <locations...> -e <env> [-t linear|log] [-d]
+```
+The `-d` flag is a boolean (`action='store_true'`) — it is either present or absent, with no value argument.
+
 ## CLI Option Coverage
 
 ### test_model_run_cli.py
 
-- Basic run with single config
-- Multiple configs in one invocation
+- Basic run with single config (positional arg)
+- Multiple configs in one invocation (multiple positional args)
 - Concurrent runs (`-c 2`)
 - Verbose logging (`-vv`)
 - Custom log directory (`-L`)
@@ -161,37 +224,43 @@ All tests call scripts via `subprocess.run(["python", "-m", "python.scripts.<scr
 
 - Output to CSV (`-o csv`)
 - Output to DB (`-o db`)
-- Config as `config_set` (all configs in set)
-- Config as `config_set/config_name` (single config)
+- Config as `config_set` (all configs in set, positional arg)
+- Config as `config_set/config_name` (single config, positional arg)
 - Verbose and concurrent options
 
 ### test_db_import_potential_locations.py
 
-- Import test locations file
+- Import test locations (positional `locations` arg)
 - Verify DB records match CSV
 
 ### test_db_import_driving_distances.py
 
-- Import driving distances
+- Import driving distances (positional `census_year` and `locations` args)
 - Verify record count and values
 
 ### test_db_import_distance_data.py
 
-- All permutations: linear without driving, log without driving, linear with driving, log with driving
+- All permutations of `-t` and `-d` flags:
+  - `-t linear` without `-d` (haversine linear)
+  - `-t log` without `-d` (haversine log)
+  - `-t linear -d` (driving linear)
+  - `-t log -d` (driving log)
+- Positional args: `census_year` and `locations`
 - Verify record counts, distance types, demographic columns per permutation
 
 ### test_db_import_config.py
 
-- Import single config YAML
+- Import single config YAML (positional `configs` arg)
 - Import multiple config YAMLs
 - Verify DB fields match YAML source
 
 ### test_auto_generate_config.py
 
-- Generate configs from template (varying a parameter)
+- Generate configs from template (`-b` flag for base config path)
 - Verify correct number of output YAMLs (cartesian product)
 - Verify generated config values match expected
 - With `-d` flag: configs appear in DB (if test environment available)
+- Note: `auto_generate_config` validates that the config file's parent directory matches the `config_set` field and the file name matches `config_name` — the templating process ensures this
 
 ## Assertion Strategy
 
@@ -205,7 +274,7 @@ All tests call scripts via `subprocess.run(["python", "-m", "python.scripts.<scr
 ### Value-Level (model runs)
 
 - **Result outputs:** correct columns, all residences assigned, no duplicate assignments
-- **EDE outputs:** all demographic groups present, positive floats for y_ede and avg_distance
+- **EDE outputs:** all demographic groups present, positive floats for `y_ede` and `avg_dist`
 - **Precinct distances:** count matches `precincts_open`
 - **Residence distances:** count matches unique `id_orig` in source data
 - **Constraint verification:**
@@ -264,9 +333,12 @@ pytest python/tests/e2e/test_db_import_distance_data.py
 
 ### run.py Changes
 
-- `e2e_tests` added as a special command
-- Translates to `docker compose run --rm app pytest python/tests/e2e/ [extra args]`
-- Passes through additional arguments (`-m`, `-k`, `-v`, file paths, etc.)
+`run.py` currently only dispatches to scripts discovered in `python/scripts/`. It needs modification to support `e2e_tests` as a special command:
+
+- Before argparse validation against `get_scripts()`, check if the first argument is `e2e_tests`
+- If so, build the Docker command as: `docker compose run --rm app pytest python/tests/e2e/ [remaining args]`
+- Pass through additional arguments (`-m`, `-k`, `-v`, file paths, etc.)
+- This avoids adding a dummy script file to `python/scripts/`
 
 ## Output & Debugging
 
