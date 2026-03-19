@@ -102,7 +102,7 @@ def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
     logdir = args.logdir
-    verbose = args.verbose > 1
+    verbose = args.verbose > 0
 
     os.makedirs(logdir, exist_ok=True)
     if verbose:
@@ -213,7 +213,7 @@ Examples:
        '''
     )
     parser.add_argument('-e', '--environment', type=str, help='The environment to use')
-    parser.add_argument('-l', '--log', action='store_true', help='Enable logging to file.')
+    parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
     parser.add_argument(
         '-L',
         '--logdir',

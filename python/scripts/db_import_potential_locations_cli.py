@@ -144,6 +144,7 @@ Examples:
         '''
     )
     parser.add_argument('-e', '--environment', type=str, help='The environment to use')
+    parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
     parser.add_argument(
         '-L',
         '--logdir',
