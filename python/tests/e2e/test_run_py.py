@@ -15,7 +15,7 @@ class TestRunPyE2eCommand:
         """run.py e2e_tests --help should not produce an argparse error."""
         result = subprocess.run(
             [sys.executable, 'run.py', 'e2e_tests', '--help'],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True, timeout=10, check=False,
         )
         # It will fail because Docker isn't running pytest with --help,
         # but it should NOT fail with "invalid choice: 'e2e_tests'"

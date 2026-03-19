@@ -269,7 +269,16 @@ def test_environment():
     if 'test' not in all_configs:
         pytest.skip("No 'test' environment in settings.yaml; DB tests skipped.")
 
-    yield load_env('test')
+    env = load_env('test')
+
+    # Verify we can actually connect (e.g. GCP credentials are available)
+    try:
+        from python.database import sqlalchemy_main  # pylint: disable=import-outside-toplevel
+        sqlalchemy_main.setup(env)
+    except Exception as exc:  # pylint: disable=broad-except
+        pytest.skip(f'Cannot connect to test database ({exc.__class__.__name__}); DB tests skipped.')
+
+    yield env
 
 
 @pytest.fixture(scope='session')
