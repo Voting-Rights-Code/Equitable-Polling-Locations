@@ -85,52 +85,105 @@ def build_model_column_types(model_class: sqlalchemy_main.ModelBaseType) -> Dict
 
 
 def load_model_csv(
-    model_class: sqlalchemy_main.ModelBaseType,
+    model_class: 'sqlalchemy_main.ModelBaseType',
     column_renames: Dict[str, str],
     csv_path: str,
 ) -> pd.DataFrame:
     '''
-    Loads a csv file into a pandas dataframe and sets the dtypes based on the model class.
-    This is used to set the dtypes for reading in the csv file.
+    Loads a CSV file into a DataFrame and converts column types based on a SQLAlchemy model.
+
+    Reads the CSV without enforcing types so that raw values are available for validation.
+    Each column is then matched to its model counterpart (honoring column_renames) and
+    converted with the appropriate typed converter. Two validations run per column:
+
+    1. Non-nullable numeric columns are checked for nulls before conversion.
+    2. Type conversion errors are caught and re-raised with the exact CSV line number,
+       column name, and failing value to simplify debugging malformed source files.
+
+    Args:
+        model_class: SQLAlchemy model whose column definitions drive type conversion
+            and nullability checks.
+        column_renames: Mapping of model column names to CSV column names. Used here
+            in reverse to resolve a CSV column back to its model column for type lookup.
+            The actual rename is applied later in csv_to_bigquery.
+        csv_path: Path to the CSV file to load.
+
+    Returns:
+        A DataFrame with columns converted to the types defined by model_class.
+
+    Raises:
+        ValueError: If a non-nullable numeric column contains a null, or if a value
+            cannot be converted to its expected type.
     '''
     model_column_types = build_model_column_types(model_class)
+
+    # Reverse the rename map so we can look up the model column for a given CSV column
     reversed_column_renames = {value: key for key, value in column_renames.items()}
 
-    # Read the header of the csv file to get the column names
-    df_header = pd.read_csv(csv_path, nrows=0)
-    csv_header_list = df_header.columns.tolist()
+    inspector = inspect(model_class)
+    nullable_columns = {col.name for col in inspector.columns if col.nullable}
 
-    # print('load_model_csv', csv_path)
-
-    converters = {}
-
-    for csv_column in csv_header_list:
-        model_column = reversed_column_renames.get(csv_column) or csv_column
-
-        column_type = model_column_types.get(model_column)
-
-        if column_type is not None:
-            # print(f'  Column {csv_column} is of type {column_type}')
-            # Prevent pandas from converting empty strings to NaN
-            if column_type == np.float64:
-                converters[csv_column] = utils.csv_float_converter
-            elif column_type == np.int32:
-                converters[csv_column] = utils.csv_int_converter
-            else:
-                converters[csv_column] = utils.csv_str_converter
-
-
+    # Load without enforcing types so we can validate raw values before conversion
     df = pd.read_csv(
         csv_path,
         low_memory=False,
         na_filter=True,
         keep_default_na=True,
-        converters=converters,
     )
 
-    # print(df.head())
+    for csv_column in df.columns:
+        model_column = reversed_column_renames.get(csv_column) or csv_column
+        column_type = model_column_types.get(model_column)
+
+        if column_type is not None:
+            if column_type == np.float64:
+                converter = utils.csv_float_converter
+                expected_type = 'float64'
+            elif column_type == np.int32:
+                converter = utils.csv_int_converter
+                expected_type = 'int32'
+            else:
+                converter = utils.csv_str_converter
+                expected_type = 'string'
+
+            # Reject nulls in non-nullable numeric columns before attempting conversion
+            if column_type in (np.float64, np.int32):
+                null_mask = df[csv_column].isnull()
+                if null_mask.any() and model_column not in nullable_columns:
+                    first_null_idx = null_mask.idxmax()
+                    # +2 accounts for 0-based index and the CSV header row
+                    line_number = first_null_idx + 2
+
+                    raise ValueError(
+                        f'Unexpected null value in CSV import.\n'
+                        f'Column: \'{csv_column}\'\n'
+                        f'Line: {line_number}\n'
+                        f'Expected Type: {expected_type}'
+                    )
+
+            try:
+                df[csv_column] = df[csv_column].apply(converter)
+
+            # pylint: disable-next=broad-exception-caught
+            except Exception:
+                # Conversion failed; re-iterate to pinpoint the exact failing row
+                for idx, val in df[csv_column].items():
+                    try:
+                        converter(val)
+                    except Exception as inner_e:
+                        line_number = idx + 2
+
+                        raise ValueError(
+                            f'Type mismatch in CSV import.\n'
+                            f'Column: \'{csv_column}\'\n'
+                            f'Line: {line_number}\n'
+                            f'Expected Type: {expected_type}\n'
+                            f'Failed Value: \'{val}\'\n'
+                            f'Original Error: {inner_e}'
+                        ) from None
 
     return df
+
 
 def set_column_types(df: pd.DataFrame, model_class: sqlalchemy) -> pd.DataFrame:
     '''
@@ -186,8 +239,13 @@ def csv_to_bigquery(
     # Build a dictionary of column renames to reverse the column renames
     # This is used to set types for csv reading
 
+
     try:
         table_name = model_class.__tablename__
+
+        if log:
+            print('--')
+            print(f'Importing into table `{table_name}` from {csv_path}')
 
         # IF a dataframe is not already provided, load from the csv_path param
         if df is None:
@@ -218,8 +276,6 @@ def csv_to_bigquery(
         mask = ~df.columns.astype(str).str.startswith('Unnamed', na=False)
         df = df.loc[:, mask]
 
-        if log:
-            print(f'--\nImporting into table `{table_name}` from {csv_path}')
 
         # Throw an error if there are any values in the df that do not meet expected types
         validate_csv_columns(model_class, df)
@@ -238,6 +294,8 @@ def csv_to_bigquery(
         )
     # pylint: disable-next=broad-exception-caught
     except Exception as e:
+        print(f'Error importing {csv_path} into table {table_name} for config {config_set} - {config_name}')
+        print(f'Exception: {e}')
         result = ImportResult(
             config_set=config_set,
             config_name=config_name,

@@ -81,24 +81,24 @@ def is_boolean(value):
     return isinstance(value, bool)
 
 
-def build_results_file_path(result_path: str, config_name: str) -> str:
+def build_results_file_path(result_path: str,  result_prefix: str) -> str:
     ''' Builds the path for the optimization results csv file. '''
-    return os.path.join(result_path, f'{config_name}_results.csv')
+    return os.path.join(result_path, f'{result_prefix}_results.csv')
 
 
-def build_precinct_summary_file_path(result_path: str, config_name: str) -> str:
+def build_precinct_summary_file_path(result_path: str,  result_prefix: str) -> str:
     ''' Builds the path for precinct distances csv file. '''
-    return os.path.join(result_path, f'{config_name}_precinct_distances.csv')
+    return os.path.join(result_path, f'{result_prefix}_precinct_distances.csv')
 
 
-def build_residence_summary_file_path(result_path: str, config_name: str) -> str:
+def build_residence_summary_file_path(result_path: str, result_prefix: str) -> str:
     ''' Builds the path for the residence distances csv file. '''
-    return os.path.join(result_path, f'{config_name}_residence_distances.csv')
+    return os.path.join(result_path, f'{result_prefix}_residence_distances.csv')
 
 
-def build_y_ede_summary_file_path(result_path: str, config_name: str) -> str:
+def build_y_ede_summary_file_path(result_path: str, result_prefix: str) -> str:
     ''' Builds the path for the y ede summary csv file. '''
-    return os.path.join(result_path, f'{config_name}_edes.csv')
+    return os.path.join(result_path, f'{result_prefix}_edes.csv')
 
 
 def build_distance_file_path(
