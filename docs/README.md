@@ -52,9 +52,10 @@ An innovative software tool aimed at selecting an optimal set of polling sites t
 
 * **Optimization Choices and Constraints**  
    Users can set optimization goals to minimize either the average distance or the KP-penalized score. Constraints can be added, such as:
-   - Maximum polling locations
+   - Total number of polling locations
    - Number of new polling locations
-   - Match each census block to one polling location or open precinct. 
+   - Driving or straight line distances
+   - Linear or log model (for more or less evenly distributed populations)
    - User defined overcrowding limits, allowing configuration to fit community needs
 
 * **Outputs**  
@@ -71,17 +72,17 @@ For detailed guides and technical information on the **Equitable Polling Locatio
 
 1. [Installation](to_install.md)  
 
+1. [Input Files](input_files.md)
+
 1. [Running the Program](to_run.md)
 
-1. [Database option for output storage](database.md)
-
-1. [Input Files](input_files.md)  
+1. [Intermediate Datasets](intermediate_datasets.md) 
 
 1. [Output Dataset](output_datasets.md) 
 
-1. [Intermediate Dataset](intermediate_dataset.md) 
-
 1. [Data analytics](result_analysis.md) 
+
+1. [Database option for output storage](database.md)  
 
 1. [Program Logging](logging.md) 
 
