@@ -35,6 +35,7 @@ Then run the model. There are two command line options, one to write data locall
 * To write files locally while using `model_run_db_cli`, use the flag `-o csv`
 * For extra logging include the flag `-vv`
 
+
 ### Examples
 
 Default execution:\
