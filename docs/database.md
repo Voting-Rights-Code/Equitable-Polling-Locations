@@ -159,10 +159,10 @@ All data written to the equitable_polling_locations_prod is intended to be immut
 | potential_locations        | Table | The [location]_potential_locations input data consisting of historic and potential polling locations. See [input files](input_files.md) for more details.   |
 | potential_locations_sets   | Table | The metadata for potential_locations data, containing a created at timestamp and the location.                               |
 | driving_distances          | Table | The driving distances data (used to generate the distance_data table). This is optional and only used when driving is set to true in a config file. See [input files](input_files.md) for more details. |
-| driving_distance_sets      | Table | The metadata for driving distances table, containing a created at timestamp, location, census year and map date.              |
-| latest_driving_distance_sets| View | Associates the most recent driving_distances table with the census_year and map_date. |
+| driving_distance_sets      | Table | The metadata for driving distances table, containing a created at timestamp, location, census year and map source date.              |
+| latest_driving_distance_sets| View | A view that returns the most recently imported driving_distance_sets entry for each location (partitioned by location, ordered by created_at). |
 | distance_data              | Table | The intermediate distances to polling locations data. See [intermediate datasets](intermediate_datasets.md) for more details. |
-| distance_data_sets         | Table | The metadata for distance_data table. This metadata includes the location, the potential_locations id, the driving distances id and whether the distance_data has driving or haversine distance, and if it is linear or log. |
+| distance_data_sets         | Table | The metadata for distance_data table. This metadata includes the location, census year, created at timestamp, the potential_locations_set id, the driving_distance_set id (if applicable), and whether the distance_data uses driving or haversine distance and linear or log scale. |
 | alembic_version            | Table | Stores the revision ID of the most recently applied database migration, which allows Alembic to know the current schema version and determine which migrations need to be run or reverted. For more information see the [Alembic project](https://alembic.sqlalchemy.org/en/latest/).|
 
 ## Relationships between tables
@@ -181,13 +181,12 @@ All data written to the equitable_polling_locations_prod is intended to be immut
     *  residence_distances
   * Each of the output data records belongs to exactly one model run
 
-### potential_locations, driving_distances and distance_data
+### potential_locations_sets, driving_distance_sets and distance_data_sets
 * One-to-Many Relationships:
-  *  A single potential_locations id can have many associated distance_data ids based on the combination of driving and log/linear distance values indicated by the `source` column.
-  *  A single driving_distances id can have many associated distance_data ids based on the log/linear distance values indicated by the `source` column.
-  *  A single potential_locations id can have at most one associated driving_distances id.
-* Each of the distance_data ids belongs to exactly one potential_locations id and at most one driving_distances id
-* Each driving_distances id belongs to exactly one potential_locations id
+  *  A single potential_locations_sets record can have many associated distance_data_sets records (one for each combination of driving/haversine and linear/log).
+  *  A single driving_distance_sets record can have many associated distance_data_sets records (one for each log/linear variant).
+* Each distance_data_sets record belongs to exactly one potential_locations_sets record and at most one driving_distance_sets record (null when using haversine distances).
+* The relationship between potential_locations_sets and driving_distance_sets is indirect — they are connected through distance_data_sets.
 
 ### Example Queries
 
