@@ -1,30 +1,31 @@
-#######################################
-#Created on 6 December 2023
-#
-#@author: Voting Rights Code
-#######################################
 '''
-This file sets up a pyomo/scip run based on a config file, e.g.
-Gwinnett_County_GA_configs/Gwinnett_config_full_11.py
+This file sets up a pyomo/scip run based on a config instance
 '''
 
 import os
 import warnings
+import functools
 
+import pandas as pd
 
-from python.utils import build_locations_distance_file_path
-from python.utils.constants import LOCATION_SOURCE_CSV, RESULTS_BASE_DIR
+from .model_solver import solve_model
+
+from python.database.query import Query
+from python.utils import build_distance_file_path
+from python.utils.directory_constants import RESULTS_BASE_DIR
+
+from .constants import DISTANCE_ID_DEST, DISTANCE_ID_ORIG, DATA_SOURCE_CSV
 
 from .run_setup import RunSetup
 
 from .model_config import PollingModelConfig
 from .model_data import (
-    build_source,
-    clean_data,
     alpha_min,
-    get_polling_locations,
+    build_distance_data,
+    filter_distance_data,
+    get_distance_data,
 )
-from .model_factory import polling_model_factory
+from .model_factory import PollingModel, polling_model_factory
 from .model_penalties import PenalizeModel
 from .model_results import (
     incorporate_result,
@@ -33,136 +34,206 @@ from .model_results import (
     write_results_csv,
     write_results_bigquery,
 )
-from .model_solver import solve_model
 
 OUT_TYPE_DB = 'db'
 OUT_TYPE_CSV = 'csv'
 
-def prepare_run(config: PollingModelConfig, log: bool=False) -> RunSetup:
+
+class ModelRun():
     '''
-    Use a PollingModelConfig to setup everything that is needed to run the model and return a
-    RunSetup object with the results.
-    '''
-
-    run_prefix = f'{config.config_set}/{config.config_name}'
-
-    source_path = build_locations_distance_file_path(
-        config.census_year,
-        config.location,
-        config.driving,
-        config.log_distance,
-    )
-
-    # If we are using local files, build the source data if it doesn't already exist
-    if config.location_source == LOCATION_SOURCE_CSV:
-        if not os.path.exists(source_path):
-            warnings.warn(f'File {source_path} not found. Creating it.')
-            build_source(
-                location_source=LOCATION_SOURCE_CSV,
-                census_year=config.census_year,
-                location=config.location,
-                driving=config.driving,
-                log_distance=config.log_distance,
-                map_source_date=config.map_source_date,
-                log=log,
-            )
-
-    polling_locations = get_polling_locations(
-        location_source=config.location_source,
-        census_year=config.census_year,
-        location=config.location,
-        log_distance=config.log_distance,
-        driving=config.driving,
-    )
-
-    polling_locations_set_id = polling_locations.polling_locations_set_id
-    locations_df = polling_locations.polling_locations
-
-    #get main data frame
-    dist_df = clean_data(config, locations_df, False, log)
-
-    #get alpha
-    alpha_df = clean_data(config, locations_df, True, log)
-    alpha = alpha_min(alpha_df)
-
-    #build model
-    ea_model = polling_model_factory(dist_df, alpha, config)
-    if log:
-        print(f'model built for {run_prefix}.')
-
-    return RunSetup(
-        locations_df=locations_df,
-        polling_locations_set_id=polling_locations_set_id,
-        dist_df=dist_df,
-        alpha=alpha,
-        alpha_df=alpha_df,
-        ea_model=ea_model,
-        run_prefix=run_prefix,
-        config=config,
-    )
-
-
-def run_on_config(config: PollingModelConfig, log: bool=False, outtype: str = OUT_TYPE_DB):
-    '''
-    The entry point to exectute a pyomo/scip run.
+    A class to manage the process of running a model based on a PollingModelConfig.
+    This is the main entry point for running models.
     '''
 
-    run_setup = prepare_run(config, log)
+    _config: PollingModelConfig
+    _log: bool
 
-    #solve model
-    solve_model(run_setup.ea_model, config.time_limit, log=log, log_file_path=config.log_file_path)
+    def __init__(self, config: PollingModelConfig, log: bool=False):
+        self._config = config
+        self._log = log
 
-    #incorporate result into main dataframe
-    result_df = incorporate_result(run_setup.dist_df, run_setup.ea_model)
 
-    #incorporate site penalties as appropriate
-    # result_df = incorporate_penalties(
-    #     run_setup.dist_df,
-    #     run_setup.alpha,
-    #     run_setup.run_prefix,
-    #     result_df,
-    #     run_setup.ea_model,
-    #     config,
-    #     log,
-    # )
+    @functools.cached_property
+    def _query(self) -> Query:
+        ''' An isntance of Query for database operations based on the config environment. '''
+        return Query(self._config.environment)
 
-    penalty_model = PenalizeModel(run_setup, result_df)
-    result_df = penalty_model.run()
 
-    #calculate the new alpha given this assignment
-    alpha_new = alpha_min(result_df)
+    @functools.cached_property
+    def _solved_ea_model(self) -> PollingModel:
+        '''
+        The solved ea_model.
 
-    #calculate the average distances traveled by each demographic to the assigned precinct
-    demographic_prec = demographic_domain_summary(result_df, 'id_dest')
+        This cached property builds and solves the model, returning the solved PollingModel instance.
+        '''
 
-    #calculate the average distances traveled by each demographic by residence
-    demographic_res = demographic_domain_summary(result_df, 'id_orig')
-
-    #calculate the average distances (and y_ede if beta !=0) traveled by each demographic
-    demographic_ede = demographic_summary(demographic_res, result_df, config.beta, alpha_new)
-
-    if outtype == OUT_TYPE_DB:
-        write_results_bigquery(
-            config=config,
-            polling_locations_set_id=run_setup.polling_locations_set_id,
-            result_df=result_df,
-            demographic_prec=demographic_prec,
-            demographic_res=demographic_res,
-            demographic_ede=demographic_ede,
-            log=log,
+        solve_model(
+            model=self.run_setup.ea_model,
+            time_limit=self._config.time_limit,
+            limits_gap=self._config.limits_gap,
+            log=self._log,
+            log_file_path=self._config.log_file_path,
         )
-    elif outtype == OUT_TYPE_CSV:
-        result_folder = os.path.join(RESULTS_BASE_DIR, f'{config.location}_results')
 
-        file_prefix = f'{config.config_set}.{config.config_name}'
+        return self.run_setup.ea_model
+
+
+    @functools.cached_property
+    def _initial_result_df(self) -> pd.DataFrame:
+        '''
+        The raw result DataFrame from the solved model containing only the matched residences
+        and precinct, before penalties are applied.
+        '''
+
+        return incorporate_result(
+            dist_df=self.run_setup.dist_df,
+            model=self._solved_ea_model,
+            log_distance=self._config.log_distance,
+        )
+
+    @functools.cached_property
+    def _penalize_model(self) -> PenalizeModel:
+        penalize = PenalizeModel(
+            run_setup=self.run_setup,
+            result_df=self._initial_result_df,
+            log=self._log,
+        )
+        return penalize
+
+    @functools.cached_property
+    def result_df(self) -> pd.DataFrame:
+        ''' The final result DataFrame from the solved model after penalties are applied. '''
+        return self._penalize_model.run()
+
+    @functools.cached_property
+    def _alpha_new(self) -> float:
+        ''' The new alpha given this assignment '''
+        return alpha_min(self.result_df)
+
+
+    @functools.cached_property
+    def demographic_prec(self) -> pd.DataFrame:
+        ''' The calculate average distances traveled by each demographic to the assigned precinct '''
+        return demographic_domain_summary(self.result_df, DISTANCE_ID_DEST)
+
+
+    @functools.cached_property
+    def demographic_res(self) -> pd.DataFrame:
+        ''' The calculated average distances traveled by each demographic by residence '''
+        return demographic_domain_summary(self.result_df, DISTANCE_ID_ORIG)
+
+
+    @functools.cached_property
+    def demographic_ede(self) -> pd.DataFrame:
+        ''' The calculated average distances (and y_ede if beta !=0) traveled by each demographic '''
+        return demographic_summary(
+            self.demographic_res,
+            self.result_df,
+            self._config.beta,
+            self._alpha_new,
+        )
+
+
+    @functools.cached_property
+    def run_setup(self) -> RunSetup:
+        '''
+        An instance of RunSetup that contains everything needed, including source data, to run the
+        pyo model based on the PollingModelConfig.
+        '''
+
+        run_prefix = f'{self._config.config_set}/{self._config.config_name}'
+
+        source_path = build_distance_file_path(
+            self._config.census_year,
+            self._config.location,
+            self._config.driving,
+            self._config.log_distance,
+        )
+
+        # Default to query being None to avoid unnecessary opening database connections
+        query: Query=None
+
+        # If we are using local files, build the source data if it doesn't already exist
+        if self._config.data_source == DATA_SOURCE_CSV:
+            # Check if the local source file exists for the call get_distance_data below, if it doesn't then build it
+            if not os.path.exists(source_path):
+                warnings.warn(f'File {source_path} not found. Creating it.')
+                build_distance_data(
+                    data_source=DATA_SOURCE_CSV,
+                    census_year=self._config.census_year,
+                    location=self._config.location,
+                    driving=self._config.driving,
+                    log_distance=self._config.log_distance,
+                    map_source_date=self._config.map_source_date,
+                    log=self._log,
+                )
+        else:
+            # Force evaluates _query to create a Query instance in order to get the polling locations from the database
+            query = self._query
+
+        distance_data = get_distance_data(
+            data_source=self._config.data_source,
+            census_year=self._config.census_year,
+            location=self._config.location,
+            log_distance=self._config.log_distance,
+            driving=self._config.driving,
+            query=query,
+            log=self._log,
+        )
+
+        distance_data_set_id = distance_data.distance_data_set_id
+        distance_df = distance_data.distance_df
+
+        # get main data frame
+        dist_df = filter_distance_data(self._config, distance_df, False, self._log)
+
+        # get alpha
+        alpha_df = filter_distance_data(self._config, distance_df, True, self._log)
+        alpha = alpha_min(alpha_df)
+
+        # build model
+        ea_model = polling_model_factory(dist_df, alpha, self._config)
+        if self._log:
+            print(f'model built for {run_prefix}.')
+
+        return RunSetup(
+            distance_df=distance_df,
+            distance_data_set_id=distance_data_set_id,
+            dist_df=dist_df,
+            alpha=alpha,
+            alpha_df=alpha_df,
+            ea_model=ea_model,
+            run_prefix=run_prefix,
+            config=self._config,
+        )
+
+
+    def write_results_db(self):
+        ''' Writes the model run results to the database configured in the environment specified in the config. '''
+        write_results_bigquery(
+            config=self._config,
+            query=self._query,
+            distance_data_set_id=self.run_setup.distance_data_set_id,
+            result_df=self.result_df,
+            demographic_prec=self.demographic_prec,
+            demographic_res=self.demographic_res,
+            demographic_ede=self.demographic_ede,
+            log=self._log,
+        )
+
+
+    def write_results_csv(self):
+        ''' Writes the model run results to CSV files in the results directory. '''
+        result_folder = os.path.join(RESULTS_BASE_DIR, f'{self._config.location}_results')
+
+        file_prefix = f'{self._config.config_set}.{self._config.config_name}'
 
         write_results_csv(
-            result_folder,
-            file_prefix,
-            result_df,
-            demographic_prec,
-            demographic_res,
-            demographic_ede,
-         )
-    else:
-        raise ValueError(f'Unknown out type {outtype}')
+            result_folder=result_folder,
+            file_prefix=file_prefix,
+            result_df=self.result_df,
+            demographic_prec=self.demographic_prec,
+            demographic_res=self.demographic_res,
+            demographic_ede=self.demographic_ede,
+        )
+

@@ -14,16 +14,16 @@ The sofware requires a free census API key to run new counties. You can [apply o
     2. Inside authentication_files/ create a file called census_key.py
     3. The file should have a single line reading: census_key = "YOUR_KEY_VALUE"
 
-The necessary data is automatically pulled from the census (if needed) when the model is run. However, one may also run `python -m python\utils\pull_census_data.py` to manually retrieve the data.
+The necessary data is automatically pulled from the census (if needed) when the model is run. However, one may also run `python -m python.utils.pull_census_data` to manually retrieve the data.
 
-## Manually constructed polling locations dataset
+## Manually constructed potential locations dataset
 
-The model optimally assigns census blocks to polling locations chosen from this predefined list. 
+The model optimally assigns census blocks to polling locations chosen from this predefined list.
 
 1. Manually create this file as a .csv with the fields indicated below.
-1. Save this in the folder `datasets/polling/<Location_ST>/<Location_ST>_locations_only.csv`
-    1. Example file name: datasets/polling/Gwinnett_County_GA/Gwinnett_County_GA_locations_only.csv
-1. If running the model from the database, use `python -m python/scripts/db_import_locations_only_cli.py` to upload the data to the cloud.
+1. Save this in the folder `datasets/polling/<Location_ST>/<Location_ST>_potential_locations.csv`
+    1. Example file name: datasets/polling/Gwinnett_County_GA/Gwinnett_County_GA_potential_locations.csv
+1. If running the model from the database, use `python run.py db_import_potential_locations_cli` to upload the data to the cloud.
 
 The columns of this data set should be named and formatted as
 |Column Name | Definition | Example |
@@ -43,14 +43,20 @@ There may be multiple `config_name.yaml` files in the same `config_set` folder. 
 ### Creating config data
 1. Create the desired `config_set` directory in `datasets/configs/`. 
 1. Create a config template to generate the configuration files desired in this folder.
-   1. Copy `datasets\configs\template_configs\config_template_example.yaml_template` into the folder just created
+   1. Copy `datasets/configs/template_configs/config_template_example.yaml_template` into the folder just created
    1. Change values as needed to create the desired configurations
 1. Two fields specify how the .yaml files will be created:
     1. field to vary: str; the name of the field in the config file that is allowed to vary in this config set
     1. new_range: list; the list of desired values that this field should take. Note, this can be a list of lists    
-1. Run `python -m python.scripts.auto_generate_config -b 'datasets/configs/config_folder/exemplar_config.yaml_template'`
+1. Run `python run.py auto_generate_config -b 'datasets/configs/config_folder/exemplar_config.yaml_template'`
 
-This will create a set of .yaml files in the indicaded `config_folder`, each with a different name (that is a combination of the indicated `field_to_change` and a value from the provided list.)
+Then run
+
+```bash
+python run.py auto_generate_config -b 'datasets/configs/config_folder/exemplar_config.yaml_template'
+```
+
+This will create a set of .yaml files in the indicated `config_folder`, each with a different name (that is a combination of the indicated `field_to_change` and a value from the provided list.)
 
 **Note:**
 * This will also write these configs to the database.
@@ -68,8 +74,8 @@ To generate a set of configs for DuPage County, IL where the number of precincts
     - 19
     - 20`
 in the `.yaml_template` file and then run
-```
-python -m python.scripts.auto_generate_config -b 'datasets/configs/DuPage_County_IL_potential_configs/example_config.yaml_template'
+```bash
+python run.py auto_generate_config -b 'datasets/configs/DuPage_County_IL_potential_configs/example_config.yaml_template'
 ```
 To generate a set of configs for DuPage County, IL where the set of bad locations varies are ['Elec Day School - Potential', 'Elec Day Church - Potential', 'bg_centroid'],  ['Elec Day Church - Potential', 'bg_centroid'], ['Elec Day School - Potential',  'bg_centroid'], and [ 'bg_centroid'] define
 `field_to_change: 'bad_locations'`
@@ -83,8 +89,8 @@ To generate a set of configs for DuPage County, IL where the set of bad location
       - 'bg_centroid'
     - - 'bg_centroid'`
 in the `.yaml_template` file and then run
-```
-python -m python.scripts.auto_generate_config -f 'DuPage_County_IL_potential_configs/example_config.yaml_template'
+```bash
+python run.py auto_generate_config -f 'DuPage_County_IL_potential_configs/example_config.yaml_template'
 ```
 ### Config fields
 The following fields from the PollingModelConfig class must be included in the .yaml_template file. (See `python/solver/model_config.py` for details on the class and fields). <!--In addition to the fields listed below, and `id`, and `created_at` field are generated when uploaded to the database.-->
@@ -109,7 +115,7 @@ The following fields from the PollingModelConfig class must be included in the .
 * bad_types
     * List[str], nullable
     * A list of location types not to be considered in this model
-    * These must be selected from the `Location type`s defined in `*_locations_only.csv` file
+    * These must be selected from the `Location type`s defined in `*_potential_locations.csv` file
 * beta
     * float
     * level of inequality aversion: [-2,0], where 0 indicates indifference, and thus uses the mean. -1 is a good number.
@@ -119,7 +125,7 @@ The following fields from the PollingModelConfig class must be included in the .
 *  penalized_sites
     * List[str], nullable
     * A list of locations for which the preference is to only place a polling location there if absolutely necessary for coverage.
-        * These must be selected from the `Location type`s defined in `*_locations_only.csv` file.  
+        * These must be selected from the `Location type`s defined in `*_potential_locations.csv` file.  
         * A site in this list should be selected only if it improves access by x meters, where x is calculated according to the problem data. (See https://doi.org/10.48550/arXiv.2401.15452 for more information.) 
         * This option generates three additional log files: two for additional calls to the optimization solver ("...model2.log", "...model3.log") third ("...penalty.log") providing statistics related to the penalty heuristic.
 * precincts_open
@@ -224,6 +230,6 @@ The columns are as follows:
 |Column Name | Definition | Example |
 | ----- | ----- | ----- |
 | id_orig | Census block id that matches the 'FIPSCODEBLOCKNUM' portion of the GEOID column from the file datasets/census/tiger/County_ST/tl_YYYY_FIPS_tabblockYY.shp file | 131510703153004 |
-| id_dest | Name of potential polling location, as in the Location column of the file datasets/polling/County_ST/County_ST_locations_only.csv. | 'EV_2022_2020' or 'General_2020' or 'Primary_2022_2020_2018' or 'DropBox_2022' |
+| id_dest | Name of potential polling location, as in the Location column of the file datasets/polling/County_ST/County_ST_potential_locations.csv. | 'EV_2022_2020' or 'General_2020' or 'Primary_2022_2020_2018' or 'DropBox_2022' |
 | distance_m | Driving distance from id_orig to id_dest in meters | 10040.72 |
 

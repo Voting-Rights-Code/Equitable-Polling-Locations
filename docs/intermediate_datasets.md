@@ -8,13 +8,13 @@ A few notes:
     * Merge the demographic data for each census block to the distance data 
 * The data records the census year for which the blocks are drawn
 * Working locally: 
-    * The datasets are stored in `datasets/polling/<Location>/<Location>_(driving)_<census_year>(_log).csv`
+    * The datasets are stored in `datasets/polling/<Location>/<Location>_(driving_)distances_<census_year>(_log).csv`
     * The terms `log` and `driving` only appear if those flags are set to TRUE in the config file
     * The program checks if the correct file exists in the data, and creates it if it does not. 
 * Working on the database:
-    * This data is stored in the table `equitable-polling-locations.equitable_polling_locations_prod.polling_locations`
+    * This data is stored in the table `equitable-polling-locations.equitable_polling_locations_prod.distance_data`
     * The program checks if the correct type of distance data exists in the above table and prompts the user to create and upload it if not.
-        * To create and upload this dataset, run `python -m python.scripts.db_import_locations_cli `
+        * To create and upload this dataset, run `python run.py db_import_distance_data_cli`
         * This has the following parameters:
             * Census year
             * list of locations to be created
@@ -30,14 +30,14 @@ The columns of this data set are as follows:
 |Fields for matching destinations and origins|
 |  |
 |id_orig | Census block code | GEOID20 from block shape file | 131350501051000 |
-|id_dest | Name of the actual or potential polling location | 'Location' from County_ST_location_only.csv | 'Bethesda Senior Center' |
-| address | If a physical polling location, street address | 'Address' from County_ST_location_only.csv  | '788 Hillcrest Rd NW, Lilburn, GA 20047'|
+|id_dest | Name of the actual or potential polling location | 'Location' from County_ST_potential_locations.csv | 'Bethesda Senior Center' |
+| address | If a physical polling location, street address | 'Address' from County_ST_potential_locations.csv  | '788 Hillcrest Rd NW, Lilburn, GA 20047'|
 | | If not a physical location, name of the associated census block group | | STRING |
 | dest_lat | latitude of the address or census block group centroid of the destination | google maps latitude or INTPTLAT20 of id_dest from block group shape file| FLOAT |
 | dest_lon | longitude of the address or census block group centroid of the destination | google maps longitude or INTPTLON20 of id_dest from block group shape file| FLOAT |
 | orig_lat | latitude of census block centroid of the origin | INTPTLAT20 of id_orig from block shape file| FLOAT |
 | orig_lon | longitude of census block centroid of the origin | INTPTLON20 of id_orig from block shape file| FLOAT |
-|location_type | A description of the id_dest location | 'Location Type' from County_ST_locations_only data or 'bg_centroid' | 'EV_2022_2020' or 'Library - Potential' or 'bg_centroid'|
+|location_type | A description of the id_dest location | 'Location Type' from County_ST_potential_locations data or 'bg_centroid' | 'EV_2022_2020' or 'Library - Potential' or 'bg_centroid'|
 | dest_type | A coarser description of the id_dest that given in location type | Either 'polling' (if previous polling location), potential (if a building that is a potential polling location), 'bg_centroid' (if a census block centroid) |
 |Distance fields|
 || 

@@ -32,8 +32,8 @@ def upgrade() -> None:
     sa.Column('address', sa.String(length=256), nullable=False),
     sa.Column('location_type', sa.String(length=256), nullable=False),
     sa.Column('lat_lon', sa.String(length=256), nullable=False),
-    sa.Column('polling_locations_only_set_id', sa.String(length=36), nullable=False),
-    sa.ForeignKeyConstraint(['polling_locations_only_set_id'], ['polling_locations_only_sets.id'], ),
+    sa.Column('locations_only_set_id', sa.String(length=36), nullable=False),
+    sa.ForeignKeyConstraint(['locations_only_set_id'], ['polling_locations_only_sets.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('polling_locations_sets',
@@ -43,10 +43,10 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('log_distance', sa.Boolean(), nullable=False),
     sa.Column('driving', sa.Boolean(), nullable=False),
-    sa.Column('polling_locations_only_set_id', sa.String(length=36), nullable=False),
+    sa.Column('locations_only_set_id', sa.String(length=36), nullable=False),
     sa.Column('driving_distance_set_id', sa.String(length=36), nullable=True),
     sa.ForeignKeyConstraint(['driving_distance_set_id'], ['driving_distance_sets.id'], ),
-    sa.ForeignKeyConstraint(['polling_locations_only_set_id'], ['polling_locations_only_sets.id'], ),
+    sa.ForeignKeyConstraint(['locations_only_set_id'], ['polling_locations_only_sets.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('polling_locations',

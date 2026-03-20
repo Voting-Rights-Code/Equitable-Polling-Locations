@@ -12,6 +12,7 @@ bad_types:
     - 'Fire Station - Potential'
 beta: -2
 time_limit: 360000 #100 hours minutes
+limits_gap: 0.0
 capacity: 5
 fixed_capacity_site_number: null
 precincts_open: 3

@@ -11,19 +11,27 @@ from dataclasses import dataclass, field, fields, MISSING
 import yaml
 import datetime as dt
 
-from python.utils.constants import LOCATION_SOURCE_CSV
+from .constants import (
+    CONFIG_DB_ID, CONFIG_COMMIT_HASH, CONFIG_RUN_TIME, CONFIG_FILE_PATH, CONFIG_LOG_FILE_PATH,
+    CONFIG_MAP_SOURCE_DATE, CONFIG_LOCATION_SOURCE, CONFIG_YEAR, CONFIG_BAD_TYPES, CONFIG_PENALIZED_SITES,
+    DATA_SOURCE_CSV,
+)
+from python.utils.environments import Environment
 
-
-MODEL_CONFIG_ARRAY_NAMES = ['year', 'bad_types', 'penalized_sites']
+MODEL_CONFIG_ARRAY_NAMES = [CONFIG_YEAR, CONFIG_BAD_TYPES, CONFIG_PENALIZED_SITES]
 ''' These PollingModelConfig variables are expected to be arrays, not None '''
 
-NON_EMPTY_ARRAYS = ['year']
+NON_EMPTY_ARRAYS = [CONFIG_YEAR]
 ''' These PollingModelConfig variables are expected to be non-empty arrays. '''
+
+
+ENVIRONMENT = 'environment'
 
 # For now map_source_date is not required, map_source_date is for future proofing
 IGNORE_ON_LOAD = [
-    'db_id', 'commit_hash', 'run_time', 'config_file_path',
-    'log_file_path', 'map_source_date', 'location_source'
+    CONFIG_DB_ID, CONFIG_COMMIT_HASH, CONFIG_RUN_TIME, CONFIG_FILE_PATH,
+    CONFIG_LOG_FILE_PATH, CONFIG_MAP_SOURCE_DATE, CONFIG_LOCATION_SOURCE,
+    ENVIRONMENT,
 ]
 
 @dataclass
@@ -49,6 +57,8 @@ class PollingModelConfig:
     mean. -2 isa good number '''
     time_limit: int
     '''How long the solver should try to find a solution'''
+    limits_gap: float
+    '''The acceptable optimality gap for the solver'''
     census_year: str
     ''' The census year to use. '''
 
@@ -67,7 +77,8 @@ class PollingModelConfig:
     from the data. Should be >= 2. '''
     capacity: float
     '''A multiplicative factor for calculating the capacity constraint. Should be >= 1.
-    Note, if this is not paired with fixed_capacity_site_number, then the capacity changes as a function of number of precincts.'''
+    Note, if this is not paired with fixed_capacity_site_number, then the capacity
+    changes as a function of number of precincts.'''
 
     fixed_capacity_site_number: int
     '''If default number of open precincts if one wants to hold the number
@@ -104,11 +115,15 @@ class PollingModelConfig:
     db_id: str = None
     ''' Id if this PollingModelConfig initially came from the db '''
 
-    location_source: Literal['csv', 'db'] = LOCATION_SOURCE_CSV
+    data_source: Literal['csv', 'db'] = DATA_SOURCE_CSV
     ''' Where to retrieve the location data from, either a CSV file or the database. '''
 
     map_source_date: str = None
     ''' The date (YYYYMMDD) of the maps source to use if driving distances are used. '''
+
+    environment: Environment = None
+    ''' Environment configs, specifically on which bigquery project and dataset
+        to use when connectingt to the database. '''
 
     def __post_init__(self):
         self.varnames = list(vars(self).keys()) # Not sure if this will work, let's see
@@ -149,6 +164,7 @@ class PollingModelConfig:
             for key in NON_EMPTY_ARRAYS:
                 array_value = config.get(key)
                 if not isinstance(array_value, list) or len(array_value) == 0:
+                    # pylint: disable-next=line-too-long
                     raise ValueError(f'Config file {config_yaml_path} must specify at least one value for array field {key}.')
 
             result = PollingModelConfig(**config)
