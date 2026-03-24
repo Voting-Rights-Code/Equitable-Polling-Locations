@@ -85,6 +85,32 @@ def main():
         print("Census API key stored in OS keychain.")
         return
 
+    # Flag: -k / --keyring populates credentials.json from the OS keychain
+    use_keyring = False
+    if '-k' in sys.argv or '--keyring' in sys.argv:
+        use_keyring = True
+        # Remove the flag so argparse doesn't see it
+        sys.argv = [a for a in sys.argv if a not in ('-k', '--keyring')]
+
+    if use_keyring:
+        try:
+            import keyring
+        except ImportError:
+            print("Error: 'keyring' package is not installed.")
+            print("Install it with: pip install keyring")
+            sys.exit(1)
+        try:
+            key = keyring.get_password("equitable-polling", "census_key")
+        except Exception as e:
+            print(f"Error: Failed to read from OS keychain: {e}")
+            print("Check that your system has a supported keyring backend.")
+            sys.exit(1)
+        if key is None:
+            print("Error: No census API key found in OS keychain.")
+            print("Run 'python run.py set_census_key' first to store your key.")
+            sys.exit(1)
+        write_credentials_json(key)
+
     available_scripts = get_scripts()
 
     script_list = "\n  ".join(available_scripts)
@@ -92,7 +118,15 @@ def main():
     # 1. Initialize Argparse (Native Library)
     parser = argparse.ArgumentParser(
         prog="python run.py",
-        description="Run solver related python scripts inside the Docker container.",
+        description=(
+            "Run solver related python scripts inside the Docker container.\n\n"
+            "Use -k before the script name to populate census credentials from\n"
+            "the OS keychain (via keyring). The credentials are cached locally in\n"
+            "authentication_files/credentials.json so -k is only needed once.\n\n"
+            "Special commands:\n"
+            "  set_census_key  Store your census API key in the OS keychain\n"
+            "  e2e_tests       Run end-to-end tests"
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"Available scripts:\n  {script_list}"
     )
