@@ -225,12 +225,24 @@ def pull_tiger_file(state, fips, county_ST, county_code, geo):
 
 
 def pull_census_data(statecode, county, apikey=None, state_lookup=STATE_LOOKUP):
-    """
-    Given a statecode (i.e. MD or NY),
-    and county (full name, must be capitalized properly),
-    pull P3 and P4 data and tiger files
+    """Pull P3 and P4 census data and tiger shapefiles for a given county.
 
+    Given a state code (e.g. 'MD' or 'NY') and county name (full name,
+    properly capitalized), downloads census redistricting data and
+    TIGER shapefiles.
+
+    Args:
+        statecode: Two-letter US state code.
+        county: Full county name with proper capitalization.
+        apikey: Census API key. If None, attempts to load from
+            authentication_files/credentials.json.
+        state_lookup: Mapping of state codes to full state names.
+
+    Raises:
+        ValueError: If no census API key is available.
     """
+    if apikey is None:
+        apikey = _load_census_key()
     if apikey is None:
         raise ValueError('No census key available. Please request one from the census to download census data. See README.')
     state = state_lookup.get(statecode)

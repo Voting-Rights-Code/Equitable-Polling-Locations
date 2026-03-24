@@ -2,7 +2,11 @@
 
 import json
 
+import pytest
+from unittest.mock import patch
+
 from python.utils.pull_census_data import _load_census_key
+from python.utils.pull_census_data import pull_census_data
 
 
 class TestLoadCensusKey:
@@ -34,3 +38,14 @@ class TestLoadCensusKey:
         creds_file.write_text(json.dumps({"other_key": "value"}))
         result = _load_census_key(creds_file)
         assert result is None
+
+
+class TestPullCensusDataKeyHandling:
+    """Tests for pull_census_data() census key resolution."""
+
+    @patch("python.utils.pull_census_data._load_census_key", return_value=None)
+    def test_raises_valueerror_when_no_key_available(self, _mock_loader):
+        """pull_census_data raises ValueError when no apikey is provided and loader returns None."""
+        # state_lookup={} is safe — ValueError fires before state_lookup is used
+        with pytest.raises(ValueError, match="No census key available"):
+            pull_census_data("GA", "Gwinnett County", apikey=None, state_lookup={})
