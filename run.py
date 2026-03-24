@@ -4,6 +4,8 @@ Detects host OS for GCP paths and passes them to Docker Compose.
 """
 
 import argparse
+import getpass
+import json
 import os
 import platform
 import subprocess
@@ -24,6 +26,24 @@ def get_scripts() -> list[str]:
     # Returns sorted filenames without the .py extension
     return sorted([f.stem for f in scripts_dir.glob("*.py")])
 
+def write_credentials_json(census_key, output_dir=None):
+    """Write the census API key to the credentials JSON bridge file.
+
+    Args:
+        census_key: The census API key string to write.
+        output_dir: Directory to write credentials.json into.
+            Defaults to authentication_files/ at the project root.
+    """
+    if output_dir is None:
+        output_dir = Path(__file__).resolve().parent / "authentication_files"
+    output_dir = Path(output_dir)
+    output_dir.mkdir(exist_ok=True)
+    creds_file = output_dir / "credentials.json"
+    with open(creds_file, 'w', encoding='utf-8') as f:
+        json.dump({"census_key": census_key}, f)
+    print(f"Credentials written to {creds_file}")
+
+
 def main():
     # Special command: e2e_tests bypasses script discovery and runs pytest
     if len(sys.argv) > 1 and sys.argv[1] == 'e2e_tests':
@@ -41,6 +61,27 @@ def main():
         except KeyboardInterrupt:
             print("\n[Terminated by User]")
             sys.exit(130)
+        return
+
+    # Special command: set_census_key stores a census API key in the OS keychain
+    if len(sys.argv) > 1 and sys.argv[1] == 'set_census_key':
+        try:
+            import keyring
+        except ImportError:
+            print("Error: 'keyring' package is not installed.")
+            print("Install it with: pip install keyring")
+            sys.exit(1)
+        key = getpass.getpass("Enter your census API key: ")
+        if not key.strip():
+            print("Error: No key entered.")
+            sys.exit(1)
+        try:
+            keyring.set_password("equitable-polling", "census_key", key.strip())
+        except Exception as e:
+            print(f"Error: Failed to store key in OS keychain: {e}")
+            print("Check that your system has a supported keyring backend.")
+            sys.exit(1)
+        print("Census API key stored in OS keychain.")
         return
 
     available_scripts = get_scripts()
