@@ -26,6 +26,7 @@ def get_scripts() -> list[str]:
     # Returns sorted filenames without the .py extension
     return sorted([f.stem for f in scripts_dir.glob("*.py")])
 
+
 def write_credentials_json(census_key, output_dir=None):
     """Write the census API key to the credentials JSON bridge file.
 
