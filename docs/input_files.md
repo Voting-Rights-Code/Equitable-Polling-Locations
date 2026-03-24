@@ -127,13 +127,18 @@ These fields are determined by the sql_alchemy config model. See `models/model_c
     * Flag indicating whether or not the log of the distances is to be used in the optimization
 
 ## **Census Data (demographics and shapefiles)**:
-The sofware requires a free census API key to run new counties. You can [apply on the cenus site](https://api.census.gov/data/key_signup.html) and be approved in seconds.
+The software requires a free census API key to run new counties. You can [apply on the census site](https://api.census.gov/data/key_signup.html) and be approved in seconds.
 
-    1. Create the directory authentication_files/
-    2. Inside authentication_files/ create a file called census_key.py
-    3. The file should have a single line reading: census_key = "YOUR_KEY_VALUE"
+To store your census API key securely using the OS keychain:
 
-If you are only running counties already in the repo you skip this step. However, it is needed to run counties for which data does not exist locally.
+    1. Install keyring: pip install keyring
+    2. Store your key: python run.py set_census_key
+    3. When running a script that needs census data, use the -k flag:
+       python run.py -k <script> [args]
+
+The -k flag writes a cached copy of the key to authentication_files/credentials.json (gitignored). After the first use of -k, subsequent runs will use the cached file automatically without needing -k.
+
+If you are only running counties already in the repo you can skip this step. However, it is needed to run counties for which data does not exist locally.
 
 The script `pull_census_data.py`, which can also be run from the command line, pulls the following files from the 2020 US Census:
 1. P3 (race) and P4 (ethnicity) files for the indicated county, at both the block and the block group level
