@@ -85,12 +85,13 @@ def main():
         print("Census API key stored in OS keychain.")
         return
 
-    # Flag: -k / --keyring populates credentials.json from the OS keychain
+    # Flag: -k / --keyring populates credentials.json from the OS keychain.
+    # Remove only the first occurrence to avoid stripping -k from forwarded script args.
     use_keyring = False
-    if '-k' in sys.argv or '--keyring' in sys.argv:
+    idx = next((i for i, a in enumerate(sys.argv) if a in ('-k', '--keyring')), None)
+    if idx is not None:
         use_keyring = True
-        # Remove the flag so argparse doesn't see it
-        sys.argv = [a for a in sys.argv if a not in ('-k', '--keyring')]
+        sys.argv = sys.argv[:idx] + sys.argv[idx + 1:]
 
     if use_keyring:
         try:
