@@ -30,6 +30,7 @@ def _load_census_key(credentials_path=CREDENTIALS_PATH):
     except (FileNotFoundError, json.JSONDecodeError):
         return None
 
+
 STATE_LOOKUP = {
     'AK': 'Alaska',
     'AL': 'Alabama',
