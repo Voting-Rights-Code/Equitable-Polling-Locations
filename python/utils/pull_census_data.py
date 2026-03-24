@@ -1,15 +1,34 @@
+import argparse
+import json
 import os
 from pathlib import Path
 import shutil
-import requests
 import subprocess
-import argparse
-import pandas as pd
 
-try:
-    from authentication_files.census_key import census_key
-except:
-    census_key = None
+import pandas as pd
+import requests
+
+
+CREDENTIALS_PATH = Path(__file__).resolve().parent.parent.parent / "authentication_files" / "credentials.json"
+
+
+def _load_census_key(credentials_path=CREDENTIALS_PATH):
+    """Load the census API key from the credentials JSON file.
+
+    Args:
+        credentials_path: Path to the credentials JSON file.
+            Defaults to authentication_files/credentials.json at the project root.
+
+    Returns:
+        The census API key string, or None if the file is missing,
+        malformed, or does not contain a 'census_key' field.
+    """
+    try:
+        with open(credentials_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data.get("census_key")
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
 
 STATE_LOOKUP = {
     'AK': 'Alaska',
@@ -205,7 +224,7 @@ def pull_tiger_file(state, fips, county_ST, county_code, geo):
     return base_url, output_directory
 
 
-def pull_census_data(statecode, county, apikey = census_key, state_lookup=STATE_LOOKUP):
+def pull_census_data(statecode, county, apikey=None, state_lookup=STATE_LOOKUP):
     """
     Given a statecode (i.e. MD or NY),
     and county (full name, must be capitalized properly),
