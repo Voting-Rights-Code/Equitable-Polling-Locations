@@ -146,5 +146,6 @@ Examples:
         default=DEFAULT_LOG_DIR,
         help='The directory to output log files to',
     )
+    parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
     main(parser.parse_args())
 

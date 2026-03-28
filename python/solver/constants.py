@@ -140,3 +140,7 @@ DB_LAT_LON = 'lat_lon'
 SOLVER_MODEL2 = 'model2'
 SOLVER_MODEL3 = 'model3'
 SOLVER_PENALTY = 'penalty'
+
+# This is the default map source date used for model runs until we implement a way to specify map source date in the
+# model config.
+DEFAULT_MAP_SOURCE_DATE = '20250101'

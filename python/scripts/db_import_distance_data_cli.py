@@ -15,7 +15,7 @@ from python.database.query import Query
 
 from python.solver.model_data import build_distance_data
 from python.utils import is_int, log_date_prefix
-from python.solver.constants import DATA_SOURCE_DB
+from python.solver.constants import DATA_SOURCE_DB, DEFAULT_MAP_SOURCE_DATE
 from python.utils.environments import Environment, load_env
 from python.utils.directory_constants import DEFAULT_LOG_DIR
 
@@ -102,7 +102,7 @@ def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
     logdir = args.logdir
-    verbose = args.verbose > 1
+    verbose = args.verbose > 0
 
     os.makedirs(logdir, exist_ok=True)
     if verbose:
@@ -116,7 +116,7 @@ def main(args: argparse.Namespace):
 
     if driving:
         # Use the default date for driving distances
-        map_source_date = '20250101'
+        map_source_date = DEFAULT_MAP_SOURCE_DATE
     else:
         map_source_date = None
     log_distance: bool = args.type == LOG
@@ -213,7 +213,7 @@ Examples:
        '''
     )
     parser.add_argument('-e', '--environment', type=str, help='The environment to use')
-    parser.add_argument('-l', '--log', action='store_true', help='Enable logging to file.')
+    parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
     parser.add_argument(
         '-L',
         '--logdir',

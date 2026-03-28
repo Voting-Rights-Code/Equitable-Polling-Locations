@@ -228,6 +228,10 @@ def write_results_bigquery(
 
         if log:
             print(f'Importing result from {config}')
+            print(f'  result_df size: {result_df.shape}')
+            print(f'  demographic_prec size: {demographic_prec.shape}')
+            print(f'  demographic_res size: {demographic_res.shape}')
+            print(f'  demographic_ede size: {demographic_ede.shape}')
 
         # TODO Add user and commit hashs
         model_run = query.create_model_run(

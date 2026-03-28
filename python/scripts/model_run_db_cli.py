@@ -74,15 +74,14 @@ def load_configs(config_args: list[str], logdir: str, environment: Environment=N
             polling_model_config = query.create_polling_model_config(config)
             polling_model_config.environment = environment
 
-            if logdir:
-                # Setup logs as needed
-                # pylint: disable-next=line-too-long
-                log_file_name = f'{log_date_prefix}_db_run_{polling_model_config.db_id}_{polling_model_config.config_set}_{polling_model_config.config_name}.log'
-                log_file_name = log_file_name.replace('/', '_')
-                polling_model_config.log_file_path = os.path.join(
-                    logdir,
-                    log_file_name,
-                )
+            # Setup logs as needed
+            # pylint: disable-next=line-too-long
+            log_file_name = f'{log_date_prefix}_db_run_{polling_model_config.db_id}_{polling_model_config.config_set}_{polling_model_config.config_name}.log'
+            log_file_name = log_file_name.replace('/', '_')
+            polling_model_config.log_file_path = os.path.join(
+                logdir,
+                log_file_name,
+            )
 
             results.append(polling_model_config)
 
@@ -124,9 +123,8 @@ def run_config(
 def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
-    log = args.log
-    logdir = log and args.logdir
-    verbose = args.verbose > 1
+    logdir = args.logdir
+    verbose = args.verbose > 0
 
     outtype = args.outtype
     if outtype == OUT_TYPE_DB:
@@ -134,14 +132,10 @@ def main(args: argparse.Namespace):
     else:
         environment = None
 
-    if logdir:
-        os.makedirs(logdir, exist_ok=True)
-        if not os.path.exists(logdir):
-            print(f'Invalid log dir: {logdir}')
-            sys.exit(1)
-        elif verbose:
-            print(f'Writing logs to dir: {logdir}')
+    os.makedirs(logdir, exist_ok=True)
 
+    if args.verbose:
+        print(f'Writing logs to dir: {logdir}')
 
     # Check that all files are valid, exist if they do not exist
     configs = load_configs(args.configs, logdir, environment)
@@ -151,7 +145,7 @@ def main(args: argparse.Namespace):
     if args.concurrent > 1:
         worker_func = partial(
             run_config,
-            log=log,
+            log=True,
             outtype=outtype,
             verbose=verbose,
         )
@@ -169,11 +163,11 @@ def main(args: argparse.Namespace):
         if verbose:
             utils.set_timers_enabled(True)
 
-        print(f'Running single process against {total_files} config file(s)')
+            print(f'Running single process against {total_files} config file(s)')
 
         for config_file in configs:
             print(f'Running config: {config_file.db_id} {config_file.config_set}/{config_file.config_name}')
-            run_config(config_file, log, outtype, verbose)
+            run_config(config_file, True, outtype, verbose)
             if verbose:
                 print('--------------------------------------------------------------------------------')
 
@@ -216,7 +210,6 @@ Examples:
             'Be mindful of ram availability - full runs can use in excess of 40 GB' +
             ' for each concurrent process.')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='Print extra logging.')
-    parser.add_argument('-l', '--log', action='store_true', help='Enable logging to file.')
     parser.add_argument(
         '-L',
         '--logdir',
