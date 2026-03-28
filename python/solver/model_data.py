@@ -69,6 +69,17 @@ P4_COLUMNS = [
 ]
 
 CVAP_COLUMNS = [
+    "GEOID20",
+    "CVAP_TOT24",
+    "CVAP_HSP24",
+    "CVAP_NHS24",
+    "CVAP_WHT24",
+    "CVAP_BLA24",
+    "CVAP_AMI24",
+    "CVAP_ASI24",
+    "CVAP_NHP24",
+    "CVAP_2OM24"
+    ]
 
     #TODO: get these columns from the data
 ]
@@ -284,7 +295,7 @@ def get_redistricting_demographics(census_year: str, location: str):
 
     #drop geo_id_prefix
     demographics[CEN20_GEO_ID] = demographics[CEN20_GEO_ID].str.replace(CEN20_GEOID_PREFIX, EMPTY_STRING)
-    #TODO:need to standardiize GEO_ID column across census_data_types
+ 
     return(demographics)
 
 def get_CVAP_demographics(census_year: str, location: str):
@@ -309,43 +320,22 @@ def get_CVAP_demographics(census_year: str, location: str):
     #######
     #Clean data
     #######
-    if census_data_type == 'redistricting':
-        #select columns for each data set
-        p3_df.columns=[multicols[0] for multicols in p3_df.columns]
-        p3_df = p3_df[P3_COLUMNS]
-        p4_df.columns=[multicols[0] for multicols in p4_df.columns]
-        p4_df = p4_df[P4_COLUMNS]
-
-    #####
-    # Make a demographics table
-    #####
-    # Combine P3 and P4 data to make a joint demographics set
-    demographics = p4_df.merge(
-        p3_df,
-        left_on=[CEN20_GEO_ID, CEN20_NAME],
-        right_on=[CEN20_GEO_ID, CEN20_NAME],
-        how=PD_OUTER,
-    )
-
-    # Consistency check for the data pull
-    demographics[CEN20_POP_DIFF] = demographics[CEN20_P4_TOTAL_POPULATION] - demographics[CEN20_P3_TOTAL_POPULATION]
-    if demographics.loc[demographics[CEN20_POP_DIFF] != 0].shape[0] != 0:
-        raise ValueError(f'Populations different in {P3_NAME} and {P4_NAME}. Are both pulled from the voting age universe?')
+    #select columns for each data set
+    CVAP_df = CVAP_df[CVAP_COLUMNS]
+    #add in an empty Other race column because CVAP doesn't have that
+    CVAP_df[DISTANCE_OTHER] = np.nan
 
     # Change column names
-    demographics.drop([CEN20_P4_TOTAL_POPULATION, CEN20_POP_DIFF], axis=1, inplace=True)
-    demographics = demographics.rename(columns = {
-        CEN20_P4_HISPANIC: DISTANCE_HISPANIC, CEN20_NON_HISPANIC: DISTANCE_NON_HISPANIC,
-        CEN20_P3_TOTAL_POPULATION: DISTANCE_TOTAL_POPULATION, CEN20_P3_WHITE: DISTANCE_WHITE,
-        CEN20_P3_BLACK: DISTANCE_BLACK, CEN20_P3_NATIVE: DISTANCE_NATIVE, CEN20_P3_ASIAN: DISTANCE_ASIAN,
-        CEN20_P3_PACIFIC_ISLANDER: DISTANCE_PACIFIC_ISLANDER, CEN20_P3_OTHER: DISTANCE_OTHER,
-        CEN20_P3_MULTIPLE_RACES: DISTANCE_MULTIPLE_RACES,
+    #Note that the GEOID here is changed to match the column name from redistricting
+    CVAP_df = CVAP_df.rename(columns = {"GEOID20" : CEN20_GEO_ID,
+        "CVAP_HSP24": DISTANCE_HISPANIC, "CVAP_NHS24": DISTANCE_NON_HISPANIC,
+        "CVAP_TOT24": DISTANCE_TOTAL_POPULATION, "CVAP_WHT24": DISTANCE_WHITE,
+        "CVAP_BLA24": DISTANCE_BLACK, "CVAP_AIW24": DISTANCE_NATIVE, "CVAP_ASI24": DISTANCE_ASIAN,
+        "CVAP_NHP24": DISTANCE_PACIFIC_ISLANDER, #CEN20_P3_OTHER: DISTANCE_OTHER,
+        "CVAP_2OM24": DISTANCE_MULTIPLE_RACES,
     })
 
-    #drop geo_id_prefix
-    demographics[CEN20_GEO_ID] = demographics[CEN20_GEO_ID].str.replace(CEN20_GEOID_PREFIX, EMPTY_STRING)
-    #TODO:need to standardiize GEO_ID column across census_data_types
-    return(demographics)
+    return(CVAP_df)
 
 
 def get_demographics_block(census_year: str, location: str, census_data_type: str) -> pd.DataFrame:
@@ -399,6 +389,7 @@ class BuildDistanceMetaData:
 def build_distance_data(
     data_source: Literal['db', 'csv'],
     census_year: str,
+    census_data_type: str,
     location: str,
     driving: bool,
     log_distance: bool,
@@ -463,7 +454,7 @@ def build_distance_data(
     #####
     # Cross join polling locations and demographics tables
     #####
-    demographics_block_df = get_demographics_block(census_year, location)
+    demographics_block_df = get_demographics_block(census_year, location, census_data_type)
     distance_df = demographics_block_df.merge(all_locations, how=PD_CROSS)
 
     #####

@@ -55,6 +55,7 @@ def import_distance_data(
 def build_and_import_distance_data(
     query: Query,
     census_year: str,
+    census_data_type:str, 
     location: str,
     driving: bool,
     maps_source_date: str,
@@ -63,6 +64,7 @@ def build_and_import_distance_data(
     build_distance_meta_data = build_distance_data(
         data_source=DATA_SOURCE_DB,
         census_year=census_year,
+        census_data_type=census_data_type,
         location=location,
         driving=driving,
         log_distance=log_distance,

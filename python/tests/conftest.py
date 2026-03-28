@@ -97,6 +97,7 @@ def location_df_with_driving(
     model_data.build_distance_data(
         'csv',
         census_year=testing_config_driving.census_year,
+        census_data_type = test_config_driving.census_data_type,
         location=testing_config_driving.location, # TEST_LOCATION,
         driving=testing_config_driving.driving,
         log_distance=testing_config_driving.log_distance,
