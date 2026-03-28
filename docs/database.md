@@ -205,7 +205,7 @@ python run.py db_import_locations_cli -d -t linear 2020 Contained_in_Madison_Cit
 Example of building and importing the latest Contained_in_Madison_City_of_WI and Gwinnett_County_GA log, driving locations for 2020 census year:
 
 ```bash
-python run.py db_import_locations_cli -d -t log 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
+python run.py db_import_potential_locations_cli log 2020 Contained_in_Madison_City_of_WI Gwinnett_County_GA
 ```
 
 Any errors importing will be written to the screen as well as the logs directory (by default) to the file `.../logs/locations_import_errors.csv`.
