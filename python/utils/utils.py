@@ -173,31 +173,10 @@ def build_decennial_file_paths(census_year: str, geo: str, pnum: str, location: 
 
     return os.path.join(decennial_dir, file_name)
 
-
-""" def build_p4_source_file_path(census_year: str, census_data_type: str, location: str) -> str:
-    ''' Returns the path to Census data p4 table '''
-
-    file_name_p4 = f'DECENNIALPL{census_year}.P4-Data.csv'
-
-    demographics_dir = build_decennial_dir_path(census_data_type, location)
-
-    return os.path.join(demographics_dir, file_name_p4)
- """
-
 def build_tiger_location_dir(location: str) -> str:
     ''' Returns the path to the Census Tiger data for this location '''
 
     return os.path.join(CENSUS_TIGER_DIR, location)
-
-def build_CVAP_source_file_path(census_year: str, census_data_type: str, location: str) -> str:
-    ''' Returns the path to Census data p3 table '''
-
-    file_name_cvap = f'CVAP_{census_year}-Data.csv'
-
-    demographics_dir = build_decennial_dir_path(census_data_type, location)
-
-    return os.path.join(demographics_dir, file_name_cvap)
-
 
 def get_block_source_file_path(census_year, location: str) -> str:
     geography_dir = build_tiger_location_dir(location)

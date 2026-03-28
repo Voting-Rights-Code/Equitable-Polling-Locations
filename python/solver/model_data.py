@@ -208,14 +208,13 @@ def get_blockgroup_gdf(census_year: str, location: str) -> gpd.GeoDataFrame:
     return blockgroup_gdf
 
 
-def get_demographics_block(census_year: str, location: str, census_data_type: str) -> pd.DataFrame:
+def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
     '''
     Combine the P3 and P4 census data to generate demographic block data for a specific location and
     census year.
     '''
 
     demographics_dir = build_decennial_dir_path(location, BLOCK_GEO)
-    CVAP_source_file = build_CVAP_source_file_path(census_year, census_data_type, location)
     p3_source_file = build_decennial_file_paths(census_year, BLOCK_GEO, P3_NAME, location, False)
     p4_source_file = build_decennial_file_paths(census_year, BLOCK_GEO, P4_NAME, location, False)
 
@@ -241,10 +240,6 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
     else:
         # pylint: disable-next=line-too-long
         raise ValueError('Census data from table P4 not found. Download using api or manually following download instruction from README.')
-
-    if census_data_type == 'CVAP':
-        State_VCAP_data = get_cvap_data()
-        locality_VCAP_data = select_locality_data(location)
 
 
     #######
