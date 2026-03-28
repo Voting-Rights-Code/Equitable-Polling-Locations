@@ -287,7 +287,7 @@ def get_redistricting_demographics(census_year: str, location: str):
     #TODO:need to standardiize GEO_ID column across census_data_types
     return(demographics)
 
-def get_CVAP_demographics(census_year: str, location: str, state_lookup = STATE_LOOKUP):
+def get_CVAP_demographics(census_year: str, location: str):
     '''
     Get CVAP demographic block data for a specific location and
     census year.
@@ -300,28 +300,11 @@ def get_CVAP_demographics(census_year: str, location: str, state_lookup = STATE_
         locality = location[:-3].replace('_', ' ')
         pull_CVAP_data(statecode, locality, census_year)
 
-    if os.path.exists(p3_source_file):
-        p3_df = pd.read_csv(p3_source_file,
-            header=[0, 1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
-            low_memory=False, # files are too big, set this to False to prevent errors
-        )
-    else:
-        # pylint: disable-next=line-too-long
-        raise ValueError(f'Census data from table {P3_NAME} not found. Download using api or manually following download instruction from README. {p3_source_file}')
-
-    if os.path.exists(p4_source_file):
-        p4_df = pd.read_csv(p4_source_file,
-            header=[0, 1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
+    #TODO: start here
+    if os.path.exists(CVAP_source_file):
+        CVAP_df = pd.read_csv(CVAP_source_file,
             low_memory=False, # files are too big, set this to False to prevent errors
             )
-    else:
-        # pylint: disable-next=line-too-long
-        raise ValueError('Census data from table P4 not found. Download using api or manually following download instruction from README.')
-
-    if census_data_type == 'CVAP':
-        State_VCAP_data = get_cvap_data()
-        locality_VCAP_data = select_locality_data(location)
-
 
     #######
     #Clean data
