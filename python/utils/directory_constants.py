@@ -22,6 +22,8 @@ TIGER_FOLDER_NAME = 'tiger'
 
 REDISTRICTING_FOLDER_NAME = 'redistricting'
 
+CVAP_FOLDER_NAME = 'CVAP'
+
 BLOCK_GEO = 'block'
 
 BLOCK_GROUP_GEO = 'block group'

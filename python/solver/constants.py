@@ -109,12 +109,12 @@ CEN20_NON_HISPANIC = 'P4_003N'
 ''' Total non_hispanic '''
 
 # Census Block related constants
-TIGER20_GEOID_PREFIX = '1000000US'
+CEN20_GEOID_PREFIX = '1000000US'
 TIGER20_GEOID20 = 'GEOID20'
 TIGER20_INTPTLAT20 = 'INTPTLAT20'
 TIGER20_INTPTLON20 = 'INTPTLON20'
 TIGER20_BG_CENTROID = 'bg_centroid'
-TIGER20_POP_DIFF = 'Pop_diff'
+CEN20_POP_DIFF = 'Pop_diff'
 
 
 # Results related constants

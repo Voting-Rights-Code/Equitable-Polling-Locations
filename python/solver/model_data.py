@@ -16,10 +16,11 @@ from python.utils import (
     build_driving_distances_file_path,
     build_potential_locations_file_path,
     build_distance_file_path,
-    build_decennial_dir_path,
-    build_decennial_file_paths,
+    build_redistricting_dir_path,
+    build_redistricting_file_paths,
 #    build_p3_source_file_path,
 #    build_p4_source_file_path,
+    build_CVAP_dir_path,
     build_CVAP_source_file_path,
     is_int,
     get_block_source_file_path,
@@ -30,7 +31,9 @@ from python.utils.directory_constants import (
 BLOCK_GEO, P3_NAME, P4_NAME
 )
 
-from python.utils.pull_census_data import pull_census_data
+from python.utils.pull_census_data import (
+    STATE_LOOKUP, pull_census_data, pull_CVAP_data
+)
 from .model_config import PollingModelConfig
 
 # pylint: disable-next=wildcard-import,unused-wildcard-import
@@ -63,6 +66,11 @@ P4_COLUMNS = [
     CEN20_P4_TOTAL_POPULATION, # Total population
     CEN20_P4_HISPANIC, # Total hispanic
     CEN20_NON_HISPANIC, # Total non_hispanic
+]
+
+CVAP_COLUMNS = [
+
+    #TODO: get these columns from the data
 ]
 
 BLOCK_SHAPE_COLS = [
@@ -207,22 +215,90 @@ def get_blockgroup_gdf(census_year: str, location: str) -> gpd.GeoDataFrame:
 
     return blockgroup_gdf
 
-
-def get_demographics_block(census_year: str, location: str, census_data_type: str) -> pd.DataFrame:
+def get_redistricting_demographics(census_year: str, location: str):
     '''
     Combine the P3 and P4 census data to generate demographic block data for a specific location and
     census year.
     '''
-
-    demographics_dir = build_decennial_dir_path(location, BLOCK_GEO)
-    CVAP_source_file = build_CVAP_source_file_path(census_year, census_data_type, location)
-    p3_source_file = build_decennial_file_paths(census_year, BLOCK_GEO, P3_NAME, location, False)
-    p4_source_file = build_decennial_file_paths(census_year, BLOCK_GEO, P4_NAME, location, False)
+    demographics_dir = build_redistricting_dir_path(location, BLOCK_GEO)
+    p3_source_file = build_redistricting_file_paths(census_year, BLOCK_GEO, P3_NAME, location, False)
+    p4_source_file = build_redistricting_file_paths(census_year, BLOCK_GEO, P4_NAME, location, False)
 
     if not os.path.exists(demographics_dir):
         statecode = location[-2:]
         locality = location[:-3].replace('_', ' ')
         pull_census_data(statecode, locality, census_year)
+
+    if os.path.exists(p3_source_file):
+        p3_df = pd.read_csv(p3_source_file,
+            header=[0, 1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
+            low_memory=False, # files are too big, set this to False to prevent errors
+        )
+    else:
+        # pylint: disable-next=line-too-long
+        raise ValueError(f'Census data from table {P3_NAME} not found. Download using api or manually following download instruction from README. {p3_source_file}')
+
+    if os.path.exists(p4_source_file):
+        p4_df = pd.read_csv(p4_source_file,
+            header=[0, 1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
+            low_memory=False, # files are too big, set this to False to prevent errors
+            )
+    else:
+        # pylint: disable-next=line-too-long
+        raise ValueError('Census data from table P4 not found. Download using api or manually following download instruction from README.')
+
+    #######
+    #Clean data
+    #######
+    #select columns for each data set
+    p3_df.columns=[multicols[0] for multicols in p3_df.columns]
+    p3_df = p3_df[P3_COLUMNS]
+    p4_df.columns=[multicols[0] for multicols in p4_df.columns]
+    p4_df = p4_df[P4_COLUMNS]
+
+        #####
+    # Make a demographics table
+    #####
+    # Combine P3 and P4 data to make a joint demographics set
+    demographics = p4_df.merge(
+        p3_df,
+        left_on=[CEN20_GEO_ID, CEN20_NAME],
+        right_on=[CEN20_GEO_ID, CEN20_NAME],
+        how=PD_OUTER,
+    )
+
+    # Consistency check for the data pull
+    demographics[CEN20_POP_DIFF] = demographics[CEN20_P4_TOTAL_POPULATION] - demographics[CEN20_P3_TOTAL_POPULATION]
+    if demographics.loc[demographics[CEN20_POP_DIFF] != 0].shape[0] != 0:
+        raise ValueError(f'Populations different in {P3_NAME} and {P4_NAME}. Are both pulled from the voting age universe?')
+
+    # Change column names
+    demographics.drop([CEN20_P4_TOTAL_POPULATION, CEN20_POP_DIFF], axis=1, inplace=True)
+    demographics = demographics.rename(columns = {
+        CEN20_P4_HISPANIC: DISTANCE_HISPANIC, CEN20_NON_HISPANIC: DISTANCE_NON_HISPANIC,
+        CEN20_P3_TOTAL_POPULATION: DISTANCE_TOTAL_POPULATION, CEN20_P3_WHITE: DISTANCE_WHITE,
+        CEN20_P3_BLACK: DISTANCE_BLACK, CEN20_P3_NATIVE: DISTANCE_NATIVE, CEN20_P3_ASIAN: DISTANCE_ASIAN,
+        CEN20_P3_PACIFIC_ISLANDER: DISTANCE_PACIFIC_ISLANDER, CEN20_P3_OTHER: DISTANCE_OTHER,
+        CEN20_P3_MULTIPLE_RACES: DISTANCE_MULTIPLE_RACES,
+    })
+
+    #drop geo_id_prefix
+    demographics[CEN20_GEO_ID] = demographics[CEN20_GEO_ID].str.replace(CEN20_GEOID_PREFIX, EMPTY_STRING)
+    #TODO:need to standardiize GEO_ID column across census_data_types
+    return(demographics)
+
+def get_CVAP_demographics(census_year: str, location: str, state_lookup = STATE_LOOKUP):
+    '''
+    Get CVAP demographic block data for a specific location and
+    census year.
+    '''
+    CVAP_dir = build_CVAP_dir_path(location)
+    CVAP_source_file = build_CVAP_source_file_path(census_year, location)
+
+    if not os.path.exists(CVAP_dir):
+        statecode = location[-2:]
+        locality = location[:-3].replace('_', ' ')
+        pull_CVAP_data(statecode, locality, census_year)
 
     if os.path.exists(p3_source_file):
         p3_df = pd.read_csv(p3_source_file,
@@ -250,11 +326,12 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
     #######
     #Clean data
     #######
-    #select columns for each data set
-    p3_df.columns=[multicols[0] for multicols in p3_df.columns]
-    p3_df = p3_df[P3_COLUMNS]
-    p4_df.columns=[multicols[0] for multicols in p4_df.columns]
-    p4_df = p4_df[P4_COLUMNS]
+    if census_data_type == 'redistricting':
+        #select columns for each data set
+        p3_df.columns=[multicols[0] for multicols in p3_df.columns]
+        p3_df = p3_df[P3_COLUMNS]
+        p4_df.columns=[multicols[0] for multicols in p4_df.columns]
+        p4_df = p4_df[P4_COLUMNS]
 
     #####
     # Make a demographics table
@@ -268,12 +345,12 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
     )
 
     # Consistency check for the data pull
-    demographics[TIGER20_POP_DIFF] = demographics[CEN20_P4_TOTAL_POPULATION] - demographics[CEN20_P3_TOTAL_POPULATION]
-    if demographics.loc[demographics[TIGER20_POP_DIFF] != 0].shape[0] != 0:
+    demographics[CEN20_POP_DIFF] = demographics[CEN20_P4_TOTAL_POPULATION] - demographics[CEN20_P3_TOTAL_POPULATION]
+    if demographics.loc[demographics[CEN20_POP_DIFF] != 0].shape[0] != 0:
         raise ValueError(f'Populations different in {P3_NAME} and {P4_NAME}. Are both pulled from the voting age universe?')
 
     # Change column names
-    demographics.drop([CEN20_P4_TOTAL_POPULATION, TIGER20_POP_DIFF], axis=1, inplace=True)
+    demographics.drop([CEN20_P4_TOTAL_POPULATION, CEN20_POP_DIFF], axis=1, inplace=True)
     demographics = demographics.rename(columns = {
         CEN20_P4_HISPANIC: DISTANCE_HISPANIC, CEN20_NON_HISPANIC: DISTANCE_NON_HISPANIC,
         CEN20_P3_TOTAL_POPULATION: DISTANCE_TOTAL_POPULATION, CEN20_P3_WHITE: DISTANCE_WHITE,
@@ -283,7 +360,20 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
     })
 
     #drop geo_id_prefix
-    demographics[CEN20_GEO_ID] = demographics[CEN20_GEO_ID].str.replace(TIGER20_GEOID_PREFIX, EMPTY_STRING)
+    demographics[CEN20_GEO_ID] = demographics[CEN20_GEO_ID].str.replace(CEN20_GEOID_PREFIX, EMPTY_STRING)
+    #TODO:need to standardiize GEO_ID column across census_data_types
+    return(demographics)
+
+
+def get_demographics_block(census_year: str, location: str, census_data_type: str) -> pd.DataFrame:
+    '''
+    Combine the demographic block data a given census_data types for a specific location and
+    census year with the corresponding tiger geographic data.
+    '''
+    if census_data_type == 'redistricting':
+        demographics = get_redistricting_demographics(census_year, location)
+    elif census_data_type == 'CVAP':
+        demographics = get_CVAP_demographics(census_year, location)
 
     #get block group geographic
     blocks_gdf = get_blocks_gdf(census_year, location)

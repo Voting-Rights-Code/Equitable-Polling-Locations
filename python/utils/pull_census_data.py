@@ -6,7 +6,10 @@ import subprocess
 import argparse
 import pandas as pd
 
-from python.utils import build_decennial_dir_path, build_decennial_file_paths
+from python.utils import (
+    build_redistricting_dir_path, build_redistricting_file_paths,
+    build_CVAP_dir_path, build_CVAP_source_file_path
+)
 from python.utils.directory_constants import (
 DATASETS_FOLDER_NAME, CENSUS_FOLDER_NAME, TIGER_FOLDER_NAME, 
 TABBLOCK_FILE_SUFFIX, BLOCK_GROUP_FILE_SUFFIX, 
@@ -16,6 +19,12 @@ try:
     from authentication_files.census_key import census_key
 except:
     census_key = None
+
+try:
+    from authentication_files.RDH_key import RDH_key
+except:
+    RDH_key = None
+
 
 STATE_LOOKUP = {
     'AK': 'Alaska',
@@ -155,16 +164,30 @@ def save_pdata(df, census_year, county_ST, geo, pnum, meta=False):
     """
     Save off the census redistricting table data and metadata
     """
-    dirname = build_decennial_dir_path(county_ST, geo)
+    dirname = build_redistricting_dir_path(county_ST, geo)
 
     if not os.path.exists(dirname):
         os.makedirs(dirname)
 
-    fname = build_decennial_file_paths(census_year, geo, pnum, county_ST, meta)
+    fname = build_redistricting_file_paths(census_year, geo, pnum, county_ST, meta)
 
     df.to_csv(fname, index = False)
     return fname
 
+def save_CVAP_data(df, census_year, county_ST):
+    """
+    Save off the CVAP data
+    """
+    
+    dirname = build_CVAP_dir_path(county_ST)
+
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+
+    fname = build_CVAP_source_file_path(census_year, county_ST)
+
+    df.to_csv(fname, index = False)
+    return fname
 
 def download_file(url, local_dir):
     """
@@ -203,6 +226,55 @@ def pull_tiger_file(state, fips, county_ST, county_code, geo, census_year):
     unzip_file(fname, output_directory)
     return base_url, output_directory
 
+def pull_state_CVAP_data(state, apikey):
+    #This is a stub for the apikey that needs to be written eventually.
+    #Note, this is Texas data
+    df = pd.read_csv("temp_CVAP/tx_cvap_2024_2020_b.csv")
+    return df
+
+def locality_CVAP_only(state_CVAP, countycode):
+    #TODO: Move GEOID20 constant definition so it can be used here too
+    state_CVAP['GEOID20'] = state_CVAP['GEOID20'].astype(str)
+    locality_mask = state_CVAP[state_CVAP['GEOID20'].str.startswith(countycode)]
+    locality_CVAP = state_CVAP[locality_mask]
+
+    return(locality_CVAP)
+
+def pull_CVAP_data(statecode, county, census_year, apikey = RDH_key, state_lookup=STATE_LOOKUP):
+    """
+    Given a statecode (i.e. MD or NY),
+    and county (full name, must be capitalized properly),
+    pull state CVAP data, 
+    save off county data and tiger files
+
+    """
+    #TODO: Refactor this and pull census data so that tiger files not pulled twice
+    #TODO: Refactor to reduce repeated code
+    if apikey is None:
+        pass
+        #TODO: Eventually raise this error. No API connection yet.
+        #raise ValueError('No RDH key available. Please request one from the census to download census data. See README.')
+    state = state_lookup.get(statecode)
+    states_fips = get_all_states_fips_codes(census_year, apikey)  # get all fips codes for all states
+    fipscode = states_fips[state]
+
+    counties_codes = get_all_state_county_codes(fipscode, census_year, apikey)  # get all county codes
+    countycode = get_county_code(county, counties_codes)
+    county_ST = county.replace(' ','_')+ '_' + statecode
+
+    state_CVAP = pull_state_CVAP_data(state, apikey)
+    locality_CVAP = locality_CVAP_only(state_CVAP, countycode)
+
+    if locality_CVAP.shape[0] == 0:
+        raise ValueError(f'{county} data not in {state} CVAP data')
+
+    save_CVAP_data(locality_CVAP, census_year, county_ST)
+
+    for geo in (BLOCK_GEO, BLOCK_GROUP_GEO):
+        # pull tiger files
+        print(f"Now pulling tiger data for {geo} geography")
+        url, out = pull_tiger_file(state, fipscode, county_ST, countycode, geo, census_year)
+    return "Sucess"
 
 def pull_census_data(statecode, county, census_year, apikey = census_key, state_lookup=STATE_LOOKUP):
     """
@@ -219,6 +291,7 @@ def pull_census_data(statecode, county, census_year, apikey = census_key, state_
 
     counties_codes = get_all_state_county_codes(fipscode, census_year, apikey)  # get all county codes
     countycode = get_county_code(county, counties_codes)
+    county_ST = county.replace(' ','_')+ '_' + statecode
 
     # pull and save block-level data and block group data
     for geo in (BLOCK_GEO, BLOCK_GROUP_GEO):
@@ -229,7 +302,6 @@ def pull_census_data(statecode, county, census_year, apikey = census_key, state_
             # pull data
             data, metadata = pull_ptable_data(geo, pnum, fipscode, countycode, census_year, apikey)
             # save off dataframe and metadata
-            county_ST = county.replace(' ','_')+ '_' + statecode
             save_pdata(data, census_year, county_ST, geo, pnum)
             save_pdata(metadata, census_year, county_ST, geo, pnum, meta=True)
 
