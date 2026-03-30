@@ -7,6 +7,8 @@ import argparse
 import pandas as pd
 
 try:
+    import sys
+    sys.path.insert(0, str(Path(__file__).parents[2]))
     from authentication_files.census_key import census_key
 except:
     census_key = None
@@ -244,7 +246,7 @@ def pull_census_data(statecode, county, apikey = census_key, state_lookup=STATE_
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        'state', help="U.S. state of interest. Full name, with proper capitalization",
+        'state', help="U.S. state of interest. Two letter Abbreviation",
     )
     parser.add_argument(
         'county', help="County of interest. Full name, with proper capitalization"
