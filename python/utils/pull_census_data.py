@@ -6,12 +6,6 @@ import subprocess
 import argparse
 import pandas as pd
 
-from python.utils import build_decennial_dir_path, build_decennial_file_paths
-from python.utils.directory_constants import (
-DATASETS_FOLDER_NAME, CENSUS_FOLDER_NAME, TIGER_FOLDER_NAME, 
-TABBLOCK_FILE_SUFFIX, BLOCK_GROUP_FILE_SUFFIX, 
-BLOCK_GEO, BLOCK_GROUP_GEO, P3_NAME, P4_NAME
-)
 try:
     from authentication_files.census_key import census_key
 except:
@@ -77,22 +71,22 @@ STATE_LOOKUP = {
     'WY': 'Wyoming'
 }
 
-def get_all_states_fips_codes(census_year, api_key):
+def get_all_states_fips_codes(api_key):
     """
     Get the fips codes for all 50 states
     """
     state_keys = requests.get(
-        f"https://api.census.gov/data/{census_year}/dec/pl?get=NAME&for=state:*&key={api_key}"
+        f"https://api.census.gov/data/2020/dec/pl?get=NAME&for=state:*&key={api_key}"
     )
     state_to_fips = pd.Series(dict(state_keys.json()[1:]))
     return state_to_fips
 
-def get_all_state_county_codes(state_fips, census_year, api_key):
+def get_all_state_county_codes(state_fips, api_key):
     """
     Get all county codes for a given state
     """
     r = requests.get(
-        f"https://api.census.gov/data/{census_year}/dec/pl?get=NAME&for=county:*&in=state:{state_fips}&key={api_key}"
+        f"https://api.census.gov/data/2020/dec/pl?get=NAME&for=county:*&in=state:{state_fips}&key={api_key}"
     )
     county_codes = pd.DataFrame(r.json())
     headers = county_codes.iloc[0].values
@@ -124,19 +118,19 @@ def pull_metadata(url):
     return metadata
 
 
-def pull_ptable_data(geography, pnum, state_fips, county_code, census_year, api_key):
+def pull_ptable_data(geography, pnum, state_fips, county_code, api_key):
     """
     Pull P3 and P4 table data and column metadata
     """
-    if geography == BLOCK_GEO:
-        geo = BLOCK_GEO
-    elif geography == BLOCK_GROUP_GEO:
+    if geography == 'block':
+        geo = 'block'
+    elif geography == 'block group':
         geo="block%20group"
     r = requests.get(
-        f"https://api.census.gov/data/{census_year}/dec/pl?get=group({pnum})&for={geo}:*&in=state:{state_fips}&in=county:{county_code}&in=tract:*&key={api_key}"
+        f"https://api.census.gov/data/2020/dec/pl?get=group({pnum})&for={geo}:*&in=state:{state_fips}&in=county:{county_code}&in=tract:*&key={api_key}"
     )
     data = pd.DataFrame(r.json())
-    metadata = pull_metadata(f"https://api.census.gov/data/{census_year}/dec/pl/groups/{pnum}")
+    metadata = pull_metadata(f"https://api.census.gov/data/2020/dec/pl/groups/{pnum}")
 
     #reformat data to match manual download (for backwards compatibility)
     headers = data.iloc[0].values
@@ -151,16 +145,23 @@ def pull_ptable_data(geography, pnum, state_fips, county_code, census_year, api_
     return data, metadata
 
 
-def save_pdata(df, census_year, county_ST, geo, pnum, meta=False):
+def save_pdata(df, county_ST, geo, pnum, meta=False, base_path = "./datasets/census/redistricting/"):
     """
     Save off the census redistricting table data and metadata
     """
-    dirname = build_decennial_dir_path(county_ST, geo)
+    fname = Path(base_path).joinpath(f"{county_ST}/")
+    if geo=="block":
+        fname = fname
+    elif geo=="block group":
+        fname = fname.joinpath("block group demographics")
 
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
+    if not os.path.exists(fname):
+        os.makedirs(fname)
 
-    fname = build_decennial_file_paths(census_year, geo, pnum, county_ST, meta)
+    if meta==False:
+        fname = fname.joinpath(f"DECENNIALPL2020.{pnum}-Data.csv")
+    elif meta==True:
+        fname = fname.joinpath(f"DECENNIALPL2020.{pnum}-Column-Metadata.csv")
 
     df.to_csv(fname, index = False)
     return fname
@@ -189,22 +190,22 @@ def unzip_file(fpath, outdir):
     )
 
 
-def pull_tiger_file(state, fips, county_ST, county_code, geo, census_year):
+def pull_tiger_file(state, fips, county_ST, county_code, geo):
     """
     Pull and save tiger shapefile
     """
-    if geo == BLOCK_GEO:
-        geo = TABBLOCK_FILE_SUFFIX
-    elif geo == BLOCK_GROUP_GEO:
-        geo = BLOCK_GROUP_FILE_SUFFIX
-    base_url = f"https://www2.census.gov/geo/tiger/TIGER{census_year}PL/STATE/{fips}_{state.upper()}/{fips}{county_code}/tl_{census_year}_{fips}{county_code}_{geo}.zip"
-    output_directory = Path(f"./{DATASETS_FOLDER_NAME}/{CENSUS_FOLDER_NAME}/{TIGER_FOLDER_NAME}/{county_ST}/")
+    if geo == 'block':
+        geo = "tabblock20"
+    elif geo == 'block group':
+        geo = "bg20"
+    base_url = f"https://www2.census.gov/geo/tiger/TIGER2020PL/STATE/{fips}_{state.upper()}/{fips}{county_code}/tl_2020_{fips}{county_code}_{geo}.zip"
+    output_directory = Path(f"./datasets/census/tiger/{county_ST}/")
     fname = download_file(base_url, output_directory)
     unzip_file(fname, output_directory)
     return base_url, output_directory
 
 
-def pull_census_data(statecode, county, census_year, apikey = census_key, state_lookup=STATE_LOOKUP):
+def pull_census_data(statecode, county, apikey = census_key, state_lookup=STATE_LOOKUP):
     """
     Given a statecode (i.e. MD or NY),
     and county (full name, must be capitalized properly),
@@ -214,28 +215,28 @@ def pull_census_data(statecode, county, census_year, apikey = census_key, state_
     if apikey is None:
         raise ValueError('No census key available. Please request one from the census to download census data. See README.')
     state = state_lookup.get(statecode)
-    states_fips = get_all_states_fips_codes(census_year, apikey)  # get all fips codes for all states
+    states_fips = get_all_states_fips_codes(apikey)  # get all fips codes for all states
     fipscode = states_fips[state]
 
-    counties_codes = get_all_state_county_codes(fipscode, census_year, apikey)  # get all county codes
+    counties_codes = get_all_state_county_codes(fipscode, apikey)  # get all county codes
     countycode = get_county_code(county, counties_codes)
 
     # pull and save block-level data and block group data
-    for geo in (BLOCK_GEO, BLOCK_GROUP_GEO):
+    for geo in ('block', 'block group'):
 
-        # pull P3_NAME and P4_NAME census tables
-        for pnum in (P3_NAME, P4_NAME):
+        # pull P3 and P4 census tables
+        for pnum in ('P3', 'P4'):
             print(f"Now pulling {pnum} data for {geo} geography")
             # pull data
-            data, metadata = pull_ptable_data(geo, pnum, fipscode, countycode, census_year, apikey)
+            data, metadata = pull_ptable_data(geo, pnum, fipscode, countycode, apikey)
             # save off dataframe and metadata
             county_ST = county.replace(' ','_')+ '_' + statecode
-            save_pdata(data, census_year, county_ST, geo, pnum)
-            save_pdata(metadata, census_year, county_ST, geo, pnum, meta=True)
+            save_pdata(data, county_ST, geo, pnum)
+            save_pdata(metadata, county_ST, geo, pnum, meta=True)
 
         # pull tiger files
         print(f"Now pulling tiger data for {geo} geography")
-        url, out = pull_tiger_file(state, fipscode, county_ST, countycode, geo, census_year)
+        url, out = pull_tiger_file(state, fipscode, county_ST, countycode, geo)
 
     return "Success"
 
@@ -243,13 +244,10 @@ def pull_census_data(statecode, county, census_year, apikey = census_key, state_
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        'state', help="U.S. state of interest. Two letter abbreviation, e.g. MD or NY",
+        'state', help="U.S. state of interest. Full name, with proper capitalization",
     )
     parser.add_argument(
-        'county', help="County of interest. Full name, with proper capitalization, e.g. Norfolk city or Gwinnett County"
-    )
-    parser.add_argument(
-        'census_year', help="Decennial census data of interest"
+        'county', help="County of interest. Full name, with proper capitalization"
     )
     #parser.add_argument(
     #    'apikey', help="Census API key"
@@ -257,4 +255,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
     #pull_census_data(args.state, args.county, args.apikey)
-    pull_census_data(args.state, args.county, args.census_year)
+    pull_census_data(args.state, args.county)
