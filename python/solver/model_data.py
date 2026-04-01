@@ -20,7 +20,6 @@ from python.utils import (
     build_decennial_file_paths,
 #    build_p3_source_file_path,
 #    build_p4_source_file_path,
-    build_CVAP_source_file_path,
     is_int,
     get_block_source_file_path,
     get_block_group_block_source_file_path,
