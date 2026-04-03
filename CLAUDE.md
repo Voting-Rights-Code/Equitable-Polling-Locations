@@ -77,6 +77,15 @@ datasets/     # Sample data by county: configs, polling locations, distances
 
 `run.py <script_name> [args]` → `docker compose run --rm app python -m python.scripts.<script_name> [args]`
 
+## Documentation Strategy
+
+This is an open source project. Keep the repo authoritative:
+
+- **Finalized decisions** → `docs/decisions/` (ADR format: "Why we chose X over Y")
+- **Active planning and discussion** → GitHub Issues
+- **Do NOT commit** rough specs, exploratory plans, or in-progress design docs to the repo
+- Outside contributors treat anything in `main` as gospel — keep it clean
+
 ## R Analysis Toolkit (`R/`)
 
 Post-optimization result analysis and visualization scripts. See `R/CLAUDE.md` for conventions.

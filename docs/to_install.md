@@ -103,5 +103,40 @@ Conda can be optionally setup for local development without docker.
     1. `$ conda activate equitable-polls`
 
 
+## Claude Code
 
+### Install
+
+Install Claude Code following the official instructions at [claude.ai/download](https://claude.ai/download).
+
+### GitHub MCP Server
+
+Claude Code uses the GitHub MCP server to create and manage issues and pull requests. To set it up:
+
+1. **Generate a fine-grained personal access token:**
+    1. Go to [github.com/settings/tokens?type=beta](https://github.com/settings/tokens?type=beta)
+    1. Click **Generate new token**
+    1. Under **Repository access**, select **Only select repositories** and choose `Voting-Rights-Code/Equitable-Polling-Locations`
+    1. Under **Permissions → Repository permissions**, grant:
+        - **Issues** — Read and write
+        - **Pull requests** — Read and write
+    1. Click **Generate token** and copy it
+
+2. **Add the MCP server to Claude Code:**
+
+    ```bash
+    claude mcp add github -s user -e GITHUB_PERSONAL_ACCESS_TOKEN="<your-token>" -- npx -y @modelcontextprotocol/server-github
+    ```
+
+    Using `-s user` keeps the token out of the repo (stored in `~/.claude/.mcp.json`).
+
+3. **Verify:** Restart Claude Code and run `/mcp`. The `github` server should show as connected.
+
+### Plugins
+
+Install the following plugins from `claude-plugins-official` via `/plugins`:
+
+- **superpowers** — planning, code review, and development workflow skills
+- **commit-commands** — commit, push, and PR shortcuts
+- **pyright-lsp** — Python type checking and language server integration
 
