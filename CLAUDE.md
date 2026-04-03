@@ -82,7 +82,7 @@ datasets/     # Sample data by county: configs, polling locations, distances
 This is an open source project. Keep the repo authoritative:
 
 - **Finalized decisions** → `docs/decisions/` (ADR format: "Why we chose X over Y")
-- **Active planning and discussion** → GitHub Issues
+- **Specs and plans** → add to the originating issue/ticket, not as separate issues
 - **Do NOT commit** rough specs, exploratory plans, or in-progress design docs to the repo
 - Outside contributors treat anything in `main` as gospel — keep it clean
 

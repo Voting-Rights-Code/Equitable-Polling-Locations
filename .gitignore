@@ -187,6 +187,9 @@ Equitable-Polling-Locations.Rproj
 *.shx
 *.jpg
 
+# Claude Code working documents — specs and plans live on issues, not in the repo
+docs/superpowers/
+
 #datasets to ignore
 datasets/census
 
