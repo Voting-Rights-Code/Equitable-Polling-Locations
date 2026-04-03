@@ -16,13 +16,17 @@ from python.utils import (
     build_driving_distances_file_path,
     build_potential_locations_file_path,
     build_distance_file_path,
-    build_demographics_dir_path,
-    build_p3_source_file_path,
-    build_p4_source_file_path,
+    build_decennial_dir_path,
+    build_decennial_file_paths,
+#    build_p3_source_file_path,
+#    build_p4_source_file_path,
     is_int,
     get_block_source_file_path,
     get_block_group_block_source_file_path,
     timer,
+)
+from python.utils.directory_constants import (
+BLOCK_GEO, P3_NAME, P4_NAME
 )
 
 from python.utils.pull_census_data import pull_census_data
@@ -209,14 +213,14 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
     census year.
     '''
 
-    demographics_dir = build_demographics_dir_path(location)
-    p3_source_file = build_p3_source_file_path(census_year, location)
-    p4_source_file = build_p4_source_file_path(census_year, location)
+    demographics_dir = build_decennial_dir_path(location, BLOCK_GEO)
+    p3_source_file = build_decennial_file_paths(census_year, BLOCK_GEO, P3_NAME, location, False)
+    p4_source_file = build_decennial_file_paths(census_year, BLOCK_GEO, P4_NAME, location, False)
 
     if not os.path.exists(demographics_dir):
         statecode = location[-2:]
         locality = location[:-3].replace('_', ' ')
-        pull_census_data(statecode, locality)
+        pull_census_data(statecode, locality, census_year)
 
     if os.path.exists(p3_source_file):
         p3_df = pd.read_csv(p3_source_file,
@@ -225,7 +229,7 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
         )
     else:
         # pylint: disable-next=line-too-long
-        raise ValueError(f'Census data from table P3 not found. Download using api or manually following download instruction from README. {p3_source_file}')
+        raise ValueError(f'Census data from table {P3_NAME} not found. Download using api or manually following download instruction from README. {p3_source_file}')
 
     if os.path.exists(p4_source_file):
         p4_df = pd.read_csv(p4_source_file,
@@ -260,7 +264,7 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
     # Consistency check for the data pull
     demographics[TIGER20_POP_DIFF] = demographics[CEN20_P4_TOTAL_POPULATION] - demographics[CEN20_P3_TOTAL_POPULATION]
     if demographics.loc[demographics[TIGER20_POP_DIFF] != 0].shape[0] != 0:
-        raise ValueError('Populations different in P3 and P4. Are both pulled from the voting age universe?')
+        raise ValueError(f'Populations different in {P3_NAME} and {P4_NAME}. Are both pulled from the voting age universe?')
 
     # Change column names
     demographics.drop([CEN20_P4_TOTAL_POPULATION, TIGER20_POP_DIFF], axis=1, inplace=True)
@@ -320,8 +324,6 @@ def build_distance_data(
     driving: bool,
     log_distance: bool,
     map_source_date: str=None,
-    # pylint: disable-next=unused-argument
-    log: bool = False,
     potential_locations_path_override: str=None,
     output_path_override: str=None,
     query: Query=None,
