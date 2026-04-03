@@ -524,7 +524,7 @@ plot_precinct_persistence <- function(precinct_df){
 #make boxplots of the average distances traveled and the y_edes at each run
 plot_boxplots <- function(residence_df,log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG){
 	flag_strs <- make_flag_strs(driving_flag, log_flag)
-
+ 
 	res_pop <- residence_df[demographic == 'population',
 		]
 	#avg distance
@@ -532,7 +532,7 @@ plot_boxplots <- function(residence_df,log_flag = LOG_FLAG, driving_flag = DRIVI
 		stat_boxplot(geom = "errorbar", color = "#555555")+
 		geom_boxplot(outlier.shape = NA, fill = TABLEAU_COLORS[1], color = "#333333", alpha = 0.7) +
 		scale_y_log10(limits = c(500,10500)) +
-		labs(x = 'Number of polls', y = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)')) +
+		labs(x = 'Number of polls', y = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'), title = "Boxplot of distances by run") +
 		theme_tableau()
 
 	graph_file_path = 'avg_dist_distribution_boxplots.png'
@@ -549,11 +549,11 @@ plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_n
 	res_pop_orig_and_ideal <- rbind( ideal_residence_df, orig_residence_df)
 
 	#avg_distance
-	title_str = paste0('Distribution of distances traveled by people by year or optimization')
+	title_str = paste0('Distribution of distances traveled by people by year and optimization')
 	ggplot(res_pop_orig_and_ideal, aes(x = avg_dist, fill = descriptor)) +
 		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
 		labs(x = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'), y = 'Number of people', title =  title_str, fill = 'Optimization Run') +
-		scale_fill_tableau() +
+		scale_fill_tableau(labels = function(x) str_to_title(str_replace_all(x, '_', ' '))) +
 		theme_tableau()
 	graph_file_path = 'avg_dist_distribution_hist.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -563,11 +563,11 @@ plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_n
 plot_demographic_hist<- function(df, demo, flag_strs){
 
 	y_str = paste0('Number of ', demo, ' people')
-	title_str = paste0('Distribution of distances traveled by ', demo, ' people by year or optimization')
+	title_str = paste0('Distribution of distances traveled by ', demo, ' people by year and optimization')
 	hist = ggplot(df[demographic == demo, ], aes(x = avg_dist, fill = descriptor)) +
 		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
 		labs(x = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'), y = y_str, title =  title_str, fill = 'Optimization Run') + scale_x_continuous(transform = 'log') +
-		scale_fill_tableau() +
+		scale_fill_tableau(labels = function(x) str_to_title(str_replace_all(x, '_', ' '))) +
 		theme_tableau()
 
 	graph_file_path = paste0(demo, ' avg_dist_distribution_hist.png')
@@ -595,7 +595,7 @@ plot_original_optimized_demographic_hists <- function(config_residence_df, orig_
 plot_population_densities <- function(density_df){
 	ggplot(density_df[population != 0, ]) +
 	   geom_point(aes(reorder(id_orig, pop_density_km), y = pop_density_km), color = TABLEAU_COLORS[1], alpha = 0.7) +
-	   labs(title = 'Block group population density / km', x = 'Density ordered Census Blocks', y = 'Population density / km') +
+	   labs(title = 'Census Block Population Density', x = 'Density ordered Census Blocks', y = 'Population / km sq') +
 	   theme_tableau() +
 	   theme(
 		axis.text.x = element_blank(),
