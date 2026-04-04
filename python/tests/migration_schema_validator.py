@@ -4,6 +4,8 @@ Walks the migration chain in revision order, tracks table/column/view state,
 and flags any operation that references a nonexistent schema object.
 No database required — pure Python AST and regex parsing.
 """
+import ast
+import os
 
 
 class SchemaState:
@@ -195,3 +197,118 @@ class SchemaState:
             )
             return
         self.views.discard(view_name)
+
+
+def get_revision_info(file_path: str) -> dict:
+    """Extract revision metadata from an Alembic migration file.
+
+    Parses the module-level assignments for 'revision' and 'down_revision'.
+
+    Args:
+        file_path: Path to the migration .py file.
+
+    Returns:
+        Dict with keys: 'revision', 'down_revision', 'file_path'.
+    """
+    with open(file_path, encoding='utf-8') as source_file:
+        tree = ast.parse(source_file.read())
+
+    revision = None
+    down_revision = None
+
+    for node in ast.iter_child_nodes(tree):
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+
+        if isinstance(node, ast.AnnAssign):
+            target_name = (
+                node.target.id if isinstance(node.target, ast.Name) else None
+            )
+            value_node = node.value
+        else:
+            if len(node.targets) != 1:
+                continue
+            target = node.targets[0]
+            target_name = target.id if isinstance(target, ast.Name) else None
+            value_node = node.value
+
+        if target_name == 'revision':
+            revision = _extract_constant(value_node)
+        elif target_name == 'down_revision':
+            down_revision = _extract_constant(value_node)
+
+    return {
+        'revision': revision,
+        'down_revision': down_revision,
+        'file_path': file_path,
+    }
+
+
+def _extract_constant(node: ast.expr):
+    """Extract a constant value from an AST node.
+
+    Handles Constant nodes (strings, None) directly.
+    Returns None for non-constant expressions.
+
+    Args:
+        node: AST expression node.
+
+    Returns:
+        The constant value, or None if not extractable.
+    """
+    if isinstance(node, ast.Constant):
+        return node.value
+    return None
+
+
+def build_migration_chain(versions_dir: str) -> list[dict]:
+    """Build an ordered list of migrations from the revision chain.
+
+    Reads all .py files in the versions directory, extracts their revision
+    metadata, and orders them by following the down_revision links from
+    the initial migration (down_revision=None) to the head.
+
+    Args:
+        versions_dir: Path to the Alembic versions directory.
+
+    Returns:
+        List of revision info dicts in chain order (oldest first).
+
+    Raises:
+        ValueError: If no initial migration found or chain is broken.
+    """
+    migration_files = [
+        os.path.join(versions_dir, filename)
+        for filename in os.listdir(versions_dir)
+        if filename.endswith('.py')
+    ]
+
+    all_revisions = [get_revision_info(path) for path in migration_files]
+
+    # Find the initial migration (down_revision is None)
+    initial = [rev for rev in all_revisions if rev['down_revision'] is None]
+    if len(initial) != 1:
+        raise ValueError(
+            f'Expected exactly 1 initial migration, found {len(initial)}'
+        )
+
+    chain = [initial[0]]
+    visited = {initial[0]['revision']}
+
+    # Build a reverse lookup: down_revision -> revision
+    next_lookup = {}
+    for rev in all_revisions:
+        if rev['down_revision'] is not None:
+            next_lookup[rev['down_revision']] = rev
+
+    current = initial[0]
+    while current['revision'] in next_lookup:
+        current = next_lookup[current['revision']]
+        if current['revision'] in visited:
+            raise ValueError(
+                f'Cycle detected at revision {current["revision"]}'
+            )
+        visited.add(current['revision'])
+        chain.append(current)
+
+    return chain

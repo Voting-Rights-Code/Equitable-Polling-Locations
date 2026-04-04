@@ -1,5 +1,13 @@
 """Tests for migration schema validator."""
-from python.tests.migration_schema_validator import SchemaState
+import os
+
+from python.tests.migration_schema_validator import (
+    SchemaState, get_revision_info, build_migration_chain,
+)
+
+VERSIONS_DIR = os.path.join(
+    os.path.dirname(__file__), '..', 'database', 'alembic', 'versions'
+)
 
 
 class TestSchemaStateCreateTable:
@@ -175,3 +183,51 @@ class TestSchemaStateViews:
         schema = SchemaState()
         schema.drop_view('my_view', 'rev_001')
         assert len(schema.errors) == 1
+
+
+class TestGetRevisionInfo:
+    """Tests for extracting revision metadata from migration files."""
+
+    def test_extracts_revision_and_down_revision(self, tmp_path):
+        migration = tmp_path / 'test_migration.py'
+        migration.write_text(
+            'revision: str = "abc123"\n'
+            'down_revision = "def456"\n'
+            'def upgrade() -> None:\n'
+            '    pass\n'
+        )
+        info = get_revision_info(str(migration))
+        assert info['revision'] == 'abc123'
+        assert info['down_revision'] == 'def456'
+
+    def test_handles_none_down_revision(self, tmp_path):
+        migration = tmp_path / 'test_migration.py'
+        migration.write_text(
+            'from typing import Union\n'
+            'revision: str = "abc123"\n'
+            'down_revision: Union[str, None] = None\n'
+            'def upgrade() -> None:\n'
+            '    pass\n'
+        )
+        info = get_revision_info(str(migration))
+        assert info['revision'] == 'abc123'
+        assert info['down_revision'] is None
+
+
+class TestBuildMigrationChain:
+    """Tests for building an ordered migration chain."""
+
+    def test_builds_chain_from_real_migrations(self):
+        chain = build_migration_chain(VERSIONS_DIR)
+        # First migration has no down_revision
+        assert chain[0]['down_revision'] is None
+        # Chain is contiguous — each revision's down_revision matches the previous
+        for i in range(1, len(chain)):
+            assert chain[i]['down_revision'] == chain[i - 1]['revision']
+
+    def test_chain_includes_all_migration_files(self):
+        chain = build_migration_chain(VERSIONS_DIR)
+        migration_files = [
+            f for f in os.listdir(VERSIONS_DIR) if f.endswith('.py')
+        ]
+        assert len(chain) == len(migration_files)
