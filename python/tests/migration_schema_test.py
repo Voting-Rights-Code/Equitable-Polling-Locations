@@ -3,6 +3,7 @@ import os
 
 from python.tests.migration_schema_validator import (
     SchemaState, get_revision_info, build_migration_chain,
+    extract_operations,
 )
 
 VERSIONS_DIR = os.path.join(
@@ -231,3 +232,229 @@ class TestBuildMigrationChain:
             f for f in os.listdir(VERSIONS_DIR) if f.endswith('.py')
         ]
         assert len(chain) == len(migration_files)
+
+
+class TestExtractOperationsCreateTable:
+    """Tests for extracting create_table operations from migration source."""
+
+    def test_extracts_create_table_with_columns(self):
+        source = '''
+def upgrade() -> None:
+    op.create_table('users',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('name', sa.String(length=256), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+'''
+        operations = extract_operations(source)
+        assert len(operations) == 1
+        assert operations[0]['type'] == 'create_table'
+        assert operations[0]['table'] == 'users'
+        assert operations[0]['columns'] == {'id', 'name'}
+
+
+class TestExtractOperationsAddColumn:
+    """Tests for extracting add_column operations."""
+
+    def test_extracts_add_column(self):
+        source = '''
+def upgrade() -> None:
+    op.add_column('model_configs', sa.Column('log_distance', sa.Boolean(), nullable=True))
+'''
+        operations = extract_operations(source)
+        assert len(operations) == 1
+        assert operations[0]['type'] == 'add_column'
+        assert operations[0]['table'] == 'model_configs'
+        assert operations[0]['column'] == 'log_distance'
+
+
+class TestExtractOperationsDropColumn:
+    """Tests for extracting drop_column operations."""
+
+    def test_extracts_drop_column(self):
+        source = '''
+def upgrade() -> None:
+    op.drop_column('model_runs', 'polling_locations_set_id')
+'''
+        operations = extract_operations(source)
+        assert len(operations) == 1
+        assert operations[0]['type'] == 'drop_column'
+        assert operations[0]['table'] == 'model_runs'
+        assert operations[0]['column'] == 'polling_locations_set_id'
+
+
+class TestExtractOperationsAlterColumn:
+    """Tests for extracting alter_column operations."""
+
+    def test_extracts_alter_column(self):
+        source = '''
+def upgrade() -> None:
+    op.alter_column('polling_locations', 'distance_m',
+        existing_type=sa.Float(),
+        nullable=True
+    )
+'''
+        operations = extract_operations(source)
+        assert len(operations) == 1
+        assert operations[0]['type'] == 'alter_column'
+        assert operations[0]['table'] == 'polling_locations'
+        assert operations[0]['column'] == 'distance_m'
+
+
+class TestExtractOperationsDropTable:
+    """Tests for extracting drop_table operations."""
+
+    def test_extracts_drop_table(self):
+        source = '''
+def upgrade() -> None:
+    op.drop_table('old_table')
+'''
+        operations = extract_operations(source)
+        assert len(operations) == 1
+        assert operations[0]['type'] == 'drop_table'
+        assert operations[0]['table'] == 'old_table'
+
+
+class TestExtractOperationsRenameTable:
+    """Tests for extracting RENAME TABLE from raw SQL execute calls."""
+
+    def test_extracts_rename_table_from_fstring_execute(self):
+        source = '''
+def upgrade() -> None:
+    config = op.get_context().config
+    db_dataset = config.get_main_option('DB_DATASET')
+    op.execute(
+        f'ALTER TABLE `{db_dataset}.old_table` RENAME TO `new_table`'
+    )
+'''
+        operations = extract_operations(source)
+        assert len(operations) == 1
+        assert operations[0]['type'] == 'rename_table'
+        assert operations[0]['old_name'] == 'old_table'
+        assert operations[0]['new_name'] == 'new_table'
+
+    def test_extracts_rename_table_from_sa_text_execute(self):
+        source = '''
+def upgrade() -> None:
+    config = op.get_context().config
+    db_dataset = config.get_main_option('DB_DATASET')
+    op.execute(sa.text(
+        f'ALTER TABLE `{db_dataset}.old_table` RENAME TO `new_table`')
+    )
+'''
+        operations = extract_operations(source)
+        assert len(operations) == 1
+        assert operations[0]['type'] == 'rename_table'
+        assert operations[0]['old_name'] == 'old_table'
+        assert operations[0]['new_name'] == 'new_table'
+
+
+class TestExtractOperationsRenameColumn:
+    """Tests for extracting RENAME COLUMN from raw SQL execute calls."""
+
+    def test_extracts_rename_column_from_fstring(self):
+        source = '''
+def upgrade() -> None:
+    config = op.get_context().config
+    db_dataset = config.get_main_option('DB_DATASET')
+    op.execute(
+        f'ALTER TABLE `{db_dataset}.my_table` '
+        f'RENAME COLUMN `old_col` TO `new_col`'
+    )
+'''
+        operations = extract_operations(source)
+        assert len(operations) == 1
+        assert operations[0]['type'] == 'rename_column'
+        assert operations[0]['table'] == 'my_table'
+        assert operations[0]['old_column'] == 'old_col'
+        assert operations[0]['new_column'] == 'new_col'
+
+    def test_extracts_rename_column_without_space_between_strings(self):
+        """Catches the missing-space bug in implicit string concatenation."""
+        source = '''
+def upgrade() -> None:
+    config = op.get_context().config
+    db_dataset = config.get_main_option('DB_DATASET')
+    op.execute(
+        f'ALTER TABLE `{db_dataset}.my_table`'
+        f'RENAME COLUMN `old_col` TO `new_col`'
+    )
+'''
+        operations = extract_operations(source)
+        assert len(operations) == 1
+        assert operations[0]['type'] == 'rename_column'
+        assert operations[0]['table'] == 'my_table'
+        assert operations[0]['old_column'] == 'old_col'
+        assert operations[0]['new_column'] == 'new_col'
+
+
+class TestExtractOperationsRenameColumnAndTable:
+    """Tests for migrations with both column and table renames."""
+
+    def test_extracts_both_column_rename_and_table_rename(self):
+        source = '''
+def upgrade() -> None:
+    config = op.get_context().config
+    db_dataset = config.get_main_option('DB_DATASET')
+    op.execute(
+        f'ALTER TABLE `{db_dataset}.my_table` '
+        f'RENAME COLUMN `old_col` TO `new_col`'
+    )
+    op.execute(
+        f'ALTER TABLE `{db_dataset}.my_table` RENAME TO `new_table`'
+    )
+'''
+        operations = extract_operations(source)
+        assert len(operations) == 2
+        assert operations[0]['type'] == 'rename_column'
+        assert operations[1]['type'] == 'rename_table'
+
+
+class TestExtractOperationsViews:
+    """Tests for extracting view operations."""
+
+    def test_extracts_create_view(self):
+        source = '''
+def upgrade() -> None:
+    config = op.get_context().config
+    db_dataset = config.get_main_option('DB_DATASET')
+    op.create_view(build_my_view(db_dataset))
+'''
+        operations = extract_operations(source)
+        assert len(operations) == 1
+        assert operations[0]['type'] == 'create_view'
+        assert operations[0]['view'] == 'my_view'
+
+    def test_extracts_create_view_from_variable(self):
+        source = '''
+def upgrade() -> None:
+    config = op.get_context().config
+    db_dataset = config.get_main_option('DB_DATASET')
+    my_view = build_some_view(db_dataset)
+    op.create_view(my_view)
+'''
+        operations = extract_operations(source)
+        assert len(operations) == 1
+        assert operations[0]['type'] == 'create_view'
+
+
+class TestExtractOperationsIgnoresNonSchemaOps:
+    """Tests that non-schema operations are correctly ignored."""
+
+    def test_ignores_update_statements(self):
+        source = '''
+def upgrade() -> None:
+    connection = op.get_bind()
+    connection.execute(sa.text('UPDATE model_configs SET census_year = :value WHERE true'), {'value': '2020'})
+'''
+        operations = extract_operations(source)
+        assert len(operations) == 0
+
+    def test_ignores_config_retrieval(self):
+        source = '''
+def upgrade() -> None:
+    config = op.get_context().config
+    db_dataset = config.get_main_option('DB_DATASET')
+'''
+        operations = extract_operations(source)
+        assert len(operations) == 0
