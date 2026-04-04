@@ -676,3 +676,79 @@ def _view_name_from_builder_call(call_node: ast.Call) -> str | None:
         if func_name.startswith('build_'):
             return func_name[len('build_'):]
     return None
+
+
+def validate_migration_chain(versions_dir: str) -> list[str]:
+    """Walk the full migration chain and validate schema consistency.
+
+    Builds the migration chain from the versions directory, parses each
+    migration's upgrade() function, and applies operations to a SchemaState
+    tracker. Returns any errors found (operations that reference nonexistent
+    tables or columns).
+
+    Args:
+        versions_dir: Path to the Alembic versions directory.
+
+    Returns:
+        List of error strings. Empty list means the chain is consistent.
+    """
+    chain = build_migration_chain(versions_dir)
+    schema = SchemaState()
+
+    for migration in chain:
+        file_path = migration['file_path']
+        revision = migration['revision']
+
+        with open(file_path, encoding='utf-8') as source_file:
+            source = source_file.read()
+
+        operations = extract_operations(source)
+
+        for operation in operations:
+            _apply_operation(schema, operation, revision)
+
+    return schema.errors
+
+
+def _apply_operation(schema: SchemaState, operation: dict,
+                     migration_id: str) -> None:
+    """Apply a parsed operation to the schema state tracker.
+
+    Args:
+        schema: The SchemaState instance to update.
+        operation: Operation dict from extract_operations().
+        migration_id: Alembic revision ID for error reporting.
+    """
+    operation_type = operation['type']
+
+    if operation_type == 'create_table':
+        schema.create_table(
+            operation['table'], operation['columns'], migration_id
+        )
+    elif operation_type == 'drop_table':
+        schema.drop_table(operation['table'], migration_id)
+    elif operation_type == 'add_column':
+        schema.add_column(
+            operation['table'], operation['column'], migration_id
+        )
+    elif operation_type == 'drop_column':
+        schema.drop_column(
+            operation['table'], operation['column'], migration_id
+        )
+    elif operation_type == 'alter_column':
+        schema.alter_column(
+            operation['table'], operation['column'], migration_id
+        )
+    elif operation_type == 'rename_table':
+        schema.rename_table(
+            operation['old_name'], operation['new_name'], migration_id
+        )
+    elif operation_type == 'rename_column':
+        schema.rename_column(
+            operation['table'], operation['old_column'],
+            operation['new_column'], migration_id
+        )
+    elif operation_type == 'create_view':
+        schema.create_view(operation['view'], migration_id)
+    elif operation_type == 'drop_view':
+        schema.drop_view(operation['view'], migration_id)

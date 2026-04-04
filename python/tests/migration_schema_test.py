@@ -3,7 +3,7 @@ import os
 
 from python.tests.migration_schema_validator import (
     SchemaState, get_revision_info, build_migration_chain,
-    extract_operations,
+    extract_operations, validate_migration_chain,
 )
 
 VERSIONS_DIR = os.path.join(
@@ -458,3 +458,22 @@ def upgrade() -> None:
 '''
         operations = extract_operations(source)
         assert len(operations) == 0
+
+
+class TestMigrationChainValidation:
+    """Integration test: validate the real migration chain's schema consistency."""
+
+    def test_migration_chain_schema_is_consistent(self):
+        """Walk every migration in chain order and verify all operations
+        reference tables and columns that exist at that point in the chain.
+
+        This catches bugs like:
+        - Renaming a column that doesn't exist (wrong name or already renamed)
+        - Adding a column to a table that was renamed in a previous migration
+        - Dropping a table that was already dropped
+        """
+        errors = validate_migration_chain(VERSIONS_DIR)
+        assert not errors, (
+            'Migration chain has schema consistency errors:\n'
+            + '\n'.join(f'  - {error}' for error in errors)
+        )
