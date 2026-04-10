@@ -54,7 +54,3 @@ To run only the config `Gwinnett_County_GA_driving_no_bg_no_ed_14` from the data
 
 ***NOTE: BEWARE OF CAPITALIZATION***
 Both Gwinnett_G**A**_configs/Gwinnett* and Gwinnett_G**a**_configs/Gwinnett* will run on Windows. However, due to string replacement work in other parts of the programs, the former is preferred.
-
-
-<!--### From Google Colab:
-Follow the the instructions in [this file](/Colab_runs/colab_Gwinnett_expanded_multi_11_12_13_14_15.ipynb)-->
