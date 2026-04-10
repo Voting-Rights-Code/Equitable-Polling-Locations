@@ -10,10 +10,10 @@ conda activate equitable-polls
 ```
 
 Then run the model. There are two command line options, one to write data locally, and the other to write data to the database:
-* Read/write locally: `python run.py model_run_cli -c NUM -l ./path/to/config/file.yaml`
+* Read/write locally: `python run.py model_run_cli -c NUM ./path/to/config/file.yaml`
 * Read/write from/to database:
-    * `python run.py model_run_db_cli -e ENV -c NUM -l config_set/config_name1 config_set2/config_name`
-    * `python run.py model_run_db_cli -e ENV -c NUM -l config_set`
+    * `python run.py model_run_db_cli -e ENV -c NUM config_set/config_name1 config_set2/config_name`
+    * `python run.py model_run_db_cli -e ENV -c NUM config_set`
 * If not all files are already stored in the cloud:
     * If the potential locations file is not stored on the cloud:
         * Run `python run.py db_import_potential_locations_cli <list of locations>`
@@ -27,13 +27,14 @@ Then run the model. There are two command line options, one to write data locall
 
 ### Parameters
 
-* ENV = The environment to use. For cli utilities that connect to the database, you need to select an environment. Typically this will be "prod" but others can be defined in settings.yaml in the project root directory. If an environment is not defined then you will be prompted to pick one.
-* NUM = The number of configurations to run concurrently (default = 1). If more than one is set then multiple model runs can potentially be completed quicker depending on the resources available on your computer.
+* `-e` / `--environment` = The environment to use. For cli utilities that connect to the database, you need to select an environment. Typically this will be "prod" but others can be defined in settings.yaml in the project root directory. If an environment is not provided then you will be prompted to pick one.
+* `-c` / `--concurrent` = The number of configurations to run concurrently (default = 1). If more than one is set then multiple model runs can potentially be completed quicker depending on the resources available on your computer.
 * path to config file accepts wild cards to set of sequential runs
 * config_set and config_name refer to the fields in the config data.
     * To run all the config_names associated to a config_set, just enter the config_set
 * To write files locally while using `model_run_db_cli`, use the flag `-o csv`
-* For extra logging include the flag `-vv`
+* `-v` / `--verbose` for extra logging. Stackable: `-v` for verbose output, `-vv` to also enable function timers.
+* `-L` / `--logdir` to specify the log file directory (default: `./logs`). When running concurrently (`-c > 1`), logs go to files only to avoid interleaved output.
 
 
 ### Examples
