@@ -71,6 +71,8 @@ For detailed guides and technical information on the **Equitable Polling Locatio
 
 1. [Installation](to_install.md)  
 
+1. [Contributing — Development Guide](development/CONTRIBUTING.md)
+
 1. [Running the Program](to_run.md)
 
 1. [Database option for output storage](database.md)
