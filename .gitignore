@@ -171,6 +171,7 @@ authentication_files/
 # Misc
 logs
 .DS_Store
+desktop.ini
 
 
 # R
