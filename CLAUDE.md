@@ -72,7 +72,7 @@ python/
   tests/      # pytest suite; fixtures in conftest.py
     e2e/      # End-to-end CLI tests (subprocess-based, session-isolated)
 run.py        # Docker wrapper; auto-discovers scripts in python/scripts/
-datasets/     # Sample data by county: configs, polling locations, distances
+datasets/     # Data by county: configs, polling locations, distances
 ```
 
 `run.py <script_name> [args]` → `docker compose run --rm app python -m python.scripts.<script_name> [args]`
@@ -81,7 +81,7 @@ datasets/     # Sample data by county: configs, polling locations, distances
 
 This is an open source project. Keep the repo authoritative:
 
-- **Finalized decisions** → `docs/decisions/` (ADR format: "Why we chose X over Y")
+- **Finalized decisions** → `docs/development/decisions/` (ADR format: "Why we chose X over Y")
 - **Specs and plans** → add to the originating issue/ticket, not as separate issues
 - **Do NOT commit** rough specs, exploratory plans, or in-progress design docs to the repo
 - Outside contributors treat anything in `main` as gospel — keep it clean
