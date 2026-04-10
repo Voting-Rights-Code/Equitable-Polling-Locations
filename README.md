@@ -1,9 +1,6 @@
-___
-
 <p align="center">
-<img src =VRC-Large-PNG.png alt=logo width="350"> </center>
+  <img src="docs/VRC-Large-PNG.png" alt="logo" width="350">
 </p>
-___
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Python](https://img.shields.io/badge/python-3670A0?style=flat-square&logo=python&logoColor=ffdd54)](http://python.org)
@@ -52,9 +49,10 @@ An innovative software tool aimed at selecting an optimal set of polling sites t
 
 * **Optimization Choices and Constraints**  
    Users can set optimization goals to minimize either the average distance or the KP-penalized score. Constraints can be added, such as:
-   - Maximum polling locations
+   - Total number of polling locations
    - Number of new polling locations
-   - Match each census block to one polling location or open precinct. 
+   - Driving or straight line distances
+   - Linear or log model (for more or less evenly distributed populations)
    - User defined overcrowding limits, allowing configuration to fit community needs
 
 * **Outputs**  
@@ -67,31 +65,31 @@ An innovative software tool aimed at selecting an optimal set of polling sites t
 
 For detailed guides and technical information on the **Equitable Polling Locations** software, please choose a topic from the list below: 
 
-1. [Software Details](software.md)  
+1. [Software Details](docs/software.md)  
 
-1. [Installation](to_install.md)  
+1. [Installation](docs/to_install.md)  
 
-1. [Contributing — Development Guide](development/CONTRIBUTING.md)
+1. [Contributing — Development Guide](docs/development/CONTRIBUTING.md)
 
-1. [Running the Program](to_run.md)
+1. [Input Files](docs/input_files.md)
 
-1. [Database option for output storage](database.md)
+1. [Running the Program](docs/to_run.md)
 
-1. [Input Files](input_files.md)  
+1. [Intermediate Datasets](docs/intermediate_datasets.md) 
 
-1. [Output Dataset](output_datasets.md) 
+1. [Output Dataset](docs/output_datasets.md) 
 
-1. [Intermediate Dataset](intermediate_dataset.md) 
+1. [Data analytics](docs/result_analysis.md) 
 
-1. [Data analytics](result_analysis.md) 
+1. [Database option for output storage](docs/database.md)  
 
-1. [Program Logging](logging.md) 
+1. [Program Logging](docs/logging.md) 
 
-1. [References](references.md)
+1. [References](docs/references.md)
 
-1. [Acknowledgements](acknowledgements.md) 
+1. [Acknowledgements](docs/acknowledgements.md) 
 
-1. [How to Cite](how_to_cite.md)  
+1. [How to Cite](docs/how_to_cite.md)  
 
 
 #### Need more information?  [Ask us on Discord](https://discord.com/channels/1106301559811350540/1106301560507609241)
