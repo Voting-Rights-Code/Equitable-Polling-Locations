@@ -16,6 +16,36 @@ def get_gcp_creds_path():
         return os.path.join(os.environ.get("APPDATA", ""), "gcloud")
     return os.path.expanduser("~/.config/gcloud")
 
+
+def get_docker_compose_cmd() -> list[str]:
+    """Returns the docker compose command prefix for the available version.
+
+    Prefers Docker Compose v2 (``docker compose``) and falls back to v1
+    (``docker-compose``). Exits with code 1 if neither is available.
+
+    Returns:
+        The command prefix as a list, e.g. ``["docker", "compose"]`` or
+        ``["docker-compose"]``.
+    """
+    candidates = (
+        (["docker", "compose"], ["docker", "compose", "version"]),
+        (["docker-compose"], ["docker-compose", "--version"]),
+    )
+    for prefix, probe in candidates:
+        try:
+            result = subprocess.run(probe, capture_output=True, check=False)
+            if result.returncode == 0:
+                return prefix
+        except FileNotFoundError:
+            continue
+
+    print(
+        "Error: Neither 'docker compose' (v2) nor 'docker-compose' (v1) is available.\n"
+        "Install Docker Desktop or the docker-compose plugin and try again.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
 def get_scripts() -> list[str]:
     """Dynamically finds available scripts in ./python/scripts."""
     scripts_dir = Path(__file__).resolve().parent / "python" / "scripts"
@@ -27,11 +57,12 @@ def get_scripts() -> list[str]:
 def main():
     # Special command: e2e_tests bypasses script discovery and runs pytest
     if len(sys.argv) > 1 and sys.argv[1] == 'e2e_tests':
+        compose_cmd = get_docker_compose_cmd()
         env = os.environ.copy()
         env["GCP_CREDS_PATH"] = get_gcp_creds_path()
         extra_args = sys.argv[2:]
-        cmd = [
-            "docker", "compose", "run", "--rm", "app",
+        cmd = compose_cmd + [
+            "run", "--rm", "app",
             "pytest", "python/tests/e2e/"
         ] + extra_args
         try:
@@ -77,13 +108,14 @@ def main():
     args = parser.parse_args()
 
     # 2. Prepare Environment
+    compose_cmd = get_docker_compose_cmd()
     env = os.environ.copy()
     env["GCP_CREDS_PATH"] = get_gcp_creds_path()
 
     # 3. Construct and Run Docker Command
     # Using 'python -m' ensures internal package imports work correctly
-    cmd = [
-        "docker", "compose", "run", "--rm", "app",
+    cmd = compose_cmd + [
+        "run", "--rm", "app",
         "python", "-m", f"python.scripts.{args.script}"
     ] + args.script_args
 
