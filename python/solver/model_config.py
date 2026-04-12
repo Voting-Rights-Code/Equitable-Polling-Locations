@@ -61,6 +61,9 @@ class PollingModelConfig:
     '''The acceptable optimality gap for the solver'''
     census_year: str
     ''' The census year to use. '''
+    census_data_type: str
+    ''' The type of census data to use, redistricting, CVAP or ACS. '''
+
 
     precincts_open: int
     '''The total number of precincts to be used this year. If no

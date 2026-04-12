@@ -229,18 +229,16 @@ def pull_tiger_file(state, fips, county_ST, county_code, geo, census_year):
 def pull_state_CVAP_data(state, apikey):
     #This is a stub for the apikey that needs to be written eventually.
     #Note, this is Texas data
-    df = pd.read_csv("temp_CVAP/tx_cvap_2024_2020_b.csv")
+    df = pd.read_csv("temp_CVAP/ga_cvap_2023_2020_b.csv")
     return df
 
 def locality_CVAP_only(state_CVAP, countycode):
     #TODO: Move GEOID20 constant definition so it can be used here too
     state_CVAP['GEOID20'] = state_CVAP['GEOID20'].astype(str)
-    locality_mask = state_CVAP[state_CVAP['GEOID20'].str.startswith(countycode)]
-    locality_CVAP = state_CVAP[locality_mask]
-
+    locality_CVAP = state_CVAP[state_CVAP['GEOID20'].str.startswith(countycode)]
     return(locality_CVAP)
 
-def pull_CVAP_data(statecode, county, census_year, apikey = RDH_key, state_lookup=STATE_LOOKUP):
+def pull_CVAP_data(statecode, county, census_year, census_apikey = census_key, RDH_apikey = RDH_key, state_lookup=STATE_LOOKUP):
     """
     Given a statecode (i.e. MD or NY),
     and county (full name, must be capitalized properly),
@@ -248,23 +246,27 @@ def pull_CVAP_data(statecode, county, census_year, apikey = RDH_key, state_looku
     save off county data and tiger files
 
     """
+    if census_apikey is None:
+        raise ValueError('No census key available. Please request one from the census to download census data. See README.')
+
     #TODO: Refactor this and pull census data so that tiger files not pulled twice
     #TODO: Refactor to reduce repeated code
-    if apikey is None:
+    if RDH_apikey is None:
         pass
         #TODO: Eventually raise this error. No API connection yet.
         #raise ValueError('No RDH key available. Please request one from the census to download census data. See README.')
     state = state_lookup.get(statecode)
-    states_fips = get_all_states_fips_codes(census_year, apikey)  # get all fips codes for all states
-    fipscode = states_fips[state]
+    states_fips = get_all_states_fips_codes(census_year, census_apikey)  # get all fips codes for all states
+    fipscode2 = states_fips[state]
 
-    counties_codes = get_all_state_county_codes(fipscode, census_year, apikey)  # get all county codes
+    counties_codes = get_all_state_county_codes(fipscode2, census_year, census_apikey)  # get all county codes
     countycode = get_county_code(county, counties_codes)
     county_ST = county.replace(' ','_')+ '_' + statecode
 
-    state_CVAP = pull_state_CVAP_data(state, apikey)
-    locality_CVAP = locality_CVAP_only(state_CVAP, countycode)
-
+    fipscode5 = fipscode2 + countycode
+    state_CVAP = pull_state_CVAP_data(state, RDH_apikey)
+    locality_CVAP = locality_CVAP_only(state_CVAP, fipscode5)
+    
     if locality_CVAP.shape[0] == 0:
         raise ValueError(f'{county} data not in {state} CVAP data')
 
@@ -273,8 +275,8 @@ def pull_CVAP_data(statecode, county, census_year, apikey = RDH_key, state_looku
     for geo in (BLOCK_GEO, BLOCK_GROUP_GEO):
         # pull tiger files
         print(f"Now pulling tiger data for {geo} geography")
-        url, out = pull_tiger_file(state, fipscode, county_ST, countycode, geo, census_year)
-    return "Sucess"
+        url, out = pull_tiger_file(state, fipscode2, county_ST, countycode, geo, census_year)
+    return "Success"
 
 def pull_census_data(statecode, county, census_year, apikey = census_key, state_lookup=STATE_LOOKUP):
     """

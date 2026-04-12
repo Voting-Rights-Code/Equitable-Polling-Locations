@@ -81,9 +81,6 @@ CVAP_COLUMNS = [
     "CVAP_2OM24"
     ]
 
-    #TODO: get these columns from the data
-]
-
 BLOCK_SHAPE_COLS = [
     TIGER20_GEOID20,
     TIGER20_INTPTLAT20,
@@ -324,13 +321,15 @@ def get_CVAP_demographics(census_year: str, location: str):
     CVAP_df = CVAP_df[CVAP_COLUMNS]
     #add in an empty Other race column because CVAP doesn't have that
     CVAP_df[DISTANCE_OTHER] = np.nan
+    #make the GEOID20 column a string
+    CVAP_df['GEOID20'] = CVAP_df['GEOID20'].astype(str)
 
     # Change column names
     #Note that the GEOID here is changed to match the column name from redistricting
     CVAP_df = CVAP_df.rename(columns = {"GEOID20" : CEN20_GEO_ID,
         "CVAP_HSP24": DISTANCE_HISPANIC, "CVAP_NHS24": DISTANCE_NON_HISPANIC,
         "CVAP_TOT24": DISTANCE_TOTAL_POPULATION, "CVAP_WHT24": DISTANCE_WHITE,
-        "CVAP_BLA24": DISTANCE_BLACK, "CVAP_AIW24": DISTANCE_NATIVE, "CVAP_ASI24": DISTANCE_ASIAN,
+        "CVAP_BLA24": DISTANCE_BLACK, "CVAP_AMI24": DISTANCE_NATIVE, "CVAP_ASI24": DISTANCE_ASIAN,
         "CVAP_NHP24": DISTANCE_PACIFIC_ISLANDER, #CEN20_P3_OTHER: DISTANCE_OTHER,
         "CVAP_2OM24": DISTANCE_MULTIPLE_RACES,
     })
@@ -350,7 +349,7 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
 
     #get block group geographic
     blocks_gdf = get_blocks_gdf(census_year, location)
-
+    
     #join with block group shape files
     demographics_block = demographics.merge(
         blocks_gdf,
