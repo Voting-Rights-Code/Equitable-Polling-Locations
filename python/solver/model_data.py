@@ -32,7 +32,7 @@ BLOCK_GEO, P3_NAME, P4_NAME
 )
 
 from python.utils.pull_census_data import (
-    STATE_LOOKUP, pull_census_data, pull_CVAP_data
+    pull_census_data, pull_CVAP_data
 )
 from .model_config import PollingModelConfig
 
@@ -69,16 +69,16 @@ P4_COLUMNS = [
 ]
 
 CVAP_COLUMNS = [
-    "GEOID20",
-    "CVAP_TOT24",
-    "CVAP_HSP24",
-    "CVAP_NHS24",
-    "CVAP_WHT24",
-    "CVAP_BLA24",
-    "CVAP_AMI24",
-    "CVAP_ASI24",
-    "CVAP_NHP24",
-    "CVAP_2OM24"
+    "GEOID",
+    "CVAP_TOT",
+    "CVAP_HSP",
+    "CVAP_NHS",
+    "CVAP_WHT",
+    "CVAP_BLA",
+    "CVAP_AMI",
+    "CVAP_ASI",
+    "CVAP_NHP",
+    "CVAP_OM"
     ]
 
 BLOCK_SHAPE_COLS = [
@@ -302,13 +302,13 @@ def get_CVAP_demographics(census_year: str, location: str):
     '''
     CVAP_dir = build_CVAP_dir_path(location)
     CVAP_source_file = build_CVAP_source_file_path(census_year, location)
-
+    
     if not os.path.exists(CVAP_dir):
         statecode = location[-2:]
         locality = location[:-3].replace('_', ' ')
         pull_CVAP_data(statecode, locality, census_year)
+        
 
-    #TODO: start here
     if os.path.exists(CVAP_source_file):
         CVAP_df = pd.read_csv(CVAP_source_file,
             low_memory=False, # files are too big, set this to False to prevent errors
@@ -317,21 +317,23 @@ def get_CVAP_demographics(census_year: str, location: str):
     #######
     #Clean data
     #######
+    #remove year data
+    CVAP_df.columns= CVAP_df.columns.str.replace(r'\d+', '', regex=True)
     #select columns for each data set
     CVAP_df = CVAP_df[CVAP_COLUMNS]
     #add in an empty Other race column because CVAP doesn't have that
     CVAP_df[DISTANCE_OTHER] = np.nan
-    #make the GEOID20 column a string
-    CVAP_df['GEOID20'] = CVAP_df['GEOID20'].astype(str)
+    #make the GEOID column a string
+    CVAP_df['GEOID'] = CVAP_df['GEOID'].astype(str)
 
     # Change column names
     #Note that the GEOID here is changed to match the column name from redistricting
-    CVAP_df = CVAP_df.rename(columns = {"GEOID20" : CEN20_GEO_ID,
-        "CVAP_HSP24": DISTANCE_HISPANIC, "CVAP_NHS24": DISTANCE_NON_HISPANIC,
-        "CVAP_TOT24": DISTANCE_TOTAL_POPULATION, "CVAP_WHT24": DISTANCE_WHITE,
-        "CVAP_BLA24": DISTANCE_BLACK, "CVAP_AMI24": DISTANCE_NATIVE, "CVAP_ASI24": DISTANCE_ASIAN,
-        "CVAP_NHP24": DISTANCE_PACIFIC_ISLANDER, #CEN20_P3_OTHER: DISTANCE_OTHER,
-        "CVAP_2OM24": DISTANCE_MULTIPLE_RACES,
+    CVAP_df = CVAP_df.rename(columns = {"GEOID" : CEN20_GEO_ID,
+        "CVAP_HSP": DISTANCE_HISPANIC, "CVAP_NHS": DISTANCE_NON_HISPANIC,
+        "CVAP_TOT": DISTANCE_TOTAL_POPULATION, "CVAP_WHT": DISTANCE_WHITE,
+        "CVAP_BLA": DISTANCE_BLACK, "CVAP_AMI": DISTANCE_NATIVE, "CVAP_ASI": DISTANCE_ASIAN,
+        "CVAP_NHP": DISTANCE_PACIFIC_ISLANDER, #CEN20_P3_OTHER: DISTANCE_OTHER,
+        "CVAP_OM": DISTANCE_MULTIPLE_RACES,
     })
 
     return(CVAP_df)
@@ -342,6 +344,7 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
     Combine the demographic block data a given census_data types for a specific location and
     census year with the corresponding tiger geographic data.
     '''
+
     if census_data_type == 'redistricting':
         demographics = get_redistricting_demographics(census_year, location)
     elif census_data_type == 'CVAP':
@@ -418,7 +421,7 @@ def build_distance_data(
 
     if not output_path_override:
         output_path = build_distance_file_path(
-            census_year, location, driving, log_distance,
+            census_year, census_data_type, location, driving, log_distance,
         )
     else:
         output_path = output_path_override
@@ -512,7 +515,7 @@ def build_distance_data(
     # Reformat and write to file (making directory if it doesn't exist)
     #####
 
-    output_dir = os.path.basename(output_path)
+    output_dir = os.path.dirname(output_path)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -627,6 +630,7 @@ class DistanceData:
 
 def get_distance_data_csv(
     census_year: str,
+    census_data_type: str,
     location: str,
     log_distance: bool,
     driving: bool,
@@ -638,7 +642,7 @@ def get_distance_data_csv(
     Returns
     None if the file does not exist, otherwise returns the DistanceData object
     '''
-    distance_data_csv_path = build_distance_file_path(census_year, location, driving, log_distance)
+    distance_data_csv_path = build_distance_file_path(census_year, census_data_type, location, driving, log_distance)
 
     if not os.path.isfile(distance_data_csv_path):
         return None
@@ -690,6 +694,7 @@ def get_distance_data_db(
 def get_distance_data(
     data_source: Literal['db', 'csv'],
     census_year: str,
+    census_data_type: str,
     location: str,
     log_distance: bool,
     driving: bool,
@@ -705,7 +710,7 @@ def get_distance_data(
 
     # Attempt to get the locations locally first - this saves much time if they have already been saved locally
     distance_data = get_distance_data_csv(
-        census_year=census_year, location=location, log_distance=log_distance, driving=driving, log=log,
+        census_year=census_year, census_data_type = census_data_type, location=location, log_distance=log_distance, driving=driving, log=log,
     )
 
     if distance_data:
@@ -718,12 +723,12 @@ def get_distance_data(
 
     # distance_data was not found locally, we now have to get it from the database
     distance_data = get_distance_data_db(
-        census_year=census_year, location=location, log_distance=log_distance, driving=driving, query=query, log=log,
+        census_year=census_year, census_data_type = census_data_type, location=location, log_distance=log_distance, driving=driving, query=query, log=log,
     )
 
     # Write the locations out locally
     output_path = build_distance_file_path(
-        census_year, location, driving, log_distance,
+        census_year, census_data_type, location, driving, log_distance,
     )
 
     # The following writes the distance data to a local CSV file as a way to cache it for future use

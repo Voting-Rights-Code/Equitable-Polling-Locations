@@ -145,6 +145,7 @@ class ModelRun():
 
         source_path = build_distance_file_path(
             self._config.census_year,
+            self._config.census_data_type,
             self._config.location,
             self._config.driving,
             self._config.log_distance,
@@ -152,7 +153,7 @@ class ModelRun():
 
         # Default to query being None to avoid unnecessary opening database connections
         query: Query=None
-
+        
         # If we are using local files, build the source data if it doesn't already exist
         if self._config.data_source == DATA_SOURCE_CSV:
             # Check if the local source file exists for the call get_distance_data below, if it doesn't then build it
@@ -175,6 +176,7 @@ class ModelRun():
         distance_data = get_distance_data(
             data_source=self._config.data_source,
             census_year=self._config.census_year,
+            census_data_type=self._config.census_data_type,
             location=self._config.location,
             log_distance=self._config.log_distance,
             driving=self._config.driving,

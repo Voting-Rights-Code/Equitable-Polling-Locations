@@ -11,10 +11,10 @@ setwd(here())
 #[5] "Elec Day Other - Potential"   "EV_2022_2020"
 #[7] "Fire Station - Potential"     "Library - Potential"
 #[9] "Other - Potential"
-testing_locations <- fread('datasets/polling/testing/testing_locations_only.csv')
+testing_locations <- fread('datasets/polling/testing/testing_potential_locations.csv')
 
 #load relevant blocks and block groups
-testing_2020 <- fread('datasets/polling/testing/testing_2020.csv')
+testing_2020 <- fread('datasets/polling/testing/testing_distances_2020.csv')
 testing_driving_2020 <- fread('datasets/polling/testing/testing_driving_2020.csv')
 all.equal(testing_2020$id_orig, testing_driving_2020$id_orig)
 #TRUE
@@ -35,16 +35,18 @@ read_census_data <- function(file_name, census_unit){
     return(testing_data_with_header)
 }
 
+#redistricting P3 data
 testing_P3 <-read_census_data('datasets/census/redistricting/Gwinnett_County_GA/DECENNIALPL2020.P3-Data.csv', census_blocks)
 testing_P4 <- read_census_data('datasets/census/redistricting/Gwinnett_County_GA/DECENNIALPL2020.P4-Data.csv', census_blocks)
 testing_P3_bg <- read_census_data('datasets/census/redistricting/Gwinnett_County_GA/block group demographics/DECENNIALPL2020.P3-Data.csv', census_block_groups)
 testing_P4_bg <- read_census_data('datasets/census/redistricting/Gwinnett_County_GA/block group demographics/DECENNIALPL2020.P4-Data.csv', census_block_groups)
-
+browser()
 fwrite(testing_P3, 'datasets/census/redistricting/testing/DECENNIALPL2020.P3-Data.csv', col.names = FALSE)
 fwrite(testing_P4, 'datasets/census/redistricting/testing/DECENNIALPL2020.P4-Data.csv', col.names = FALSE)
 fwrite(testing_P3_bg, 'datasets/census/redistricting/testing/block group demographics/DECENNIALPL2020.P3-Data.csv', col.names = FALSE)
 fwrite(testing_P4_bg, 'datasets/census/redistricting/testing/block group demographics/DECENNIALPL2020.P4-Data.csv', col.names = FALSE)
 
+#tiger data
 tiger_bg <- read_sf('datasets/census/tiger/Gwinnett_County_GA/tl_2020_13135_bg20.shp')
 tiger_block <- read_sf('datasets/census/tiger/Gwinnett_County_GA/tl_2020_13135_tabblock20.shp')
 
@@ -53,3 +55,8 @@ testing_tiger_block <- tiger_block[tiger_block$GEOID20 %in% as.character(blocks)
 
 st_write(testing_tiger_bg, 'datasets/census/tiger/testing/tl_2020_13135_bg20.shp')
 st_write(testing_tiger_block, 'datasets/census/tiger/testing/tl_2020_13135_tabblock20.shp')
+
+#CVAP data
+Gwinnett_CVAP <- fread('datasets/census/CVAP/Gwinnett_County_GA/CVAP_2020-Data.csv')
+testing_ACS <- Gwinnett_CVAP[GEOID20 %in% as.character(blocks) , ]
+fwrite(testing_ACS, 'datasets/census/CVAP/testing/CVAP_2020-Data.csv')

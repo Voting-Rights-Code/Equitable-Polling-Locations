@@ -105,21 +105,28 @@ def build_y_ede_summary_file_path(result_path: str, result_prefix: str) -> str:
 
 def build_distance_file_path(
         census_year: str,
+        census_data_type: str,
         location: str,
         driving: bool,
         log_distance: bool,
     ) -> str:
     ''' Returns the path to the locations files that includes distances for this config '''
     if log_distance:
-        extension = '_log.csv'
+        log_tag = '_log'
     else:
-        extension = '.csv'
+        log_tag = ''
 
     if driving:
-        distance_file_name = f'{location}_driving_distances_{census_year}{extension}'
+        driving_tag = '_driving'
     else:
-        distance_file_name = f'{location}_distances_{census_year}{extension}'
+        driving_tag = ''
 
+    if census_data_type != 'redistricting':
+        census_data_tag = f'_{census_data_type}'
+    else:
+        census_data_tag = ''
+    
+    distance_file_name = f'{location}{census_data_tag}{driving_tag}_distances_{census_year}{log_tag}.csv'
 
     distance_file_path = os.path.join(POLLING_DIR, location, distance_file_name)
 
