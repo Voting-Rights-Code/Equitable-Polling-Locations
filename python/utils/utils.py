@@ -180,6 +180,7 @@ def build_redistricting_file_paths(census_year: str, geo: str, pnum: str, locati
 
     return os.path.join(redistricting_dir, file_name)
 
+    return os.path.join(decennial_dir, file_name)
 
 def build_tiger_location_dir(location: str) -> str:
     ''' Returns the path to the Census Tiger data for this location '''
