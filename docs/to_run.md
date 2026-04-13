@@ -24,7 +24,7 @@ From the project root, run the model. There are two command line options, one to
     * `python run.py model_run_db_cli -e ENV -c NUM config_set/config_name1 config_set2/config_name`
     * `python run.py model_run_db_cli -e ENV -c NUM config_set`
 * If not all files are already stored in the cloud:
-    * If the potential locations file is not stored on the cloud:
+    * If the config file is not stored on the cloud:
         * Run `python run.py db_import_config_cli <./path/to/config/file>`.
         * See [database](database.md) for more details.
     * If the potential locations file is not stored on the cloud:
