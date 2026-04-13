@@ -9,7 +9,7 @@ The program runs inside Docker via the `run.py` wrapper. Before running the mode
 1. Install [Docker Desktop](https://www.docker.com/) and make sure it is running.
     - Allocate at least **8 GB of RAM** to Docker (Docker Desktop → Settings → Resources on Mac/Windows, or `.wslconfig` on Windows with WSL).
 2. Clone this repository. It uses [Git LFS](https://git-lfs.com/) for large data files, so install Git LFS first, then run `git lfs install` once before cloning.
-3. Copy `settings_example.yaml` to `settings.yaml` in the project root. Edit as needed to configure database environments.
+3. If you have access to the database, copy `settings_example.yaml` to `settings.yaml` in the project root. Else do nothing and run locally.
 4. Create the requisite input files discussed in [input files](input_files.md).
 
 See [Installation](to_install.md) for more detail.
@@ -24,6 +24,9 @@ From the project root, run the model. There are two command line options, one to
     * `python run.py model_run_db_cli -e ENV -c NUM config_set/config_name1 config_set2/config_name`
     * `python run.py model_run_db_cli -e ENV -c NUM config_set`
 * If not all files are already stored in the cloud:
+    * If the potential locations file is not stored on the cloud:
+        * Run `python run.py db_import_config_cli <./path/to/config/file>`.
+        * See [database](database.md) for more details.
     * If the potential locations file is not stored on the cloud:
         * Run `python run.py db_import_potential_locations_cli <list of locations>`
         * See [database](database.md) for more details.
