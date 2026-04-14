@@ -69,7 +69,7 @@ For detailed guides and technical information on the **Equitable Polling Locatio
 
 1. [Installation](docs/to_install.md)  
 
-1. [Contributing — Development Guide](docs/development/CONTRIBUTING.md)
+1. [Contributing — Development Guide](CONTRIBUTING.md)
 
 1. [Input Files](docs/input_files.md)
 
