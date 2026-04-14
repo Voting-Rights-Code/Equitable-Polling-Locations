@@ -14,7 +14,7 @@ The program runs inside Docker via the `run.py` wrapper. Before running the mode
 
 See [Installation](to_install.md) for more detail.
 
-> **Local (non-Docker) execution** is also supported via a conda environment. See [Contributing — Development Guide](development/CONTRIBUTING.md#development) for setup.
+> **Local (non-Docker) execution** is also supported via a conda environment. See [Contributing — Development Guide](../CONTRIBUTING.md#development-environment) for setup.
 
 ## Running the Model
 
