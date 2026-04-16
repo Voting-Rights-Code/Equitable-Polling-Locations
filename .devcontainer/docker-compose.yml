@@ -1,0 +1,26 @@
+# Compose project name sets the container name prefix (equitable-polling-locations-app-1)
+# so it stays stable across Zed restarts instead of auto-generating random names.
+name: equitable-polling-locations
+
+services:
+    app:
+        # Keep `build: .` (not `context: ..`) to work around a Zed path-resolution
+        # quirk where `dockerfile:` gets treated as compose-file-relative rather
+        # than context-relative. Our Dockerfile has no COPY statements so the
+        # narrower context (just .devcontainer/) is fine.
+        build: .
+        volumes:
+            - ..:/workspaces/Equitable-Polling-Locations
+            - ${HOME}/.config/gcloud:/home/vscode/.config/gcloud
+        environment:
+            - GOOGLE_APPLICATION_CREDENTIALS=/home/vscode/.config/gcloud/application_default_credentials.json
+            - PROJ_LIB=/opt/conda/envs/equitable-polls/share/proj
+            - SHAPE_RESTORE_SHX=YES
+            - GRPC_DNS_RESOLVER=native
+            - PYTHONPATH=/workspaces/Equitable-Polling-Locations
+            - PYTHONUNBUFFERED=1
+            - PATH=/opt/conda/envs/equitable-polls/bin:/opt/conda/bin:/usr/local/share/nvm/current/bin:/usr/local/bin:/usr/bin:/bin
+        # Keep the container alive for dev container use. The dev containers CLI
+        # auto-appends this via overrideCommand, but keeping it explicit lets you
+        # `docker compose up` this file standalone.
+        command: sleep infinity

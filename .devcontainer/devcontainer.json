@@ -1,0 +1,47 @@
+{
+    "name": "Equitable-Polling-Locations",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "app",
+    "workspaceFolder": "/workspaces/Equitable-Polling-Locations",
+    "features": {
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "installGitLfs": true
+        },
+        "ghcr.io/devcontainers/features/conda:2": {},
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "20"
+        }
+    },
+    "containerEnv": {
+        "CONDA_PLUGINS_AUTO_ACCEPT_TOS": "true",
+        "PATH": "/opt/conda/envs/equitable-polls/bin:/opt/conda/bin:/usr/local/share/nvm/current/bin:/usr/local/bin:/usr/bin:/bin",
+        "PROJ_LIB": "/opt/conda/envs/equitable-polls/share/proj",
+        "SHAPE_RESTORE_SHX": "YES"
+    },
+    "remoteEnv": {
+        "PATH": "/opt/conda/envs/equitable-polls/bin:${containerEnv:PATH}",
+        "PYTHONPATH": "/workspaces/Equitable-Polling-Locations",
+        "PYTHONUNBUFFERED": "1"
+    },
+    "postCreateCommand": "bash -lc 'conda env create -n equitable-polls -f environment.yml && npm install -g @anthropic-ai/claude-code'",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.pylint",
+                "ms-python.debugpy"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "/opt/conda/envs/equitable-polls/bin/python",
+                "python.testing.pytestEnabled": true,
+                "python.testing.unittestEnabled": false,
+                "python.testing.pytestArgs": [
+                    "python/tests"
+                ],
+                "pylint.interpreter": [
+                    "/opt/conda/envs/equitable-polls/bin/python"
+                ]
+            }
+        }
+    }
+}
