@@ -62,6 +62,16 @@ python run.py lint
 pylint python/
 ```
 
+**R environment smoke test:**
+```bash
+# Host (via Docker, uses the dev container's R install)
+python run.py r_test
+
+# Inside dev container
+Rscript R/tests/r_smoke_test.R
+```
+R is installed only in the dev container (not the root `Dockerfile`). R packages are defined in `.devcontainer/install_r_packages.R`; keep that list in sync with `R/tests/r_smoke_test.R` when adding new imports.
+
 **Local dev (optional, requires conda):**
 ```bash
 conda env create -f environment.yml

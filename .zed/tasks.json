@@ -34,5 +34,32 @@
         "reveal": "always",
         "use_new_terminal": false,
         "allow_concurrent_runs": false
+    },
+    {
+        "label": "R: smoke test",
+        "command": "/usr/bin/Rscript",
+        "args": ["R/tests/r_smoke_test.R"],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false
+    },
+    {
+        "label": "R: run current file",
+        "command": "/usr/bin/Rscript",
+        "args": ["$ZED_FILE"],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false
+    },
+    {
+        "label": "R: lint current file",
+        "command": "/usr/bin/Rscript",
+        "args": ["-e", "lintr::lint('$ZED_FILE')"],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false
     }
 ]

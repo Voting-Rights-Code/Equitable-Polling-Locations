@@ -95,6 +95,31 @@ def main():
             sys.exit(130)
         return
 
+    # Special command: r_test runs the R environment smoke test inside the
+    # dev container. Confirms R and all project-required R packages load.
+    # Requires the .devcontainer setup (root Dockerfile does not install R).
+    if len(sys.argv) > 1 and sys.argv[1] == "r_test":
+        compose_cmd = get_docker_compose_cmd()
+        env = os.environ.copy()
+        env["GCP_CREDS_PATH"] = get_gcp_creds_path()
+        cmd = compose_cmd + [
+            "-f",
+            ".devcontainer/docker-compose.yml",
+            "run",
+            "--rm",
+            "app",
+            "Rscript",
+            "R/tests/r_smoke_test.R",
+        ]
+        try:
+            subprocess.run(cmd, env=env, check=True)
+        except subprocess.CalledProcessError as e:
+            sys.exit(e.returncode)
+        except KeyboardInterrupt:
+            print("\n[Terminated by User]")
+            sys.exit(130)
+        return
+
     available_scripts = get_scripts()
 
     script_list = "\n  ".join(available_scripts)
@@ -108,6 +133,7 @@ def main():
             "Special commands:\n"
             "  e2e_tests   Run end-to-end tests (e.g. python run.py e2e_tests -m e2e_csv)\n"
             "  lint        Run pylint against python/ (e.g. python run.py lint --errors-only)\n"
+            "  r_test      Run the R environment smoke test in the dev container\n"
             "\n"
             f"Available scripts:\n  {script_list}"
         ),

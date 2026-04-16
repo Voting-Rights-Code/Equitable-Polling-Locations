@@ -195,6 +195,7 @@ The project ships with a [dev container](https://containers.dev/) config in `.de
 **What's in the container:**
 
 - Python 3.11 + the pinned conda env `equitable-polls` (pytest, pylint, geopandas, etc.)
+- **R** + the project's R packages (`data.table`, `sf`, `ggplot2`, `bigrquery`, etc. — see `.devcontainer/install_r_packages.R`) for the analysis scripts in `R/`
 - Node.js 20 and `claude` CLI (for [Claude Code](#claude-code))
 - Git LFS (required for shapefiles and large data files)
 - GCP credentials mounted from your host `~/.config/gcloud` (so `run.py` and DB tests work without re-authentication)
@@ -476,18 +477,61 @@ Pylint reads rules from `.pylintrc` at the project root (Google Python style).
 
 ### R
 
-Install `lintr` and `styler` once in your R environment:
+R, along with `lintr`, `styler`, and all the R packages used by the analysis scripts, is pre-installed inside the [Dev Container](#dev-container--vs-code-or-zed-recommended-for-editor-integrated-development).
 
-```r
-install.packages(c("lintr", "styler"))
+#### Running R in the container
+
+From the container's integrated terminal (``Ctrl+` ``):
+
+```bash
+# Interactive R REPL
+R
+
+# Run a one-off script
+Rscript path/to/script.R
+
+# Smoke-test that R and all packages are loadable
+Rscript R/tests/r_smoke_test.R
 ```
 
-Then, from an R console:
+#### Running R from the IDE
+
+**Zed:** R tasks are pre-configured in `.zed/tasks.json`. Open the command palette (Cmd+Shift+P) → `task: spawn` → pick one:
+
+| Task | What it does |
+|------|-------------|
+| **R: smoke test** | Verifies all 16 R packages load correctly |
+| **R: run current file** | Runs whichever `.R` file is open via `Rscript` |
+| **R: lint current file** | Runs `lintr::lint()` against the open `.R` file |
+
+Zed does not have inline R play buttons (no R language server integration); use tasks or the terminal REPL for interactive work.
+
+**VS Code:** Install the [R extension](https://marketplace.visualstudio.com/items?itemName=REditorSupport.r) for syntax highlighting, an integrated R terminal, an inline plot pane, and send-to-REPL line execution. You can also run R scripts via the built-in terminal.
+
+#### Running R from the host
+
+From the **host** (Mac/Linux/WSL), you can invoke R in the dev container image without opening an editor:
+
+```bash
+# Smoke-test that R is set up correctly
+python run.py r_test
+
+# Run an R script inside a one-shot container
+docker compose -f .devcontainer/docker-compose.yml run --rm app Rscript path/to/script.R
+```
+
+#### Linting and formatting
+
+From an R session, `Rscript -e`, or the Zed lint task:
 
 ```r
 lintr::lint("path/to/file.R")
 styler::style_file("path/to/file.R")
 ```
+
+#### Working outside the Dev Container
+
+If you prefer a local R install, install the packages manually; `.devcontainer/install_r_packages.R` has the authoritative list of required packages.
 
 
 ## Submitting Changes
