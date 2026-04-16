@@ -74,6 +74,26 @@ def main():
             sys.exit(130)
         return
 
+    # Special command: lint runs pylint inside Docker against python/.
+    # Extra args (e.g. --errors-only, a more specific path) are forwarded.
+    if len(sys.argv) > 1 and sys.argv[1] == 'lint':
+        compose_cmd = get_docker_compose_cmd()
+        env = os.environ.copy()
+        env["GCP_CREDS_PATH"] = get_gcp_creds_path()
+        extra_args = sys.argv[2:]
+        cmd = compose_cmd + [
+            "run", "--rm", "app",
+            "pylint", "python/"
+        ] + extra_args
+        try:
+            subprocess.run(cmd, env=env, check=True)
+        except subprocess.CalledProcessError as e:
+            sys.exit(e.returncode)
+        except KeyboardInterrupt:
+            print("\n[Terminated by User]")
+            sys.exit(130)
+        return
+
     available_scripts = get_scripts()
 
     script_list = "\n  ".join(available_scripts)

@@ -58,6 +58,10 @@ Questions? [Ask us on Discord](https://discord.com/channels/1106301559811350540/
 - [Getting Started](#getting-started)
 - [Codebase Structure](#codebase-structure)
 - [Development Environment](#development-environment)
+  - [Docker (recommended)](#docker-recommended)
+  - [Local Development with Conda (optional)](#local-development-with-conda-optional)
+  - [IDE Setup (optional)](#ide-setup-optional)
+  - [Database Setup (optional)](#database-setup-optional)
 - [Code Style](#code-style)
   - [Python](#python)
   - [R](#r)
@@ -173,6 +177,24 @@ Conda can be set up for local development without Docker. This is useful for IDE
     conda activate equitable-polls
     ```
 
+### IDE Setup (optional)
+
+For inline diagnostics and type/lint feedback while editing, point your IDE at the `equitable-polls` conda environment's Python interpreter. The editor will pick up Pylint from that environment along with the project's `.pylintrc`.
+
+**VS Code:**
+
+1. Install the [Python extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python) and the [Pylint extension](https://marketplace.visualstudio.com/items?itemName=ms-python.pylint)
+2. Command Palette → `Python: Select Interpreter` → choose the `equitable-polls` conda environment
+3. The Pylint extension auto-detects `.pylintrc` at the project root
+
+**Zed:**
+
+1. Zed ships with Python language server support out of the box
+2. In your project settings, set the Python interpreter to the `equitable-polls` conda environment
+3. See the [Zed Python docs](https://zed.dev/docs/languages/python) for configuring pylint through the language server
+
+If you prefer running pylint outside the editor, use `python run.py lint` (see [Linting](#linting)).
+
 ### Database Setup (optional)
 
 Database-backed workflows require GCP credentials and a configured environment in `settings.yaml`.
@@ -276,7 +298,10 @@ Test data is automatically templated from `datasets/polling/testing/` with a uni
 There are two categories of E2E tests:
 
 - **CSV tests (`e2e_csv`)** — Test CSV-based workflows (`model_run_cli`, `auto_generate_config`). These always run and require no external dependencies.
-- **DB tests (`e2e_db`)** — Test database-backed workflows (`db_import_*_cli`, `model_run_db_cli`). These require a `test` environment configured in `settings.yaml` and valid GCP credentials. They skip gracefully when either is unavailable.
+- **DB tests (`e2e_db`)** — Test database-backed workflows (`db_import_*_cli`, `model_run_db_cli`). **Prerequisites:** a `test` environment configured in `settings.yaml` and valid GCP Application Default Credentials — see [Setting Up DB Tests](#setting-up-db-tests) below. Behavior when DB setup is missing depends on how the tests are invoked:
+    - **Mixed runs** (e.g. `python run.py e2e_tests` with no marker, or `-m e2e_csv`): DB tests skip gracefully so offline development keeps working.
+    - **DB-only runs** (e.g. `python run.py e2e_tests -m e2e_db`, or pointing pytest at a DB-only test file): missing `settings.yaml` or no `test:` entry **aborts the session with an error**. Opting into DB tests without configuring them is treated as a usage error, not silently skipped.
+    - **Connection failures** when `settings.yaml` *is* configured (expired credentials, network issues, etc.): tests **error** rather than skip — a configured environment is an opt-in declaration that the DB should be reachable.
 
 #### Running E2E Tests
 
@@ -342,19 +367,44 @@ All tests and lints must pass.
 
 ### Python
 
-All code changes must pass Pylint before committing:
+Pylint is bundled with the project's Python environment via `environment.yml`, so Docker and conda users get it automatically.
+
+**Docker (recommended):**
 
 ```bash
+python run.py lint
+```
+
+**Local conda environment:**
+
+```bash
+conda activate equitable-polls
 pylint python/
 ```
+
+**Other setups** (neither Docker nor conda): install Pylint manually, then run it:
+
+```bash
+pip install pylint
+pylint python/
+```
+
+Pylint reads rules from `.pylintrc` at the project root (Google Python style).
 
 - **Warnings are errors** — fix all Pylint warnings. Do not add `# pylint: disable` without a comment explaining why the suppression is necessary.
 - Run pytest with `-W error` to catch Python warnings as test failures.
 
 ### R
 
-```bash
-# In R console
+Install `lintr` and `styler` once in your R environment:
+
+```r
+install.packages(c("lintr", "styler"))
+```
+
+Then, from an R console:
+
+```r
 lintr::lint("path/to/file.R")
 styler::style_file("path/to/file.R")
 ```
