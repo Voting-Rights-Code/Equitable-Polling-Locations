@@ -12,6 +12,11 @@ services:
         volumes:
             - ..:/workspaces/Equitable-Polling-Locations
             - ${HOME}/.config/gcloud:/home/vscode/.config/gcloud
+            # Persist Claude Code auth, MCP servers, and plugins across container
+            # rebuilds by sharing the host's ~/.claude/ directory. ${HOME} works on
+            # macOS/Linux/WSL2; ${USERPROFILE} is the fallback on native Windows
+            # shells (PowerShell/CMD) where HOME is not set.
+            - ${HOME:-${USERPROFILE}}/.claude:/home/vscode/.claude
         environment:
             - GOOGLE_APPLICATION_CREDENTIALS=/home/vscode/.config/gcloud/application_default_credentials.json
             - PROJ_LIB=/opt/conda/envs/equitable-polls/share/proj

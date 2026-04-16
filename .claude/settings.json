@@ -25,9 +25,12 @@
         "~/.gnupg",
         "~/.zshrc",
         "~/.bashrc",
-        "~/.config/gcloud"
+        "~/.config/gcloud",
+        "~/.claude",
+        "/etc",
+        "/opt/conda/envs/equitable-polls"
       ],
-      "allowWrite": [".", "/tmp", "$TMPDIR"]
+      "allowWrite": [".", "/tmp"]
     },
 
     "network": {
