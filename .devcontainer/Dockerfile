@@ -34,13 +34,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         r-base-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install R packages into the system library at build time (as root). This
-# avoids the permissions issue where postCreateCommand runs as the `vscode`
-# user and cannot write to /usr/local/lib/R/site-library. Package versions
-# and list are defined by install_r_packages.R. Docker layer caching means
-# this only reruns when that file changes.
-COPY install_r_packages.R /tmp/install_r_packages.R
-RUN Rscript /tmp/install_r_packages.R && rm /tmp/install_r_packages.R
+# Install R packages from the renv lockfile into the system library (as root).
+# renv.lock is the single source of truth for R package versions — equivalent
+# to environment.yml for Python. Packages install into the system library so
+# they're available to all users without renv project-local isolation.
+COPY renv.lock /tmp/renv.lock
+RUN Rscript -e "install.packages('renv', repos='https://cloud.r-project.org')" && \
+    Rscript -e "renv::restore(lockfile='/tmp/renv.lock', library='/usr/local/lib/R/site-library', prompt=FALSE)" && \
+    rm /tmp/renv.lock
 
 # Ensure the equitable-polls conda env is on PATH for ALL shell types (login,
 # non-login, non-interactive). This is the fix for Zed — it launches tool

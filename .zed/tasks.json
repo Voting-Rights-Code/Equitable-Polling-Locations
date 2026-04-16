@@ -55,8 +55,8 @@
     },
     {
         "label": "R: lint current file",
-        "command": "/usr/bin/Rscript",
-        "args": ["-e", "lintr::lint('$ZED_FILE')"],
+        "command": ".devcontainer/r_lint.sh",
+        "args": ["$ZED_FILE"],
         "cwd": "$ZED_WORKTREE_ROOT",
         "reveal": "always",
         "use_new_terminal": false,

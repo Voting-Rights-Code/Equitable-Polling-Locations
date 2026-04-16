@@ -1,22 +1,24 @@
 #!/usr/bin/env Rscript
 #
-# Install R packages required by the R/ analysis toolkit.
+# Development convenience script for adding or updating R packages.
 #
-# Invoked at image build time from .devcontainer/Dockerfile (running as root
-# so /usr/local/lib/R/site-library is writable). Keeping the package list here
-# (not in environment.yml, which is conda-only) is the single source of truth
-# for R deps inside the dev container. Packages are installed from CRAN source;
-# build tooling and system libs (libgdal-dev, libcurl4-openssl-dev, etc.) come
-# from the apt install earlier in the Dockerfile.
+# This script is NOT executed during the Docker build — the Dockerfile uses
+# renv::restore() from renv.lock instead, which pins exact versions. Use this
+# script interactively when you need to add a new package or update existing
+# ones, then regenerate renv.lock to capture the change.
 #
-# All of these are active dependencies in R/result_analysis/ and R/tests/;
-# deprecated scripts in R/result_analysis/deprecated/ are intentionally
-# excluded.
+# Workflow for adding a new R package:
+#
+#   1. Add it to the `packages` vector below
+#   2. Run (with sudo, since the system library is root-owned):
+#        sudo Rscript .devcontainer/install_r_packages.R
+#   3. Update the lockfile:
+#        sudo Rscript -e "renv::snapshot(library='/usr/local/lib/R/site-library', type='all', lockfile='.devcontainer/renv.lock', prompt=FALSE, force=TRUE)"
+#   4. Update R/tests/r_smoke_test.R with the new package
+#   5. Verify:
+#        Rscript R/tests/r_smoke_test.R
+#   6. Commit renv.lock, this file, and r_smoke_test.R
 
-# Set an explicit CRAN mirror. In a non-interactive Docker build R has no
-# stdin to prompt the user for a mirror, and some installs will hang or
-# silently pick an outdated default. cloud.r-project.org is CRAN's official
-# global CDN.
 options(repos = c(CRAN = "https://cloud.r-project.org"))
 
 packages <- c(
@@ -36,7 +38,9 @@ packages <- c(
     "interactions",
     # Linting and formatting (referenced in R/CLAUDE.md)
     "lintr",
-    "styler"
+    "styler",
+    # R Language Server for IDE integration (Zed, VS Code)
+    "languageserver"
 )
 
 installed <- rownames(installed.packages())
@@ -54,9 +58,7 @@ if (length(to_install) > 0) {
     cat("All R packages already installed\n")
 }
 
-# Verify every required package loads. This is the smoke test that runs on
-# every container build — a broken install fails the devcontainer build
-# rather than leaving a subtly-broken env for someone to discover later.
+# Verify every required package loads
 failed <- character()
 for (pkg in packages) {
     ok <- suppressPackageStartupMessages(
@@ -71,3 +73,5 @@ if (length(failed) > 0) {
 }
 
 cat("R setup OK — all packages loadable\n")
+cat("\nNext: update renv.lock by running:\n")
+cat("  sudo Rscript -e \"renv::snapshot(library='/usr/local/lib/R/site-library', type='all', lockfile='.devcontainer/renv.lock', prompt=FALSE, force=TRUE)\"\n")
