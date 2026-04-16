@@ -93,10 +93,42 @@ Before contributing, you'll need a few tools installed.
 
 ### Docker (required)
 
-1. Install [Docker Desktop](https://www.docker.com/).
-2. Allocate at least **8 GB of RAM** to Docker:
-    - **macOS:** Docker Desktop → Settings → Resources → Memory
-    - **Windows (WSL):** Set memory in `.wslconfig` in your `%USERPROFILE%` directory
+Install one of the following container runtimes:
+
+- **[Docker Desktop](https://www.docker.com/)** — works on macOS, Windows, and Linux
+- **[OrbStack](https://orbstack.dev/)** (macOS only) — lighter weight and faster than Docker Desktop on Apple Silicon, with dynamic memory management
+
+#### Memory configuration
+
+The SCIP optimizer can use significant memory on larger counties (Tarrant County TX peaks at ~12 GB). Configure your runtime to allow at least **16 GB**, or **32 GB** if you plan to run large solves:
+
+**Docker Desktop:**
+
+Docker Desktop reserves a fixed amount of RAM regardless of actual usage.
+
+- **macOS:** Docker Desktop → Settings → Resources → Memory → set to at least 16 GB (32 GB recommended)
+- **Windows (WSL):** Create or edit `%USERPROFILE%\.wslconfig`:
+    ```ini
+    [wsl2]
+    memory=32GB
+    ```
+    Then restart WSL: `wsl --shutdown`
+- **Linux:** Docker Desktop → Settings → Resources → Memory. Alternatively, if running Docker Engine directly (no Desktop), memory is unlimited by default — no configuration needed.
+
+**OrbStack (macOS):**
+
+OrbStack shares your Mac's memory dynamically — it grows and shrinks on demand rather than reserving a fixed block. By default there is no hard cap, but OrbStack may conservatively limit the VM. To check or increase:
+
+```bash
+# Check current setting
+orb config show
+
+# Set an explicit limit (in MiB) — 32 GB example
+orb config set memory_mib 32768
+orb restart
+```
+
+Verify inside the container with `free -h`. If your Mac has 64 GB of RAM, allocating 32 GB to OrbStack still leaves plenty for macOS and your editor.
 
 ### Git LFS
 
@@ -529,9 +561,20 @@ lintr::lint("path/to/file.R")
 styler::style_file("path/to/file.R")
 ```
 
+#### Adding or updating R packages
+
+R package versions are pinned in `.devcontainer/renv.lock` — the single source of truth (equivalent to `environment.yml` for Python). To add a new package or update an existing one:
+
+1. Add the package to the `packages` vector in `.devcontainer/install_r_packages.R`
+2. Install it: `sudo Rscript .devcontainer/install_r_packages.R`
+3. Regenerate the lockfile: `sudo Rscript -e "renv::snapshot(library='/usr/local/lib/R/site-library', type='all', lockfile='.devcontainer/renv.lock', prompt=FALSE, force=TRUE)"`
+4. Add the package to `R/tests/r_smoke_test.R`
+5. Verify: `Rscript R/tests/r_smoke_test.R`
+6. Commit `renv.lock`, `install_r_packages.R`, and `r_smoke_test.R`
+
 #### Working outside the Dev Container
 
-If you prefer a local R install, install the packages manually; `.devcontainer/install_r_packages.R` has the authoritative list of required packages.
+If you prefer a local R install, use `renv::restore(lockfile='.devcontainer/renv.lock')` to install the exact pinned versions, or install packages manually — `.devcontainer/install_r_packages.R` has the human-readable list.
 
 
 ## Submitting Changes
