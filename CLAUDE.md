@@ -21,35 +21,44 @@ See `docs/to_install.md` for full setup instructions.
 
 ## Commands
 
+**Detect your runtime first.** Behavior differs by environment:
+
+- **Inside the dev container** — the file `/.dockerenv` exists, and/or the working directory is `/workspaces/Equitable-Polling-Locations`. The conda env `equitable-polls` is already active on `PATH`, so call `pytest`, `pylint`, and `python -m python.scripts.<name>` directly. **Do NOT use `run.py` or `docker compose run` from inside the container** — they try to spawn another container, which isn't available.
+- **On the host (macOS/Linux/WSL with Docker running)** — use `run.py` (wraps `docker compose run`) or `docker compose run --rm app ...` directly.
+- **On the host with a local conda env** — activate `equitable-polls` and run `pytest` / `pylint` directly.
+
 **Run the model (local files):**
 ```bash
+# Host (via Docker)
 python run.py model_run_cli -c NUM -l ./datasets/configs/<County>/config.yaml
 python run.py model_run_db_cli -e ENV -c NUM -l config_set/config_name
+
+# Inside dev container
+python -m python.scripts.model_run_cli -c NUM -l ./datasets/configs/<County>/config.yaml
+python -m python.scripts.model_run_db_cli -e ENV -c NUM -l config_set/config_name
 ```
 Add `-vv` for verbose logging.
 
 **Tests:**
 ```bash
+# Host (via Docker)
 docker compose run --rm app pytest
-```
+python run.py e2e_tests                   # all e2e tests
+python run.py e2e_tests -m e2e_csv        # CSV only, no DB required
+python run.py e2e_tests -m e2e_db         # DB only, needs settings.yaml + GCP creds
 
-**E2E tests:**
-```bash
-# All e2e tests via Docker
-python run.py e2e_tests
-
-# CSV tests only (no DB required)
-python run.py e2e_tests -m e2e_csv
-
-# DB tests only (requires 'test' environment in settings.yaml + GCP credentials)
-python run.py e2e_tests -m e2e_db
-
-# Locally (conda env)
-pytest python/tests/e2e/
+# Inside dev container (or host with local conda env)
+pytest                                     # all unit + e2e tests
+pytest python/tests/e2e/                   # e2e only
+pytest python/tests/e2e/ -m e2e_csv        # CSV only
 ```
 
 **Lint:**
 ```bash
+# Host (via Docker)
+python run.py lint
+
+# Inside dev container (or host with local conda env)
 pylint python/
 ```
 

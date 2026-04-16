@@ -59,8 +59,9 @@ Questions? [Ask us on Discord](https://discord.com/channels/1106301559811350540/
 - [Codebase Structure](#codebase-structure)
 - [Development Environment](#development-environment)
   - [Docker (recommended)](#docker-recommended)
+  - [Dev Container — VS Code or Zed (recommended for editor-integrated development)](#dev-container--vs-code-or-zed-recommended-for-editor-integrated-development)
   - [Local Development with Conda (optional)](#local-development-with-conda-optional)
-  - [IDE Setup (optional)](#ide-setup-optional)
+  - [IDE Setup for Local Conda (optional)](#ide-setup-for-local-conda-optional)
   - [Database Setup (optional)](#database-setup-optional)
 - [Code Style](#code-style)
   - [Python](#python)
@@ -164,6 +165,80 @@ docker compose run --rm app pytest
 python run.py e2e_tests
 ```
 
+### Dev Container — VS Code or Zed (recommended for editor-integrated development)
+
+The project ships with a [dev container](https://containers.dev/) config in `.devcontainer/` that gives you a fully-configured Linux environment (conda env with all Python deps, pytest, pylint, Claude Code, Git LFS, native arm64 on Apple Silicon, native amd64 on Windows/Intel) without installing anything locally beyond Docker and your editor. The conda env inside the container is the same one defined by `environment.yml`, so tests and lint behave identically to the Docker and local-conda workflows.
+
+**Prerequisites:**
+
+- Docker (see above)
+- Either:
+    - **VS Code** with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+    - **Zed** (recent version with dev container support)
+
+**VS Code:**
+
+1. Open the project folder in VS Code
+2. When prompted "Folder contains a Dev Container configuration file", click **Reopen in Container** (or Command Palette → `Dev Containers: Reopen in Container`)
+3. First build takes several minutes (conda solve + package install); subsequent opens reuse the container
+4. Recommended extensions (Python, Pylint, Debugpy) install automatically inside the container
+5. Open any file under `python/tests/` — **▶ Run Test** and **🐞 Debug Test** buttons appear inline above each test function. Test Explorer populates in the sidebar.
+
+**Zed:**
+
+1. Open the project folder in Zed
+2. Zed detects `.devcontainer/devcontainer.json` and builds the container automatically
+3. **One-time setup:** Command Palette → search for `toolchain` (or Python interpreter selector) → choose `/opt/conda/envs/equitable-polls/bin/python`. Zed's test runner needs this to find `pytest`.
+4. Open any file under `python/tests/` — inline **▶** icons appear next to test functions
+5. Additional pytest and pylint tasks are available via Command Palette → `task: spawn` (defined in `.zed/tasks.json`)
+
+**What's in the container:**
+
+- Python 3.11 + the pinned conda env `equitable-polls` (pytest, pylint, geopandas, etc.)
+- Node.js 20 and `claude` CLI (for [Claude Code](#claude-code))
+- Git LFS (required for shapefiles and large data files)
+- GCP credentials mounted from your host `~/.config/gcloud` (so `run.py` and DB tests work without re-authentication)
+
+**Using the container's integrated terminal:**
+
+Both VS Code and Zed open the editor's integrated terminal *inside* the running container — no SSH, no `docker exec`, no prefixing commands with `docker compose run`. The conda env is already active on `PATH`, so you can run project tools directly.
+
+How to open the terminal:
+
+- **VS Code:** press ``Ctrl+` `` (backtick), or *View → Terminal*, or Command Palette → `Terminal: Create New Terminal`
+- **Zed:** press ``Ctrl+` ``, or *View → Toggle Terminal*
+
+To confirm the terminal is inside the container, the prompt should look like `vscode@<container-id>:/workspaces/Equitable-Polling-Locations $`. You can double-check with:
+
+```bash
+whoami       # prints: vscode
+uname -a     # prints a Linux kernel (even on a Mac or Windows host)
+pwd          # prints: /workspaces/Equitable-Polling-Locations
+```
+
+Common commands to run in the container terminal:
+
+```bash
+# Run tests
+pytest                              # all unit + e2e tests
+pytest python/tests/model_data_test.py
+pytest python/tests/e2e/ -m e2e_csv
+
+# Lint
+pylint python/
+
+# CLI scripts (the script runs in the same container, not a new one)
+python -m python.scripts.model_run_cli -c 5 -l ./datasets/configs/Gwinnett_GA/config.yaml
+
+# Claude Code
+claude
+
+# Python REPL with the project env loaded
+python
+```
+
+You can still use `run.py` and `docker compose run` from a **host** terminal (outside the container) if you want a one-shot container invocation — the two workflows don't conflict and target the same image. Inside the dev container, use the direct commands above.
+
 ### Local Development with Conda (optional)
 
 Conda can be set up for local development without Docker. This is useful for IDE integration and debugging.
@@ -177,21 +252,24 @@ Conda can be set up for local development without Docker. This is useful for IDE
     conda activate equitable-polls
     ```
 
-### IDE Setup (optional)
+### IDE Setup for Local Conda (optional)
 
-For inline diagnostics and type/lint feedback while editing, point your IDE at the `equitable-polls` conda environment's Python interpreter. The editor will pick up Pylint from that environment along with the project's `.pylintrc`.
+> If you're using the [Dev Container](#dev-container--vs-code-or-zed-recommended-for-editor-integrated-development), skip this section — everything below is already configured automatically inside the container.
+
+For inline diagnostics and type/lint feedback while editing against a local conda environment, point your IDE at the `equitable-polls` conda environment's Python interpreter. The editor will pick up Pylint from that environment along with the project's `.pylintrc`.
 
 **VS Code:**
 
-1. Install the [Python extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python) and the [Pylint extension](https://marketplace.visualstudio.com/items?itemName=ms-python.pylint)
+1. Install the [Python extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python) and the [Pylint extension](https://marketplace.visualstudio.com/items?itemName=ms-python.pylint) (VS Code will prompt you — these are in `.vscode/extensions.json`)
 2. Command Palette → `Python: Select Interpreter` → choose the `equitable-polls` conda environment
-3. The Pylint extension auto-detects `.pylintrc` at the project root
+3. Pytest discovery and inline **▶ Run Test** / **🐞 Debug Test** buttons come from `.vscode/settings.json` (already committed)
+4. The Pylint extension auto-detects `.pylintrc` at the project root
 
 **Zed:**
 
 1. Zed ships with Python language server support out of the box
-2. In your project settings, set the Python interpreter to the `equitable-polls` conda environment
-3. See the [Zed Python docs](https://zed.dev/docs/languages/python) for configuring pylint through the language server
+2. Command Palette → select toolchain → choose the `equitable-polls` conda environment's Python interpreter
+3. Project-level settings in `.zed/settings.json` and pytest/pylint tasks in `.zed/tasks.json` are already committed. See the [Zed Python docs](https://zed.dev/docs/languages/python) for additional options.
 
 If you prefer running pylint outside the editor, use `python run.py lint` (see [Linting](#linting)).
 
@@ -288,6 +366,8 @@ Or locally with a conda environment:
 ```bash
 pytest
 ```
+
+If you're using the [Dev Container](#dev-container--vs-code-or-zed-recommended-for-editor-integrated-development), you can also run and debug individual tests directly from the editor via the **▶ Run Test** / **🐞 Debug Test** buttons that appear above each `def test_*` function.
 
 ### End-to-End (E2E) Tests
 
@@ -453,7 +533,36 @@ This is an open source project. Outside contributors treat anything in `main` as
 
 ### Claude Code
 
-Install Claude Code following the official instructions at [claude.ai/download](https://claude.ai/download).
+You can run Claude Code either on your host system or inside the dev container. Use whichever fits your workflow; both work against the same repository.
+
+**Inside the Dev Container (recommended if you already develop in-container):**
+
+The `claude` CLI is pre-installed inside the container via `postCreateCommand`. To start it:
+
+1. **Open the project in your editor in the container:**
+    - **VS Code:** open the project folder → click *Reopen in Container* if prompted, or Command Palette → `Dev Containers: Reopen in Container`
+    - **Zed:** open the project folder. Zed detects `.devcontainer/devcontainer.json` and attaches to (or builds) the container automatically. When it finishes, you'll be "inside" the container.
+    - If this is the first time, the container will build (several minutes — conda solve + Node install + Claude install). Subsequent opens reuse the existing container and take seconds.
+
+2. **Open the integrated terminal inside the container:**
+    - Press ``Ctrl+` `` (backtick) in either editor. See [Using the container's integrated terminal](#dev-container--vs-code-or-zed-recommended-for-editor-integrated-development) for other ways to open it and how to verify you're inside the container.
+
+3. **Start Claude Code:**
+    ```bash
+    claude              # interactive session
+    claude --help       # command-line help
+    ```
+    On first run, Claude Code prompts you to authenticate via a browser. Follow the link it prints, log in, and paste the returned code back into the terminal. `Ctrl+D` or typing `/exit` ends the session.
+
+**Your Claude Code state is shared with your host by default.** The dev container mounts your host `~/.claude/` directory (or `%USERPROFILE%\.claude` on Windows) at `/home/vscode/.claude` inside the container, so auth tokens, MCP servers, and plugins persist across container rebuilds and stay in sync with any host-side Claude Code install.
+
+- **Before first use:** if you've never run Claude Code on this machine, `~/.claude/` won't exist yet. Docker will auto-create an empty directory — that's fine; `claude` will populate it on first login.
+- **Already running Claude Code on your host?** Your existing auth and MCP config carry straight into the container — no re-authentication needed.
+- **Prefer to isolate host and container state?** Remove the `- ${HOME:-${USERPROFILE}}/.claude:/home/vscode/.claude` line from `.devcontainer/docker-compose.yml` (your local change only) and rebuild. State will then be ephemeral and wiped on each container rebuild.
+
+**On the host (alternative):**
+
+Install Claude Code following the official instructions at [claude.ai/download](https://claude.ai/download). Use this if you prefer to keep AI tooling outside the container entirely. With the default mount in place, host and container use the same `~/.claude/` either way.
 
 ### GitHub MCP Server
 
