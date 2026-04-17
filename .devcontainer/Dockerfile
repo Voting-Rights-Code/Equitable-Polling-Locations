@@ -36,9 +36,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install R packages from the renv lockfile into the system library (as root).
-# renv.lock is the single source of truth for R package versions — equivalent
-# to environment.yml for Python. Packages install into the system library so
-# they're available to all users without renv project-local isolation.
+# renv.lock lives at the repo root (the single source of truth for R package
+# versions — equivalent to environment.yml for Python). The build context is
+# the repo root (see .devcontainer/docker-compose.yml), so this COPY reaches
+# it as `renv.lock`. Packages install into the system library so they're
+# available to all users without renv project-local isolation.
 COPY renv.lock /tmp/renv.lock
 RUN Rscript -e "install.packages('renv', repos='https://cloud.r-project.org')" && \
     Rscript -e "renv::restore(lockfile='/tmp/renv.lock', library='/usr/local/lib/R/site-library', prompt=FALSE)" && \

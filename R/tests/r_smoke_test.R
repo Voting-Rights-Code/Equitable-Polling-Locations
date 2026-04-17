@@ -12,7 +12,7 @@
 # for the R scripts (see R/CLAUDE.md). This only confirms the R environment
 # is correctly provisioned.
 #
-# Keep the package list in sync with .devcontainer/install_r_packages.R.
+# Keep the package list in sync with install_r_packages.R.
 
 packages <- c(
     "data.table",

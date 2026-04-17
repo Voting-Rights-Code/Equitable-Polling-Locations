@@ -7,17 +7,24 @@
 # script interactively when you need to add a new package or update existing
 # ones, then regenerate renv.lock to capture the change.
 #
-# Workflow for adding a new R package:
+# Workflow for adding a new R package (commands below assume the dev
+# container — see note at bottom for local R installs):
 #
 #   1. Add it to the `packages` vector below
-#   2. Run (with sudo, since the system library is root-owned):
-#        sudo Rscript .devcontainer/install_r_packages.R
+#   2. Install it:
+#        sudo Rscript install_r_packages.R
 #   3. Update the lockfile:
-#        sudo Rscript -e "renv::snapshot(library='/usr/local/lib/R/site-library', type='all', lockfile='.devcontainer/renv.lock', prompt=FALSE, force=TRUE)"
+#        sudo Rscript -e "renv::snapshot(library='/usr/local/lib/R/site-library', type='all', lockfile='renv.lock', prompt=FALSE, force=TRUE)"
 #   4. Update R/tests/r_smoke_test.R with the new package
 #   5. Verify:
 #        Rscript R/tests/r_smoke_test.R
 #   6. Commit renv.lock, this file, and r_smoke_test.R
+#
+# Local R install (outside the container): drop `sudo` and omit
+# `library='/usr/local/lib/R/site-library'`. Both exist because the dev
+# container installs packages into a root-owned system library; a local R
+# install typically uses a user-owned library that renv detects
+# automatically.
 
 options(repos = c(CRAN = "https://cloud.r-project.org"))
 
@@ -74,4 +81,4 @@ if (length(failed) > 0) {
 
 cat("R setup OK — all packages loadable\n")
 cat("\nNext: update renv.lock by running:\n")
-cat("  sudo Rscript -e \"renv::snapshot(library='/usr/local/lib/R/site-library', type='all', lockfile='.devcontainer/renv.lock', prompt=FALSE, force=TRUE)\"\n")
+cat("  sudo Rscript -e \"renv::snapshot(library='/usr/local/lib/R/site-library', type='all', lockfile='renv.lock', prompt=FALSE, force=TRUE)\"\n")

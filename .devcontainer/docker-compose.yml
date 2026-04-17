@@ -4,11 +4,14 @@ name: equitable-polling-locations
 
 services:
     app:
-        # Keep `build: .` (not `context: ..`) to work around a Zed path-resolution
-        # quirk where `dockerfile:` gets treated as compose-file-relative rather
-        # than context-relative. Our Dockerfile has no COPY statements so the
-        # narrower context (just .devcontainer/) is fine.
-        build: .
+        # Build context is the repo root so the Dockerfile can COPY files that
+        # live outside .devcontainer/ (currently renv.lock). Use the explicit
+        # dockerfile: path because Zed has historically resolved `dockerfile:`
+        # compose-file-relative instead of context-relative; verify dev container
+        # builds under both VS Code and Zed after changes here.
+        build:
+            context: ..
+            dockerfile: .devcontainer/Dockerfile
         volumes:
             - ..:/workspaces/Equitable-Polling-Locations
             - ${HOME}/.config/gcloud:/home/vscode/.config/gcloud

@@ -13,44 +13,6 @@ Welcome to Voting Rights Code! Thank you for considering contributing to this pr
 
 Questions? [Ask us on Discord](https://discord.com/channels/1106301559811350540/1106301560507609241).
 
-## Code of Conduct
-
-**Who we are:** A bunch of volunteers that care enough about civil rights to check our egos at the door and roll up our sleeves.
-
-- We don't have a ton of processes (yet) because we're still figuring it out
-- We do have good communication skills and ask for help when we need it, and get it
-- We treat each other like friends even if we don't agree with everyone's every last idea
-- Care enough about the work to get it right, not just the 80% solution
-- Care enough about ourselves and each other to not force ourselves and each other to do work we don't want to do
-
-### How we work
-
-1. **Communicate.** We can't fix a problem if we don't know it needs fixing. Everyone is responsible for the quality and good this project does. If we don't see something we need:
-    1. Ask us why this is so (there may or may not be a good reason)
-    2. Build it
-
-2. **Code review early. Code review often.** Do not merge without a code review.
-    1. As we start a feature branch, check in with the team to see what unwritten requirements exist
-    2. Follow good coding practices, including commenting code, implementing tests, delinting code
-    3. Do not merge into main until it is polished code
-        - This may require asking for code reviews on feature branches for larger features
-        - **If polishing a feature for merging is not what you're up for, that's okay. Tag it, and someone will get to it eventually.**
-    4. All pull requests will be reviewed by at least two maintainers before merge
-
-3. **Respect our own and each other's time.**
-    1. Don't go too far into a project without checking in
-        - If you don't understand how someone else is working on a part of the problem, ask them
-        - If you don't know who else is working on a relevant part of the project, ask
-        - When you need support on a project, schedule time on someone else's calendar
-        - When someone asks for time and help, respond promptly and be realistic about what support you can provide
-    2. Avoid burnout
-        - Be realistic about your own schedule and time commitment
-        - Take on tasks that bring you joy
-            - **If a task doesn't bring you joy, don't do it.** Document that it needs doing and move on. Someone else will get to it.
-
-4. **If we make a mistake, or think someone else has made a mistake, talk about it.**
-
-
 ## Table of Contents
 
 <!-- toc -->
@@ -227,7 +189,7 @@ The project ships with a [dev container](https://containers.dev/) config in `.de
 **What's in the container:**
 
 - Python 3.11 + the pinned conda env `equitable-polls` (pytest, pylint, geopandas, etc.)
-- **R** + the project's R packages (`data.table`, `sf`, `ggplot2`, `bigrquery`, etc. — see `.devcontainer/install_r_packages.R`) for the analysis scripts in `R/`
+- **R** + the project's R packages (`data.table`, `sf`, `ggplot2`, `bigrquery`, etc. — see `install_r_packages.R`) for the analysis scripts in `R/`
 - Node.js 20 and `claude` CLI (for [Claude Code](#claude-code))
 - Git LFS (required for shapefiles and large data files)
 - GCP credentials mounted from your host `~/.config/gcloud` (so `run.py` and DB tests work without re-authentication)
@@ -284,6 +246,25 @@ Conda can be set up for local development without Docker. This is useful for IDE
     conda env create -f environment.yml
     conda activate equitable-polls
     ```
+
+#### Updating the conda environment
+
+When `environment.yml` changes (a dependency is added, removed, or pinned to a new version), sync your local env rather than recreating it:
+
+```bash
+conda activate equitable-polls
+conda env update -f environment.yml --prune
+```
+
+`--prune` removes packages that are no longer listed in `environment.yml`, keeping your env in lockstep with the file. If the update fails or the env drifts badly, fall back to a clean rebuild:
+
+```bash
+conda deactivate
+conda env remove -n equitable-polls
+conda env create -f environment.yml
+```
+
+Docker and Dev Container users don't need to do anything — the image rebuild picks up `environment.yml` changes automatically (`docker compose build app`, or *Dev Containers: Rebuild Container* in your editor).
 
 ### IDE Setup for Local Conda (optional)
 
@@ -563,18 +544,40 @@ styler::style_file("path/to/file.R")
 
 #### Adding or updating R packages
 
-R package versions are pinned in `.devcontainer/renv.lock` — the single source of truth (equivalent to `environment.yml` for Python). To add a new package or update an existing one:
+R package versions are pinned in `renv.lock` — the single source of truth (equivalent to `environment.yml` for Python). To add a new package or update an existing one (commands below assume the dev container — see note below for local R installs):
 
-1. Add the package to the `packages` vector in `.devcontainer/install_r_packages.R`
-2. Install it: `sudo Rscript .devcontainer/install_r_packages.R`
-3. Regenerate the lockfile: `sudo Rscript -e "renv::snapshot(library='/usr/local/lib/R/site-library', type='all', lockfile='.devcontainer/renv.lock', prompt=FALSE, force=TRUE)"`
+1. Add the package to the `packages` vector in `install_r_packages.R`
+2. Install it: `sudo Rscript install_r_packages.R`
+3. Regenerate the lockfile: `sudo Rscript -e "renv::snapshot(library='/usr/local/lib/R/site-library', type='all', lockfile='renv.lock', prompt=FALSE, force=TRUE)"`
 4. Add the package to `R/tests/r_smoke_test.R`
 5. Verify: `Rscript R/tests/r_smoke_test.R`
 6. Commit `renv.lock`, `install_r_packages.R`, and `r_smoke_test.R`
 
+**Local R install (outside the container):** drop `sudo` and omit `library='/usr/local/lib/R/site-library'`. Both exist because the dev container installs packages into a root-owned system library; a local R install typically uses a user-owned library that renv detects automatically.
+
+#### Syncing R packages after renv.lock changes
+
+When `renv.lock` changes on a branch you've pulled (someone added, removed, or bumped a package), sync your installed library to match.
+
+**Dev Container users:** rebuild the container — the Dockerfile runs `renv::restore()` against the current lockfile at build time, so a rebuild picks up any change. In VS Code or Zed, run *Dev Containers: Rebuild Container* (or `docker compose -f .devcontainer/docker-compose.yml build app` from the host).
+
+**Local R install (outside the container):** restore from the lockfile into your system library:
+
+```r
+renv::restore(lockfile = "renv.lock")
+```
+
+If the restore fails or your library drifts badly, reinstall from the human-readable list and re-snapshot:
+
+```bash
+Rscript install_r_packages.R
+```
+
+Then verify with `Rscript R/tests/r_smoke_test.R`.
+
 #### Working outside the Dev Container
 
-If you prefer a local R install, use `renv::restore(lockfile='.devcontainer/renv.lock')` to install the exact pinned versions, or install packages manually — `.devcontainer/install_r_packages.R` has the human-readable list.
+If you prefer a local R install, use `renv::restore(lockfile='renv.lock')` to install the exact pinned versions, or install packages manually — `install_r_packages.R` has the human-readable list.
 
 
 ## Submitting Changes

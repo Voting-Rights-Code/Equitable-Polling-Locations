@@ -70,7 +70,7 @@ python run.py r_test
 # Inside dev container
 Rscript R/tests/r_smoke_test.R
 ```
-R is installed only in the dev container (not the root `Dockerfile`). R package versions are pinned in `.devcontainer/renv.lock` (the single source of truth, equivalent to `environment.yml` for Python). To add a new R package, use `.devcontainer/install_r_packages.R` interactively, then regenerate `renv.lock` — see the workflow comments at the top of that script.
+R is installed only in the dev container (not the root `Dockerfile`). R package versions are pinned in `renv.lock` (the single source of truth, equivalent to `environment.yml` for Python). To add a new R package, use `install_r_packages.R` interactively, then regenerate `renv.lock` — see the workflow comments at the top of that script.
 
 **Local dev (optional, requires conda):**
 ```bash
