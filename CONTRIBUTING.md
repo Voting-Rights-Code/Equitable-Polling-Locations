@@ -100,13 +100,13 @@ Install one of the following container runtimes:
 
 #### Memory configuration
 
-The SCIP optimizer can use significant memory on larger counties (Tarrant County TX peaks at ~12 GB). Configure your runtime to allow at least **16 GB**, or **32 GB** if you plan to run large solves:
+The SCIP optimizer can use significant memory on larger counties (Tarrant County TX uses around 46 GB). Configure your runtime to allow at least **16 GB**, or **32 GB or more** if you plan to run large solves:
 
 **Docker Desktop:**
 
 Docker Desktop reserves a fixed amount of RAM regardless of actual usage.
 
-- **macOS:** Docker Desktop → Settings → Resources → Memory → set to at least 16 GB (32 GB recommended)
+- **macOS:** Docker Desktop → Settings → Resources → Memory → set to at least 16 GB (32 GB or more recommended)
 - **Windows (WSL):** Create or edit `%USERPROFILE%\.wslconfig`:
     ```ini
     [wsl2]
@@ -128,7 +128,7 @@ orb config set memory_mib 32768
 orb restart
 ```
 
-Verify inside the container with `free -h`. If your Mac has 64 GB of RAM, allocating 32 GB to OrbStack still leaves plenty for macOS and your editor.
+Verify inside the container with `free -h`. If your Mac has 64 GB of RAM, allocating 48 GB to OrbStack still leaves plenty for macOS and your editor.
 
 ### Git LFS
 
