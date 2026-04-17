@@ -16,6 +16,26 @@ See [Installation](to_install.md) for more detail.
 
 > **Local (non-Docker) execution** is also supported via a conda environment. See [Contributing — Development Guide](../CONTRIBUTING.md#development-environment) for setup.
 
+## Census API Key
+
+The model needs a free [census API key](https://api.census.gov/data/key_signup.html) whenever it has to pull demographics or TIGER shapefiles for a county that isn't already in `datasets/census/`. If you're only re-running an existing config against data that's already on disk (or in the database), you can skip this section.
+
+Store your key with `run.py` (one-time, interactive prompt — no external Python packages required):
+
+```bash
+python run.py set_census_key
+```
+
+This saves the key to `authentication_files/credentials.json` (gitignored). Subsequent runs pick it up automatically.
+
+**Alternative — environment variable.** Export `CENSUS_API_KEY` instead — it takes precedence over `credentials.json` and is useful inside containers and CI:
+```bash
+export CENSUS_API_KEY=your-key-here
+python run.py pull_census_data_cli TX "Tarrant County" 2020
+```
+
+See [Input Data — Census Data](input_files.md#census-data-demographics-and-shapefiles) for the full list of files pulled, and [Installation — Census API Key](to_install.md#census-api-key-optional-for-new-counties) for the same setup summarized from the install flow.
+
 ## Running the Model
 
 From the project root, run the model. There are two command line options, one to write data locally, and the other to write data to the database:

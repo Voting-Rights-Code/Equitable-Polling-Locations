@@ -12,13 +12,20 @@ When setting up a **new location** for the first time, the following inputs are 
 
 The software requires a free census API key to run new counties. You can [apply on the census site](https://api.census.gov/data/key_signup.html) and be approved in seconds.
 
-To store your census API key securely using the OS keychain:
+To store your census API key (one-time, no external packages required):
 
-1. Install keyring: `pip install keyring`
-2. Store your key: `python run.py set_census_key`
-3. When running a script that needs census data, use the `-k` flag: `python run.py -k <script> [args]`
+```bash
+python run.py set_census_key
+```
 
-The `-k` flag writes a cached copy of the key to `authentication_files/credentials.json` (gitignored). After the first use of `-k`, subsequent runs will use the cached file automatically without needing `-k`.
+This prompts for your key and saves it to `authentication_files/credentials.json` (gitignored). Subsequent runs pick it up automatically.
+
+Alternatively, set the `CENSUS_API_KEY` environment variable — it takes precedence over `credentials.json` and is useful inside containers and CI:
+
+```bash
+export CENSUS_API_KEY=your-key-here
+python -m python.scripts.pull_census_data_cli TX "Tarrant County" 2020
+```
 
 The necessary data is automatically pulled from the census (if needed) when the model is run. However, one may also run `python -m python.utils.pull_census_data` to manually retrieve the data.
 

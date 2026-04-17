@@ -18,11 +18,11 @@
 If you plan to download census data for counties not already in the repo, you need a free census API key.
 
 1. [Apply for a census API key](https://api.census.gov/data/key_signup.html) (approved in seconds)
-2. Install keyring on your host machine: `pip install keyring`
-3. Store your key: `python run.py set_census_key`
-4. Use `-k` when running scripts that need census data: `python run.py -k <script> [args]`
+2. Store your key: `python run.py set_census_key` (prompts for the key and saves it to `authentication_files/credentials.json`, which is gitignored)
 
-The `-k` flag caches the key locally in `authentication_files/credentials.json` (gitignored), so you only need to pass `-k` once. Subsequent runs will use the cached file.
+No external Python packages are required — `run.py` uses only the standard library.
+
+Alternatively, export the `CENSUS_API_KEY` environment variable — it takes precedence over `credentials.json`, which is useful inside containers and CI.
 
 ### Test the Installation
 To confirm the installation is setup correctly, run pytest with the following command in the root of the project directory:
