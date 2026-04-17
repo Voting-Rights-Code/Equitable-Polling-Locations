@@ -54,7 +54,7 @@ READ_FROM_CSV = TRUE
 PRINT_SQL = FALSE
 
 #constants for database queries
-#only need to define if READ_FROM_CSV = TRUE
+#only need to define if READ_FROM_CSV = FALSE
 PROJECT = "equitable-polling-locations"
 DATASET = "equitable_polling_locations_prod"
 BILLING = PROJECT
