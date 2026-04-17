@@ -140,53 +140,16 @@ def main():
             sys.exit(130)
         return
 
-    # Special command: set_census_key stores a census API key in the OS keychain
+    # Special command: set_census_key stores a census API key in credentials.json.
+    # No external dependencies required — uses only Python stdlib.
     if len(sys.argv) > 1 and sys.argv[1] == 'set_census_key':
-        try:
-            import keyring
-        except ImportError:
-            print("Error: 'keyring' package is not installed.")
-            print("Install it with: pip install keyring")
-            sys.exit(1)
         key = getpass.getpass("Enter your census API key: ")
         if not key.strip():
             print("Error: No key entered.")
             sys.exit(1)
-        try:
-            keyring.set_password("equitable-polling", "census_key", key.strip())
-        except Exception as e:
-            print(f"Error: Failed to store key in OS keychain: {e}")
-            print("Check that your system has a supported keyring backend.")
-            sys.exit(1)
-        print("Census API key stored in OS keychain.")
+        write_credentials_json(key.strip())
+        print("Census API key saved to authentication_files/credentials.json")
         return
-
-    # Flag: -k / --keyring populates credentials.json from the OS keychain.
-    # Remove only the first occurrence to avoid stripping -k from forwarded script args.
-    use_keyring = False
-    idx = next((i for i, a in enumerate(sys.argv) if a in ('-k', '--keyring')), None)
-    if idx is not None:
-        use_keyring = True
-        sys.argv = sys.argv[:idx] + sys.argv[idx + 1:]
-
-    if use_keyring:
-        try:
-            import keyring
-        except ImportError:
-            print("Error: 'keyring' package is not installed.")
-            print("Install it with: pip install keyring")
-            sys.exit(1)
-        try:
-            key = keyring.get_password("equitable-polling", "census_key")
-        except Exception as e:
-            print(f"Error: Failed to read from OS keychain: {e}")
-            print("Check that your system has a supported keyring backend.")
-            sys.exit(1)
-        if key is None:
-            print("Error: No census API key found in OS keychain.")
-            print("Run 'python run.py set_census_key' first to store your key.")
-            sys.exit(1)
-        write_credentials_json(key)
 
     available_scripts = get_scripts()
 
@@ -197,11 +160,8 @@ def main():
         prog="python run.py",
         description=(
             "Run solver related python scripts inside the Docker container.\n\n"
-            "Use -k before the script name to populate census credentials from\n"
-            "the OS keychain (via keyring). The credentials are cached locally in\n"
-            "authentication_files/credentials.json so -k is only needed once.\n\n"
             "Special commands:\n"
-            "  set_census_key  Store your census API key in the OS keychain\n"
+            "  set_census_key  Store your census API key in credentials.json\n"
             "  e2e_tests       Run end-to-end tests"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,

@@ -1,4 +1,4 @@
-"""Tests for census key loading from credentials.json."""
+"""Tests for census key loading from credentials.json and CENSUS_API_KEY env var."""
 
 import json
 
@@ -7,6 +7,12 @@ from unittest.mock import patch
 
 from python.utils.pull_census_data import _load_census_key
 from python.utils.pull_census_data import pull_census_data
+
+
+@pytest.fixture(autouse=True)
+def _clear_census_env(monkeypatch):
+    """Ensure CENSUS_API_KEY is unset unless a test explicitly sets it."""
+    monkeypatch.delenv("CENSUS_API_KEY", raising=False)
 
 
 class TestLoadCensusKey:
@@ -38,6 +44,29 @@ class TestLoadCensusKey:
         creds_file.write_text(json.dumps({"other_key": "value"}))
         result = _load_census_key(creds_file)
         assert result is None
+
+    def test_returns_env_var_when_set(self, tmp_path, monkeypatch):
+        """CENSUS_API_KEY env var returns its value when credentials file is missing."""
+        monkeypatch.setenv("CENSUS_API_KEY", "env-key-xyz")
+        creds_file = tmp_path / "credentials.json"
+        result = _load_census_key(creds_file)
+        assert result == "env-key-xyz"
+
+    def test_env_var_takes_precedence_over_file(self, tmp_path, monkeypatch):
+        """CENSUS_API_KEY wins over credentials.json when both are present."""
+        monkeypatch.setenv("CENSUS_API_KEY", "env-key-xyz")
+        creds_file = tmp_path / "credentials.json"
+        creds_file.write_text(json.dumps({"census_key": "file-key-abc"}))
+        result = _load_census_key(creds_file)
+        assert result == "env-key-xyz"
+
+    def test_empty_env_var_falls_through_to_file(self, tmp_path, monkeypatch):
+        """Empty CENSUS_API_KEY is treated as unset; file is consulted."""
+        monkeypatch.setenv("CENSUS_API_KEY", "")
+        creds_file = tmp_path / "credentials.json"
+        creds_file.write_text(json.dumps({"census_key": "file-key-abc"}))
+        result = _load_census_key(creds_file)
+        assert result == "file-key-abc"
 
 
 class TestPullCensusDataKeyHandling:
