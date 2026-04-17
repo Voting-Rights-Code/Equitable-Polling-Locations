@@ -48,4 +48,4 @@ class TestPullCensusDataKeyHandling:
         """pull_census_data raises ValueError when no apikey is provided and loader returns None."""
         # state_lookup={} is safe — ValueError fires before state_lookup is used
         with pytest.raises(ValueError, match="No census key available"):
-            pull_census_data("GA", "Gwinnett County", apikey=None, state_lookup={})
+            pull_census_data("GA", "Gwinnett County", "2020", apikey=None, state_lookup={})

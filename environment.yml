@@ -1,22 +1,28 @@
 name: equitable-polls
 channels:
-  - conda-forge
+    - conda-forge
+    - nodefaults
 dependencies:
-  - python=3.11.4
-  - jupyterlab=3.6.3
-  - geopandas=0.9.0
-  - fiona=1.9.6
-  - numpy=1.24.3
-  - haversine=2.8.0
-  - pandas=2.0.1
-  - pyomo=6.5.0
-  - pyscipopt=4.3.0
-  - pyyaml=6.0
-  - pytest=7.4.3
-  - google-cloud-bigquery=3.25.0
-  - google-cloud-bigquery-storage=2.25.0
-  - db-dtypes=1.2.0
-  - pip
-  - pip:
-    - -r requirements.txt
-
+    - python=3.11.4
+    - pytest=9.0.3
+    - pylint=4.0.5
+    - scip=10.0.2 # C-library for pyscipopt
+    - cython=3.2.4 # Build tool for pyscipopt
+    - pyarrow=18.0.0
+    - tqdm=4.67.0
+    - geopandas=1.1.3
+    - fiona=1.10.1
+    - haversine=2.9.0
+    - numpy=1.24.3
+    - pandas=2.0.1
+    - pyyaml=6.0.3
+    - google-cloud-bigquery=3.40.1
+    - pip
+    - pip:
+          - pyscipopt==6.1.0
+          - pyomo==6.10.0
+          - sqlalchemy==2.0.40
+          - sqlalchemy-bigquery==1.16.0
+          - alembic==1.13.3
+          - google-cloud-bigquery-storage==2.27.0
+          - googlemaps==4.10.0

@@ -10,39 +10,67 @@ Python optimization tool that selects equitable polling locations using the Kolm
 
 See `docs/to_install.md` for full setup instructions.
 
+## Rules
+
+- **No compound shell commands** — never wrap commands in `cd && ...`, subshells `()`, redirects `2>&1`, or pipes `| grep`. Run simple commands directly (`python run.py test`); use Read/Grep tools to filter output.
+- **No inline scripts** — never use Python/sed/awk heredoc scripts via Bash to edit code. Use the Edit tool. Let pylint find all sites, then fix each individually.
+- **Warnings are errors** — fix all Pylint warnings before committing. Do not add `# pylint: disable` without a comment explaining why. Run pytest with `-W error`.
+- **Readability over brevity** — spell out variable names (`polling_location` not `pl`, `equity_score` not `eq_s`). Short names only for loop counters and lambdas.
+- **Conventional Commits** — format: `type(scope): description`. Types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`. Scope: module name (`solver`, `database`, `scripts`).
+- **Before merging** — run `python run.py test` and `pylint python/`. All tests and lints must pass.
+
 ## Commands
+
+**Detect your runtime first.** Behavior differs by environment:
+
+- **Inside the dev container** — the file `/.dockerenv` exists, and/or the working directory is `/workspaces/Equitable-Polling-Locations`. The conda env `equitable-polls` is already active on `PATH`, so call `pytest`, `pylint`, and `python -m python.scripts.<name>` directly. **Do NOT use `run.py` or `docker compose run` from inside the container** — they try to spawn another container, which isn't available.
+- **On the host (macOS/Linux/WSL with Docker running)** — use `run.py` (wraps `docker compose run`) or `docker compose run --rm app ...` directly.
+- **On the host with a local conda env** — activate `equitable-polls` and run `pytest` / `pylint` directly.
 
 **Run the model (local files):**
 ```bash
+# Host (via Docker)
 python run.py model_run_cli -c NUM -l ./datasets/configs/<County>/config.yaml
 python run.py model_run_db_cli -e ENV -c NUM -l config_set/config_name
+
+# Inside dev container
+python -m python.scripts.model_run_cli -c NUM -l ./datasets/configs/<County>/config.yaml
+python -m python.scripts.model_run_db_cli -e ENV -c NUM -l config_set/config_name
 ```
 Add `-vv` for verbose logging.
 
 **Tests:**
 ```bash
+# Host (via Docker)
 docker compose run --rm app pytest
-```
+python run.py e2e_tests                   # all e2e tests
+python run.py e2e_tests -m e2e_csv        # CSV only, no DB required
+python run.py e2e_tests -m e2e_db         # DB only, needs settings.yaml + GCP creds
 
-**E2E tests:**
-```bash
-# All e2e tests via Docker
-python run.py e2e_tests
-
-# CSV tests only (no DB required)
-python run.py e2e_tests -m e2e_csv
-
-# DB tests only (requires 'test' environment in settings.yaml + GCP credentials)
-python run.py e2e_tests -m e2e_db
-
-# Locally (conda env)
-pytest python/tests/e2e/
+# Inside dev container (or host with local conda env)
+pytest                                     # all unit + e2e tests
+pytest python/tests/e2e/                   # e2e only
+pytest python/tests/e2e/ -m e2e_csv        # CSV only
 ```
 
 **Lint:**
 ```bash
+# Host (via Docker)
+python run.py lint
+
+# Inside dev container (or host with local conda env)
 pylint python/
 ```
+
+**R environment smoke test:**
+```bash
+# Host (via Docker, uses the dev container's R install)
+python run.py r_test
+
+# Inside dev container
+Rscript R/tests/r_smoke_test.R
+```
+R is installed only in the dev container (not the root `Dockerfile`). R package versions are pinned in `.devcontainer/renv.lock` (the single source of truth, equivalent to `environment.yml` for Python). To add a new R package, use `.devcontainer/install_r_packages.R` interactively, then regenerate `renv.lock` — see the workflow comments at the top of that script.
 
 **Local dev (optional, requires conda):**
 ```bash
@@ -63,62 +91,24 @@ python/
   tests/      # pytest suite; fixtures in conftest.py
     e2e/      # End-to-end CLI tests (subprocess-based, session-isolated)
 run.py        # Docker wrapper; auto-discovers scripts in python/scripts/
-datasets/     # Sample data by county: configs, polling locations, distances
+datasets/     # Data by county: configs, polling locations, distances
 ```
 
 `run.py <script_name> [args]` → `docker compose run --rm app python -m python.scripts.<script_name> [args]`
 
-## Code Style
+## Documentation Strategy
 
-- Google Python style guide (`.pylintrc`)
-- 4-space indentation, 120 char line limit
-- `snake_case` functions/variables, `PascalCase` classes, `UPPER_CASE` constants
-- All code changes must pass `pylint python/` before committing
+This is an open source project. Keep the repo authoritative:
 
-### Docstrings
+- **Finalized decisions** → `docs/development/decisions/` (ADR format: "Why we chose X over Y")
+- **Specs and plans** → add to the originating issue/ticket, not as separate issues
+- **Do NOT commit** rough specs, exploratory plans, or in-progress design docs to the repo
+- Outside contributors treat anything in `main` as gospel — keep it clean
 
-All new functions, methods, and classes must include a Google-style docstring:
+## R Analysis Toolkit (`R/`)
 
-```python
-def example(value: int) -> str:
-    """One-line summary of what the function does.
+Post-optimization result analysis and visualization scripts. See `R/CLAUDE.md` for conventions.
 
-    Args:
-        value: Description of the parameter.
+## Backend API (`python/`)
 
-    Returns:
-        Description of the return value.
-
-    Raises:
-        ValueError: When and why it is raised.
-    """
-```
-
-When code is changed or refactored, update any affected docstrings to stay accurate.
-
-### Comments
-
-Inline comments should explain *why*, not restate *what* the code does. Keep them concise and follow PEP 8 (single space after `#`, sentence case).
-
-## Test-Driven Development
-
-All code must be written using TDD:
-
-1. **Write a failing test first** — before writing any implementation code, write a test that captures the desired behaviour and confirm it fails for the right reason.
-2. **Write the minimum code to pass** — implement only enough to make the test green; do not add logic that is not covered by a test.
-3. **Refactor** — clean up while keeping all tests green.
-
-When modifying existing code, update the associated tests before or alongside the change, and confirm all relevant tests pass before considering the work done.
-
-## Key Conventions
-
-- Config paths are case-sensitive: use `Gwinnett_GA`, not `Gwinnett_Ga`
-- Two data sources: `csv` (local files) or `db` (BigQuery) — set in `PollingModelConfig`
-- Environment names are defined in `settings.yaml`
-- Git LFS required for large dataset files (distances, shapefiles)
-
-## Contributing
-
-- PRs require 2 maintainer reviews; lint before merging
-- Include tests for new features
-- Communicate early about work in progress
+Python solver and API. See `python/CLAUDE.md` for conventions.

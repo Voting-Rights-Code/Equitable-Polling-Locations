@@ -15,7 +15,7 @@ from python.database.query import Query
 
 from python.solver.model_data import build_distance_data
 from python.utils import is_int, log_date_prefix
-from python.solver.constants import DATA_SOURCE_DB
+from python.solver.constants import DATA_SOURCE_DB, DEFAULT_MAP_SOURCE_DATE
 from python.utils.environments import Environment, load_env
 from python.utils.directory_constants import DEFAULT_LOG_DIR
 
@@ -67,7 +67,6 @@ def build_and_import_distance_data(
         driving=driving,
         log_distance=log_distance,
         map_source_date=maps_source_date,
-        log=False,
         query=query,
     )
     distance_data_set = query.create_db_distance_data_set(
@@ -116,7 +115,7 @@ def main(args: argparse.Namespace):
 
     if driving:
         # Use the default date for driving distances
-        map_source_date = '20250101'
+        map_source_date = DEFAULT_MAP_SOURCE_DATE
     else:
         map_source_date = None
     log_distance: bool = args.type == LOG

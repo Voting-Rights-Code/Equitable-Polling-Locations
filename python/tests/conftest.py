@@ -14,7 +14,31 @@ from python.solver.model_config import PollingModelConfig
 from .constants import (
   TESTING_CONFIG_BASE, TESTING_CONFIG_KEEP, TESTING_CONFIG_EXCLUDE, TESTING_CONFIG_PENALTY,
   TESTING_CONFIG_PENALTY_UNUSED, TESTING_CONFIG_DRIVING, TESTING_POTENTIAL_LOCATIONS_PATH, MAP_SOURCE_DATE,
+  TESTS_DIR,
 )
+
+
+# Fixtures for import tests
+
+@pytest.fixture(scope='session')
+def test_results_path():
+    ''' Path to valid test results CSV. '''
+    return os.path.join(TESTS_DIR, 'test_results.csv')
+
+@pytest.fixture(scope='session')
+def test_results_bad_int_path():
+    ''' Path to test results CSV with float values in integer columns. '''
+    return os.path.join(TESTS_DIR, 'test_results_bad_int.csv')
+
+@pytest.fixture(scope='session')
+def test_residence_distances_path():
+    ''' Path to valid test residence distances CSV. '''
+    return os.path.join(TESTS_DIR, 'test_residence_distances.csv')
+
+@pytest.fixture(scope='session')
+def test_residence_distances_bad_avg_dist_path():
+    ''' Path to test residence distances CSV with null avg_dist. '''
+    return os.path.join(TESTS_DIR, 'test_residence_distances_bad_avg_dist.csv')
 
 def generate_penalties_df(config: PollingModelConfig) -> pd.DataFrame:
     model_run = ModelRun(config)

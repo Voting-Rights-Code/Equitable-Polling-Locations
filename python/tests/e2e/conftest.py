@@ -84,6 +84,49 @@ def run_cli(script_module: str, *args, timeout: int = 600) -> subprocess.Complet
 
 
 # ---------------------------------------------------------------------------
+# Pytest hooks
+# ---------------------------------------------------------------------------
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_collection_modifyitems(config, items):  # pylint: disable=unused-argument
+    """Fail fast when the user explicitly targets DB tests but DB isn't configured.
+
+    If every collected test is marked ``e2e_db`` (e.g. ``pytest -m e2e_db`` or
+    pointing pytest at a DB-only test file), the user has opted into DB testing.
+    In that case a missing ``settings.yaml`` or missing ``test`` environment
+    should abort the session with a clear error — not silently skip every test,
+    which can read as "all green" to a casual observer.
+
+    In mixed runs (CSV + DB together, or CSV-only) the per-test
+    :func:`test_environment` fixture still handles skips gracefully so offline
+    development keeps working.
+    """
+    if not items:
+        return
+    if not all(item.get_closest_marker('e2e_db') for item in items):
+        return  # Mixed or non-DB run — fall through to the fixture's skip logic.
+
+    if not os.path.isfile(SETTINGS_PATH):
+        pytest.exit(
+            f"DB tests were explicitly selected, but settings.yaml is missing at "
+            f"{SETTINGS_PATH}. Configure a 'test' environment before running "
+            f"-m e2e_db. See CONTRIBUTING.md: Setting Up DB Tests.",
+            returncode=1,
+        )
+
+    with open(SETTINGS_PATH, 'r', encoding='utf-8') as fh:
+        all_configs: dict = yaml.safe_load(fh) or {}
+
+    if 'test' not in all_configs:
+        pytest.exit(
+            "DB tests were explicitly selected, but settings.yaml has no 'test' "
+            "environment. See CONTRIBUTING.md: Setting Up DB Tests.",
+            returncode=1,
+        )
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -289,7 +332,13 @@ def e2e_test_data(e2e_session_id):
 
 @pytest.fixture(scope='session')
 def test_environment():
-    """Load the 'test' environment from settings.yaml, skipping if not configured.
+    """Load the 'test' environment from settings.yaml.
+
+    Skips when DB testing has not been configured (no settings.yaml or no 'test'
+    entry). When a 'test' environment IS configured, the user has opted into
+    DB testing — a connection failure (expired GCP credentials, unreachable
+    BigQuery, etc.) surfaces as an error rather than a skip so that broken
+    setups cannot silently pass.
 
     Yields:
         :class:`python.utils.environments.Environment`: The loaded test environment.
@@ -297,8 +346,9 @@ def test_environment():
     Raises:
         pytest.skip: If ``settings.yaml`` does not exist or has no 'test' entry.
     """
-    # Import here to avoid circular imports at collection time.
+    # Imports here to avoid circular imports at collection time.
     from python.utils.environments import load_env  # pylint: disable=import-outside-toplevel
+    from python.database import sqlalchemy_main  # pylint: disable=import-outside-toplevel
 
     if not os.path.isfile(SETTINGS_PATH):
         pytest.skip(f'settings.yaml not found at {SETTINGS_PATH}; DB tests skipped.')
@@ -311,12 +361,11 @@ def test_environment():
 
     env = load_env('test')
 
-    # Verify we can actually connect (e.g. GCP credentials are available)
-    try:
-        from python.database import sqlalchemy_main  # pylint: disable=import-outside-toplevel
-        sqlalchemy_main.setup(env)
-    except Exception as exc:  # pylint: disable=broad-except
-        pytest.skip(f'Cannot connect to test database ({exc.__class__.__name__}); DB tests skipped.')
+    # settings.yaml has a 'test' entry, so the user has opted into DB testing.
+    # create_engine() is lazy — probe real connectivity here so failures surface
+    # up front instead of mid-test with confusing downstream errors.
+    engine = sqlalchemy_main.setup(env)
+    engine.connect().close()
 
     yield env
 
