@@ -20,6 +20,7 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04
 # These are apt dependencies (not conda) because R links against the system
 # versions of these libraries.
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        git-lfs \
         cmake \
         libabsl-dev \
         libuv1-dev \
