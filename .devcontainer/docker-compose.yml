@@ -14,11 +14,13 @@ services:
             dockerfile: .devcontainer/Dockerfile
         volumes:
             - ..:/workspaces/Equitable-Polling-Locations
-            - ${HOME}/.config/gcloud:/home/vscode/.config/gcloud
+            # GCP creds mount. run.py sets GCP_CREDS_PATH per-platform (Windows
+            # uses %APPDATA%\gcloud); the fallback covers dev container attach
+            # where run.py isn't in the loop (HOME on macOS/Linux/WSL2,
+            # USERPROFILE on native Windows shells).
+            - ${GCP_CREDS_PATH:-${HOME:-${USERPROFILE}}/.config/gcloud}:/home/vscode/.config/gcloud
             # Persist Claude Code auth, MCP servers, and plugins across container
-            # rebuilds by sharing the host's ~/.claude/ directory. ${HOME} works on
-            # macOS/Linux/WSL2; ${USERPROFILE} is the fallback on native Windows
-            # shells (PowerShell/CMD) where HOME is not set.
+            # rebuilds by sharing the host's ~/.claude/ directory.
             - ${HOME:-${USERPROFILE}}/.claude:/home/vscode/.claude
         environment:
             - GOOGLE_APPLICATION_CREDENTIALS=/home/vscode/.config/gcloud/application_default_credentials.json
@@ -27,7 +29,7 @@ services:
             - GRPC_DNS_RESOLVER=native
             - PYTHONPATH=/workspaces/Equitable-Polling-Locations
             - PYTHONUNBUFFERED=1
-            - PATH=/opt/conda/envs/equitable-polls/bin:/opt/conda/bin:/usr/local/share/nvm/current/bin:/usr/local/bin:/usr/bin:/bin
+            - PATH=/opt/conda/envs/equitable-polls/bin:/opt/conda/bin:/usr/local/bin:/usr/bin:/bin
         # Keep the container alive for dev container use. The dev containers CLI
         # auto-appends this via overrideCommand, but keeping it explicit lets you
         # `docker compose up` this file standalone.

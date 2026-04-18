@@ -23,8 +23,8 @@ See `docs/to_install.md` for full setup instructions.
 
 **Detect your runtime first.** Behavior differs by environment:
 
-- **Inside the dev container** — the file `/.dockerenv` exists, and/or the working directory is `/workspaces/Equitable-Polling-Locations`. The conda env `equitable-polls` is already active on `PATH`, so call `pytest`, `pylint`, and `python -m python.scripts.<name>` directly. **Do NOT use `run.py` or `docker compose run` from inside the container** — they try to spawn another container, which isn't available.
-- **On the host (macOS/Linux/WSL with Docker running)** — use `run.py` (wraps `docker compose run`) or `docker compose run --rm app ...` directly.
+- **Inside the dev container** — the file `/.dockerenv` exists, and/or the working directory is `/workspaces/Equitable-Polling-Locations`. The conda env `equitable-polls` is already active on `PATH`, so call `pytest`, `pylint`, and `python -m python.scripts.<name>` directly. **Do NOT use `run.py` or `docker compose` from inside the container** — they try to spawn another container, which isn't available.
+- **On the host (macOS/Linux/WSL with Docker running)** — use `run.py` (the canonical wrapper) or `docker compose -f .devcontainer/docker-compose.yml run --rm app ...` directly. The project has a single image used by both the dev container and host invocations.
 - **On the host with a local conda env** — activate `equitable-polls` and run `pytest` / `pylint` directly.
 
 **Run the model (local files):**
@@ -42,8 +42,8 @@ Add `-vv` for verbose logging.
 **Tests:**
 ```bash
 # Host (via Docker)
-docker compose run --rm app pytest
-python run.py e2e_tests                   # all e2e tests
+python run.py test                         # all unit + e2e tests
+python run.py e2e_tests                    # e2e only
 python run.py e2e_tests -m e2e_csv        # CSV only, no DB required
 python run.py e2e_tests -m e2e_db         # DB only, needs settings.yaml + GCP creds
 
@@ -64,13 +64,13 @@ pylint python/
 
 **R environment smoke test:**
 ```bash
-# Host (via Docker, uses the dev container's R install)
+# Host (via Docker)
 python run.py r_test
 
 # Inside dev container
 Rscript R/tests/r_smoke_test.R
 ```
-R is installed only in the dev container (not the root `Dockerfile`). R package versions are pinned in `renv.lock` (the single source of truth, equivalent to `environment.yml` for Python). To add a new R package, use `install_r_packages.R` interactively, then regenerate `renv.lock` — see the workflow comments at the top of that script.
+R is installed in the project image (see `.devcontainer/Dockerfile`). R package versions are pinned in `renv.lock` (the single source of truth, equivalent to `environment.yml` for Python). To add a new R package, use `install_r_packages.R` interactively, then regenerate `renv.lock` — see the workflow comments at the top of that script.
 
 **Local dev (optional, requires conda):**
 ```bash
@@ -94,7 +94,7 @@ run.py        # Docker wrapper; auto-discovers scripts in python/scripts/
 datasets/     # Data by county: configs, polling locations, distances
 ```
 
-`run.py <script_name> [args]` → `docker compose run --rm app python -m python.scripts.<script_name> [args]`
+`run.py <script_name> [args]` → `docker compose -f .devcontainer/docker-compose.yml run --rm app python -m python.scripts.<script_name> [args]`
 
 ## Documentation Strategy
 

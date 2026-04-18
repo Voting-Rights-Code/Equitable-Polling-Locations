@@ -112,7 +112,7 @@ This repository uses [Git LFS](https://git-lfs.com/) for large data files.
 From the project root, run:
 
 ```bash
-docker compose run --rm app pytest
+python run.py test
 ```
 
 All tests should pass. See [Installation](docs/to_install.md) for full setup details.
@@ -136,8 +136,10 @@ R/            # Post-optimization result analysis and visualization (see R/CLAUD
 The `run.py` wrapper translates commands into Docker calls:
 
 ```
-run.py <script_name> [args]  →  docker compose run --rm app python -m python.scripts.<script_name> [args]
+run.py <script_name> [args]  →  docker compose -f .devcontainer/docker-compose.yml run --rm app python -m python.scripts.<script_name> [args]
 ```
+
+A single image powers both the dev container and the host-invoked `run.py` workflow, so editing `environment.yml` or `renv.lock` and rebuilding the image updates both paths at once.
 
 See [Running the Program](docs/to_run.md) for full usage details and examples.
 
@@ -153,7 +155,7 @@ Docker is the primary development method. All commands go through `run.py`, whic
 python run.py model_run_cli -c NUM -l ./datasets/configs/<County>/config.yaml
 
 # Run tests
-docker compose run --rm app pytest
+python run.py test
 
 # Run E2E tests
 python run.py e2e_tests
@@ -232,7 +234,7 @@ claude
 python
 ```
 
-You can still use `run.py` and `docker compose run` from a **host** terminal (outside the container) if you want a one-shot container invocation — the two workflows don't conflict and target the same image. Inside the dev container, use the direct commands above.
+You can still use `run.py` and `docker compose -f .devcontainer/docker-compose.yml run --rm app ...` from a **host** terminal (outside the container) for one-shot invocations — both target the same image the dev container uses. Inside the dev container, use the direct commands above.
 
 ### Local Development with Conda (optional)
 
@@ -264,7 +266,7 @@ conda env remove -n equitable-polls
 conda env create -f environment.yml
 ```
 
-Docker and Dev Container users don't need to do anything — the image rebuild picks up `environment.yml` changes automatically (`docker compose build app`, or *Dev Containers: Rebuild Container* in your editor).
+Docker and Dev Container users: the conda env is baked into the image, so `environment.yml` changes are picked up at image rebuild. In VS Code or Zed, run *Dev Containers: Rebuild Container*; from a host terminal run `docker compose -f .devcontainer/docker-compose.yml build app`. A rebuilt image benefits both the dev container and host-invoked `run.py` — they share one image.
 
 ### IDE Setup for Local Conda (optional)
 
@@ -372,7 +374,7 @@ docs(contributing): consolidate contributing guide
 Unit tests live in `python/tests/` and cover the solver, model data, config loading, and utilities. Run them via Docker:
 
 ```bash
-docker compose run --rm app pytest
+python run.py test
 ```
 
 Or locally with a conda environment:
@@ -627,7 +629,7 @@ You can run Claude Code either on your host system or inside the dev container. 
 
 **Inside the Dev Container (recommended if you already develop in-container):**
 
-The `claude` CLI is pre-installed inside the container via `postCreateCommand`. To start it:
+The `claude` CLI is pre-installed in the image (baked in at build time via `.devcontainer/Dockerfile`). To start it:
 
 1. **Open the project in your editor in the container:**
     - **VS Code:** open the project folder → click *Reopen in Container* if prompted, or Command Palette → `Dev Containers: Reopen in Container`

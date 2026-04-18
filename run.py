@@ -11,6 +11,13 @@ import sys
 from pathlib import Path
 
 
+# Single source of truth for the project's Docker image. The same compose
+# file drives both the dev container and host-invoked run.py commands, so
+# editing environment.yml or renv.lock and rebuilding the image updates both
+# workflows at once.
+COMPOSE_FILE = ".devcontainer/docker-compose.yml"
+
+
 def get_gcp_creds_path():
     """Detects the host OS and returns the default gcloud config path."""
     if platform.system() == "Windows":
@@ -48,6 +55,30 @@ def get_docker_compose_cmd() -> list[str]:
     sys.exit(1)
 
 
+def build_compose_prefix() -> list[str]:
+    """Compose command prefix including the -f flag for the project's
+    compose file. Use this in place of ``get_docker_compose_cmd()`` for
+    every invocation that targets the project image.
+    """
+    return get_docker_compose_cmd() + ["-f", COMPOSE_FILE]
+
+
+def run_compose(args: list[str]) -> None:
+    """Runs ``docker compose -f <COMPOSE_FILE> <args>`` with GCP creds
+    path exported, handling exit codes and Ctrl-C consistently.
+    """
+    env = os.environ.copy()
+    env["GCP_CREDS_PATH"] = get_gcp_creds_path()
+    cmd = build_compose_prefix() + args
+    try:
+        subprocess.run(cmd, env=env, check=True)
+    except subprocess.CalledProcessError as e:
+        sys.exit(e.returncode)
+    except KeyboardInterrupt:
+        print("\n[Terminated by User]")
+        sys.exit(130)
+
+
 def get_scripts() -> list[str]:
     """Dynamically finds available scripts in ./python/scripts."""
     scripts_dir = Path(__file__).resolve().parent / "python" / "scripts"
@@ -58,66 +89,30 @@ def get_scripts() -> list[str]:
 
 
 def main():
-    # Special command: e2e_tests bypasses script discovery and runs pytest
-    if len(sys.argv) > 1 and sys.argv[1] == "e2e_tests":
-        compose_cmd = get_docker_compose_cmd()
-        env = os.environ.copy()
-        env["GCP_CREDS_PATH"] = get_gcp_creds_path()
+    # Special command: test runs the full pytest suite (unit + e2e).
+    # Extra args are forwarded (e.g. `run.py test python/tests/e2e/`).
+    if len(sys.argv) > 1 and sys.argv[1] == "test":
         extra_args = sys.argv[2:]
-        cmd = (
-            compose_cmd
-            + ["run", "--rm", "app", "pytest", "python/tests/e2e/"]
-            + extra_args
-        )
-        try:
-            subprocess.run(cmd, env=env, check=True)
-        except subprocess.CalledProcessError as e:
-            sys.exit(e.returncode)
-        except KeyboardInterrupt:
-            print("\n[Terminated by User]")
-            sys.exit(130)
+        run_compose(["run", "--rm", "app", "pytest"] + extra_args)
+        return
+
+    # Special command: e2e_tests runs only the end-to-end subset.
+    if len(sys.argv) > 1 and sys.argv[1] == "e2e_tests":
+        extra_args = sys.argv[2:]
+        run_compose(["run", "--rm", "app", "pytest", "python/tests/e2e/"] + extra_args)
         return
 
     # Special command: lint runs pylint inside Docker against python/.
     # Extra args (e.g. --errors-only, a more specific path) are forwarded.
     if len(sys.argv) > 1 and sys.argv[1] == "lint":
-        compose_cmd = get_docker_compose_cmd()
-        env = os.environ.copy()
-        env["GCP_CREDS_PATH"] = get_gcp_creds_path()
         extra_args = sys.argv[2:]
-        cmd = compose_cmd + ["run", "--rm", "app", "pylint", "python/"] + extra_args
-        try:
-            subprocess.run(cmd, env=env, check=True)
-        except subprocess.CalledProcessError as e:
-            sys.exit(e.returncode)
-        except KeyboardInterrupt:
-            print("\n[Terminated by User]")
-            sys.exit(130)
+        run_compose(["run", "--rm", "app", "pylint", "python/"] + extra_args)
         return
 
-    # Special command: r_test runs the R environment smoke test inside the
-    # dev container. Confirms R and all project-required R packages load.
-    # Requires the .devcontainer setup (root Dockerfile does not install R).
+    # Special command: r_test runs the R environment smoke test. Confirms
+    # R and all project-required R packages load inside the image.
     if len(sys.argv) > 1 and sys.argv[1] == "r_test":
-        compose_cmd = get_docker_compose_cmd()
-        env = os.environ.copy()
-        env["GCP_CREDS_PATH"] = get_gcp_creds_path()
-        cmd = compose_cmd + [
-            "-f",
-            ".devcontainer/docker-compose.yml",
-            "run",
-            "--rm",
-            "app",
-            "Rscript",
-            "R/tests/r_smoke_test.R",
-        ]
-        try:
-            subprocess.run(cmd, env=env, check=True)
-        except subprocess.CalledProcessError as e:
-            sys.exit(e.returncode)
-        except KeyboardInterrupt:
-            print("\n[Terminated by User]")
-            sys.exit(130)
+        run_compose(["run", "--rm", "app", "Rscript", "R/tests/r_smoke_test.R"])
         return
 
     available_scripts = get_scripts()
@@ -131,9 +126,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Special commands:\n"
-            "  e2e_tests   Run end-to-end tests (e.g. python run.py e2e_tests -m e2e_csv)\n"
+            "  test        Run the full pytest suite (unit + e2e)\n"
+            "  e2e_tests   Run end-to-end tests only (e.g. python run.py e2e_tests -m e2e_csv)\n"
             "  lint        Run pylint against python/ (e.g. python run.py lint --errors-only)\n"
-            "  r_test      Run the R environment smoke test in the dev container\n"
+            "  r_test      Run the R environment smoke test\n"
             "\n"
             f"Available scripts:\n  {script_list}"
         ),
@@ -160,26 +156,11 @@ def main():
 
     args = parser.parse_args()
 
-    # 2. Prepare Environment
-    compose_cmd = get_docker_compose_cmd()
-    env = os.environ.copy()
-    env["GCP_CREDS_PATH"] = get_gcp_creds_path()
-
-    # 3. Construct and Run Docker Command
     # Using 'python -m' ensures internal package imports work correctly
-    cmd = (
-        compose_cmd
-        + ["run", "--rm", "app", "python", "-m", f"python.scripts.{args.script}"]
+    run_compose(
+        ["run", "--rm", "app", "python", "-m", f"python.scripts.{args.script}"]
         + args.script_args
     )
-
-    try:
-        subprocess.run(cmd, env=env, check=True)
-    except subprocess.CalledProcessError as e:
-        sys.exit(e.returncode)
-    except KeyboardInterrupt:
-        print("\n[Terminated by User]")
-        sys.exit(130)
 
 
 if __name__ == "__main__":
