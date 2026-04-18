@@ -23,7 +23,7 @@ See `docs/to_install.md` for full setup instructions.
 
 **Detect your runtime first.** Behavior differs by environment:
 
-- **Inside the dev container** — the file `/.dockerenv` exists, and/or the working directory is `/workspaces/Equitable-Polling-Locations`. The conda env `equitable-polls` is already active on `PATH`, so call `pytest`, `pylint`, and `python -m python.scripts.<name>` directly. **Do NOT use `run.py` or `docker compose` from inside the container** — they try to spawn another container, which isn't available.
+- **Inside the dev container** — the file `/.dockerenv` exists, and/or the working directory is `/workspaces/Equitable-Polling-Locations`. The conda env `equitable-polls` is already active on `PATH`, so `pytest`, `pylint`, and `python -m python.scripts.<name>` work directly. `run.py` also works inside the container — it detects `/.dockerenv` and executes commands without any Docker wrapper. Do NOT call `docker compose` directly from inside the container.
 - **On the host (macOS/Linux/WSL with Docker running)** — use `run.py` (the canonical wrapper) or `docker compose -f .devcontainer/docker-compose.yml run --rm app ...` directly. The project has a single image used by both the dev container and host invocations.
 - **On the host with a local conda env** — activate `equitable-polls` and run `pytest` / `pylint` directly.
 

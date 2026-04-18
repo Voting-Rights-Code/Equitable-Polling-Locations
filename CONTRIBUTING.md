@@ -234,7 +234,7 @@ claude
 python
 ```
 
-You can still use `run.py` and `docker compose -f .devcontainer/docker-compose.yml run --rm app ...` from a **host** terminal (outside the container) for one-shot invocations — both target the same image the dev container uses. Inside the dev container, use the direct commands above.
+`run.py` also works inside the container — it detects `/.dockerenv` and runs commands directly instead of trying to spawn another container. So `python run.py test`, `python run.py lint`, `python run.py r_test`, and `python run.py <script_name>` all work identically whether you invoke them from the host or from inside the dev container. Use whichever is convenient.
 
 ### Local Development with Conda (optional)
 

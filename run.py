@@ -1,6 +1,11 @@
 """
-Convenient entry point for running Python scripts in Docker.
-Detects host OS for GCP paths and passes them to Docker Compose.
+Convenient entry point for running project commands.
+
+When invoked from the host, wraps commands in ``docker compose run --rm app``
+against the dev container image. When invoked from inside the dev container
+(detected via ``/.dockerenv``), runs the same commands directly — the conda
+env is already active on PATH, so no Docker wrapper is needed. Either way,
+the command-line interface is identical.
 """
 
 import argparse
@@ -16,6 +21,16 @@ from pathlib import Path
 # editing environment.yml or renv.lock and rebuilding the image updates both
 # workflows at once.
 COMPOSE_FILE = ".devcontainer/docker-compose.yml"
+
+# Root of the repo (where this file lives). Used as cwd when running
+# commands so relative paths like "python/tests/e2e/" resolve regardless of
+# where the user invokes run.py from inside the container.
+REPO_ROOT = Path(__file__).resolve().parent
+
+# /.dockerenv is created by Docker in every container it builds. Presence
+# of that file is a reliable signal that run.py is already executing inside
+# the project image and should skip the docker-compose wrapper.
+IN_CONTAINER = Path("/.dockerenv").exists()
 
 
 def get_gcp_creds_path():
@@ -55,23 +70,29 @@ def get_docker_compose_cmd() -> list[str]:
     sys.exit(1)
 
 
-def build_compose_prefix() -> list[str]:
-    """Compose command prefix including the -f flag for the project's
-    compose file. Use this in place of ``get_docker_compose_cmd()`` for
-    every invocation that targets the project image.
-    """
-    return get_docker_compose_cmd() + ["-f", COMPOSE_FILE]
+def run_command(args: list[str]) -> None:
+    """Runs a project command in whichever context run.py is executing.
 
+    Inside the dev container, executes ``args`` directly (the conda env is
+    on PATH). On the host, prepends
+    ``docker compose -f .devcontainer/docker-compose.yml run --rm app`` and
+    exports ``GCP_CREDS_PATH`` for the compose file's credential mount.
 
-def run_compose(args: list[str]) -> None:
-    """Runs ``docker compose -f <COMPOSE_FILE> <args>`` with GCP creds
-    path exported, handling exit codes and Ctrl-C consistently.
+    Exit codes and Ctrl-C handling match subprocess.run with ``check=True``.
     """
-    env = os.environ.copy()
-    env["GCP_CREDS_PATH"] = get_gcp_creds_path()
-    cmd = build_compose_prefix() + args
+    if IN_CONTAINER:
+        cmd = args
+        env = None
+    else:
+        env = os.environ.copy()
+        env["GCP_CREDS_PATH"] = get_gcp_creds_path()
+        cmd = (
+            get_docker_compose_cmd()
+            + ["-f", COMPOSE_FILE, "run", "--rm", "app"]
+            + args
+        )
     try:
-        subprocess.run(cmd, env=env, check=True)
+        subprocess.run(cmd, env=env, cwd=REPO_ROOT, check=True)
     except subprocess.CalledProcessError as e:
         sys.exit(e.returncode)
     except KeyboardInterrupt:
@@ -81,7 +102,7 @@ def run_compose(args: list[str]) -> None:
 
 def get_scripts() -> list[str]:
     """Dynamically finds available scripts in ./python/scripts."""
-    scripts_dir = Path(__file__).resolve().parent / "python" / "scripts"
+    scripts_dir = REPO_ROOT / "python" / "scripts"
     if not scripts_dir.exists():
         return []
     # Returns sorted filenames without the .py extension
@@ -92,37 +113,37 @@ def main():
     # Special command: test runs the full pytest suite (unit + e2e).
     # Extra args are forwarded (e.g. `run.py test python/tests/e2e/`).
     if len(sys.argv) > 1 and sys.argv[1] == "test":
-        extra_args = sys.argv[2:]
-        run_compose(["run", "--rm", "app", "pytest"] + extra_args)
+        run_command(["pytest"] + sys.argv[2:])
         return
 
     # Special command: e2e_tests runs only the end-to-end subset.
     if len(sys.argv) > 1 and sys.argv[1] == "e2e_tests":
-        extra_args = sys.argv[2:]
-        run_compose(["run", "--rm", "app", "pytest", "python/tests/e2e/"] + extra_args)
+        run_command(["pytest", "python/tests/e2e/"] + sys.argv[2:])
         return
 
-    # Special command: lint runs pylint inside Docker against python/.
+    # Special command: lint runs pylint against python/.
     # Extra args (e.g. --errors-only, a more specific path) are forwarded.
     if len(sys.argv) > 1 and sys.argv[1] == "lint":
-        extra_args = sys.argv[2:]
-        run_compose(["run", "--rm", "app", "pylint", "python/"] + extra_args)
+        run_command(["pylint", "python/"] + sys.argv[2:])
         return
 
     # Special command: r_test runs the R environment smoke test. Confirms
     # R and all project-required R packages load inside the image.
     if len(sys.argv) > 1 and sys.argv[1] == "r_test":
-        run_compose(["run", "--rm", "app", "Rscript", "R/tests/r_smoke_test.R"])
+        run_command(["Rscript", "R/tests/r_smoke_test.R"])
         return
 
     available_scripts = get_scripts()
 
     script_list = "\n  ".join(available_scripts)
 
-    # 1. Initialize Argparse (Native Library)
     parser = argparse.ArgumentParser(
         prog="python run.py",
-        description="Run solver related python scripts inside the Docker container.",
+        description=(
+            "Run solver-related project commands. Executes directly inside "
+            "the dev container, or via `docker compose run --rm app` from "
+            "the host."
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Special commands:\n"
@@ -135,18 +156,16 @@ def main():
         ),
     )
 
-    # Required: The script name (validates against the actual file list)
     parser.add_argument(
         "script",
         choices=available_scripts,
-        help="The script from ./python/scripts to run in the Docker container.",
+        help="The script from ./python/scripts to run.",
     )
 
-    # Optional: Catch-all for any arguments to pass to the target script
     parser.add_argument(
         "script_args",
         nargs=argparse.REMAINDER,
-        help="Arguments/flags passed directly to the script in the Docker container.",
+        help="Arguments/flags passed directly to the target script.",
     )
 
     # If no arguments provided, show help and exit
@@ -157,9 +176,8 @@ def main():
     args = parser.parse_args()
 
     # Using 'python -m' ensures internal package imports work correctly
-    run_compose(
-        ["run", "--rm", "app", "python", "-m", f"python.scripts.{args.script}"]
-        + args.script_args
+    run_command(
+        ["python", "-m", f"python.scripts.{args.script}"] + args.script_args
     )
 
 
