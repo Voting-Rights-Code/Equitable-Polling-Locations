@@ -15,6 +15,7 @@
         "PYTHONPATH": "/workspaces/Equitable-Polling-Locations",
         "PYTHONUNBUFFERED": "1"
     },
+    "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && git lfs install --local && git lfs pull",
     "customizations": {
         "vscode": {
             "extensions": [
