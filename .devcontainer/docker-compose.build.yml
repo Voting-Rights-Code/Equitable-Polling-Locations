@@ -11,4 +11,11 @@
 services:
     app:
         image: equitable-polling-locations-app:latest
-        build: .
+        # Build context is the repo root so the Dockerfile can COPY
+        # environment.yml (and any other repo-root files) directly, without
+        # needing an initializeCommand to pre-copy them into .devcontainer/.
+        # This file is NOT referenced by devcontainer.json (so Zed's path bug
+        # with dockerComposeFile+build doesn't apply); only the CLI builds it.
+        build:
+            context: ..
+            dockerfile: .devcontainer/Dockerfile

@@ -15,7 +15,6 @@
         "PYTHONPATH": "/workspaces/Equitable-Polling-Locations",
         "PYTHONUNBUFFERED": "1"
     },
-    "initializeCommand": ["cp", "-f", "environment.yml", ".devcontainer/"],
     "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && git lfs install --local && git lfs pull && (sudo Rscript .devcontainer/install_r_packages.R || echo 'R package install failed; run manually inside the container: sudo Rscript .devcontainer/install_r_packages.R')",
     "customizations": {
         "vscode": {

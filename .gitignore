@@ -97,12 +97,6 @@ ipython_config.py
 !.zed/settings.json
 !.zed/tasks.json
 
-# Dev container pre-build copy. devcontainer.json's initializeCommand copies
-# environment.yml into .devcontainer/ so the Dockerfile can COPY it from a
-# narrow build context (works around a Zed compose-file-relative `dockerfile:`
-# path resolution bug). Repo root is still the source of truth; this is a
-# derived artifact.
-.devcontainer/environment.yml
 
 # pyenv
 #   For a library or package, you might want to ignore these files since the code is
