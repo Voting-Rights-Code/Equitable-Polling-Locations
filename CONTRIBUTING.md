@@ -214,22 +214,61 @@ In the container's integrated terminal:
 
 ```bash
 pytest --version       # should print: pytest 9.0.3
+pylint --version       # should print: pylint 4.0.x
 R --version            # should print: R version 4.3.x
+claude --version       # should print a Claude Code version
 ssh -T git@github.com  # should print: Hi <username>! You've successfully authenticated...
-Rscript R/tests/r_smoke_test.R  # prints OK once R package install finishes
 ```
 
-If `r_smoke_test.R` reports missing packages, the background install is still running. Check progress:
+For R, also run the packages smoke test — but note that the R package install may still be running in the background on first open (see next subsection):
+
+```bash
+Rscript R/tests/r_smoke_test.R
+```
+
+**R: first-time setup**
+
+R is configured automatically as part of the Dev Container flow — no manual setup steps beyond opening the project. Here's what happens and how to verify / troubleshoot:
+
+1. **R binary + system libs** (`r-base`, `libgdal-dev`, `libproj-dev`, etc.) are installed during the image build. No action from you.
+
+2. **R packages** install automatically on first container creation via `postCreateCommand`, which runs `sudo Rscript .devcontainer/install_r_packages.R`. This takes **~15-20 minutes** the first time and runs in the background — you can use the editor for non-R work (Python tests, editing, terminal) while it finishes.
+
+3. **Packages persist across container recreations** in a docker volume named `equitable-polling-locations_r-site-library`, so the 15-minute install only happens once per developer. Rebuilding the image does not wipe the volume.
+
+**Verify R is ready:**
+
+```bash
+Rscript R/tests/r_smoke_test.R
+```
+
+Expected output: `OK: R 4.3.x with 17 packages loadable`.
+
+**If the smoke test reports missing packages:**
+
+Check whether the background install is still running:
 
 ```bash
 ps -ef | grep Rscript | grep -v grep
 ```
 
-If no `Rscript` process is running, kick the install off manually (the initial postCreate may have failed silently):
+- **Running:** wait for it to finish (tail `/tmp/r-install.log` if postCreate redirected output there, otherwise just periodically rerun the smoke test)
+- **Not running:** the initial postCreate died silently. Kick it off manually:
+    ```bash
+    sudo Rscript .devcontainer/install_r_packages.R
+    ```
+
+**To force a clean R package reinstall** (e.g. if a package gets corrupted), wipe the docker volume from the **host terminal** and restart the container:
 
 ```bash
-sudo Rscript .devcontainer/install_r_packages.R
+docker volume rm equitable-polling-locations_r-site-library
 ```
+
+The next container start re-runs the full install.
+
+**Adding or removing R packages** later — see [Adding or updating R packages](#adding-or-updating-r-packages).
+
+**Using R outside the Dev Container** — see [Working outside the Dev Container](#working-outside-the-dev-container).
 
 **SSH config gotchas when `ssh -T git@github.com` fails:**
 
