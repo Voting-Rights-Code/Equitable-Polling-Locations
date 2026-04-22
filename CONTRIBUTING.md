@@ -231,6 +231,23 @@ If no `Rscript` process is running, kick the install off manually (the initial p
 sudo Rscript .devcontainer/install_r_packages.R
 ```
 
+**SSH config gotchas when `ssh -T git@github.com` fails:**
+
+Your host `~/.ssh/config` is mounted read-only into the container. Linux SSH inside the container reads it directly, which exposes a few host-vs-container differences worth knowing about:
+
+- **macOS `UseKeychain` option:** Linux SSH doesn't recognize `UseKeychain` and errors out on every config line that has it. Fix: add a single line at the very top of your host `~/.ssh/config` (before any `Host` blocks):
+    ```
+    IgnoreUnknown UseKeychain
+    ```
+    macOS SSH continues to honor `UseKeychain`; Linux SSH silently ignores it.
+
+- **Absolute host paths in `IdentityFile`:** a config line like `IdentityFile /Users/yourname/.ssh/github_id_rsa` won't resolve inside the container (which sees your keys at `/home/vscode/.ssh/...` via the bind mount). Fix: use tilde paths — `IdentityFile ~/.ssh/github_id_rsa`. `~` expands to `/Users/yourname` on the host and `/home/vscode` in the container, and the bind mount makes both point at the same files.
+
+- **Passphrase-protected keys:** macOS `UseKeychain` caches passphrases in Keychain so you don't re-type them. Linux SSH inside the container has no Keychain, so it'll prompt on every `git push/pull`. Options:
+    1. Type the passphrase when prompted (fine for occasional use)
+    2. Run `ssh-agent` in the container per session: `eval "$(ssh-agent -s)" && ssh-add ~/.ssh/your_key` (prompts once, cached until you close that terminal)
+    3. Use a passphrase-less key for GitHub access (convenience tradeoff against a stolen-laptop threat model)
+
 **Rebuilding after `.devcontainer/Dockerfile` or `environment.yml` changes:**
 
 The image is pre-built, not built on container open. When you (or someone else) changes the Dockerfile or environment.yml, rebuild from the host terminal:
@@ -323,7 +340,7 @@ conda env remove -n equitable-polls
 conda env create -f environment.yml
 ```
 
-Docker and Dev Container users: the conda env is baked into the image, so `environment.yml` changes are picked up at image rebuild. In VS Code or Zed, run *Dev Containers: Rebuild Container*; from a host terminal run `docker compose -f .devcontainer/docker-compose.yml build app`. A rebuilt image benefits both the dev container and host-invoked `run.py` — they share one image.
+Docker and Dev Container users: the conda env is baked into the image, so `environment.yml` changes are picked up at image rebuild. Rebuild from a host terminal with `docker compose -f .devcontainer/docker-compose.build.yml build`, then rebuild the container in your editor (VS Code: *Dev Containers: Rebuild Container*; Zed: close the window, `docker rm -f equitable_polling_locations-app-1`, reopen). A rebuilt image benefits both the dev container and host-invoked `run.py` — they share one image.
 
 ### IDE Setup for Local Conda (optional)
 
@@ -603,40 +620,33 @@ styler::style_file("path/to/file.R")
 
 #### Adding or updating R packages
 
-R package versions are pinned in `renv.lock` — the single source of truth (equivalent to `environment.yml` for Python). To add a new package or update an existing one (commands below assume the dev container — see note below for local R installs):
+The package list lives in `.devcontainer/install_r_packages.R`. This script runs automatically via `postCreateCommand` on first container creation, installing the latest versions from CRAN into a docker volume mounted at `/usr/local/lib/R/site-library` so packages persist across container recreations.
 
-1. Add the package to the `packages` vector in `install_r_packages.R`
-2. Install it: `sudo Rscript install_r_packages.R`
-3. Regenerate the lockfile: `sudo Rscript -e "renv::snapshot(library='/usr/local/lib/R/site-library', type='all', lockfile='renv.lock', prompt=FALSE, force=TRUE)"`
-4. Add the package to `R/tests/r_smoke_test.R`
-5. Verify: `Rscript R/tests/r_smoke_test.R`
-6. Commit `renv.lock`, `install_r_packages.R`, and `r_smoke_test.R`
+To add or update a package (in the dev container):
 
-**Local R install (outside the container):** drop `sudo` and omit `library='/usr/local/lib/R/site-library'`. Both exist because the dev container installs packages into a root-owned system library; a local R install typically uses a user-owned library that renv detects automatically.
+1. Edit the `packages` vector in `.devcontainer/install_r_packages.R`
+2. Add the same package to `R/tests/r_smoke_test.R`
+3. Install it now: `sudo Rscript .devcontainer/install_r_packages.R`
+4. Verify: `Rscript R/tests/r_smoke_test.R`
+5. Commit `install_r_packages.R` and `r_smoke_test.R`
 
-#### Syncing R packages after renv.lock changes
-
-When `renv.lock` changes on a branch you've pulled (someone added, removed, or bumped a package), sync your installed library to match.
-
-**Dev Container users:** rebuild the container — the Dockerfile runs `renv::restore()` against the current lockfile at build time, so a rebuild picks up any change. In VS Code or Zed, run *Dev Containers: Rebuild Container* (or `docker compose -f .devcontainer/docker-compose.yml build app` from the host).
-
-**Local R install (outside the container):** restore from the lockfile into your system library:
-
-```r
-renv::restore(lockfile = "renv.lock")
-```
-
-If the restore fails or your library drifts badly, reinstall from the human-readable list and re-snapshot:
+**Force a clean R package reinstall** (e.g. if a package is in a bad state): from the host terminal, remove the docker volume, then rebuild the container:
 
 ```bash
-Rscript install_r_packages.R
+docker volume rm equitable-polling-locations_r-site-library
 ```
 
-Then verify with `Rscript R/tests/r_smoke_test.R`.
+The next time the container starts, `postCreateCommand` will reinstall all packages from scratch (~15-20 min).
 
 #### Working outside the Dev Container
 
-If you prefer a local R install, use `renv::restore(lockfile='renv.lock')` to install the exact pinned versions, or install packages manually — `install_r_packages.R` has the human-readable list.
+If you prefer a local R install, install the packages manually using the list in `.devcontainer/install_r_packages.R`:
+
+```r
+source(".devcontainer/install_r_packages.R")
+```
+
+Versions are not pinned — you'll get whatever CRAN ships at install time. If you need reproducibility across machines, consider setting up [renv](https://rstudio.github.io/renv/) locally.
 
 
 ## Submitting Changes
