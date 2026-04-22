@@ -4,14 +4,19 @@ name: equitable-polling-locations
 
 services:
     app:
-        # Build context is the repo root so the Dockerfile can COPY files that
-        # live outside .devcontainer/ (currently renv.lock). Use the explicit
-        # dockerfile: path because Zed has historically resolved `dockerfile:`
-        # compose-file-relative instead of context-relative; verify dev container
-        # builds under both VS Code and Zed after changes here.
-        build:
-            context: ..
-            dockerfile: .devcontainer/Dockerfile
+        # Use the PRE-BUILT image, not a `build:` directive. Zed's dev container
+        # pipeline has a bug where with `build:` + dockerComposeFile, it extracts
+        # only the Dockerfile's FROM line and skips the rest of the build steps
+        # (no apt installs, no user creation, no conda env). Using `image:`
+        # bypasses Zed's build logic entirely — it just starts a container from
+        # the named image.
+        #
+        # Build the image manually before opening the dev container:
+        #   docker build -t equitable-polling-locations-app:latest .devcontainer/
+        # Or via the build-only helper that invokes compose (which DOES use our
+        # Dockerfile correctly when not going through Zed):
+        #   docker compose -f .devcontainer/docker-compose.build.yml build
+        image: equitable-polling-locations-app:latest
         volumes:
             - ..:/workspaces/Equitable-Polling-Locations
             # GCP creds mount. run.py sets GCP_CREDS_PATH per-platform (Windows
@@ -19,9 +24,22 @@ services:
             # where run.py isn't in the loop (HOME on macOS/Linux/WSL2,
             # USERPROFILE on native Windows shells).
             - ${GCP_CREDS_PATH:-${HOME:-${USERPROFILE}}/.config/gcloud}:/home/vscode/.config/gcloud
+            # SSH keys mount (read-only). Enables `git push/pull` over SSH from
+            # inside the container using the host's existing SSH keys. Requires
+            # a `git@github.com:owner/repo.git` remote URL (change via
+            # `git remote set-url origin git@github.com:...` if your clone used
+            # HTTPS). No token-based credential helper needed; no `gh auth`
+            # required. Read-only so the container can't modify host keys.
+            - ${HOME:-${USERPROFILE}}/.ssh:/home/vscode/.ssh:ro
             # Persist Claude Code auth, MCP servers, and plugins across container
             # rebuilds by sharing the host's ~/.claude/ directory.
             - ${HOME:-${USERPROFILE}}/.claude:/home/vscode/.claude
+            # Named volume for R's system library. postCreateCommand installs
+            # R packages into this path; mounting a volume makes them persist
+            # across container recreations, so each `compose down && up` (or
+            # image rebuild) doesn't re-run the 15+ min R package compile.
+            # To force a clean reinstall: `docker volume rm equitable-polling-locations_r-site-library`.
+            - r-site-library:/usr/local/lib/R/site-library
         environment:
             - GOOGLE_APPLICATION_CREDENTIALS=/home/vscode/.config/gcloud/application_default_credentials.json
             - PROJ_LIB=/opt/conda/envs/equitable-polls/share/proj
@@ -34,3 +52,10 @@ services:
         # auto-appends this via overrideCommand, but keeping it explicit lets you
         # `docker compose up` this file standalone.
         command: sleep infinity
+
+volumes:
+    # Persistent R package library. See the volume mount on the `app` service
+    # above for rationale. Docker will create this volume on first `up`; it
+    # survives `docker compose down` but is removed by `docker volume rm` or
+    # `docker compose down -v`.
+    r-site-library:

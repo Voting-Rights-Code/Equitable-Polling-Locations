@@ -9,13 +9,28 @@ FROM condaforge/miniforge3:latest
 # Create the non-root vscode user with passwordless sudo. The condaforge
 # base image runs as root, so this mirrors what devcontainers/base gives
 # out of the box.
+#
+# condaforge/miniforge3 now ships a pre-existing `mambauser` at UID 1000
+# (added in their image in 2024). Plain `groupadd --gid 1000 vscode` fails
+# with "GID already exists", so handle three cases:
+#   (1) vscode already exists — do nothing
+#   (2) a different user owns UID 1000 — rename it to vscode and move $HOME
+#   (3) UID 1000 is unclaimed — create vscode fresh
 ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 RUN apt-get update \
     && apt-get install -y --no-install-recommends sudo \
-    && groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME \
+    && if id -u $USERNAME >/dev/null 2>&1; then \
+         echo "User $USERNAME already exists, skipping creation"; \
+       elif existing=$(getent passwd $USER_UID | cut -d: -f1) && [ -n "$existing" ]; then \
+         echo "Renaming existing UID $USER_UID user '$existing' to $USERNAME" \
+         && groupmod -n $USERNAME "$(id -gn $existing)" \
+         && usermod -l $USERNAME -d /home/$USERNAME -m $existing; \
+       else \
+         groupadd --gid $USER_GID $USERNAME \
+         && useradd --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME; \
+       fi \
     && echo "$USERNAME ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME \
     && rm -rf /var/lib/apt/lists/*
@@ -33,6 +48,7 @@ RUN apt-get update \
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         git-lfs \
+        openssh-client \
         curl \
         cmake \
         libabsl-dev \
@@ -54,16 +70,15 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install R packages from the renv lockfile into the system library.
-# renv.lock lives at the repo root (the single source of truth for R package
-# versions — equivalent to environment.yml for Python). The build context is
-# the repo root (see .devcontainer/docker-compose.yml), so this COPY reaches
-# it as `renv.lock`. Packages install into the system library so they're
-# available to all users without renv project-local isolation.
-COPY renv.lock /tmp/renv.lock
-RUN Rscript -e "install.packages('renv', repos='https://cloud.r-project.org')" && \
-    Rscript -e "renv::restore(lockfile='/tmp/renv.lock', library='/usr/local/lib/R/site-library', prompt=FALSE)" && \
-    rm /tmp/renv.lock
+# NOTE: R package install (renv::restore) is deliberately NOT baked into the
+# image. It's run from postCreateCommand in devcontainer.json against a
+# docker volume mounted at /usr/local/lib/R/site-library, so:
+#   (1) failures there don't block the image build,
+#   (2) R package changes don't force a full image rebuild,
+#   (3) the slow compile step only runs once per container recreation, not
+#       on every image rebuild.
+# The image still ships r-base + r-base-dev (above) so R itself is available
+# immediately; only the add-on packages are deferred.
 
 # Create the conda env at image build time from environment.yml. Baking the
 # env in (instead of creating it via postCreateCommand) keeps run.py and the
@@ -89,6 +104,13 @@ RUN npm install -g @anthropic-ai/claude-code
 # first makes pytest, pylint, and python resolve to the project env.
 RUN echo 'export PATH="/opt/conda/envs/equitable-polls/bin:/opt/conda/bin:$PATH"' > /etc/profile.d/conda-path.sh && \
     chmod +x /etc/profile.d/conda-path.sh
+
+# Pre-create mount parent directories as vscode-owned. Without this, Docker
+# creates intermediate directories for bind mounts (like /home/vscode/.config/
+# for the gcloud mount) as root-owned, which then prevents other tools from
+# writing siblings (e.g. Zed's remote server needs /home/vscode/.config/zed).
+RUN mkdir -p /home/$USERNAME/.config /home/$USERNAME/.ssh /home/$USERNAME/.claude && \
+    chown -R $USERNAME:$USERNAME /home/$USERNAME/.config /home/$USERNAME/.ssh /home/$USERNAME/.claude
 
 USER $USERNAME
 WORKDIR /workspaces

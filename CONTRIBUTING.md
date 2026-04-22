@@ -168,33 +168,90 @@ The project ships with a [dev container](https://containers.dev/) config in `.de
 **Prerequisites:**
 
 - Docker (see above)
+- An SSH key registered with your GitHub account (needed for `git push/pull` from inside the container; see [GitHub SSH setup](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) if you haven't done this before)
 - Either:
     - **VS Code** with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
     - **Zed** (recent version with dev container support)
+
+**First-time setup — build the image manually:**
+
+The dev container uses a pre-built image (`equitable-polling-locations-app:latest`) rather than having the editor build it on-the-fly. This works around a bug in Zed's dev container pipeline and also makes opens faster once the image exists. Build it once from your host terminal:
+
+```bash
+docker compose -f .devcontainer/docker-compose.build.yml build
+```
+
+First build takes ~5-10 minutes (Python conda env + R binary + system libs). Rebuild only when `.devcontainer/Dockerfile` or `environment.yml` changes.
+
+**Ensure your git remote uses SSH:**
+
+If you cloned via HTTPS, `git push` from inside the container will hang waiting for a password. Switch the remote to SSH once:
+
+```bash
+git remote set-url origin git@github.com:Voting-Rights-Code/Equitable-Polling-Locations.git
+```
 
 **VS Code:**
 
 1. Open the project folder in VS Code
 2. When prompted "Folder contains a Dev Container configuration file", click **Reopen in Container** (or Command Palette → `Dev Containers: Reopen in Container`)
-3. First build takes several minutes (conda solve + package install); subsequent opens reuse the container
+3. On first container creation, `postCreateCommand` installs the R packages (~15-20 min, runs in the background). You can use the editor while it runs; R-dependent workflows just won't be available until it finishes. Subsequent opens are instant (packages persist in a docker volume).
 4. Recommended extensions (Python, Pylint, Debugpy) install automatically inside the container
 5. Open any file under `python/tests/` — **▶ Run Test** and **🐞 Debug Test** buttons appear inline above each test function. Test Explorer populates in the sidebar.
 
 **Zed:**
 
 1. Open the project folder in Zed
-2. Zed detects `.devcontainer/devcontainer.json` and builds the container automatically
-3. **One-time setup:** Command Palette → search for `toolchain` (or Python interpreter selector) → choose `/opt/conda/envs/equitable-polls/bin/python`. Zed's test runner needs this to find `pytest`.
-4. Open any file under `python/tests/` — inline **▶** icons appear next to test functions
-5. Additional pytest and pylint tasks are available via Command Palette → `task: spawn` (defined in `.zed/tasks.json`)
+2. Zed detects `.devcontainer/devcontainer.json` and starts the container from the pre-built image
+3. On first container creation, `postCreateCommand` installs R packages (~15-20 min, runs in the background)
+4. **One-time setup:** Command Palette → search for `toolchain` (or Python interpreter selector) → choose `/opt/conda/envs/equitable-polls/bin/python`. Zed's test runner needs this to find `pytest`.
+5. Open any file under `python/tests/` — inline **▶** icons appear next to test functions
+6. Additional pytest and pylint tasks are available via Command Palette → `task: spawn` (defined in `.zed/tasks.json`)
+
+**Verifying the container is ready:**
+
+In the container's integrated terminal:
+
+```bash
+pytest --version       # should print: pytest 9.0.3
+R --version            # should print: R version 4.3.x
+ssh -T git@github.com  # should print: Hi <username>! You've successfully authenticated...
+Rscript R/tests/r_smoke_test.R  # prints OK once R package install finishes
+```
+
+If `r_smoke_test.R` reports missing packages, the background install is still running. Check progress:
+
+```bash
+ps -ef | grep Rscript | grep -v grep
+```
+
+If no `Rscript` process is running, kick the install off manually (the initial postCreate may have failed silently):
+
+```bash
+sudo Rscript .devcontainer/install_r_packages.R
+```
+
+**Rebuilding after `.devcontainer/Dockerfile` or `environment.yml` changes:**
+
+The image is pre-built, not built on container open. When you (or someone else) changes the Dockerfile or environment.yml, rebuild from the host terminal:
+
+```bash
+docker compose -f .devcontainer/docker-compose.build.yml build
+```
+
+Then in your editor, rebuild the container (VS Code: Command Palette → `Dev Containers: Rebuild Container`; Zed: close the window, `docker rm -f equitable_polling_locations-app-1`, reopen).
+
+The R packages persist in a docker volume independently of the image, so they don't reinstall on image rebuild. To force a clean R reinstall: `docker volume rm equitable-polling-locations_r-site-library`.
 
 **What's in the container:**
 
-- Python 3.11 + the pinned conda env `equitable-polls` (pytest, pylint, geopandas, etc.)
-- **R** + the project's R packages (`data.table`, `sf`, `ggplot2`, `bigrquery`, etc. — see `install_r_packages.R`) for the analysis scripts in `R/`
-- Node.js 20 and `claude` CLI (for [Claude Code](#claude-code))
-- Git LFS (required for shapefiles and large data files)
-- GCP credentials mounted from your host `~/.config/gcloud` (so `run.py` and DB tests work without re-authentication)
+- Python 3.11 + the pinned conda env `equitable-polls` (pytest, pylint, geopandas, etc.) — baked into the image
+- **R 4.3** + the project's R packages (`data.table`, `sf`, `ggplot2`, `bigrquery`, `lintr`, `styler`, `languageserver`, etc. — see `.devcontainer/install_r_packages.R`) — R binary baked into image; packages installed on first container start and persisted in a docker volume
+- Node.js 20 + `claude` CLI (for [Claude Code](#claude-code))
+- Git + Git LFS + `openssh-client` (for `git push/pull` over SSH using your host's keys)
+- **GCP credentials** bind-mounted from host `~/.config/gcloud` (so `run.py` and DB tests work without re-authentication)
+- **SSH keys** bind-mounted read-only from host `~/.ssh` (for git; host keys are authoritative and container can't modify them)
+- **Claude Code state** bind-mounted from host `~/.claude` (auth, MCP servers, and plugins persist across container rebuilds)
 
 **Using the container's integrated terminal:**
 
