@@ -307,7 +307,7 @@ The R packages persist in a docker volume independently of the image, so they do
 - Git + Git LFS + `openssh-client` (for `git push/pull` over SSH using your host's keys)
 - **GCP credentials** bind-mounted from host `~/.config/gcloud` (so `run.py` and DB tests work without re-authentication)
 - **SSH keys** bind-mounted read-only from host `~/.ssh` (for git; host keys are authoritative and container can't modify them)
-- **Claude Code state** bind-mounted from host `~/.claude` (auth, MCP servers, and plugins persist across container rebuilds)
+- **Claude Code state** persisted in a docker volume (`claude-state`), isolated from host Claude — container auth, MCP servers, and plugins survive rebuilds and don't cross-contaminate with your host Claude install
 
 **Using the container's integrated terminal:**
 
@@ -752,15 +752,15 @@ The `claude` CLI is pre-installed in the image (baked in at build time via `.dev
     ```
     On first run, Claude Code prompts you to authenticate via a browser. Follow the link it prints, log in, and paste the returned code back into the terminal. `Ctrl+D` or typing `/exit` ends the session.
 
-**Your Claude Code state is shared with your host by default.** The dev container mounts your host `~/.claude/` directory (or `%USERPROFILE%\.claude` on Windows) at `/home/vscode/.claude` inside the container, so auth tokens, MCP servers, and plugins persist across container rebuilds and stay in sync with any host-side Claude Code install.
+**Your Claude Code state lives in an isolated docker volume** (`claude-state`), separate from your host's `~/.claude/`. Container and host can run different Claude versions, install different plugins, and authenticate independently without interfering with each other. The volume survives container recreations and image rebuilds, so you only need to log in once per machine (or once after `docker volume rm`).
 
-- **Before first use:** if you've never run Claude Code on this machine, `~/.claude/` won't exist yet. Docker will auto-create an empty directory — that's fine; `claude` will populate it on first login.
-- **Already running Claude Code on your host?** Your existing auth and MCP config carry straight into the container — no re-authentication needed.
-- **Prefer to isolate host and container state?** Remove the `- ${HOME:-${USERPROFILE}}/.claude:/home/vscode/.claude` line from `.devcontainer/docker-compose.yml` (your local change only) and rebuild. State will then be ephemeral and wiped on each container rebuild.
+- **First run in the container:** `claude` will prompt you to authenticate via browser. Log in once; subsequent runs read the saved auth from the volume.
+- **Plugins and MCP servers installed on your host DO NOT appear in the container** (and vice versa). Install them separately inside the container via `/plugins` and `claude mcp add` if you need them in both places. See [GitHub MCP Server](#github-mcp-server) below for an example.
+- **To reset the container's Claude state** (forget auth, plugins, MCP config): from the **host terminal**, `docker volume rm equitable-polling-locations_claude-state`, then restart the container. Next `claude` run will prompt for login again.
 
 **On the host (alternative):**
 
-Install Claude Code following the official instructions at [claude.ai/download](https://claude.ai/download). Use this if you prefer to keep AI tooling outside the container entirely. With the default mount in place, host and container use the same `~/.claude/` either way.
+Install Claude Code following the official instructions at [claude.ai/download](https://claude.ai/download). Use this if you prefer to keep AI tooling outside the container entirely. Host and container Claude installs are now fully independent — changes to one don't affect the other.
 
 ### GitHub MCP Server
 
@@ -787,11 +787,13 @@ Claude Code uses the GitHub MCP server to create and manage issues and pull requ
 
 ### Plugins
 
-Install the following plugins from `claude-plugins-official` via `/plugins`:
+The following plugins from `claude-plugins-official` are declared in `.claude/settings.json`'s `enabledPlugins` block. On your first `claude` run in this project, Claude Code will prompt you to install them — say yes:
 
 - **superpowers** — planning, code review, and development workflow skills
 - **commit-commands** — commit, push, and PR shortcuts
 - **pyright-lsp** — Python type checking and language server integration
+
+To see or manage the installed plugin set interactively, run `/plugins` inside a Claude session.
 
 
 ## Getting Help

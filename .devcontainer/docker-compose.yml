@@ -31,9 +31,14 @@ services:
             # HTTPS). No token-based credential helper needed; no `gh auth`
             # required. Read-only so the container can't modify host keys.
             - ${HOME:-${USERPROFILE}}/.ssh:/home/vscode/.ssh:ro
-            # Persist Claude Code auth, MCP servers, and plugins across container
-            # rebuilds by sharing the host's ~/.claude/ directory.
-            - ${HOME:-${USERPROFILE}}/.claude:/home/vscode/.claude
+            # Named volume for Claude Code state (auth tokens, MCP servers,
+            # plugins, session history). Isolated from the host's ~/.claude/
+            # because host and container can run different Claude versions,
+            # different plugins, and may have different UID/ownership
+            # expectations. You'll log in once per container lifecycle; the
+            # volume persists across image rebuilds, so it's a one-time cost.
+            # To reset: `docker volume rm equitable-polling-locations_claude-state`.
+            - claude-state:/home/vscode/.claude
             # Named volume for R's system library. postCreateCommand installs
             # R packages into this path; mounting a volume makes them persist
             # across container recreations, so each `compose down && up` (or
@@ -59,3 +64,7 @@ volumes:
     # survives `docker compose down` but is removed by `docker volume rm` or
     # `docker compose down -v`.
     r-site-library:
+    # Persistent Claude Code state (auth + MCP + plugins). Same persistence
+    # model as r-site-library; survives rebuilds, cleaned up by explicit
+    # `docker volume rm`.
+    claude-state:
