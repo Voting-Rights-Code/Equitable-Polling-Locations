@@ -19,11 +19,14 @@ services:
             dockerfile: .devcontainer/Dockerfile
         volumes:
             - ..:/workspaces/Equitable-Polling-Locations
-            # GCP creds mount. run.py sets GCP_CREDS_PATH per-platform (Windows
-            # uses %APPDATA%\gcloud); the fallback covers dev container attach
-            # where run.py isn't in the loop (HOME on macOS/Linux/WSL2,
-            # USERPROFILE on native Windows shells).
-            - ${GCP_CREDS_PATH:-${HOME:-${USERPROFILE}}/.config/gcloud}:/home/vscode/.config/gcloud
+            # Named volume for gcloud CLI auth state. Contributors authenticate
+            # inside the container via
+            # `gcloud auth application-default login --no-launch-browser`
+            # (device flow — prints a URL, user opens in host browser, pastes
+            # back a verification code). Volume persists auth across container
+            # rebuilds. To reset: `docker volume rm
+            # equitable-polling-locations_gcloud-config`.
+            - gcloud-config:/home/vscode/.config/gcloud
             # Named volume for gh CLI auth state. Host SSH keys are
             # deliberately NOT mounted — contributors authenticate inside the
             # container via `gh auth login` (device flow), and gh serves as
@@ -53,6 +56,12 @@ services:
             - PYTHONPATH=/workspaces/Equitable-Polling-Locations
             - PYTHONUNBUFFERED=1
             - PATH=/opt/conda/envs/equitable-polls/bin:/opt/conda/bin:/usr/local/bin:/usr/bin:/bin
+            # Pin TMPDIR at compose level so every IDE-attached shell inherits
+            # it. Claude Code's sandbox (see .claude/settings.json) only allows
+            # writes to /tmp and the repo; matching TMPDIR to /tmp keeps
+            # temp-file paths inside the allowed write set regardless of which
+            # wrapper (run.py, make, pytest, etc.) spawned the process.
+            - TMPDIR=/tmp
         # Keep the container alive for dev container use. The dev containers CLI
         # auto-appends this via overrideCommand, but keeping it explicit lets you
         # `docker compose up` this file standalone.
@@ -71,3 +80,7 @@ volumes:
     # Persistent gh CLI auth state. Contributors run `gh auth login` once
     # per machine (device flow); the saved token lives here.
     gh-config:
+    # Persistent gcloud CLI auth state. Contributors run
+    # `gcloud auth application-default login --no-launch-browser` once per
+    # machine; Application Default Credentials live here.
+    gcloud-config:

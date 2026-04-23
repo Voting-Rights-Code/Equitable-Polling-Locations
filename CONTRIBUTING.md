@@ -188,8 +188,8 @@ No manual commands required on macOS or Windows.
 The dev container works on native Windows (Docker Desktop with WSL2 backend, which is the default) without WSL-side VS Code. A few Windows-specific details:
 
 - **Line endings:** git on Windows defaults to `core.autocrlf=true`, which would otherwise make every file look modified inside the Linux container. The committed `.gitattributes` forces LF in the working tree on all platforms, so this is handled automatically for fresh clones. If you cloned before `.gitattributes` was committed, run once: `git add --renormalize . && git commit -m "chore: renormalize line endings"`.
-- **GCP credentials (only if you use DB-backed workflows):** gcloud on native Windows stores credentials at `%APPDATA%\gcloud`, not `%USERPROFILE%\.config\gcloud`. Either set `GCP_CREDS_PATH=%APPDATA%\gcloud` as a user environment variable before launching VS Code, or symlink `%USERPROFILE%\.config\gcloud` → `%APPDATA%\gcloud`. Skip this entirely if you're only running Python tests.
 - **Git auth:** no Windows-specific setup needed. Contributors who want to run `git push/pull` from inside the container use `gh auth login` once (see [Git from inside the container](#git-from-inside-the-container-optional)) — same flow as macOS and Linux.
+- **GCP auth:** no Windows-specific setup needed. gcloud authentication happens inside the container (see [Database Setup](#database-setup-optional)) — container-local, so host path differences between `%APPDATA%\gcloud` and `~/.config/gcloud` don't matter.
 
 **Git from inside the container (optional):**
 
@@ -205,6 +205,8 @@ gh auth setup-git      # configures git to use gh as its credential helper
 `gh auth login` prints a URL and a short code; open the URL in your host browser, paste the code, approve, and come back. Your gh token is saved in the `gh-config` docker volume and persists across container rebuilds — no re-login needed unless you explicitly wipe the volume.
 
 After `gh auth setup-git`, any clone URL (HTTPS or SSH) works for pull/push from inside the container. Alternatively, run git commands from your host terminal as usual — the project files are shared between host and container either way.
+
+**SSH caveat under VS Code.** The Dev Containers extension forwards your host's SSH agent socket into shells it spawns — you'll see `SSH_AUTH_SOCK` set in VS Code terminals but not in the container's base env (`docker exec equitable_polling_locations-app-1 env` shows nothing). That means `git clone git@github.com:...` and other SSH operations also work under VS Code, using your host's in-memory keys. Under Zed there is no such forwarding. The exact socket path varies by VS Code version and host OS; the forwarding behavior is stable, the path isn't. The `gh` HTTPS credential helper is the canonical recommendation because it works in both editors and doesn't depend on the host having an SSH agent running.
 
 #### Zed caveats
 
@@ -295,7 +297,7 @@ The R packages persist in a docker volume independently of the image, so they do
 - **R 4.3** + the project's R packages (`data.table`, `sf`, `ggplot2`, `bigrquery`, `lintr`, `styler`, `languageserver`, etc. — see `.devcontainer/install_r_packages.R`) — R binary baked into image; packages installed on first container start and persisted in a docker volume
 - Node.js 20 + `claude` CLI (for [Claude Code](#claude-code))
 - Git + Git LFS + `gh` CLI (GitHub CLI — used as git's credential helper for HTTPS operations; see [Git from inside the container](#git-from-inside-the-container-optional))
-- **GCP credentials** bind-mounted from host `~/.config/gcloud` (so `run.py` and DB tests work without re-authentication)
+- **gcloud CLI + auth state** persisted in a docker volume (`gcloud-config`), isolated from host — run `gcloud auth application-default login --no-launch-browser` once per machine; credentials feed BigQuery and other GCP calls automatically via `GOOGLE_APPLICATION_CREDENTIALS`
 - **gh auth state** persisted in a docker volume (`gh-config`), isolated from host — `gh auth login` once per machine, no host SSH keys needed
 - **Claude Code state** persisted in a docker volume (`claude-state`), isolated from host Claude — container auth, MCP servers, and plugins survive rebuilds and don't cross-contaminate with your host Claude install
 
@@ -394,10 +396,13 @@ If you prefer running pylint outside the editor, use `python run.py lint` (see [
 
 ### Database Setup (optional)
 
-Database-backed workflows require GCP credentials and a configured environment in `settings.yaml`.
+Database-backed workflows require GCP Application Default Credentials and a configured environment in `settings.yaml`.
 
-- Run `gcloud auth application-default login` to set up Application Default Credentials
-- The `run.py` wrapper mounts GCP credentials into the Docker container automatically
+- **Authenticate inside the container** via device flow. From the container's integrated terminal:
+    ```bash
+    gcloud auth application-default login --no-launch-browser
+    ```
+    gcloud prints a URL — open it in your host browser, approve the consent, copy the returned verification code, and paste it back in the container. Credentials are saved to the `gcloud-config` docker volume and persist across container rebuilds (re-authenticate only if you `docker volume rm` the volume).
 - Use **scratch datasets** for development and testing — never develop directly against production
 - Run `alembic upgrade head` to initialize or update the database schema
 
@@ -535,8 +540,8 @@ pytest python/tests/e2e/ -m e2e_csv
 To run the DB E2E tests:
 
 1. Ensure `settings.yaml` has a `test` environment configured (see `settings_example.yaml`)
-2. Ensure GCP Application Default Credentials are set up (`gcloud auth application-default login`)
-3. Run via `python run.py e2e_tests -m e2e_db` — the `run.py` wrapper mounts GCP credentials into the Docker container automatically
+2. Ensure GCP Application Default Credentials are set up **inside the container** — see [Database Setup](#database-setup-optional) for the in-container `gcloud auth application-default login --no-launch-browser` flow. Credentials persist in the `gcloud-config` docker volume.
+3. Run via `python run.py e2e_tests -m e2e_db` — whether invoked from the host or from inside the container, the tests pick up credentials from the volume automatically.
 
 DB tests clean up after themselves by deleting all `e2e_`-prefixed data from the test dataset at both the start and end of each session.
 
@@ -777,11 +782,13 @@ Claude Code uses the GitHub MCP server to create and manage issues and pull requ
 
 ### Plugins
 
-The following plugins from `claude-plugins-official` are declared in `.claude/settings.json`'s `enabledPlugins` block. On your first `claude` run in this project, Claude Code will prompt you to install them — say yes:
+The following plugins from `claude-plugins-official` are declared in `.claude/settings.json`'s `enabledPlugins` block:
 
 - **superpowers** — planning, code review, and development workflow skills
 - **commit-commands** — commit, push, and PR shortcuts
 - **pyright-lsp** — Python type checking and language server integration
+
+`.devcontainer/post-create.sh` registers the `claude-plugins-official` marketplace and pre-installs these on first container boot, so they are ready the first time you run `claude`. A fresh `claude-state` volume has no marketplaces registered by default — without post-create.sh, the declared plugins would silently fail to resolve. To force a reinstall (e.g., after `docker volume rm equitable-polling-locations_claude-state`), rerun `bash .devcontainer/post-create.sh` inside the container or rebuild the container.
 
 To see or manage the installed plugin set interactively, run `/plugins` inside a Claude session.
 

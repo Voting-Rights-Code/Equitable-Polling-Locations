@@ -10,6 +10,10 @@ Python optimization tool that selects equitable polling locations using the Kolm
 
 See `docs/to_install.md` for full setup instructions.
 
+## DevContainer
+
+This project is designed to be developed inside the `.devcontainer/`. Full first-time setup instructions, volume layout, reset commands, and the Zed pre-build workaround are in `CONTRIBUTING.md` (sections: "Dev Container — VS Code or Zed" and "Git from inside the container"). Read those before opening the project for the first time.
+
 ## Rules
 
 - **No compound shell commands** — never wrap commands in `cd && ...`, subshells `()`, redirects `2>&1`, or pipes `| grep`. Run simple commands directly (`python run.py test`); use Read/Grep tools to filter output.

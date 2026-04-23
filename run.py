@@ -9,8 +9,6 @@ the command-line interface is identical.
 """
 
 import argparse
-import os
-import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -31,13 +29,6 @@ REPO_ROOT = Path(__file__).resolve().parent
 # of that file is a reliable signal that run.py is already executing inside
 # the project image and should skip the docker-compose wrapper.
 IN_CONTAINER = Path("/.dockerenv").exists()
-
-
-def get_gcp_creds_path():
-    """Detects the host OS and returns the default gcloud config path."""
-    if platform.system() == "Windows":
-        return os.path.join(os.environ.get("APPDATA", ""), "gcloud")
-    return os.path.expanduser("~/.config/gcloud")
 
 
 def get_docker_compose_cmd() -> list[str]:
@@ -75,24 +66,22 @@ def run_command(args: list[str]) -> None:
 
     Inside the dev container, executes ``args`` directly (the conda env is
     on PATH). On the host, prepends
-    ``docker compose -f .devcontainer/docker-compose.yml run --rm app`` and
-    exports ``GCP_CREDS_PATH`` for the compose file's credential mount.
+    ``docker compose -f .devcontainer/docker-compose.yml run --rm app``.
+    Credentials (gcloud, gh, Claude) live in named docker volumes defined in
+    the compose file, so no host-side credential-path plumbing is needed.
 
     Exit codes and Ctrl-C handling match subprocess.run with ``check=True``.
     """
     if IN_CONTAINER:
         cmd = args
-        env = None
     else:
-        env = os.environ.copy()
-        env["GCP_CREDS_PATH"] = get_gcp_creds_path()
         cmd = (
             get_docker_compose_cmd()
             + ["-f", COMPOSE_FILE, "run", "--rm", "app"]
             + args
         )
     try:
-        subprocess.run(cmd, env=env, cwd=REPO_ROOT, check=True)
+        subprocess.run(cmd, cwd=REPO_ROOT, check=True)
     except subprocess.CalledProcessError as e:
         sys.exit(e.returncode)
     except KeyboardInterrupt:

@@ -112,6 +112,20 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     && apt-get install -y --no-install-recommends gh \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Google Cloud SDK (gcloud CLI). Contributors authenticate inside
+# the container via `gcloud auth application-default login --no-launch-browser`
+# (device flow — prints a URL, user opens in host browser, pastes back a
+# verification code). Credentials live in /home/vscode/.config/gcloud which
+# is mounted from a named docker volume, so auth persists across container
+# rebuilds without exposing host gcloud config.
+RUN curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+        | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
+        > /etc/apt/sources.list.d/google-cloud-sdk.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends google-cloud-cli \
+    && rm -rf /var/lib/apt/lists/*
+
 # Put the equitable-polls conda env on PATH for every shell type (login,
 # non-login, non-interactive). Zed launches tool processes without sourcing
 # .bashrc, so /etc/profile.d is the reliable place. Listing the env bin dir
@@ -120,10 +134,17 @@ RUN echo 'export PATH="/opt/conda/envs/equitable-polls/bin:/opt/conda/bin:$PATH"
     chmod +x /etc/profile.d/conda-path.sh
 
 # Pre-create mount parent directories as vscode-owned. Without this, Docker
-# creates intermediate directories for bind mounts (like /home/vscode/.config/
-# for the gcloud mount) as root-owned, which then prevents other tools from
+# creates intermediate directories for volume mounts (like /home/vscode/.config/
+# for gh and gcloud) as root-owned, which then prevents other tools from
 # writing siblings (e.g. Zed's remote server needs /home/vscode/.config/zed).
-RUN mkdir -p /home/$USERNAME/.config /home/$USERNAME/.config/gh /home/$USERNAME/.claude && \
+# Each subdirectory that's a mount target (/home/vscode/.config/gh,
+# /home/vscode/.config/gcloud, /home/vscode/.claude) also needs to exist so
+# Docker's first-time volume initialization copies the right ownership from
+# the image.
+RUN mkdir -p /home/$USERNAME/.config \
+             /home/$USERNAME/.config/gh \
+             /home/$USERNAME/.config/gcloud \
+             /home/$USERNAME/.claude && \
     chown -R $USERNAME:$USERNAME /home/$USERNAME/.config /home/$USERNAME/.claude
 
 USER $USERNAME
