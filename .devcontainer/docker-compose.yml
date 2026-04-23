@@ -4,19 +4,19 @@ name: equitable-polling-locations
 
 services:
     app:
-        # Use the PRE-BUILT image, not a `build:` directive. Zed's dev container
-        # pipeline has a bug where with `build:` + dockerComposeFile, it extracts
-        # only the Dockerfile's FROM line and skips the rest of the build steps
-        # (no apt installs, no user creation, no conda env). Using `image:`
-        # bypasses Zed's build logic entirely — it just starts a container from
-        # the named image.
+        # Build the image on first container open. VS Code's Dev Containers
+        # extension handles this automatically — no manual pre-build step for
+        # contributors.
         #
-        # Build the image manually before opening the dev container:
-        #   docker build -t equitable-polling-locations-app:latest .devcontainer/
-        # Or via the build-only helper that invokes compose (which DOES use our
-        # Dockerfile correctly when not going through Zed):
-        #   docker compose -f .devcontainer/docker-compose.build.yml build
+        # Zed caveat: Zed's dev container pipeline has a bug with compose
+        # `build:` — it extracts only the Dockerfile's FROM line and skips the
+        # rest of the build steps. Zed users should pre-build with
+        # `docker compose -f .devcontainer/docker-compose.build.yml build`
+        # before opening the project. See CONTRIBUTING.md.
         image: equitable-polling-locations-app:latest
+        build:
+            context: ..
+            dockerfile: .devcontainer/Dockerfile
         volumes:
             - ..:/workspaces/Equitable-Polling-Locations
             # GCP creds mount. run.py sets GCP_CREDS_PATH per-platform (Windows
@@ -24,13 +24,13 @@ services:
             # where run.py isn't in the loop (HOME on macOS/Linux/WSL2,
             # USERPROFILE on native Windows shells).
             - ${GCP_CREDS_PATH:-${HOME:-${USERPROFILE}}/.config/gcloud}:/home/vscode/.config/gcloud
-            # SSH keys mount (read-only). Enables `git push/pull` over SSH from
-            # inside the container using the host's existing SSH keys. Requires
-            # a `git@github.com:owner/repo.git` remote URL (change via
-            # `git remote set-url origin git@github.com:...` if your clone used
-            # HTTPS). No token-based credential helper needed; no `gh auth`
-            # required. Read-only so the container can't modify host keys.
-            - ${HOME:-${USERPROFILE}}/.ssh:/home/vscode/.ssh:ro
+            # Named volume for gh CLI auth state. Host SSH keys are
+            # deliberately NOT mounted — contributors authenticate inside the
+            # container via `gh auth login` (device flow), and gh serves as
+            # git's HTTPS credential helper. Volume persists auth across
+            # container rebuilds. To reset (force re-login):
+            # `docker volume rm equitable-polling-locations_gh-config`.
+            - gh-config:/home/vscode/.config/gh
             # Named volume for Claude Code state (auth tokens, MCP servers,
             # plugins, session history). Isolated from the host's ~/.claude/
             # because host and container can run different Claude versions,
@@ -68,3 +68,6 @@ volumes:
     # model as r-site-library; survives rebuilds, cleaned up by explicit
     # `docker volume rm`.
     claude-state:
+    # Persistent gh CLI auth state. Contributors run `gh auth login` once
+    # per machine (device flow); the saved token lives here.
+    gh-config:

@@ -168,45 +168,57 @@ The project ships with a [dev container](https://containers.dev/) config in `.de
 **Prerequisites:**
 
 - Docker (see above)
-- An SSH key registered with your GitHub account (needed for `git push/pull` from inside the container; see [GitHub SSH setup](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) if you haven't done this before)
 - Either:
     - **VS Code** with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-    - **Zed** (recent version with dev container support)
+    - **Zed** (recent version with dev container support — see [Zed caveats](#zed-caveats) below)
 
-**First-time setup — build the image manually:**
+**VS Code (recommended) — first open:**
 
-The dev container uses a pre-built image (`equitable-polling-locations-app:latest`) rather than having the editor build it on-the-fly. This works around a bug in Zed's dev container pipeline and also makes opens faster once the image exists. Build it once from your host terminal:
+1. Open the project folder in VS Code
+2. When prompted "Folder contains a Dev Container configuration file", click **Reopen in Container** (or Command Palette → `Dev Containers: Reopen in Container`)
+3. VS Code builds the image automatically on first open (~5-10 minutes; progress shown in the output panel). Rebuild happens only when `.devcontainer/Dockerfile` or `environment.yml` changes.
+4. On first container creation, `postCreateCommand` installs R packages (~15-20 min, runs in the background). You can use the editor while it runs; R-dependent workflows just won't be available until it finishes. Subsequent opens are instant (packages persist in a docker volume).
+5. Recommended extensions (Python, Pylint, Debugpy) install automatically inside the container
+6. Open any file under `python/tests/` — **▶ Run Test** and **🐞 Debug Test** buttons appear inline above each test function. Test Explorer populates in the sidebar.
+
+No manual commands required on macOS or Windows.
+
+#### Windows contributors — notes
+
+The dev container works on native Windows (Docker Desktop with WSL2 backend, which is the default) without WSL-side VS Code. A few Windows-specific details:
+
+- **Line endings:** git on Windows defaults to `core.autocrlf=true`, which would otherwise make every file look modified inside the Linux container. The committed `.gitattributes` forces LF in the working tree on all platforms, so this is handled automatically for fresh clones. If you cloned before `.gitattributes` was committed, run once: `git add --renormalize . && git commit -m "chore: renormalize line endings"`.
+- **GCP credentials (only if you use DB-backed workflows):** gcloud on native Windows stores credentials at `%APPDATA%\gcloud`, not `%USERPROFILE%\.config\gcloud`. Either set `GCP_CREDS_PATH=%APPDATA%\gcloud` as a user environment variable before launching VS Code, or symlink `%USERPROFILE%\.config\gcloud` → `%APPDATA%\gcloud`. Skip this entirely if you're only running Python tests.
+- **Git auth:** no Windows-specific setup needed. Contributors who want to run `git push/pull` from inside the container use `gh auth login` once (see [Git from inside the container](#git-from-inside-the-container-optional)) — same flow as macOS and Linux.
+
+**Git from inside the container (optional):**
+
+If you want to run `git push/pull` inside the container (rather than from your host terminal), authenticate with GitHub once via device flow. The container doesn't mount your host SSH keys — `gh` provides git credentials instead.
+
+In the container's integrated terminal:
+
+```bash
+gh auth login          # pick GitHub.com → HTTPS → "Login with a web browser"
+gh auth setup-git      # configures git to use gh as its credential helper
+```
+
+`gh auth login` prints a URL and a short code; open the URL in your host browser, paste the code, approve, and come back. Your gh token is saved in the `gh-config` docker volume and persists across container rebuilds — no re-login needed unless you explicitly wipe the volume.
+
+After `gh auth setup-git`, any clone URL (HTTPS or SSH) works for pull/push from inside the container. Alternatively, run git commands from your host terminal as usual — the project files are shared between host and container either way.
+
+#### Zed caveats
+
+Zed's dev container pipeline has a bug where `build:` in `docker-compose.yml` is effectively ignored — it extracts only the Dockerfile's `FROM` line and skips every `RUN`/`COPY` step after it. As a result Zed cannot build this project's image directly. **Workaround: pre-build the image manually from your host terminal before opening in Zed:**
 
 ```bash
 docker compose -f .devcontainer/docker-compose.build.yml build
 ```
 
-First build takes ~5-10 minutes (Python conda env + R binary + system libs). Rebuild only when `.devcontainer/Dockerfile` or `environment.yml` changes.
+Then open the project in Zed — it will start a container from the pre-built image. One-time setup per Zed contributor: Command Palette → search for `toolchain` → choose `/opt/conda/envs/equitable-polls/bin/python`. Zed's test runner needs this to find `pytest`. Additional pytest and pylint tasks are available via Command Palette → `task: spawn` (defined in `.zed/tasks.json`).
 
-**Ensure your git remote uses SSH:**
+Rebuild the image (same command above) when `.devcontainer/Dockerfile` or `environment.yml` changes, then rebuild the container from Zed.
 
-If you cloned via HTTPS, `git push` from inside the container will hang waiting for a password. Switch the remote to SSH once:
-
-```bash
-git remote set-url origin git@github.com:Voting-Rights-Code/Equitable-Polling-Locations.git
-```
-
-**VS Code:**
-
-1. Open the project folder in VS Code
-2. When prompted "Folder contains a Dev Container configuration file", click **Reopen in Container** (or Command Palette → `Dev Containers: Reopen in Container`)
-3. On first container creation, `postCreateCommand` installs the R packages (~15-20 min, runs in the background). You can use the editor while it runs; R-dependent workflows just won't be available until it finishes. Subsequent opens are instant (packages persist in a docker volume).
-4. Recommended extensions (Python, Pylint, Debugpy) install automatically inside the container
-5. Open any file under `python/tests/` — **▶ Run Test** and **🐞 Debug Test** buttons appear inline above each test function. Test Explorer populates in the sidebar.
-
-**Zed:**
-
-1. Open the project folder in Zed
-2. Zed detects `.devcontainer/devcontainer.json` and starts the container from the pre-built image
-3. On first container creation, `postCreateCommand` installs R packages (~15-20 min, runs in the background)
-4. **One-time setup:** Command Palette → search for `toolchain` (or Python interpreter selector) → choose `/opt/conda/envs/equitable-polls/bin/python`. Zed's test runner needs this to find `pytest`.
-5. Open any file under `python/tests/` — inline **▶** icons appear next to test functions
-6. Additional pytest and pylint tasks are available via Command Palette → `task: spawn` (defined in `.zed/tasks.json`)
+VS Code's dev container extension does not have this bug — VS Code users have no manual pre-build step.
 
 **Verifying the container is ready:**
 
@@ -270,32 +282,10 @@ The next container start re-runs the full install.
 
 **Using R outside the Dev Container** — see [Working outside the Dev Container](#working-outside-the-dev-container).
 
-**SSH config gotchas when `ssh -T git@github.com` fails:**
-
-Your host `~/.ssh/config` is mounted read-only into the container. Linux SSH inside the container reads it directly, which exposes a few host-vs-container differences worth knowing about:
-
-- **macOS `UseKeychain` option:** Linux SSH doesn't recognize `UseKeychain` and errors out on every config line that has it. Fix: add a single line at the very top of your host `~/.ssh/config` (before any `Host` blocks):
-    ```
-    IgnoreUnknown UseKeychain
-    ```
-    macOS SSH continues to honor `UseKeychain`; Linux SSH silently ignores it.
-
-- **Absolute host paths in `IdentityFile`:** a config line like `IdentityFile /Users/yourname/.ssh/github_id_rsa` won't resolve inside the container (which sees your keys at `/home/vscode/.ssh/...` via the bind mount). Fix: use tilde paths — `IdentityFile ~/.ssh/github_id_rsa`. `~` expands to `/Users/yourname` on the host and `/home/vscode` in the container, and the bind mount makes both point at the same files.
-
-- **Passphrase-protected keys:** macOS `UseKeychain` caches passphrases in Keychain so you don't re-type them. Linux SSH inside the container has no Keychain, so it'll prompt on every `git push/pull`. Options:
-    1. Type the passphrase when prompted (fine for occasional use)
-    2. Run `ssh-agent` in the container per session: `eval "$(ssh-agent -s)" && ssh-add ~/.ssh/your_key` (prompts once, cached until you close that terminal)
-    3. Use a passphrase-less key for GitHub access (convenience tradeoff against a stolen-laptop threat model)
-
 **Rebuilding after `.devcontainer/Dockerfile` or `environment.yml` changes:**
 
-The image is pre-built, not built on container open. When you (or someone else) changes the Dockerfile or environment.yml, rebuild from the host terminal:
-
-```bash
-docker compose -f .devcontainer/docker-compose.build.yml build
-```
-
-Then in your editor, rebuild the container (VS Code: Command Palette → `Dev Containers: Rebuild Container`; Zed: close the window, `docker rm -f equitable_polling_locations-app-1`, reopen).
+- **VS Code users:** Command Palette → `Dev Containers: Rebuild Container`. VS Code builds the new image automatically. Nothing else to do.
+- **Zed users:** Rebuild the image manually first (see [Zed caveats](#zed-caveats)), then close the window, `docker rm -f equitable_polling_locations-app-1`, and reopen in Zed.
 
 The R packages persist in a docker volume independently of the image, so they don't reinstall on image rebuild. To force a clean R reinstall: `docker volume rm equitable-polling-locations_r-site-library`.
 
@@ -304,9 +294,9 @@ The R packages persist in a docker volume independently of the image, so they do
 - Python 3.11 + the pinned conda env `equitable-polls` (pytest, pylint, geopandas, etc.) — baked into the image
 - **R 4.3** + the project's R packages (`data.table`, `sf`, `ggplot2`, `bigrquery`, `lintr`, `styler`, `languageserver`, etc. — see `.devcontainer/install_r_packages.R`) — R binary baked into image; packages installed on first container start and persisted in a docker volume
 - Node.js 20 + `claude` CLI (for [Claude Code](#claude-code))
-- Git + Git LFS + `openssh-client` (for `git push/pull` over SSH using your host's keys)
+- Git + Git LFS + `gh` CLI (GitHub CLI — used as git's credential helper for HTTPS operations; see [Git from inside the container](#git-from-inside-the-container-optional))
 - **GCP credentials** bind-mounted from host `~/.config/gcloud` (so `run.py` and DB tests work without re-authentication)
-- **SSH keys** bind-mounted read-only from host `~/.ssh` (for git; host keys are authoritative and container can't modify them)
+- **gh auth state** persisted in a docker volume (`gh-config`), isolated from host — `gh auth login` once per machine, no host SSH keys needed
 - **Claude Code state** persisted in a docker volume (`claude-state`), isolated from host Claude — container auth, MCP servers, and plugins survive rebuilds and don't cross-contaminate with your host Claude install
 
 **Using the container's integrated terminal:**

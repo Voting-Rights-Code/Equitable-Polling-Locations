@@ -48,7 +48,6 @@ RUN apt-get update \
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         git-lfs \
-        openssh-client \
         curl \
         cmake \
         libabsl-dev \
@@ -98,6 +97,21 @@ RUN chown -R $USERNAME:$USERNAME /opt/conda
 # AI-assisted development; idle for run.py invocations).
 RUN npm install -g @anthropic-ai/claude-code
 
+# Install GitHub CLI (gh). Container does not bind-mount host SSH keys;
+# instead, contributors authenticate once with `gh auth login` (device flow),
+# and gh acts as git's credential helper for HTTPS operations. gh's auth
+# state lives in /home/vscode/.config/gh which is mounted from a named
+# docker volume, so the login persists across container rebuilds without
+# exposing host credentials.
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+        -o /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+        > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends gh \
+    && rm -rf /var/lib/apt/lists/*
+
 # Put the equitable-polls conda env on PATH for every shell type (login,
 # non-login, non-interactive). Zed launches tool processes without sourcing
 # .bashrc, so /etc/profile.d is the reliable place. Listing the env bin dir
@@ -109,8 +123,8 @@ RUN echo 'export PATH="/opt/conda/envs/equitable-polls/bin:/opt/conda/bin:$PATH"
 # creates intermediate directories for bind mounts (like /home/vscode/.config/
 # for the gcloud mount) as root-owned, which then prevents other tools from
 # writing siblings (e.g. Zed's remote server needs /home/vscode/.config/zed).
-RUN mkdir -p /home/$USERNAME/.config /home/$USERNAME/.ssh /home/$USERNAME/.claude && \
-    chown -R $USERNAME:$USERNAME /home/$USERNAME/.config /home/$USERNAME/.ssh /home/$USERNAME/.claude
+RUN mkdir -p /home/$USERNAME/.config /home/$USERNAME/.config/gh /home/$USERNAME/.claude && \
+    chown -R $USERNAME:$USERNAME /home/$USERNAME/.config /home/$USERNAME/.claude
 
 USER $USERNAME
 WORKDIR /workspaces
