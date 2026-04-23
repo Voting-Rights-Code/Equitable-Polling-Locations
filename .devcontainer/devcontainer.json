@@ -15,7 +15,7 @@
         "PYTHONPATH": "/workspaces/Equitable-Polling-Locations",
         "PYTHONUNBUFFERED": "1"
     },
-    "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && git lfs install --local && git lfs pull && (gh auth status >/dev/null 2>&1 && gh auth setup-git || echo 'gh not authenticated yet — run `gh auth login` inside the container, then `gh auth setup-git`') && bash .devcontainer/run_r_install.sh",
+    "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && git lfs install --local --force && git lfs pull && (gh auth status >/dev/null 2>&1 && gh auth setup-git || echo 'gh not authenticated yet — run `gh auth login` inside the container, then `gh auth setup-git`') && bash .devcontainer/run_r_install.sh",
     "customizations": {
         "vscode": {
             "extensions": [
