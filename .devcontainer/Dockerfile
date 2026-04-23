@@ -48,6 +48,12 @@ RUN apt-get update \
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         git-lfs \
+        less \
+        vim \
+        nano \
+        tree \
+        jq \
+        file \
         curl \
         cmake \
         libabsl-dev \

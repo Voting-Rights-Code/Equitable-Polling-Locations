@@ -38,6 +38,23 @@ sudo touch /home/vscode/.claude/.keep \
            /home/vscode/.config/gcloud/.keep
 sudo chown -R vscode:vscode /home/vscode/.claude /home/vscode/.config
 
+# Persist ~/.claude.json across container rebuilds. Claude Code stores
+# machine-wide state in this top-level file (separate from the ~/.claude/
+# directory, which IS covered by the claude-state volume). Compose can't
+# mount a named volume onto a single file, so symlink ~/.claude.json to a
+# path inside the volume. Without this, every `docker rm -f` wipes the
+# state file even though the credentials in ~/.claude/.credentials.json
+# survive — which is why Claude prompts for login on every new container.
+if [ ! -L /home/vscode/.claude.json ]; then
+    # Preserve any existing real file contents (e.g. a session that
+    # pre-dates this fix) by moving into the volume before replacing with
+    # a symlink.
+    if [ -f /home/vscode/.claude.json ]; then
+        mv /home/vscode/.claude.json /home/vscode/.claude/.claude.json
+    fi
+    ln -sf /home/vscode/.claude/.claude.json /home/vscode/.claude.json
+fi
+
 # ---------------------------------------------------------------------------
 # git plumbing
 # ---------------------------------------------------------------------------

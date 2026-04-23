@@ -41,7 +41,11 @@
       "Read(./secrets/**)"
     ]
   },
-  "enabledPlugins": {},
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "commit-commands@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true
+  },
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
