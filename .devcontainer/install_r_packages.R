@@ -21,6 +21,25 @@
 
 options(repos = c(CRAN = "https://cloud.r-project.org"))
 
+# Clean up any stale 00LOCK-* staging directories left behind by a previous
+# install that was killed mid-compile (SIGKILL / SIGTERM from a devcontainer
+# timeout, window close, or Docker daemon restart). A normal compile error
+# causes install.packages() to remove its own lock; a persistent 00LOCK-*
+# directory means the R process was killed before it could clean up, and its
+# presence blocks any retry of that package.
+site_library <- .Library.site[[1L]]
+stale_locks <- list.files(
+    site_library,
+    pattern = "^00LOCK-",
+    full.names = TRUE
+)
+if (length(stale_locks) > 0) {
+    cat(sprintf("Removing %d stale lock dir(s): %s\n",
+                length(stale_locks),
+                paste(basename(stale_locks), collapse = ", ")))
+    unlink(stale_locks, recursive = TRUE, force = TRUE)
+}
+
 packages <- c(
     "data.table",
     "here",
