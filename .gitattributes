@@ -1,1 +1,58 @@
+# Normalize line endings across platforms. Without this, Windows contributors
+# using `core.autocrlf=true` (git's default on Windows) check out files with
+# CRLF endings. The dev container mounts those files into Linux, where git
+# then reports every file as modified because the index stores LF but the
+# working tree has CRLF.
+#
+# `* text=auto eol=lf` tells git:
+#   - Detect text vs binary automatically
+#   - For text files, always use LF in the working tree (cross-platform)
+#   - Files go into the repo with LF regardless of the committer's OS
+#
+# Contributors on Windows should also run `git config --global core.autocrlf false`
+# to prevent their local git from re-converting. This .gitattributes file is the
+# authoritative source — it overrides per-user settings.
+
+* text=auto eol=lf
+
+# Explicit overrides for file types where we want something other than LF
+
+# Windows-only scripts that need CRLF to run
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Shell scripts must be LF (POSIX shells barf on CRLF)
+*.sh   text eol=lf
+
+# Source files — explicit for clarity
+*.py   text eol=lf
+*.R    text eol=lf
+*.r    text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.cfg  text eol=lf
+*.ini  text eol=lf
+Dockerfile text eol=lf
+
+# Binary files — git should not attempt text conversion
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.gz   binary
+
+# Shapefile components (TIGER census data) are all binary
+*.shp  binary
+*.shx  binary
+*.dbf  binary
+*.prj  binary
+
+# Git LFS — CSVs are stored as large text files via LFS; no line-ending conversion
 *.csv filter=lfs diff=lfs merge=lfs -text

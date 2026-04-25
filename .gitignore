@@ -83,8 +83,20 @@ target/
 profile_default/
 ipython_config.py
 
-#VScode
-.vscode/
+# VS Code — ignore the directory by default, but share a few project-level
+# files so all contributors get the same test-runner config and recommended
+# extensions. Personal overrides in other .vscode/ files stay local.
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# Zed — same pattern: share project-level settings and tasks, ignore
+# personal files.
+.zed/*
+!.zed/settings.json
+!.zed/tasks.json
+
 
 # pyenv
 #   For a library or package, you might want to ignore these files since the code is

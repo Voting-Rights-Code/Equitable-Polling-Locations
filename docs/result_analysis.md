@@ -87,11 +87,15 @@ And at the end of the R file, add the following line:
 upload_graph_files_to_cloud_storage()
 ```
 
-Authentication will happen via the [`googleCloudStorageR` R library](https://CRAN.R-project.org/package=googleCloudStorageR).  Before running the R analysis, you must login via the [gcloud command line tool](https://cloud.google.com/sdk/docs/install-sdk).  One installed, run the following:
+Authentication will happen via the [`googleCloudStorageR` R library](https://CRAN.R-project.org/package=googleCloudStorageR). Before running the R analysis you need GCP Application Default Credentials. gcloud is pre-installed in the dev container — run the following from the container's integrated terminal:
 
 ```
-gcloud auth application-default login
+gcloud auth application-default login --no-launch-browser
 ```
+
+gcloud prints a URL; open it in your host browser, approve, copy the returned verification code, and paste it back. Credentials persist in the `gcloud-config` docker volume across container rebuilds.
+
+If you're running R outside the dev container, install [gcloud](https://cloud.google.com/sdk/docs/install-sdk) on your host and run the same command there (without `--no-launch-browser` if you have a local browser).
 
 
 Example:

@@ -1,35 +1,55 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-
+  "permissions": {
+    "allow": [
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(pylint *)",
+      "Bash(pytest *)",
+      "Bash(docker *)",
+      "Bash(docker-compose *)",
+      "Bash(gh *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add *)",
+      "Bash(git checkout *)",
+      "Bash(git branch *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git pull *)",
+      "Bash(git fetch *)",
+      "Bash(git merge *)",
+      "Bash(git rebase *)",
+      "Bash(git stash *)",
+      "Bash(git remote *)",
+      "Bash(git switch *)"
+    ],
+    "deny": [
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(nc *)",
+      "Bash(scp *)",
+      "Bash(rsync *)",
+      "Bash(rm -rf /*)",
+      "Bash(chmod -R 777*)",
+      "Bash(chown *)",
+      "Bash(sudo *)",
+      "Bash(su *)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)"
+    ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "commit-commands@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true
+  },
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
     "allowUnsandboxedCommands": true,
-
-    "filesystem": {
-      "denyRead": [
-        "~/.ssh",
-        "~/.aws",
-        "~/.gnupg",
-        "~/.config/gcloud",
-        "~/Documents",
-        "~/Downloads",
-        "~/Desktop",
-        "~/Pictures",
-        "~/Library",
-        "~/AppData"
-      ],
-      "denyWrite": [
-        "~/.ssh",
-        "~/.aws",
-        "~/.gnupg",
-        "~/.zshrc",
-        "~/.bashrc",
-        "~/.config/gcloud"
-      ],
-      "allowWrite": [".", "/tmp", "$TMPDIR"]
-    },
-
     "network": {
       "allowedDomains": [
         "pypi.org",
@@ -47,55 +67,41 @@
         "oauth2.googleapis.com"
       ]
     },
-
+    "filesystem": {
+      "allowWrite": [
+        ".",
+        "/tmp"
+      ],
+      "denyWrite": [
+        "~/.ssh",
+        "~/.aws",
+        "~/.gnupg",
+        "~/.zshrc",
+        "~/.bashrc",
+        "~/.config/gcloud",
+        "~/.claude",
+        "/etc",
+        "/opt/conda/envs/equitable-polls"
+      ],
+      "denyRead": [
+        "~/.ssh",
+        "~/.aws",
+        "~/.gnupg",
+        "~/.config/gcloud",
+        "~/Documents",
+        "~/Downloads",
+        "~/Desktop",
+        "~/Pictures",
+        "~/Library",
+        "~/AppData"
+      ]
+    },
     "excludedCommands": [
       "pylsp",
       "pyright",
       "pyright-langserver",
       "jedi-language-server",
       "ruff"
-    ]
-  },
-
-  "permissions": {
-    "deny": [
-      "Bash(curl *)",
-      "Bash(wget *)",
-      "Bash(nc *)",
-      "Bash(scp *)",
-      "Bash(rsync *)",
-      "Bash(rm -rf /*)",
-      "Bash(chmod -R 777*)",
-      "Bash(chown *)",
-      "Bash(sudo *)",
-      "Bash(su *)",
-      "Read(./.env)",
-      "Read(./.env.*)",
-      "Read(./secrets/**)"
-    ],
-    "allow": [
-      "Bash(python *)",
-      "Bash(python3 *)",
-      "Bash(pylint *)",
-      "Bash(pytest *)",
-      "Bash(docker *)",
-      "Bash(docker-compose *)",
-
-      "Bash(git status*)",
-      "Bash(git diff*)",
-      "Bash(git log*)",
-      "Bash(git add *)",
-      "Bash(git checkout *)",
-      "Bash(git branch *)",
-      "Bash(git commit *)",
-      "Bash(git push *)",
-      "Bash(git pull *)",
-      "Bash(git fetch *)",
-      "Bash(git merge *)",
-      "Bash(git rebase *)",
-      "Bash(git stash *)",
-      "Bash(git remote *)",
-      "Bash(git switch *)"
     ]
   }
 }
