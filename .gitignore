@@ -164,7 +164,8 @@ cython_debug/
 #.idea/
 
 # API keys and other folders
-/authentication_files
+authentication_files/
+
 #/test_configs
 
 # Misc
@@ -178,13 +179,17 @@ logs
 Equitable-Polling-Locations.Rproj
 
 #non code files
-#*.csv
+*.csv
 *.png
 *.shp
 *.prj
 *.dbf
 *.shx
 *.jpg
+
+#datasets to ignore
+datasets/census
+
 #Want to avoid keeping config files locally
 #and put them in the database
 *.yaml
@@ -194,4 +199,10 @@ Equitable-Polling-Locations.Rproj
 !docs/README_Image.jpg
 !docs/VRC-Large-PNG.png
 !docs/VRC-Large-PNG.png
+!datasets/census/redistricting/testing/*
+!datasets/census/tiger/testing/*
+!datasets/driving/testing/*
+!datasets/polling/testing/*
+!datasets/results/testing_results/*
+
 

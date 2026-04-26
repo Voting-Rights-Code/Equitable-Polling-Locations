@@ -1,308 +1,382 @@
-#######################################
-#Created on 6 December 2023
-#
-#@author: Voting Rights Code
-#@attribution: based off of code by Josh Murell
-#######################################
+'''
+Utilities to process the various sources files to run a model against
+'''
 
 from dataclasses import dataclass
 from typing import Literal
 
 import pandas as pd
 import numpy as np
-import math
 import os
 from haversine import haversine
 import geopandas as gpd
 
-from python.database import query
+from python.database.query import Query
 from python.utils import (
     build_driving_distances_file_path,
-    build_locations_only_file_path,
-    build_locations_distance_file_path,
-    build_demographics_dir_path,
-    build_p3_source_file_path,
-    build_p4_source_file_path,
+    build_potential_locations_file_path,
+    build_distance_file_path,
+    build_decennial_dir_path,
+    build_decennial_file_paths,
+#    build_p3_source_file_path,
+#    build_p4_source_file_path,
     is_int,
+    get_block_source_file_path,
+    get_block_group_block_source_file_path,
+    timer,
+)
+from python.utils.directory_constants import (
+BLOCK_GEO, P3_NAME, P4_NAME
 )
 
-from python.utils.constants import DATASETS_DIR, LOCATION_SOURCE_DB
 from python.utils.pull_census_data import pull_census_data
 from .model_config import PollingModelConfig
 
+# pylint: disable-next=wildcard-import,unused-wildcard-import
+from .constants import *
+
 #define columns for each input data set
-LOCATIONS_COLS = [
-    'Location',
-    'Address',
-    'Location type',
-    'Lat, Long',
+POTENTIAL_LOCATIONS_COLS = [
+    POT_LOC_LOCATION,
+    POT_LOC_ADDRESS,
+    POT_LOC_LOCATION_TYPE,
+    POT_LOC_LAT_LON,
 ]
 
-# Prefix to add to Shape files to join with demographic data.
-GEO_ID_PREFIX = '1000000US'
-
 P3_COLUMNS = [
-    'GEO_ID',
-    'NAME',
-    'P3_001N', # Total population
-    'P3_003N', # White alone
-    'P3_004N', # Black or African American alone
-    'P3_005N', # American Indian or Alaska Native alone
-    'P3_006N', # Asian alone
-    'P3_007N', # Native Hawaiian and Other Pacific Islander alone
-    'P3_008N', # Some other race alone
-    'P3_009N', # Two or More Races
+    CEN20_GEO_ID,
+    CEN20_NAME,
+    CEN20_P3_TOTAL_POPULATION, # Total population
+    CEN20_P3_WHITE, # White alone
+    CEN20_P3_BLACK, # Black or African American alone
+    CEN20_P3_NATIVE, # American Indian or Alaska Native alone
+    CEN20_P3_ASIAN, # Asian alone
+    CEN20_P3_PACIFIC_ISLANDER, # Native Hawaiian and Other Pacific Islander alone
+    CEN20_P3_OTHER, # Some other race alone
+    CEN20_P3_MULTIPLE_RACES, # Two or More Races
 ]
 
 P4_COLUMNS = [
-    'GEO_ID',
-    'NAME',
-    'P4_001N', # Total population
-    'P4_002N', # Total hispanic
-    'P4_003N', # Total non_hispanic
+    CEN20_GEO_ID,
+    CEN20_NAME,
+    CEN20_P4_TOTAL_POPULATION, # Total population
+    CEN20_P4_HISPANIC, # Total hispanic
+    CEN20_NON_HISPANIC, # Total non_hispanic
 ]
 
 BLOCK_SHAPE_COLS = [
-    'GEOID20',
-    'INTPTLAT20',
-    'INTPTLON20',
+    TIGER20_GEOID20,
+    TIGER20_INTPTLAT20,
+    TIGER20_INTPTLON20,
 ]
 
 BLOCK_GROUP_SHAPE_COLS = [
-    'GEOID20',
-    'INTPTLAT20',
-    'INTPTLON20',
+    TIGER20_GEOID20,
+    TIGER20_INTPTLAT20,
+    TIGER20_INTPTLON20,
 ]
 
-FULL_DF_COLS = [
-    'id_orig',
-    'id_dest',
-    'address',
-    'dest_lat',
-    'dest_lon',
-    'orig_lat',
-    'orig_lon',
-    'location_type',
-    'dest_type',
-    'population',
-    'hispanic',
-    'non_hispanic',
-    'white',
-    'black',
-    'native',
-    'asian',
-    'pacific_islander',
-    'other',
-    'multiple_races',
+FULL_DISTANCE_DATA_DF_COLS = [
+    DISTANCE_ID_ORIG,
+    DISTANCE_ID_DEST,
+    DISTANCE_ADDRESS,
+    DISTANCE_DEST_LAT,
+    DISTANCE_DEST_LON,
+    DISTANCE_ORIG_LAT,
+    DISTANCE_ORIG_LON,
+    DISTANCE_LOCATION_TYPE,
+    DISTANCE_DEST_TYPE,
+    DISTANCE_TOTAL_POPULATION,
+    DISTANCE_HISPANIC,
+    DISTANCE_NON_HISPANIC,
+    DISTANCE_WHITE,
+    DISTANCE_BLACK,
+    DISTANCE_NATIVE,
+    DISTANCE_ASIAN,
+    DISTANCE_PACIFIC_ISLANDER,
+    DISTANCE_OTHER,
+    DISTANCE_MULTIPLE_RACES,
 ]
 
 @dataclass
-class PollingLocationsOnlyResult:
-    locations_only: pd.DataFrame
-    polling_locations_only_set_id: str = None
-    output_path: str = None
+class PotentialLocationsData:
+    ''' A simple dataclass to hold potential locations data '''
+    potential_locations_df: pd.DataFrame
+    potential_locations_set_id: str=None
+    output_path: str=None
 
-def get_polling_locations_only(
-        location_source: Literal['db', 'csv'],
+
+def get_potential_locations_data(
+        data_source: Literal['db', 'csv'],
         location: str,
-) -> PollingLocationsOnlyResult:
-    if location_source == LOCATION_SOURCE_DB:
-        location_only_set = query.get_location_only_set(location)
-        if not location_only_set:
-            raise ValueError(f'Could not find location only set for {location} in the database.')
+        potential_locations_path_override: str=None,
+        query: Query=None,
+) -> PotentialLocationsData:
+    '''
+    Loads the potential locations source data either from local files or from the database based on
+    data_source value.
+    '''
+    potential_locations_set_id: str = None
+    if data_source == DATA_SOURCE_DB:
+        potential_locations_set = query.get_potential_locations_set(location)
+        if not potential_locations_set:
+            raise ValueError(f'Could not find potential location set for {location} in the database.')
 
-        locations_only = query.get_locations_only(location_only_set.id)
+        potential_locations_set_id = potential_locations_set.id
+        potential_locations_df = query.get_potential_locations(potential_locations_set_id)
 
-        # Rename databas columns to match csv columns
-        locations_only = locations_only.rename(
+        # Rename database columns to match csv columns
+        potential_locations_df = potential_locations_df.rename(
             {
-                'location': 'Location',
-                'address': 'Address',
-                'location_type': 'Location type',
-                'lat_lon': 'Lat, Long',
-            }, axis=1)
-
-        if locations_only.empty:
-            raise ValueError(f'No locations only for locations only set {location} id {location_only_set.id}.')
-
-        return PollingLocationsOnlyResult(
-            locations_only=locations_only,
-            polling_locations_only_set_id=location_only_set.id,
+                DB_LOCATION: POT_LOC_LOCATION,
+                DB_ADDRESS: POT_LOC_ADDRESS,
+                DB_LOCATION_TYPE: POT_LOC_LOCATION_TYPE,
+                DB_LAT_LON: POT_LOC_LAT_LON,
+            },
+            axis=1,
         )
+
+        if potential_locations_df.empty:
+            raise ValueError(f'No potential locations set {location} id {potential_locations_set.id}.')
+
+
     else:
-        locations_only_source_file = build_locations_only_file_path(location)
-
-        if os.path.exists(locations_only_source_file):
-            #warnings.warn(f'{file_name} found. Last modified {os.path.getmtime(LOCATION_SOURCE_FILE)}.')
-            locations_only = pd.read_csv(locations_only_source_file)
+        if potential_locations_path_override:
+            # If a path override is provided, use that instead of the default file path
+            potential_locations_source_file = potential_locations_path_override
         else:
-            raise ValueError(f'Potential polling location data ({locations_only_source_file}) not found.')
+            potential_locations_source_file = build_potential_locations_file_path(location)
 
-        return PollingLocationsOnlyResult(locations_only=locations_only, output_path=locations_only_source_file)
+        if os.path.exists(potential_locations_source_file):
+            #warnings.warn(f'{file_name} found. Last modified {os.path.getmtime(LOCATION_SOURCE_FILE)}.')
+            potential_locations_df = pd.read_csv(potential_locations_source_file)
+        else:
+            raise ValueError(f'Potential polling location data ({potential_locations_source_file}) not found.')
 
 
-@dataclass
-class BuildSourceResult:
-    location_source: Literal['db', 'csv']
-    census_year: str
-    location: str
-    driving: bool
-    log_distance: bool
-    map_source_date: str = None,
-    output_path: str = None
-    driving_distance_set_id: str = None
-    polling_locations_only_set_id: str = None
+    potential_locations_df = potential_locations_df[POTENTIAL_LOCATIONS_COLS]
 
-##########################
-#read in data and write relevant dataframe for model to file
-##########################
-#build distance data set from census data and potential pollig location data.
-#using driving distances if driving = True
-
-def build_source(
-    location_source: Literal['db', 'csv'],
-    census_year: str,
-    location: str,
-    driving: bool,
-    log_distance: bool,
-    map_source_date: str = None,
-    log: bool = False,
-) -> BuildSourceResult:
-    locations_only_results = get_polling_locations_only(location_source, location)
-    locations_only = locations_only_results.locations_only
-
-    if not is_int(census_year):
-        raise ValueError(f'Invalid Census year {census_year} for location {location}')
-
-    result = BuildSourceResult(
-        location_source=location_source,
-        census_year=census_year,
-        location=location,
-        driving=driving,
-        log_distance=log_distance,
-        map_source_date=map_source_date,
-        polling_locations_only_set_id=locations_only_results.polling_locations_only_set_id,
-        output_path=locations_only_results.output_path
+    # The potential locations data needs further processing:
+    # 1. add a destination type column
+    potential_locations_df[DISTANCE_DEST_TYPE] = DISTANCE_DEST_TYPE_POLLING
+    potential_locations_df[DISTANCE_DEST_TYPE].mask(
+        potential_locations_df[POT_LOC_LOCATION_TYPE].str.contains(POT_LOC_LOCATION_TYPE_POTENTIAL_SUBSTR),
+        DISTANCE_DEST_TYPE_POTENTIAL,
+        inplace=True,
     )
 
-    output_path = build_locations_distance_file_path(census_year, location, driving, log_distance)
-    result.output_path = output_path
+    # 2. change the lat, long into two columns
+    potential_locations_df[[POT_LOC_LATITUDE, POT_LOC_LONGITUDE]] = potential_locations_df[
+        POT_LOC_LAT_LON
+    ].str.split(pat=', ', expand=True).astype(float)
 
-    demographics_dir = build_demographics_dir_path(location)
-    p3_source_file = build_p3_source_file_path(census_year, location)
-    p4_source_file = build_p4_source_file_path(census_year, location)
+    potential_locations_df.drop([POT_LOC_LAT_LON], axis=1, inplace=True)
+
+    return PotentialLocationsData(
+        potential_locations_df=potential_locations_df,
+        potential_locations_set_id=potential_locations_set_id,
+    )
+
+
+#functions that are steps in build source class
+
+def get_blocks_gdf(census_year: str, location: str) -> gpd.GeoDataFrame:
+    block_source_file = get_block_source_file_path(census_year, location)
+    blocks_gdf = gpd.read_file(block_source_file)
+
+    blocks_gdf = blocks_gdf[BLOCK_SHAPE_COLS]
+
+    return blocks_gdf
+
+
+def get_blockgroup_gdf(census_year: str, location: str) -> gpd.GeoDataFrame:
+    block_group_source_file = get_block_group_block_source_file_path(census_year, location)
+    blockgroup_gdf = gpd.read_file(block_group_source_file)
+
+    blockgroup_gdf = blockgroup_gdf[BLOCK_GROUP_SHAPE_COLS]
+
+    #The block group needs to be processed to match the potential location table
+    blockgroup_gdf = blockgroup_gdf.rename(columns = {
+        TIGER20_GEOID20: POT_LOC_LOCATION, TIGER20_INTPTLAT20: POT_LOC_LATITUDE,
+        TIGER20_INTPTLON20: POT_LOC_LONGITUDE,
+    })
+    blockgroup_gdf[POT_LOC_ADDRESS] = None
+    blockgroup_gdf[POT_LOC_LOCATION_TYPE] = TIGER20_BG_CENTROID
+    blockgroup_gdf[DISTANCE_DEST_TYPE] = TIGER20_BG_CENTROID
+
+    return blockgroup_gdf
+
+
+def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
+    '''
+    Combine the P3 and P4 census data to generate demographic block data for a specific location and
+    census year.
+    '''
+
+    demographics_dir = build_decennial_dir_path(location, BLOCK_GEO)
+    p3_source_file = build_decennial_file_paths(census_year, BLOCK_GEO, P3_NAME, location, False)
+    p4_source_file = build_decennial_file_paths(census_year, BLOCK_GEO, P4_NAME, location, False)
 
     if not os.path.exists(demographics_dir):
         statecode = location[-2:]
-        locality = location[:-3].replace('_',' ')
-        pull_census_data(statecode, locality)
+        locality = location[:-3].replace('_', ' ')
+        pull_census_data(statecode, locality, census_year)
 
     if os.path.exists(p3_source_file):
         p3_df = pd.read_csv(p3_source_file,
-            header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
+            header=[0, 1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
             low_memory=False, # files are too big, set this to False to prevent errors
-            )
+        )
     else:
         # pylint: disable-next=line-too-long
-        raise ValueError(f'Census data from table P3 not found. Download using api or manually following download instruction from README. {p3_source_file}')
+        raise ValueError(f'Census data from table {P3_NAME} not found. Download using api or manually following download instruction from README. {p3_source_file}')
 
     if os.path.exists(p4_source_file):
         p4_df = pd.read_csv(p4_source_file,
-            header=[0,1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
+            header=[0, 1], # DHC files have two headers rows when exported to CSV - tell pandas to take top one
             low_memory=False, # files are too big, set this to False to prevent errors
             )
     else:
         # pylint: disable-next=line-too-long
         raise ValueError('Census data from table P4 not found. Download using api or manually following download instruction from README.')
 
-    #3. Census geographic data
-    geography_dir = os.path.join(DATASETS_DIR, 'census', 'tiger', location)
-    file_list = os.listdir(geography_dir)
-    file_name_block = [f for f in file_list if f.endswith('tabblock20.shp')][0]
-    file_name_bg = [f for f in file_list if f.endswith('bg20.shp')][0]
-    block_source_file  = os.path.join(geography_dir, file_name_block)
-    block_group_source_file  = os.path.join(geography_dir, file_name_bg)
-
-    if os.path.exists(block_source_file):
-        blocks_gdf = gpd.read_file(block_source_file)
-    else:
-        # pylint: disable-next=line-too-long
-        raise ValueError('Census data for block geography not found. Reinstall using api or manually following download instruction from README.')
-
-    if os.path.exists(block_group_source_file):
-        blockgroup_gdf = gpd.read_file(block_group_source_file)
-    else:
-        # pylint: disable-next=line-too-long
-        raise ValueError('Census data for block group geography not found. Reinstall using api or manually following download instruction from README.')
 
     #######
     #Clean data
     #######
-
     #select columns for each data set
-    locations_only = locations_only[LOCATIONS_COLS]
     p3_df.columns=[multicols[0] for multicols in p3_df.columns]
     p3_df = p3_df[P3_COLUMNS]
     p4_df.columns=[multicols[0] for multicols in p4_df.columns]
     p4_df = p4_df[P4_COLUMNS]
-    blocks_gdf = blocks_gdf[BLOCK_SHAPE_COLS]
-    blockgroup_gdf = blockgroup_gdf[BLOCK_GROUP_SHAPE_COLS]
 
     #####
-    #Make a demographics table
+    # Make a demographics table
     #####
-    #combine P3 and P4 data to make a joint demographics set
-    demographics = p4_df.merge(p3_df, left_on=['GEO_ID', 'NAME'], right_on=['GEO_ID', 'NAME'],how = 'outer')
+    # Combine P3 and P4 data to make a joint demographics set
+    demographics = p4_df.merge(
+        p3_df,
+        left_on=[CEN20_GEO_ID, CEN20_NAME],
+        right_on=[CEN20_GEO_ID, CEN20_NAME],
+        how=PD_OUTER,
+    )
 
-    #Consistency check for the data pull
-    demographics['Pop_diff'] = demographics.P4_001N-demographics.P3_001N
-    if demographics.loc[demographics.Pop_diff != 0].shape[0]!=0:
-        raise ValueError('Populations different in P3 and P4. Are both pulled from the voting age universe?')
+    # Consistency check for the data pull
+    demographics[TIGER20_POP_DIFF] = demographics[CEN20_P4_TOTAL_POPULATION] - demographics[CEN20_P3_TOTAL_POPULATION]
+    if demographics.loc[demographics[TIGER20_POP_DIFF] != 0].shape[0] != 0:
+        raise ValueError(f'Populations different in {P3_NAME} and {P4_NAME}. Are both pulled from the voting age universe?')
 
-    #Change column names
-    demographics.drop(['P4_001N', 'Pop_diff'], axis =1, inplace = True)
-    demographics = demographics.rename(columns = {'P4_002N': 'hispanic', 'P4_003N':'non_hispanic', 'P3_001N':'population', 'P3_003N':'white', 'P3_004N':'black', 'P3_005N':'native', 'P3_006N':'asian', 'P3_007N':'pacific_islander', 'P3_008N':'other', 'P3_009N':'multiple_races'})
+    # Change column names
+    demographics.drop([CEN20_P4_TOTAL_POPULATION, TIGER20_POP_DIFF], axis=1, inplace=True)
+    demographics = demographics.rename(columns = {
+        CEN20_P4_HISPANIC: DISTANCE_HISPANIC, CEN20_NON_HISPANIC: DISTANCE_NON_HISPANIC,
+        CEN20_P3_TOTAL_POPULATION: DISTANCE_TOTAL_POPULATION, CEN20_P3_WHITE: DISTANCE_WHITE,
+        CEN20_P3_BLACK: DISTANCE_BLACK, CEN20_P3_NATIVE: DISTANCE_NATIVE, CEN20_P3_ASIAN: DISTANCE_ASIAN,
+        CEN20_P3_PACIFIC_ISLANDER: DISTANCE_PACIFIC_ISLANDER, CEN20_P3_OTHER: DISTANCE_OTHER,
+        CEN20_P3_MULTIPLE_RACES: DISTANCE_MULTIPLE_RACES,
+    })
 
     #drop geo_id_prefix
-    demographics['GEO_ID'] = demographics['GEO_ID'].str.replace(GEO_ID_PREFIX, '')
+    demographics[CEN20_GEO_ID] = demographics[CEN20_GEO_ID].str.replace(TIGER20_GEOID_PREFIX, EMPTY_STRING)
+
+    #get block group geographic
+    blocks_gdf = get_blocks_gdf(census_year, location)
 
     #join with block group shape files
-    demographics_block = demographics.merge(blocks_gdf, left_on='GEO_ID', right_on = 'GEOID20',how='left')
+    demographics_block = demographics.merge(
+        blocks_gdf,
+        left_on=CEN20_GEO_ID,
+        right_on=TIGER20_GEOID20,
+        how=PD_LEFT,
+    )
 
     #make lat/ long floats
-    demographics_block.INTPTLAT20 = demographics_block.INTPTLAT20.astype(float)
-    demographics_block.INTPTLON20 = demographics_block.INTPTLON20.astype(float)
+    demographics_block[TIGER20_INTPTLAT20] = demographics_block[TIGER20_INTPTLAT20].astype(float)
+    demographics_block[TIGER20_INTPTLON20] = demographics_block[TIGER20_INTPTLON20].astype(float)
 
-    #drop duplicates and empty block groups
-    demographics_block = demographics_block.drop_duplicates() #put in to avoid duplications down the line.
-    demographics_block = demographics_block[demographics_block['population']>0]
+    #drop duplicates and empty block groups.  Put in to avoid duplications down the line.
+    demographics_block = demographics_block.drop_duplicates()
+    demographics_block = demographics_block[demographics_block[DISTANCE_TOTAL_POPULATION] > 0]
+
+    return demographics_block
+
+
+@dataclass
+class BuildDistanceMetaData:
+    ''' A simple dataclass to hold source meta data information '''
+    data_source: Literal['db', 'csv']
+    census_year: str
+    location: str
+    driving: bool
+    log_distance: bool
+    map_source_date: str=None,
+    output_path: str=None
+    driving_distance_set_id: str=None
+    potential_locations_set_id: str=None
+
+
+# Old Build source function
+@timer
+def build_distance_data(
+    data_source: Literal['db', 'csv'],
+    census_year: str,
+    location: str,
+    driving: bool,
+    log_distance: bool,
+    map_source_date: str=None,
+    potential_locations_path_override: str=None,
+    output_path_override: str=None,
+    query: Query=None,
+) -> BuildDistanceMetaData:
+    '''
+    Build distance data set from census data and potential locations data
+    and write it to a csv file. An instance of SourceData is returned with metadata about the
+    built data set.
+    '''
+
+    potential_locations_data = get_potential_locations_data(
+        data_source,
+        location,
+        potential_locations_path_override,
+        query=query,
+    )
+    potential_locations_df = potential_locations_data.potential_locations_df
+
+    if not is_int(census_year):
+        raise ValueError(
+            f'Invalid Census year {census_year} for location {location}'
+        )
+
+    if not output_path_override:
+        output_path = build_distance_file_path(
+            census_year, location, driving, log_distance,
+        )
+    else:
+        output_path = output_path_override
+
+    # build_distance_meta_data is the return data for this function containing metadata about the built distance data
+    build_distance_meta_data = BuildDistanceMetaData(
+        data_source=data_source,
+        census_year=census_year,
+        location=location,
+        driving=driving,
+        log_distance=log_distance,
+        map_source_date=map_source_date,
+        potential_locations_set_id=potential_locations_data.potential_locations_set_id,
+        output_path=output_path
+    )
 
     #####
-    #Make a polling locations table (including block group centroid)
+    # Make a polling locations table (including block group centroid)
     #####
+    blockgroup_gdf = get_blockgroup_gdf(census_year, location)
 
-    #the potential locations data needs further processing:
-    #1. add a destination type column
-    locations_only['dest_type'] = 'polling'
-    locations_only['dest_type'].mask(locations_only['Location type'].str.contains('Potential'), 'potential', inplace=True)
+    # Concatenate
+    all_locations = pd.concat([potential_locations_df, blockgroup_gdf])
 
-    #2. change the lat, long into two columns
-    locations_only[['Latitude', 'Longitude']] = locations_only['Lat, Long'].str.split(pat = ', ', expand=True).astype(float)
-    locations_only.drop(['Lat, Long'], axis =1, inplace = True)
-
-    #The block group needs to be processed to match the potential location table
-    # pylint: disable-next=line-too-long
-    blockgroup_gdf = blockgroup_gdf.rename(columns = {'GEOID20': 'Location', 'INTPTLAT20':'Latitude', 'INTPTLON20':'Longitude'})
-    blockgroup_gdf['Address'] = None
-    blockgroup_gdf['Location type'] = 'bg_centroid'
-    blockgroup_gdf['dest_type'] = 'bg_centroid'
-
-    #Concatenate
-    all_locations = pd.concat([locations_only, blockgroup_gdf])
-
-    #Lat and Long current mix of string and geometry. Make them all floats
-    all_locations['Latitude'] = pd.to_numeric(all_locations['Latitude'])
-    all_locations['Longitude'] = pd.to_numeric(all_locations['Longitude'])
+    # Lat and Long current mix of string and geometry. Make them all floats
+    all_locations[POT_LOC_LATITUDE] = pd.to_numeric(all_locations[POT_LOC_LATITUDE])
+    all_locations[POT_LOC_LONGITUDE] = pd.to_numeric(all_locations[POT_LOC_LONGITUDE])
 
     if len(all_locations.Location) != len(set(all_locations.Location)):
         raise ValueError('Non-unique names in Location column. This will cause errors later.')
@@ -310,59 +384,77 @@ def build_source(
     #####
     # Cross join polling locations and demographics tables
     #####
-    full_df = demographics_block.merge(all_locations, how= 'cross')
-
+    demographics_block_df = get_demographics_block(census_year, location)
+    distance_df = demographics_block_df.merge(all_locations, how=PD_CROSS)
 
     #####
-    #Rename, select columns
+    # Rename, select columns
     #####
-    # pylint: disable-next=line-too-long
-    full_df = full_df.rename(columns = {'GEO_ID': 'id_orig', 'Address': 'address', 'Latitude':'dest_lat', 'Longitude':'dest_lon', 'INTPTLAT20':'orig_lat', 'INTPTLON20':'orig_lon', 'Location type': 'location_type', 'Location': 'id_dest'})
-    full_df = full_df[FULL_DF_COLS]
+
+    distance_df = distance_df.rename(columns = {
+        CEN20_GEO_ID: DISTANCE_ID_ORIG, POT_LOC_ADDRESS: DISTANCE_ADDRESS, POT_LOC_LATITUDE: DISTANCE_DEST_LAT,
+        POT_LOC_LONGITUDE: DISTANCE_DEST_LON, TIGER20_INTPTLAT20: DISTANCE_ORIG_LAT,
+        TIGER20_INTPTLON20: DISTANCE_ORIG_LON, POT_LOC_LOCATION_TYPE: DISTANCE_LOCATION_TYPE,
+        POT_LOC_LOCATION: DISTANCE_ID_DEST,
+    })
+    distance_df = distance_df[FULL_DISTANCE_DATA_DF_COLS]
 
     #####
     # Calculate appropriate distance
     #####
-
     if driving:
-        if location_source == LOCATION_SOURCE_DB:
+        # Load driving distances to insert them into distance_df
+        if data_source == DATA_SOURCE_DB:
+            # Load the driving_distances_df from DB
             driving_distance_set = query.find_driving_distance_set(census_year, map_source_date, location)
             if not driving_distance_set:
                 # pylint: disable-next=line-too-long
-                raise ValueError('DrivingDistance set not found in database for census_year {census_year}, map_source_date {map_source_date}, location {location}.')
-            result.driving_distance_set_id = driving_distance_set.id
-            driving_distances_df = get_db_driving_distances(driving_distance_set.id)
+                raise ValueError('DrivingDistance set not found in database for census_year {census_year}, map_source_date {map_source_date}, location {location}.',)
+
+            build_distance_meta_data.driving_distance_set_id = driving_distance_set.id
+            driving_distances_df = get_db_driving_distances(query, driving_distance_set.id)
         else:
+            # Load the driving_distances_df from CSV
             driving_distances_df = get_csv_driving_distances(census_year, map_source_date, location)
 
-        full_df = insert_driving_distances(full_df, driving_distances_df)
+        distance_df = insert_driving_distances(distance_df, driving_distances_df)
+
     else:
-        # pylint: disable-next=line-too-long
-        full_df['distance_m'] = full_df.apply(lambda row: haversine((row.orig_lat, row.orig_lon), (row.dest_lat, row.dest_lon)), axis=1)*1000
-        full_df['source'] = 'haversine distance'
+        # driving == false so calculate haversine distances instead of using driving distances
+        distance_df[DISTANCE_DISTANCE_M] = distance_df.apply(
+            lambda row: haversine((row.orig_lat, row.orig_lon), (row.dest_lat, row.dest_lon)),
+            axis=1,
+        ) * 1000
 
-    #if log distance, modify the source and distance columns
+        distance_df[DISTANCE_SOURCE] = DISTANCE_SOURCE_HAVERSINE_DISTANCE
+
+    # if log distance, modify the source and distance columns
     if log_distance:
-        full_df['source'] = 'log ' + full_df['source']
+        distance_df[DISTANCE_SOURCE] = DISTANCE_SOURCE_LOG_WITH_SPACE + distance_df[DISTANCE_SOURCE]
         #TODO: why are there 0 distances showing up?
-        full_df['distance_m'].mask(full_df['distance_m'] == 0.0, 0.001, inplace=True)
-        full_df['distance_m'] = np.log(full_df['distance_m'])
+        distance_df[DISTANCE_DISTANCE_M].mask(distance_df[DISTANCE_DISTANCE_M] == 0.0, 0.001, inplace=True)
+        distance_df[DISTANCE_DISTANCE_M] = np.log(distance_df[DISTANCE_DISTANCE_M])
 
+    # Ensure DISTANCE_ID_ORIG and DISTANCE_ID_DEST are strings
+    distance_df[DISTANCE_ID_ORIG] = distance_df[DISTANCE_ID_ORIG].astype(str)
+    distance_df[DISTANCE_ID_DEST] = distance_df[DISTANCE_ID_DEST].astype(str)
 
     #####
-    #reformat and write to file
+    # Reformat and write to file (making directory if it doesn't exist)
     #####
 
-    full_df['id_orig'] = full_df['id_orig'].astype(str)
-    full_df['id_dest'] = full_df['id_dest'].astype(str)
+    output_dir = os.path.basename(output_path)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
+    distance_df.to_csv(output_path, index = True)
 
-    full_df.to_csv(output_path, index = True)
-    return result
+    # Return metadata about the built distance data
+    return build_distance_meta_data
 
 
 def insert_driving_distances(
-    source_df: pd.DataFrame,
+    distance_df: pd.DataFrame,
     driving_distances_df: pd.DataFrame,
 ) -> pd.DataFrame:
     '''
@@ -371,39 +463,44 @@ def insert_driving_distances(
     will be renamed haversine_m.
 
     Arguments
-    df: A pandas DataFrame that contains id_orig and id_dest
-    driving_distance_file_path: the path to a file that contains a driving distance for each
-                                origin/destination pair. Each line will be of the form
-                                id_orig, id_dest, distance_m. This file must contain a distance
-                                for every possible origin/destination pair.
-    log: boolean - True if verbose
+    distance_df: A pandas DataFrame that contains id_orig and id_dest
+    driving_distances_df: driving distance data frame with id_orig, id_dest, and distance_m columns
 
     Raises
     ValueError - if anything goes wrong (missing file, bad format, missing data)
 
     Returns
     The original dataframe with the distance_m column populated with the driving distances.
-
     '''
 
-    if {'id_orig', 'id_dest', 'distance_m'} - set(driving_distances_df.columns):
+    if {DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M} - set(driving_distances_df.columns):
         raise ValueError('Driving Distances must contain id_orig, id_dest, and distance_m columns')
 
-    combined_df = pd.merge(source_df, driving_distances_df, on=['id_orig', 'id_dest'], how='left')
+    combined_df = pd.merge(distance_df, driving_distances_df, on=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST], how=PD_LEFT)
 
-    combined_df['source'] = 'driving distance'
+    combined_df[DISTANCE_SOURCE] = DISTANCE_SOURCE_DRIVING_DISTANCE
     return combined_df
 
 
 def get_csv_driving_distances(census_year: str, map_source_date: str, location: str) -> pd.DataFrame:
-    driving_distance_file_path = build_driving_distances_file_path(census_year, map_source_date, location)
+    '''
+    Builds the path to the driving distances file and uses it to call load_driving_distances_csv to load
+    the driving distances from the csv file.
+    '''
+    driving_distance_file_path = build_driving_distances_file_path(
+        census_year, map_source_date, location,
+    )
+
     if not os.path.exists(driving_distance_file_path):
         raise ValueError(f'Driving Distance File ({driving_distance_file_path}) not found.')
 
-    driving_distances = pd.read_csv(driving_distance_file_path)
-    return driving_distances
+    return load_driving_distances_csv(driving_distance_file_path)
 
-def get_db_driving_distances(driving_distance_set_id: str) -> pd.DataFrame:
+
+def get_db_driving_distances(query: Query, driving_distance_set_id: str) -> pd.DataFrame:
+    '''
+    Loads the driving distances from the database from the specified driving distance set id
+    '''
     driving_distances = query.get_driving_distances(driving_distance_set_id)
     if driving_distances.empty:
         raise ValueError(f'No driving distances for distance set {driving_distance_set_id}.')
@@ -412,185 +509,283 @@ def get_db_driving_distances(driving_distance_set_id: str) -> pd.DataFrame:
 
     return driving_distances
 
-@dataclass
-class PollingLocationResults:
-    polling_locations: pd.DataFrame
-    polling_locations_set_id: str = None
 
-def get_polling_locations(
-    location_source: Literal['db', 'csv'],
+def load_potential_locations_csv(potential_locations_csv_path: str) -> pd.DataFrame:
+    '''
+    Load potential locations from a CSV file.
+    '''
+    if not os.path.isfile(potential_locations_csv_path):
+        raise ValueError(f'Potential locations file {potential_locations_csv_path} does not exist.')
+
+    dtype_spec = {
+        POT_LOC_LOCATION: PD_DTYPE_STR,
+        POT_LOC_ADDRESS: PD_DTYPE_STR,
+        POT_LOC_LOCATION_TYPE: PD_DTYPE_STR,
+    }
+
+    return pd.read_csv(potential_locations_csv_path, index_col=False, dtype=dtype_spec)
+
+
+def load_distance_data_csv(distance_data_csv_path: str) -> pd.DataFrame:
+    '''
+    Load distance data from a CSV file.
+    '''
+    if not os.path.isfile(distance_data_csv_path):
+        raise ValueError(f'Distance data file {distance_data_csv_path} does not exist.')
+
+    dtype_spec = {DISTANCE_ID_ORIG: PD_DTYPE_STR, DISTANCE_ID_DEST: PD_DTYPE_STR}
+
+    return pd.read_csv(distance_data_csv_path, index_col=0, dtype=dtype_spec)
+
+
+def load_driving_distances_csv(driving_distance_file_path: str) -> pd.DataFrame:
+    '''
+    Load the driving distances from a CSV file from disk.
+    '''
+    if not os.path.isfile(driving_distance_file_path):
+        raise ValueError(f'Driving distances file {driving_distance_file_path} does not exist.')
+
+    dtype_spec = {DISTANCE_ID_ORIG: PD_DTYPE_STR, DISTANCE_ID_DEST: PD_DTYPE_STR, DISTANCE_DISTANCE_M: np.float64}
+
+    return pd.read_csv(driving_distance_file_path, index_col=False, dtype=dtype_spec)
+
+
+@dataclass
+class DistanceData:
+    ''' A simple dataclass to hold distance data and associated metadata '''
+    distance_df: pd.DataFrame
+    distance_data_set_id: str = None
+
+def get_distance_data_csv(
     census_year: str,
     location: str,
     log_distance: bool,
     driving: bool,
-) -> PollingLocationResults:
+    log: bool,
+) -> DistanceData | None:
     '''
-    Loads the polling locations data either from local files or from the database based on config settings.
+    Builds the file path and loads the distance data from a CSV file using load_distance_data_csv
 
+    Returns
+    None if the file does not exist, otherwise returns the DistanceData object
+    '''
+    distance_data_csv_path = build_distance_file_path(census_year, location, driving, log_distance)
+
+    if not os.path.isfile(distance_data_csv_path):
+        return None
+
+    if log:
+        print(f'Loading distance data for {location} from {distance_data_csv_path}')
+
+    distance_df = load_distance_data_csv(distance_data_csv_path)
+
+    return DistanceData(
+        distance_df=distance_df,
+    )
+
+
+def get_distance_data_db(
+        census_year: str,
+        location: str,
+        log_distance: bool,
+        driving: bool,
+        query: Query,
+        log: bool,
+) -> DistanceData:
+    ''' Get the distance data from the database '''
+    if log:
+        print(f'Loading distance data for {location} from database')
+
+    # Load locations from the database
+    distance_data_set = query.get_distance_data_set(census_year, location, log_distance, driving)
+    if not distance_data_set:
+        raise ValueError(
+            # pylint: disable-next=line-too-long
+            f'Could not find location set for census_year: {census_year}, location: {location}, log_distance: {log_distance}, driving: {driving} in the database. To import the data to the database, run python.scripts.db_import_locations_cli with the desired parameters.',
+        )
+
+    df = query.get_distance_data(
+        distance_data_set_id=distance_data_set.id,
+    )
+
+    # Remove aditional columns that are specific to the database
+    del df['distance_data_set_id']
+
+    return DistanceData(
+        distance_df=df,
+        distance_data_set_id=distance_data_set.id,
+    )
+
+
+@timer
+def get_distance_data(
+    data_source: Literal['db', 'csv'],
+    census_year: str,
+    location: str,
+    log_distance: bool,
+    driving: bool,
+    query: Query=None,
+    log: bool=False,
+) -> DistanceData:
+    '''
+    Gets the distance data either from local files or from the database based on data_source.
     '''
 
     if not census_year:
         raise ValueError('Invalid Census year for location {location}')
 
-    if location_source == LOCATION_SOURCE_DB:
-        print(f'Loading polling locations for {location} from database')
+    # Attempt to get the locations locally first - this saves much time if they have already been saved locally
+    distance_data = get_distance_data_csv(
+        census_year=census_year, location=location, log_distance=log_distance, driving=driving, log=log,
+    )
 
-        # Load locations from the database
-        polling_locations_set = query.get_location_set(census_year, location, log_distance, driving)
-        if not polling_locations_set:
-            raise ValueError(f'Could not find location set for census_year: {census_year}, location: {location}, log_distance: {log_distance}, driving: {driving} in the database.')
+    if distance_data:
+        return distance_data
 
-        df = query.get_locations(
-            polling_locations_set_id=polling_locations_set.id,
-        )
+    if data_source != DATA_SOURCE_DB:
+        # If data source is not database, we cannot proceed further
+        # pylint: disable-next=line-too-long
+        raise ValueError(f'Polling location data cannot be found for census_year={census_year}, log_distance={log_distance}, driving={driving}, location {location}')
 
-        # Remove aditional columns that are specific to the database
-        del df['polling_locations_set_id']
+    # distance_data was not found locally, we now have to get it from the database
+    distance_data = get_distance_data_db(
+        census_year=census_year, location=location, log_distance=log_distance, driving=driving, query=query, log=log,
+    )
 
-        return PollingLocationResults(
-            polling_locations=df,
-            polling_locations_set_id=polling_locations_set.id,
-        )
+    # Write the locations out locally
+    output_path = build_distance_file_path(
+        census_year, location, driving, log_distance,
+    )
 
-    else:
-        file_path = build_locations_distance_file_path(census_year, location, driving, log_distance)
-        print(f'Loading polling locations for {location} from {file_path}')
+    # The following writes the distance data to a local CSV file as a way to cache it for future use
+    output_dir = os.path.dirname(output_path)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
-        if not os.path.isfile(file_path):
-            raise ValueError(f'Do not currently have any data for {file_path} from location {location}')
+    distance_data.distance_df.to_csv(output_path, index=True)
 
-        df = pd.read_csv(file_path, index_col=0)
-        df = df.astype({'id_orig':'str'})
-
-        return PollingLocationResults(
-            polling_locations=df,
-        )
+    return distance_data
 
 
-#########
-#Read the intermediate data frame from file, and pull the relevant rows
-#Note this this function is called twice, once for calculating alpha and once for
-#the base data set.
-#The call for alpha should only take the original polling locations.#########
-#########
+# Misc helper functions for filtering distance data
 
-def clean_data(config: PollingModelConfig, locations_df: pd.DataFrame, for_alpha: bool, log: bool):
+def filter_dest_type(distance_df: pd.DataFrame, year_list: list[str]):
+    '''
+    Cleans the destination type column in the distance_df DataFrame.
+    This function is used to ensure that the destination type is set correctly based on the location type.
+    '''
+    #select data based on year
+    #mark everything but bg_centroid as potential
+    #then mark location_types with correct years as
+    distance_df[DISTANCE_DEST_TYPE].mask(
+        distance_df[DISTANCE_DEST_TYPE] != TIGER20_BG_CENTROID,
+        DISTANCE_DEST_TYPE_POTENTIAL,
+        inplace=True,
+    )
+
+    # Set the dest_type to polling for every row that has a location_type like "2018" or "2020" from the year_list
+    distance_df[DISTANCE_DEST_TYPE].mask(
+        distance_df[DISTANCE_LOCATION_TYPE].str.contains('|'.join(year_list)),
+        DISTANCE_DEST_TYPE_POLLING,
+        inplace=True,
+    )
+
+
+# pylint: disable-next=unused-argument
+def filter_distance_data(config: PollingModelConfig, distance_df: pd.DataFrame, for_alpha: bool, log: bool):
+    '''
+    Reads the intermediate data frame from file, and pull the relevant rows.
+    Notes:
+        - This this function is called twice, once for calculating alpha and once for
+          the base data set.
+        - The call for alpha should only take the original polling locations
+    '''
     location = config.location
     year_list = config.year
 
-    result_df = locations_df.copy(deep=True)
+    filtered_distance_df = distance_df.copy(deep=True)
 
-    #pull out unique location types is this data
-    unique_location_types = result_df['location_type'].unique()
+    # Pull out unique location types is this data
+    unique_location_types = filtered_distance_df[DISTANCE_LOCATION_TYPE].unique()
 
-    if for_alpha:
-        # pylint: disable-next=line-too-long
-        bad_location_list = [location_type for location_type in unique_location_types if 'Potential' in location_type or 'centroid' in location_type]
+    if for_alpha: #if this is running to calculate alpha, remove all potential locations and centroids.
+                    #Note, this keeps all historical locations from all years.
+        bad_location_list = [
+            location_type
+            for location_type in unique_location_types
+            if POT_LOC_LOCATION_TYPE_POTENTIAL_SUBSTR in location_type
+                or DISTANCE_LOCATION_TYPE_CENTROID_SUBSTR in location_type
+        ]
     else:
         bad_location_list = config.bad_types
 
-    polling_location_types = set(result_df[result_df.dest_type == 'polling']['location_type'])
+    polling_location_types = set(
+        filtered_distance_df[filtered_distance_df.dest_type == DISTANCE_DEST_TYPE_POLLING][DISTANCE_LOCATION_TYPE]
+    )
 
     for year in year_list:
         if not any(str(year) in poll for poll in polling_location_types):
             raise ValueError(f'Do not currently have any data for {location} for {year} from {config.config_file_path}')
 
-    #exclude bad location types
+    # Exclude bad location types
     # The bad types must be valid location types
     if not set(bad_location_list).issubset(set(unique_location_types)):
-        # pylint: disable-next=line-too-long
-        raise ValueError(f'unrecognized bad location types types {set(bad_location_list).difference(set(unique_location_types))} in {config.config_file_path}' )
+        unrecognized = set(bad_location_list).difference(set(unique_location_types))
+        raise ValueError(f'unrecognized bad location types {unrecognized} in {config.config_file_path}')
 
-    #drop rows of bad location types in df
-    result_df = result_df[~result_df['location_type'].isin(bad_location_list)]
+    # Drop rows of bad location types in df
+    filtered_distance_df = filtered_distance_df[~filtered_distance_df[DISTANCE_LOCATION_TYPE].isin(bad_location_list)]
 
-    #select data based on year
-    #mark everything but bg_centroid as potential
-    #then mark location_types with correct years as
-    result_df['dest_type'].mask(result_df['dest_type'] != 'bg_centroid', 'potential', inplace = True)
-    result_df['dest_type'].mask(result_df['location_type'].str.contains('|'.join(year_list)), 'polling', inplace = True)
-    #check that this hasn't created duplicates (should not have); drop these
-    result_df = result_df.drop_duplicates()
+    filter_dest_type(filtered_distance_df, year_list)
 
-    #check that population is unique by id_orig
-    pop_df = result_df.groupby('id_orig')['population'].agg('unique').str.len()
+    # Check that this hasn't created duplicates (should not have); drop these
+    filtered_distance_df = filtered_distance_df.drop_duplicates()
+
+    # Check that population is unique by id_orig
+    pop_df = filtered_distance_df.groupby(DISTANCE_ID_ORIG)[DISTANCE_TOTAL_POPULATION].agg(PD_UNIQUE).str.len()
     if any(pop_df>1):
         raise ValueError(f'Some id_orig has multiple associated populations from {config.config_file_path}')
 
-    # raise error if there are any missing distances
-    if len(result_df[pd.isnull(result_df.distance_m)]) > 0:
-        if log:
-            # indicate destinations and origins that are missing driving distances
-            all_orig = set(result_df.id_orig)
-            all_dest = set(result_df.id_dest)
-            notna_df = result_df[pd.notna(result_df.distance_m)]
-            notna_orig = set(notna_df.id_orig)
-            notna_dest = set(notna_df.id_dest)
-            missing_sources = all_orig - notna_orig
-            missing_dests = all_dest - notna_dest
-            if len(missing_dests) > 0:
-                print(f'{len(missing_dests)} missing dests in driving distances: {missing_dests}')
-            if len(missing_sources) > 0:
-                print(f'{len(missing_sources)} missing orig in driving distances: {missing_sources}')
-        raise ValueError(f'Driving Distances ({location}) '
-                         'does not contain driving distances for all id_orig/id_dest pairs.')
+    # Raise error if there are any missing distances
+    if len(filtered_distance_df[pd.isnull(filtered_distance_df.distance_m)]) > 0:
+        # indicate destinations and origins that are missing driving distances
+        all_orig = set(filtered_distance_df.id_orig)
+        all_dest = set(filtered_distance_df.id_dest)
+        notna_df = filtered_distance_df[pd.notna(filtered_distance_df.distance_m)]
+        notna_orig = set(notna_df.id_orig)
+        notna_dest = set(notna_df.id_dest)
+        missing_origs = all_orig - notna_orig
+        missing_dests = all_dest - notna_dest
+        if len(missing_dests) > 0:
+            print(f'distances missing for {len(missing_dests)} destination(s): {missing_dests}')
+        if len(missing_origs) > 0:
+            print(f'distances missing for {len(missing_origs)} origin(s): {missing_origs}')
+        raise ValueError('Some distances are missing for current config setting.')
+
+    # Create other useful columns
+    filtered_distance_df[DISTANCE_WEIGHTED_DIST] = (
+        filtered_distance_df[DISTANCE_TOTAL_POPULATION] * filtered_distance_df[DISTANCE_DISTANCE_M]
+    )
+
+    return filtered_distance_df
 
 
-    #create other useful columns
-    result_df['Weighted_dist'] = result_df['population'] * result_df['distance_m']
+def alpha_min(df: pd.DataFrame) -> float:
+    ''' Finds the minimal distance to polling location '''
 
-    return result_df
-
-##########################
-#Other functions for data processing
-##########################
-
-#determines the maximum of the minimum distances
-def get_max_min_dist(dist_df):
-    min_dist = dist_df[['id_orig', 'distance_m']].groupby('id_orig').agg('min')
-    max_min_dist = min_dist.distance_m.max()
-    max_min_dist = math.ceil(max_min_dist)
-
-    return max_min_dist
-
-#various alpha function. Really only use alpha_min
-def alpha_all(df):
-    #add a distance square column
-    df['distance_squared'] = df['distance_m'] * df['distance_m']
-
-    #population weighted distances
-    distance_sum = sum(df['population'] * df['distance_m'])
-    #population weighted distance squared
-    distance_sq_sum = sum(df['population']*df['distance_squared'])
-    alpha = distance_sum/distance_sq_sum
-
-    return alpha
-
-
-def alpha_min(df):
-    #Find the minimal distance to polling location
-    min_df= df[['id_orig', 'distance_m','population']].groupby('id_orig').agg('min')
+    min_df = df[
+        [DISTANCE_ID_ORIG, DISTANCE_DISTANCE_M, DISTANCE_TOTAL_POPULATION]
+    ].groupby(DISTANCE_ID_ORIG).agg(PD_MIN)
 
     #find the square of the min distances
-    min_df['distance_squared'] = min_df['distance_m'] * min_df['distance_m']
+    min_df[DISTANCE_DISTANCE_SQUARED] = min_df[DISTANCE_DISTANCE_M] * min_df[DISTANCE_DISTANCE_M]
+
     #population weighted distances
-    distance_sum = sum(min_df['population']*min_df['distance_m'])
+    distance_sum = sum(min_df[DISTANCE_TOTAL_POPULATION] * min_df[DISTANCE_DISTANCE_M])
+
     #population weighted distance squared
-    distance_sq_sum = sum(min_df['population']*min_df['distance_squared'])
-    alpha = distance_sum/distance_sq_sum
+    distance_sq_sum = sum(min_df[DISTANCE_TOTAL_POPULATION] * min_df[DISTANCE_DISTANCE_SQUARED])
 
-    return alpha
-
-def alpha_mean(df):
-    #Find the mean distance to polling location
-    mean_df = df[['id_orig', 'distance_m', 'population']].groupby('id_orig').agg('mean')
-
-    #find the square of the min distances
-    mean_df['distance_squared'] = mean_df['distance_m'] * mean_df['distance_m']
-    #population weighted distances
-    distance_sum = sum(mean_df['population']*mean_df['distance_m'])
-    #population weighted distance squared
-    distance_sq_sum = sum(mean_df['population']*mean_df['distance_squared'])
-    alpha = distance_sum/distance_sq_sum
+    alpha = distance_sum / distance_sq_sum
 
     return alpha

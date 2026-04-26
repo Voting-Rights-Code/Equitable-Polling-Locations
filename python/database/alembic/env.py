@@ -10,20 +10,19 @@ from alembic import context
 
 # pylint: disable-next=wildcard-import,unused-wildcard-import
 from python.database.models import *
-from python.database.sqlalchemy_main import (
-    ModelBase,
-    get_db_project,
-    get_db_dataset,
-)
+from python.database.sqlalchemy_main import ModelBase
+from python.utils.environments import load_env
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
+environment = load_env()
+
 # Allow the values in alembic.ini to be programmatically set
 section = config.config_ini_section
-config.set_section_option(section, "DB_PROJECT", get_db_project())
-config.set_section_option(section, "DB_DATASET", get_db_dataset())
+config.set_section_option(section, "DB_PROJECT", environment.project)
+config.set_section_option(section, "DB_DATASET", environment.dataset)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

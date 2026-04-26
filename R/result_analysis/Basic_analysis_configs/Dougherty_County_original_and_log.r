@@ -51,7 +51,7 @@ READ_FROM_CSV = FALSE
 PRINT_SQL = FALSE
 
 #constants for database queries
-#only need to define if READ_FROM_CSV = TRUE
+#only need to define if READ_FROM_CSV = FALSE
 PROJECT = "equitable-polling-locations"
 DATASET = "equitable_polling_locations_prod"
 BILLING = PROJECT
@@ -59,3 +59,6 @@ BILLING = PROJECT
 #Connect to database if needed
 #returns NULL if READ_FROM_CSV = TRUE
 POLLING_CON <- define_connection()
+
+#constants for how graphs and maps should be made
+LINEAR_COLOR_GRADIENT = TRUE #should the maps have a log or linear color scale

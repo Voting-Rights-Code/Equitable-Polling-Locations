@@ -8,10 +8,11 @@ import json
 from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, text, ARRAY
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 
-from .polling_locations import PollingLocationSet
+from .locations import DistanceDataSet
 
 from ..sqlalchemy_main import ModelBase
 from python.utils import current_time_utc, generate_uuid
+from python.solver.model_solver import DEFAULT_LIMITS_GAP
 
 class ModelConfig(ModelBase):
     ''' Model Configuration SQLAlchemy record  '''
@@ -43,6 +44,9 @@ class ModelConfig(ModelBase):
 
     time_limit: float = Column(Float)
     '''How long the solver should try to find a solution'''
+
+    limits_gap: float = Column(Float, default=DEFAULT_LIMITS_GAP)
+    '''The acceptable optimality gap for the solver'''
 
     penalized_sites: List[str] = Column(ARRAY(String(256), as_tuple=False, dimensions=None, zero_indexes=False))
     '''
@@ -82,7 +86,7 @@ class ModelConfig(ModelBase):
     If default number of open precincts if one wants to hold the number
     of people that can go to a location constant (as opposed to a function of the number of locations).
     '''
-    log_distance: bool = Column(Boolean, nullable = True)
+    log_distance: bool = Column(Boolean, nullable=True)
     '''Flag indicating whether or not the log of the distances is to be used in the optimization'''
 
     census_year: str = Column(String(4), nullable=True, default='2020')
@@ -113,7 +117,7 @@ class ModelConfig(ModelBase):
         serialized_data = json.dumps(column_data, sort_keys=True)
         hash_object = hashlib.sha1(serialized_data.encode())
 
-        print(serialized_data)
+        # print(serialized_data)
         hex_dig = hash_object.hexdigest()
         return hex_dig
 
@@ -157,11 +161,11 @@ class ModelRun(ModelBase):
     ''' The ModelConfig instance that this run is the result of '''
 
     # Relations
-    polling_locations_set_id = mapped_column(ForeignKey('polling_locations_sets.id'), nullable=True)
-    ''' The PollingLocationSet id that this ModelRun came from '''
+    distance_data_set_id = mapped_column(ForeignKey('distance_data_sets.id'), nullable=True)
+    ''' The DistanceDataSet id that this ModelRun came from '''
 
-    polling_locations_set: Mapped['PollingLocationSet'] = relationship()
-    ''' The PollingLocationSet instance that this ModelRun came from '''
+    distance_data_set: Mapped['DistanceDataSet'] = relationship()
+    ''' The DistanceDataSet instance that this ModelRun came from '''
 
     def __repr__(self):
         # pylint: disable-next=line-too-long

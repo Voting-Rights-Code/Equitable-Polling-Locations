@@ -4,15 +4,17 @@ config_name: 'config_template_Richmond_log_keep_3' #should match file name
 
 # Constants for the optimization function
 location: Richmond_County_GA
+census_year: '2020'
 year:
     - '2020'
-    - '2022'    
+    - '2022'
     - '2024'
-bad_types: 
+bad_types:
     - 'Elec Day School - Potential'
     - 'bg_centroid'
 beta: -2
 time_limit: 360000 #100 hours minutes
+limits_gap: 0.02
 capacity: 1.8
 fixed_capacity_site_number: null
 
@@ -34,4 +36,4 @@ new_range:
     - 7
     - 8
     - 9
-    - 10 
+    - 10

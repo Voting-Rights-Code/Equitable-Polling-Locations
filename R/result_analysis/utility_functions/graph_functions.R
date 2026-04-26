@@ -9,6 +9,7 @@ library(yaml)
 
 source('R/result_analysis/utility_functions/load_config_data.R')
 source('R/result_analysis/utility_functions/storage.R')
+source('R/result_analysis/utility_functions/tableau_theme.R')
 
 TABLES = c("edes", "precinct_distances", "residence_distances", "results")
 DEMO_COLS =  c("population", "hispanic","non_hispanic", "white", "black", "native", "asian", "pacific_islander", "other")
@@ -166,7 +167,7 @@ load_results_from_csv <-function(config_dt, result_type){
 	location <- unique(config_dt$location)
 	config_folder <- unique(config_dt$config_set)
 	#get result folder(s)
-	result_folder <-paste(location, 'results/', sep = '_')
+	result_folder <-paste0('datasets/results/', location, '_results/')
 	#extract files
 	files <- list.files(result_folder)
 	#select files containing config_folder and result_type in name
@@ -178,13 +179,13 @@ load_results_from_csv <-function(config_dt, result_type){
 	#put together to form a file path
 	file_path <- paste0(result_folder, files)
 	names(file_path) <- names(files)
-
+	
 	#read data, add config_set and config_name columns
 	#note, this needs a local function
 	dt_list <- lapply(file_path, fread)
 	names(dt_list) <- names(file_path)
-	dt_list_appended <- mapply(function(data, list_name){data[, config_name:=list_name][ , config_set := config_folder]}, dt_list, names(dt_list), SIMPLIFY = FALSE)
-
+	dt_list_appended <- mapply(function(data, list_name){data[, config_name:=list_name][ , config_set := config_folder][ , location := location]}, dt_list, names(dt_list), SIMPLIFY = FALSE)
+	
 	#combine into one df
 	big_dt <- do.call(rbind, dt_list_appended)
 	return(big_dt)
@@ -227,12 +228,13 @@ assign_descriptor_to_result<- function(config_dt, result_type, field_of_interest
 	#result_type: in c((ede, precinct, residence, results)
 	#field_of_interest: string indicating the field to be used for a descriptor (in case the config folder has only 1 file)
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
-
+	
 	#read in descriptor data
 	vary_dt <- create_descriptor_field(config_dt, field_of_interest)
 	#drop varying field (because this changes across config_set)
 	vary_dt <- vary_dt [ , .(config_name, descriptor)]
-
+	
+	
 	#read in output data
 	if (read_from_csv){
 		result_type_dt <- load_results_from_csv(config_dt, result_type)
@@ -269,7 +271,7 @@ read_result_data<- function(config_dt, field_of_interest = '', descriptor_dict =
 	if(check_historic_flag(config_dt)){
 		return(NULL)
 	}
-
+	
 	#get a list of result data with a descriptor column attached to each data.table
 	df_list<- lapply(tables, function(x){assign_descriptor_to_result(config_dt, x, field_of_interest, read_from_csv, descriptor_dict)})
 	names(df_list) <- tables
@@ -307,7 +309,7 @@ make_flag_strs<- function(driving_flag, log_flag){
 	driving_str = ' straight line '
 	log_str = ''
 	if (driving_flag){driving_str = ' driving '} 
-	if (log_flag){log_str = 'log '}
+	#if (log_flag){log_str = 'log '}
 	return(as.list(c(driving_str = driving_str, log_str = log_str)))
 }
 
@@ -357,11 +359,15 @@ plot_poll_edes<-function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLA
 	title_str = paste0('Equity weighted', flag_strs$driving_str, 'distance to poll by demographic')
 	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
 
-	ggplot(ede_df, aes(x = num_polls, y = y_EDE,
-		group = demographic, color = demographic)) +
+	graph = ggplot(ede_df, aes(x = num_polls, y = y_EDE,
+		group = demographic, color = demographic, shape = demographic)) +
 		geom_line()+ geom_point()+
-		labs(x = 'Number of polls', y = y_str, title = title_str, color = 'Demographic')+
-		scale_color_discrete(labels = demographic_legend_dict)
+		labs(x = 'Number of polls', y = y_str, title = title_str, color = 'Demographic', shape = 'Demographic')+
+		scale_color_tableau(labels = demographic_legend_dict) +
+		scale_shape(labels = demographic_legend_dict) +
+		theme_tableau()
+	#TODO: make this work
+	#if(log_flag){graph = graph + scale_y_continuous(trans="log2")
 
 	graph_file_path = 'demographic_edes.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -377,9 +383,10 @@ plot_population_edes <- function(ede_df, driving_flag = DRIVING_FLAG, log_flag =
 	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
 
 
-	ggplot(ede_df[demographic == 'population', ], aes(x =  num_polls, y = y_EDE))+
-		geom_line()+ geom_point()+
-		labs(x = 'Number of polls', y = y_str, title = title_str)
+	graph = ggplot(ede_df[demographic == 'population', ], aes(x =  num_polls, y = y_EDE))+
+		geom_line(color = TABLEAU_COLORS[1])+ geom_point(color = TABLEAU_COLORS[1])+
+		labs(x = 'Number of polls', y = y_str, title = title_str) +
+		theme_tableau()
 
 	graph_file_path = 'population_edes.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -401,7 +408,8 @@ plot_multiple_edes<-function(ede_list, demo_grp, driving_flag = DRIVING_FLAG, lo
 		geom_line()+ geom_point()+
 		labs(x = 'Number of polls', y = y_str, title = title_str, color = "Run Type", shape = 'Demographic')+
 		scale_shape_discrete(labels = demographic_legend_dict) +
-		scale_color_manual(breaks = c('Intersecting', 'Contained'), values = c('red','darkviolet'))
+		scale_color_manual(breaks = c('Intersecting', 'Contained'), values = c(TABLEAU_COLORS[3], TABLEAU_COLORS[7])) +
+		theme_tableau()
 
 	graph_file_path = paste0(demo_grp, '_compare_demographic_edes.png')
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -434,16 +442,19 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 	title_str = paste0(flag_strs$log_str, flag_strs$driving_str, 'distance by demographic and optimization run')
 	#plot with y_EDE
 	y_EDE = ggplot(orig_ede, aes(x = descriptor, y = y_EDE,
-		group = demographic, color = demographic))
+		group = demographic, color = demographic, shape = demographic))
 	if (scale_bool){
 		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) , alpha = .5) +
-			labs(x = 'Optimization run', y = y_EDE_label, color = 'Demographic', size = 'Percent Total Population')
+			labs(x = 'Optimization run', y = y_EDE_label, shape = 'Demographic', color = 'Demographic', size = 'Percent Total Population')
 	} else{
 		y_EDE = y_EDE + geom_point(aes(x = factor(descriptor, level = descriptor_order)),size = 5, alpha = .5)+
-			labs(x = 'Optimization run', y = y_EDE_label, color = 'Demographic')
+			labs(x = 'Optimization run', y = y_EDE_label, shape = 'Demographic', color = 'Demographic')
 	}
-	y_EDE = y_EDE +	ylim(y_min, y_max) + ggtitle(paste('Equity weighted', title_str)) +
-		scale_color_discrete(labels = demographic_legend_dict)
+	y_EDE = y_EDE +	#ylim(y_min, y_max) +
+				ggtitle(paste('Equity weighted', title_str)) +
+				scale_color_tableau(labels = demographic_legend_dict)+
+				scale_shape_discrete(labels = demographic_legend_dict) +
+				theme_tableau()
 
 	graph_file_path = paste('orig', suffix, 'y_EDE.png', sep = '_')
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -451,16 +462,19 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 
 	#plot with avg_dist
 	avg = ggplot(orig_ede, aes(x = descriptor, y = avg_dist,
-		group = demographic, color = demographic))
-if (scale_bool){
-		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population), alpha = .5 ) +
-			labs(x = 'Optimization run', y = y_avg_label, color = 'Demographic', size = 'Percent Total Population')
+		group = demographic, color = demographic, shape = demographic))
+	if (scale_bool){
+		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order), size = pct_demo_population) , alpha = .5) +
+			labs(x = 'Optimization run', y = y_avg_label, shape = 'Demographic', color = 'Demographic', size = 'Percent Total Population')
 	} else{
 		avg = avg + geom_point(aes(x = factor(descriptor, level = descriptor_order) ),size = 5, alpha = .5) +
-			labs(x = 'Optimization run', y = y_avg_label, color = 'Demographic')
+			labs(x = 'Optimization run', y = y_avg_label, shape = 'Demographic', color = 'Demographic')
 	}
-	avg = avg + ylim(y_min, y_max) + ggtitle(paste('Average', title_str)) +
-		scale_color_discrete(labels = demographic_legend_dict)
+	avg = avg + #ylim(y_min, y_max) +
+			ggtitle(paste('Average', title_str)) +
+			scale_color_tableau(labels = demographic_legend_dict) +
+			scale_shape_discrete(labels = demographic_legend_dict) +
+			theme_tableau()
 
 	graph_file_path = paste('orig', suffix, 'avg.png', sep = '_')
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -487,8 +501,9 @@ plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_f
 plot_precinct_persistence <- function(precinct_df){
 	ggplot(precinct_df[demographic == 'population',
 		], aes(x = num_polls, y = id_dest)) +
-		geom_point(aes(size = demo_pop)) +
-		labs(x = 'Number of polls', y = 'EV location', size = paste(demographic_legend_dict['population'], 'population'))
+		geom_point(aes(size = demo_pop), color = TABLEAU_COLORS[1], alpha = 0.7) +
+		labs(x = 'Number of polls', y = 'EV location', size = paste(demographic_legend_dict['population'], 'population')) +
+		theme_tableau()
 
 	graph_file_path = 'precinct_persistence.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -496,8 +511,9 @@ plot_precinct_persistence <- function(precinct_df){
 
 	ggplot(precinct_df[demographic != 'population',
 		], aes(x = num_polls, y = id_dest)) +
-		geom_point(aes(size = demo_pop)) +
+		geom_point(aes(size = demo_pop), color = TABLEAU_COLORS[1], alpha = 0.7) +
 		labs(x = 'Number of polls', y = 'EV location', size = 'Population') + facet_wrap(~ demographic) +
+		theme_tableau() +
 		theme(legend.position = c(0.9, 0.2))
 
 	graph_file_path = 'precinct_persistence_demographic.png'
@@ -508,15 +524,16 @@ plot_precinct_persistence <- function(precinct_df){
 #make boxplots of the average distances traveled and the y_edes at each run
 plot_boxplots <- function(residence_df,log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG){
 	flag_strs <- make_flag_strs(driving_flag, log_flag)
-
+ 
 	res_pop <- residence_df[demographic == 'population',
 		]
 	#avg distance
 	ggplot(res_pop, aes(x = num_polls, y = avg_dist, group = descriptor)) +
-		stat_boxplot(geom = "errorbar")+
-		geom_boxplot(outlier.shape = NA) +
+		stat_boxplot(geom = "errorbar", color = "#555555")+
+		geom_boxplot(outlier.shape = NA, fill = TABLEAU_COLORS[1], color = "#333333", alpha = 0.7) +
 		scale_y_log10(limits = c(500,10500)) +
-		labs(x = 'Number of polls', y = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'))
+		labs(x = 'Number of polls', y = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'), title = "Boxplot of distances by run") +
+		theme_tableau()
 
 	graph_file_path = 'avg_dist_distribution_boxplots.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -532,22 +549,57 @@ plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_n
 	res_pop_orig_and_ideal <- rbind( ideal_residence_df, orig_residence_df)
 
 	#avg_distance
+	title_str = paste0('Distribution of distances traveled by people by year and optimization')
 	ggplot(res_pop_orig_and_ideal, aes(x = avg_dist, fill = descriptor)) +
 		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
-		labs(x = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'), y = 'Number of people', fill = 'Optimization Run')
+		labs(x = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'), y = 'Number of people', title =  title_str, fill = 'Optimization Run') +
+		scale_fill_tableau(labels = function(x) str_to_title(str_replace_all(x, '_', ' '))) +
+		theme_tableau()
 	graph_file_path = 'avg_dist_distribution_hist.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
 	ggsave(graph_file_path)
 }
 
+plot_demographic_hist<- function(df, demo, flag_strs){
+
+	y_str = paste0('Number of ', demo, ' people')
+	title_str = paste0('Distribution of distances traveled by ', demo, ' people by year and optimization')
+	hist = ggplot(df[demographic == demo, ], aes(x = avg_dist, fill = descriptor)) +
+		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
+		labs(x = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'), y = y_str, title =  title_str, fill = 'Optimization Run') + scale_x_continuous(transform = 'log') +
+		scale_fill_tableau(labels = function(x) str_to_title(str_replace_all(x, '_', ' '))) +
+		theme_tableau()
+
+	graph_file_path = paste0(demo, ' avg_dist_distribution_hist.png')
+	add_graph_to_graph_file_manifest(graph_file_path)
+	ggsave(graph_file_path)
+	return(hist)
+}
+
+plot_original_optimized_demographic_hists <- function(config_residence_df, orig_residence_df, demographic_list = DEMOGRAPHIC_LIST, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
+	flag_strs <- make_flag_strs(driving_flag, log_flag)
+
+	#select the relevant optimized runs
+	orig_num_polls <- unique(orig_residence_df$num_polls)
+	config_num_polls <- unique(config_residence_df$num_polls)
+	optimization_num_polls<- max(intersect(orig_num_polls, config_num_polls))
+	optimized_run_dfs <- config_residence_df[num_polls == optimization_num_polls]
+	orig_and_optimal <- rbind(orig_residence_df, optimized_run_dfs)
+	descriptor_list <- unique(orig_and_optimal$descriptor)
+
+	demographic_hists = lapply(demographic_list, function(x)plot_demographic_hist(orig_and_optimal, x, flag_strs))
+}
+
+
 #plot of population densities by block, ordered by density
 plot_population_densities <- function(density_df){
-	ggplot(density_df[population != 0, ]) + 
-	   geom_point(aes(reorder(id_orig, pop_density_km), y = pop_density_km)) +
-	   labs(title = 'Block group population density / km', 'Density ordered Census Blocks', y = 'Population density / km') +
+	ggplot(density_df[population != 0, ]) +
+	   geom_point(aes(reorder(id_orig, pop_density_km), y = pop_density_km), color = TABLEAU_COLORS[1], alpha = 0.7) +
+	   labs(title = 'Census Block Population Density', x = 'Density ordered Census Blocks', y = 'Population / km sq') +
+	   theme_tableau() +
 	   theme(
 		axis.text.x = element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x = element_blank())
 	graph_file_path = 'population_density.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
 	ggsave(graph_file_path)
@@ -574,11 +626,12 @@ plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, log_f
 		y_str = paste0(paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'))
 
         ggplot(trimmed[descriptor == descriptor_str & demographic %in% demo_list, ] , aes(x = pop_density_km, y = demo_avg_dist, group = demographic, color = demographic)) +
-            geom_point(alpha = .7, aes(size = demo_pop )) + geom_smooth(method=lm, mapping = aes(weight = demo_pop), se= F) + scale_x_continuous(trans = 'log10') + scale_y_log10(limits = y_bounds) + 
-            labs(title = title_str, 
-                subtitle = gsub("_", " ", paste(county, descriptor_str)), y = y_str , 
-				x = "Block group population density (people/ km^2)", size = 'Population', color = 'Demographic') + 
-				scale_color_discrete(labels = demographic_legend_dict[demo_list])
+            geom_point(alpha = .7, aes(size = demo_pop )) + geom_smooth(method=lm, mapping = aes(weight = demo_pop), se= FALSE) + scale_x_continuous(trans = 'log10') + scale_y_log10(limits = y_bounds) +
+            labs(title = title_str,
+                subtitle = gsub("_", " ", paste(county, descriptor_str)), y = y_str ,
+				x = "Block group population density (people/ km^2)", size = 'Population', color = 'Demographic') +
+				scale_color_tableau(labels = demographic_legend_dict[demo_list]) +
+				theme_tableau()
 		graph_file_path = paste(county, descriptor_str, "avg distance.png")
 		add_graph_to_graph_file_manifest(graph_file_path)
 		ggsave(graph_file_path)

@@ -2,19 +2,28 @@
 A command line utility to read in legacy (pre-db) CSVs into the database from past model runs.
 '''
 
+import json
 from typing import List, Tuple
+from dataclasses import dataclass, asdict
 
 import argparse
 from glob import glob
 import os
 import sys
 
-from python.database import models, query, imports
+from python.database import models, imports
+from python.database.query import Query
 from python.database.imports import print_all_import_results
 
+from python.solver import constants
 from python.solver.model_config import PollingModelConfig
-from python.utils import build_precinct_summary_file_path, build_residence_summary_file_path, build_results_file_path, build_y_ede_summary_file_path, current_time_utc
-from python.utils.constants import RESULTS_BASE_DIR
+from python.utils import (
+    build_precinct_summary_file_path, build_residence_summary_file_path,
+    build_results_file_path, build_y_ede_summary_file_path, current_time_utc,
+    log_date_prefix,
+)
+from python.utils.environments import load_env
+from python.utils.directory_constants import DEFAULT_LOG_DIR, RESULTS_BASE_DIR
 
 MODEL_RUN_ID = 'model_run_id'
 
@@ -23,22 +32,22 @@ PRECINCT_DISTANCES_PATH = 'precinct_distances_path'
 RESIDENCE_DISTANCES_PATH = 'residence_distances_path'
 EDE_PATH = 'EDE_PATH'
 
-DEFAULT_LOG_DIR='logs'
 IMPORT_ERROR_LOG_FILE='import_errors.csv'
 
 def output_file_paths(config: PollingModelConfig) -> dict[str, str]:
     ''' Resturns a dictionary of paths to where the results file for a given ModelConfig instance can be found. '''
 
-    config_name = config.config_name
-    result_folder = os.path.join(RESULTS_BASE_DIR, config.config_set)
+    result_prefix = f'{config.config_set}.{config.config_name}'
+    folder_name = f'{config.location}_results'
+    result_folder = os.path.join(RESULTS_BASE_DIR, folder_name)
 
     if not os.path.exists(result_folder):
         raise FileNotFoundError(f'File {result_folder} not found')
 
-    result_file = build_results_file_path(result_folder, config_name)
-    precinct_summary_file = build_precinct_summary_file_path(result_folder, config_name)
-    residence_summary_file = build_residence_summary_file_path(result_folder, config_name)
-    y_ede_summary_file = build_y_ede_summary_file_path(result_folder, config_name)
+    result_file = build_results_file_path(result_folder, result_prefix)
+    precinct_summary_file = build_precinct_summary_file_path(result_folder, result_prefix)
+    residence_summary_file = build_residence_summary_file_path(result_folder, result_prefix)
+    y_ede_summary_file = build_y_ede_summary_file_path(result_folder, result_prefix)
 
     results = {
         RESULTS_PATH: result_file,
@@ -50,6 +59,7 @@ def output_file_paths(config: PollingModelConfig) -> dict[str, str]:
     return results
 
 def import_model_config(
+        query: Query,
         path: str,
         config_set_override: str=None,
         config_name_override: str=None,
@@ -75,6 +85,11 @@ def main(args: argparse.Namespace):
     ''' Main entrypoint '''
 
     logdir = args.logdir
+    os.makedirs(logdir, exist_ok=True)
+    print(f'Writing logs to dir: {logdir}')
+
+    environment = load_env(args.environment)
+
 
     glob_paths = [ glob(item) for item in args.configs ]
     config_paths: List[str] = [ item for sublist in glob_paths for item in sublist ]
@@ -82,37 +97,70 @@ def main(args: argparse.Namespace):
     num_files = len(config_paths)
 
     print('------------------------------------------')
-    print(f'Importing {num_files} file(s)\n')
+    print(f'Importing {num_files} file(s) into {environment}\n')
 
 
     results = []
 
     for i, config_path in enumerate(config_paths):
+        query = Query(environment)
+
         success = True
         print(f'Loading [{i+1}/{num_files}] {config_path}')
 
-        (model_config, file_paths) = import_model_config(config_path)
+        (model_config, file_paths) = import_model_config(query, config_path)
         config_set = model_config.config_set
         config_name = model_config.config_name
+
+
+        item_dict = {k: v for k, v in model_config.__dict__.items() if k != '_sa_instance_state'}
+
+        # Serialize to JSON
+        print(json.dumps(item_dict, indent=4))
+
+        if model_config.driving:
+            driving_distance_set = query.find_driving_distance_set(
+                census_year=model_config.census_year,
+                map_source_date=constants.DEFAULT_MAP_SOURCE_DATE,
+                location=model_config.location,
+            )
+
+            if not driving_distance_set:
+                raise ValueError(f'No driving distance set found for census year {model_config.census_year}, map source date {constants.DEFAULT_MAP_SOURCE_DATE}, and location {model_config.location}')
+
+            driving_distance_set_id = driving_distance_set.id
+        else:
+            driving_distance_set_id = None
 
         model_config = query.find_or_create_model_config(model_config)
         print(f'Importing result files from {model_config}')
 
+
         # TODO Fix the hard coding
-        model_run = query.create_model_run(model_config.id, 'chad', '', current_time_utc())
+        model_run = query.create_model_run(
+            model_config_id=model_config.id,
+            distance_data_set_id=driving_distance_set_id,
+            username='chad',
+            commit_hash='',
+            created_at=current_time_utc(),
+        )
         print(f'Created {model_run}')
 
         # Import each csv file for this run
         edes_import_result = imports.import_edes(
+            environment,
             config_set, config_name, model_run.id, csv_path=file_paths[EDE_PATH], log=True,
         )
         results_import_result = imports.import_results(
+            environment,
             config_set, config_name, model_run.id, csv_path=file_paths[RESULTS_PATH], log=True,
         )
         precinct_distances_import_result = imports.import_precinct_distances(
+            environment,
             config_set, config_name, model_run.id, csv_path=file_paths[PRECINCT_DISTANCES_PATH], log=True,
         )
         residence_distances_import_result = imports.import_residence_distances(
+            environment,
             config_set, config_name, model_run.id, csv_path=file_paths[RESIDENCE_DISTANCES_PATH], log=True,
         )
 
@@ -135,6 +183,7 @@ def main(args: argparse.Namespace):
         query.commit()
 
 
+
     success_results = [ result for result in results if result.success ]
     failed_results = [ result for result in results if not result.success ]
 
@@ -148,10 +197,7 @@ def main(args: argparse.Namespace):
     print_all_import_results(failed_results)
 
     # Write any errors to the log dir
-    log_path = os.path.join(os.getcwd(), logdir)
-    if not os.path.exists(log_path):
-        os.makedirs(logdir)
-    output_path = os.path.join(log_path, IMPORT_ERROR_LOG_FILE)
+    output_path = os.path.join(logdir, f'{log_date_prefix()}_{IMPORT_ERROR_LOG_FILE}')
     print_all_import_results(failed_results, output_path=output_path)
 
     if num_failures:
@@ -166,10 +212,17 @@ if __name__ == '__main__':
 Examples:
     To import all model data from the config set named Chesterfield_County_VA_potential_configs:
 
-        python ./db_import_cli.py ./Chesterfield_County_VA_potential_configs/*yaml
+        python run.py db_import_cli ./Chesterfield_County_VA_potential_configs/*yaml
         '''
     )
     parser.add_argument('configs', nargs='+', help='One or more yaml configuration files to run.')
-    parser.add_argument('-l', '--logdir', default=DEFAULT_LOG_DIR, type=str, help='The directory to erros files to ')
+    parser.add_argument('-e', '--environment', type=str, help='The environment to use')
+    parser.add_argument(
+        '-L',
+        '--logdir',
+        type=str,
+        default=DEFAULT_LOG_DIR,
+        help='The directory to output log files to',
+    )
 
     main(parser.parse_args())
