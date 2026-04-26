@@ -109,7 +109,7 @@ global_color_bounds <- distance_bounds(all_prepped_output)
 #split results by config_name 
 #Merge with geography at block level
 orig_list_block_prepped <-prepare_outputs_for_precinct_maps(orig_output_df_list$result)
-potential_list_block_prepped <-prepare_outputs_for_precinct_maps(orig_output_df_list$result)
+potential_list_block_prepped <-prepare_outputs_for_precinct_maps(potential_output_df_list$result)
 #########
 #Set up regressions
 #########

@@ -27,11 +27,7 @@ IDEAL_POLL_NUMBER  = 15 #the optimal number of polls desired for this county
 #dictionary of custom descriptors
 #keys: automatatically generated descriptor values to change
 #values: the desired descriptor values
-<<<<<<< HEAD
 DESCRIPTOR_DICT_ORIG <- c('year_2020' = '2020', 'year_2022' = '2022', 'year_2024' = '2024')
-=======
-DESCRIPTOR_DICT_ORIG <- NULL 
->>>>>>> main
 DESCRIPTOR_DICT_POTENTIAL <- NULL
 
 #If no changes desired, set 
@@ -63,9 +59,6 @@ BILLING = PROJECT
 #Connect to database if needed
 #returns NULL if READ_FROM_CSV = TRUE
 POLLING_CON <- define_connection()
-<<<<<<< HEAD
-=======
 
 #constants for how graphs and maps should be made
 LINEAR_COLOR_GRADIENT = TRUE #should the maps have a log or linear color scale
->>>>>>> main
