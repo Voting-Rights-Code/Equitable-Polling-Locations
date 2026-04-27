@@ -12,6 +12,8 @@ TABBLOCK_FILE_SUFFIX, BLOCK_GROUP_FILE_SUFFIX,
 BLOCK_GEO, BLOCK_GROUP_GEO, P3_NAME, P4_NAME
 )
 try:
+    import sys
+    sys.path.insert(0, str(Path(__file__).parents[2]))
     from authentication_files.census_key import census_key
 except:
     census_key = None
