@@ -430,6 +430,9 @@ make_precinct_map <- function(df_sf){
 	add_graph_to_graph_file_manifest(graph_file_path)
 	ggsave(graph_file_path, plotted)
 
+	shp_file_path = paste0(location, '_','precinct','_',descriptor,'.shp')
+	add_graph_to_graph_file_manifest(shp_file_path)
+	st_write(precincts_sf_valid, shp_file_path, delete_layer = TRUE)
 }
 
 ###################
