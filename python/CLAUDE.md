@@ -51,6 +51,5 @@ When modifying existing code, update the associated tests before or alongside th
 
 ## Contributing
 
-- PRs require 2 maintainer reviews; lint before merging
 - Include tests for new features
 - Communicate early about work in progress
