@@ -220,6 +220,11 @@ datasets/census
 !datasets/driving/testing/*
 !datasets/polling/testing/*
 !datasets/results/testing_results/*
+!python/tests/test_kp_factor.csv
+!python/tests/test_results.csv
+!python/tests/test_results_bad_int.csv
+!python/tests/test_residence_distances.csv
+!python/tests/test_residence_distances_bad_avg_dist.csv
 
 
 .claude/settings.local.json

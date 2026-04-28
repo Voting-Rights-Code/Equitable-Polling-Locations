@@ -2,6 +2,8 @@
 
 # pylint: disable=redefined-outer-name,line-too-long
 
+import os
+
 import pandas as pd
 import pytest
 
@@ -12,69 +14,35 @@ from python.solver.model_config import PollingModelConfig
 from .constants import (
   TESTING_CONFIG_BASE, TESTING_CONFIG_KEEP, TESTING_CONFIG_EXCLUDE, TESTING_CONFIG_PENALTY,
   TESTING_CONFIG_PENALTY_UNUSED, TESTING_CONFIG_DRIVING, TESTING_POTENTIAL_LOCATIONS_PATH, MAP_SOURCE_DATE,
+  TESTS_DIR,
 )
 
 
 # Fixtures for import tests
 #
-# These CSVs are generated into a session-scoped tmp dir rather than committed
-# to the repo. The project .gitignore blocks `*.csv` outside an allowlist of
-# `datasets/.../testing/*` paths, so committing fixtures under `python/tests/`
-# requires fighting gitignore. Generating them in code keeps the tests
-# reproducible on every platform (no untracked-file dependency) and matches
-# the pattern used by the other tests in imports_test.py.
+# These CSVs are committed under python/tests/ (with explicit `.gitignore`
+# negations) so they can be opened and hand-edited for manual debugging.
+# Treat them as test data: changes affect the assertions in imports_test.py.
 
 @pytest.fixture(scope='session')
-def test_results_path(tmp_path_factory):
-    ''' Path to a generated valid results CSV with the columns load_model_csv expects. '''
-    csv_path = tmp_path_factory.mktemp('imports_fixtures') / 'test_results.csv'
-    pd.DataFrame({
-        'id_orig': ['orig_1', 'orig_2', 'orig_3', 'orig_4'],
-        'id_dest': ['dest_1', 'dest_2', 'dest_3', 'dest_4'],
-        'distance_m': [100.5, 250.0, 1234.75, 50.25],
-        'population': [10, 20, 30, 40],
-        'matching': [1, 0, 1, 0],
-    }).to_csv(csv_path, index=False)
-    return str(csv_path)
+def test_results_path():
+    ''' Path to the committed valid results CSV. '''
+    return os.path.join(TESTS_DIR, 'test_results.csv')
 
 @pytest.fixture(scope='session')
-def test_results_bad_int_path(tmp_path_factory):
-    ''' Path to a generated results CSV with float values in the integer matching column. '''
-    csv_path = tmp_path_factory.mktemp('imports_fixtures') / 'test_results_bad_int.csv'
-    pd.DataFrame({
-        'id_orig': ['orig_1', 'orig_2', 'orig_3', 'orig_4'],
-        'id_dest': ['dest_1', 'dest_2', 'dest_3', 'dest_4'],
-        'distance_m': [100.5, 250.0, 1234.75, 50.25],
-        'population': [10, 20, 30, 40],
-        'matching': [1.0, 1.0, 1.0, 1.0],
-    }).to_csv(csv_path, index=False)
-    return str(csv_path)
+def test_results_bad_int_path():
+    ''' Path to the committed results CSV with float values in the integer matching column. '''
+    return os.path.join(TESTS_DIR, 'test_results_bad_int.csv')
 
 @pytest.fixture(scope='session')
-def test_residence_distances_path(tmp_path_factory):
-    ''' Path to a generated valid residence distances CSV. '''
-    csv_path = tmp_path_factory.mktemp('imports_fixtures') / 'test_residence_distances.csv'
-    pd.DataFrame({
-        'id_orig': ['orig_1', 'orig_2', 'orig_3', 'orig_4'],
-        'demographic': ['white', 'black', 'hispanic', 'asian'],
-        'weighted_dist': [12.5, 22.0, 18.75, 9.25],
-        'demo_pop': [100, 200, 150, 75],
-        'avg_dist': [125.0, 110.0, 125.0, 123.33],
-    }).to_csv(csv_path, index=False)
-    return str(csv_path)
+def test_residence_distances_path():
+    ''' Path to the committed valid residence distances CSV. '''
+    return os.path.join(TESTS_DIR, 'test_residence_distances.csv')
 
 @pytest.fixture(scope='session')
-def test_residence_distances_bad_avg_dist_path(tmp_path_factory):
-    ''' Path to a generated residence distances CSV with null avg_dist on row index 1. '''
-    csv_path = tmp_path_factory.mktemp('imports_fixtures') / 'test_residence_distances_bad_avg_dist.csv'
-    pd.DataFrame({
-        'id_orig': ['orig_1', 'orig_2', 'orig_3', 'orig_4'],
-        'demographic': ['white', 'black', 'hispanic', 'asian'],
-        'weighted_dist': [12.5, 22.0, 18.75, 9.25],
-        'demo_pop': [100, 200, 150, 75],
-        'avg_dist': [125.0, None, 125.0, 123.33],
-    }).to_csv(csv_path, index=False)
-    return str(csv_path)
+def test_residence_distances_bad_avg_dist_path():
+    ''' Path to the committed residence distances CSV with a null avg_dist row. '''
+    return os.path.join(TESTS_DIR, 'test_residence_distances_bad_avg_dist.csv')
 
 def generate_penalties_df(config: PollingModelConfig) -> pd.DataFrame:
     model_run = ModelRun(config)
