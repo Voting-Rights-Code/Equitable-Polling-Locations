@@ -206,6 +206,14 @@ docs/superpowers/
 #datasets to ignore
 datasets/census
 
+# E2E test session outputs (session-namespaced dirs created by
+# python/tests/e2e/conftest.py and the cleanup_results fixtures, retained
+# on disk when pytest is run with --keep-e2e-outputs).
+datasets/polling/e2e_*/
+datasets/driving/e2e_*/
+datasets/configs/e2e_*/
+datasets/results/e2e_*_results/
+
 #Want to avoid keeping config files locally
 #and put them in the database
 *.yaml

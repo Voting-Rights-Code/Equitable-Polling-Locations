@@ -8,6 +8,7 @@ the KP optimisation solver to the four output CSV files written per run.
 
 import os
 import shutil
+import sys
 
 import pandas as pd
 import pytest
@@ -64,18 +65,24 @@ def _result_files(session_id: str, config_suffix: str) -> dict[str, str]:
 
 
 @pytest.fixture(scope='module', autouse=True)
-def cleanup_results(e2e_session_id):
+def cleanup_results(e2e_session_id, pytestconfig):
     """Remove the session's result directory after all tests in this module.
 
     Args:
         e2e_session_id: The session identifier fixture.
+        pytestconfig: The pytest config object, used to read
+            ``--keep-e2e-outputs``.
 
     Yields:
         None
     """
     yield
     rdir = _result_dir(e2e_session_id)
-    if os.path.isdir(rdir):
+    if not os.path.isdir(rdir):
+        return
+    if pytestconfig.getoption('--keep-e2e-outputs'):
+        print(f'[--keep-e2e-outputs] retained: {rdir}', file=sys.stderr)
+    else:
         shutil.rmtree(rdir)
 
 

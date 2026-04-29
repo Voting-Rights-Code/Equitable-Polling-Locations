@@ -181,7 +181,7 @@ def e2e_session_id() -> str:
 
 
 @pytest.fixture(scope='session')
-def e2e_test_data(e2e_session_id):
+def e2e_test_data(e2e_session_id, pytestconfig):
     """Create isolated test data directories and files for the e2e session.
 
     Copies source testing CSVs into location-namespaced subdirectories, creates
@@ -191,6 +191,11 @@ def e2e_test_data(e2e_session_id):
     Also creates an autogen template (``.yaml_template``) that varies over
     ``year`` with both 2020 and 2022, and an explicit driving/log/penalized_sites
     block.
+
+    Args:
+        e2e_session_id: The session identifier fixture.
+        pytestconfig: The pytest config object, used to read
+            ``--keep-e2e-outputs``.
 
     Yields:
         dict: A mapping of path keys to absolute paths:
@@ -210,7 +215,9 @@ def e2e_test_data(e2e_session_id):
 
     Cleanup:
         Removes the three created directories and all their contents after the
-        session completes, regardless of test outcome.
+        session completes, regardless of test outcome. Skipped when
+        ``--keep-e2e-outputs`` is passed; in that case the retained paths are
+        printed to stderr.
     """
     sid = e2e_session_id
 
@@ -324,9 +331,14 @@ def e2e_test_data(e2e_session_id):
         'autogen_template': autogen_template_path,
     }
 
-    # Teardown — remove the directories unconditionally.
+    # Teardown — remove the directories unless --keep-e2e-outputs was passed.
+    keep_outputs = pytestconfig.getoption('--keep-e2e-outputs')
     for dirpath in (polling_subdir, driving_subdir, config_subdir):
-        if os.path.isdir(dirpath):
+        if not os.path.isdir(dirpath):
+            continue
+        if keep_outputs:
+            print(f'[--keep-e2e-outputs] retained: {dirpath}', file=sys.stderr)
+        else:
             shutil.rmtree(dirpath)
 
 

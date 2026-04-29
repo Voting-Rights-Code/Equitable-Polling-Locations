@@ -535,6 +535,43 @@ pytest python/tests/e2e/
 pytest python/tests/e2e/ -m e2e_csv
 ```
 
+#### Inspecting E2E Outputs
+
+By default the E2E suite cleans up every file and directory it generates after the session finishes. Pass `--keep-e2e-outputs` to skip the filesystem cleanup and inspect the inputs and outputs of each run — useful when a test fails and you want to look at what the solver actually produced, or when you want to reproduce a single run by hand.
+
+```bash
+# Host
+python run.py e2e_tests -m e2e_csv --keep-e2e-outputs
+
+# Dev container or local conda
+pytest python/tests/e2e/ -m e2e_csv --keep-e2e-outputs
+```
+
+Each session is namespaced by a random ID `e2e_<6 hex chars>` and writes to four directories under `datasets/`:
+
+| Path | Contents |
+| --- | --- |
+| `datasets/polling/e2e_<sid>/` | Inputs the run consumed: copied potential locations CSV plus 8 distance CSV variants |
+| `datasets/driving/e2e_<sid>/` | Source driving distances CSV |
+| `datasets/configs/e2e_<sid>/` | 8 generated YAML configs plus 1 autogen template (the inputs each test fed into the solver) |
+| `datasets/results/e2e_<sid>_results/` | **Model outputs** — `_results.csv`, `_precinct_distances.csv`, `_residence_distances.csv`, `_edes.csv` for each variant |
+
+The `_results/` directory is usually the most useful for debugging. To reproduce a single run by hand:
+
+```bash
+python run.py model_run_cli -c 1 -l ./datasets/configs/e2e_<sid>/e2e_<sid>_config_basic.yaml
+```
+
+The four directories are gitignored (see the `e2e_*` rules in `.gitignore`), so retained outputs will not show up in `git status` or be accidentally committed.
+
+**Cleanup when you're done:**
+
+```bash
+rm -rf datasets/polling/e2e_* datasets/driving/e2e_* datasets/configs/e2e_* datasets/results/e2e_*_results
+```
+
+The flag does **not** affect database cleanup — the `e2e_db` session still purges its BigQuery rows at start and end as described in [Setting Up DB Tests](#setting-up-db-tests) below.
+
 #### Setting Up DB Tests
 
 To run the DB E2E tests:

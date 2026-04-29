@@ -18,6 +18,20 @@ from .constants import (
 )
 
 
+def pytest_addoption(parser):
+    ''' Register pytest CLI options shared across the test tree. '''
+    parser.addoption(
+        '--keep-e2e-outputs',
+        action='store_true',
+        default=False,
+        help=(
+            'Keep e2e session-namespaced data and result directories '
+            '(polling/driving/configs/results) after teardown for manual inspection. '
+            'Does not affect database cleanup.'
+        ),
+    )
+
+
 # Fixtures for import tests
 #
 # These CSVs are committed under python/tests/ (with explicit `.gitignore`

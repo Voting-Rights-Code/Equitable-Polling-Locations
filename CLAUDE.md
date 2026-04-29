@@ -57,6 +57,8 @@ pytest python/tests/e2e/                   # e2e only
 pytest python/tests/e2e/ -m e2e_csv        # CSV only
 ```
 
+Append `--keep-e2e-outputs` to any e2e command to retain session outputs under `datasets/{polling,driving,configs,results}/e2e_*` for manual inspection (gitignored). Cleanup: `rm -rf datasets/polling/e2e_* datasets/driving/e2e_* datasets/configs/e2e_* datasets/results/e2e_*_results`. See "Inspecting E2E Outputs" in CONTRIBUTING.md for full details.
+
 **Lint:**
 ```bash
 # Host (via Docker)
