@@ -50,7 +50,7 @@ CONFIG_VARIANTS = {
     'config_penalty': {'penalized_sites': ['College Campus - Potential', 'Fire Station - Potential']},
     'config_low_beta': {'beta': -1},
     'config_capacity': {'capacity': 3},
-    'config_constrained': {'maxpctnew': 0.5, 'minpctold': 0.75},
+    'config_new_locations': {'maxpctnew': 0.5, 'minpctold': 0.75},
 }
 
 # ---------------------------------------------------------------------------

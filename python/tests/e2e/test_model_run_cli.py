@@ -151,17 +151,17 @@ class TestModelRunCliBasic:
             )
 
     def test_concurrent_runs(self, e2e_test_data):
-        """config_constrained runs successfully with -c 2.
+        """config_new_locations runs successfully with -c 2.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
         """
         sid = e2e_test_data['sid']
-        config_path = e2e_test_data['configs']['config_constrained']
+        config_path = e2e_test_data['configs']['config_new_locations']
 
         run_cli(MODULE, config_path, '-c', '2')
 
-        files = _result_files(sid, 'config_constrained')
+        files = _result_files(sid, 'config_new_locations')
         assert os.path.isfile(files['results']), (
             f"Results file missing after concurrent run: {files['results']}"
         )
