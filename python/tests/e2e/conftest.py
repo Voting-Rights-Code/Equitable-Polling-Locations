@@ -428,146 +428,17 @@ def test_environment():
     yield env
 
 
-@pytest.fixture(scope='session')
-def clean_test_data(test_environment):
-    """Delete all e2e-prefixed rows from the DB before (and after) the session.
-
-    Deletion order respects foreign-key constraints by removing children before
-    parents. No cascade deletes are assumed on the database side.
-
-    The fixture runs cleanup both at setup (to clear stale data from previous
-    interrupted runs) and at teardown (to leave the DB clean after the session).
-
-    Args:
-        test_environment: The loaded test :class:`~python.utils.environments.Environment`.
-
-    Yields:
-        None
-    """
-    def _do_cleanup():
-        # Import lazily to avoid pulling in DB dependencies unless this fixture
-        # is actually requested.
-        from python.database.query import Query  # pylint: disable=import-outside-toplevel
-        from python.database import models  # pylint: disable=import-outside-toplevel
-
-        query = Query(test_environment)
-        session = query.get_session()
-
-        # --- ModelConfig / ModelRun / result tables --------------------------
-
-        config_ids = [
-            row.id for row in
-            session.query(models.ModelConfig.id)
-            .filter(models.ModelConfig.config_set.like('e2e_%'))
-            .all()
-        ]
-
-        if config_ids:
-            run_ids = [
-                row.id for row in
-                session.query(models.ModelRun.id)
-                .filter(models.ModelRun.model_config_id.in_(config_ids))
-                .all()
-            ]
-
-            if run_ids:
-                session.query(models.Result).filter(
-                    models.Result.model_run_id.in_(run_ids)
-                ).delete(synchronize_session=False)
-
-                session.query(models.EDES).filter(
-                    models.EDES.model_run_id.in_(run_ids)
-                ).delete(synchronize_session=False)
-
-                session.query(models.PrecintDistance).filter(
-                    models.PrecintDistance.model_run_id.in_(run_ids)
-                ).delete(synchronize_session=False)
-
-                session.query(models.ResidenceDistance).filter(
-                    models.ResidenceDistance.model_run_id.in_(run_ids)
-                ).delete(synchronize_session=False)
-
-                session.query(models.ModelRun).filter(
-                    models.ModelRun.model_config_id.in_(config_ids)
-                ).delete(synchronize_session=False)
-
-            session.query(models.ModelConfig).filter(
-                models.ModelConfig.config_set.like('e2e_%')
-            ).delete(synchronize_session=False)
-
-        # --- DistanceDataSet / DistanceData ----------------------------------
-
-        distance_set_ids = [
-            row.id for row in
-            session.query(models.DistanceDataSet.id)
-            .filter(models.DistanceDataSet.location.like('e2e_%'))
-            .all()
-        ]
-
-        if distance_set_ids:
-            session.query(models.DistanceData).filter(
-                models.DistanceData.distance_data_set_id.in_(distance_set_ids)
-            ).delete(synchronize_session=False)
-
-            session.query(models.DistanceDataSet).filter(
-                models.DistanceDataSet.location.like('e2e_%')
-            ).delete(synchronize_session=False)
-
-        # --- DrivingDistancesSet / DrivingDistance ---------------------------
-
-        driving_set_ids = [
-            row.id for row in
-            session.query(models.DrivingDistancesSet.id)
-            .filter(models.DrivingDistancesSet.location.like('e2e_%'))
-            .all()
-        ]
-
-        if driving_set_ids:
-            session.query(models.DrivingDistance).filter(
-                models.DrivingDistance.driving_distance_set_id.in_(driving_set_ids)
-            ).delete(synchronize_session=False)
-
-            session.query(models.DrivingDistancesSet).filter(
-                models.DrivingDistancesSet.location.like('e2e_%')
-            ).delete(synchronize_session=False)
-
-        # --- PotentialLocationsSet / PotentialLocations ----------------------
-
-        pl_set_ids = [
-            row.id for row in
-            session.query(models.PotentialLocationsSet.id)
-            .filter(models.PotentialLocationsSet.location.like('e2e_%'))
-            .all()
-        ]
-
-        if pl_set_ids:
-            session.query(models.PotentialLocations).filter(
-                models.PotentialLocations.potential_locations_set_id.in_(pl_set_ids)
-            ).delete(synchronize_session=False)
-
-            session.query(models.PotentialLocationsSet).filter(
-                models.PotentialLocationsSet.location.like('e2e_%')
-            ).delete(synchronize_session=False)
-
-        session.commit()
-
-    _do_cleanup()
-    yield
-    _do_cleanup()
-
-
 # ---------------------------------------------------------------------------
 # Shared DB import fixtures
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope='session')
-def imported_potential_locations(e2e_test_data, clean_test_data, test_environment):
+def imported_potential_locations(e2e_test_data, test_environment):
     """Import potential locations for the e2e session into the DB.
 
     Args:
         e2e_test_data: Session-scoped test data dict from :func:`e2e_test_data`.
-        clean_test_data: Ensures DB is clean before and after the session.
         test_environment: The loaded test environment.
 
     Returns:
@@ -578,12 +449,11 @@ def imported_potential_locations(e2e_test_data, clean_test_data, test_environmen
 
 
 @pytest.fixture(scope='session')
-def imported_driving_distances(e2e_test_data, clean_test_data, test_environment):
+def imported_driving_distances(e2e_test_data, test_environment):
     """Import driving distances for the e2e session into the DB.
 
     Args:
         e2e_test_data: Session-scoped test data dict from :func:`e2e_test_data`.
-        clean_test_data: Ensures DB is clean before and after the session.
         test_environment: The loaded test environment.
 
     Returns:
@@ -596,7 +466,6 @@ def imported_driving_distances(e2e_test_data, clean_test_data, test_environment)
 @pytest.fixture(scope='session')
 def imported_distance_data_all(
     e2e_test_data,
-    clean_test_data,
     test_environment,
     imported_potential_locations,
     imported_driving_distances,
@@ -618,7 +487,6 @@ def imported_distance_data_all(
 
     Args:
         e2e_test_data: Session-scoped test data dict from :func:`e2e_test_data`.
-        clean_test_data: Ensures DB is clean before and after the session.
         test_environment: The loaded test environment.
         imported_potential_locations: Ensures potential locations are already in DB.
         imported_driving_distances: Ensures driving distances are already in DB.
@@ -679,12 +547,11 @@ def imported_distance_data_all(
 
 
 @pytest.fixture(scope='session')
-def imported_configs(e2e_test_data, clean_test_data, test_environment):
+def imported_configs(e2e_test_data, test_environment):
     """Import all variant config YAML files for the e2e session into the DB.
 
     Args:
         e2e_test_data: Session-scoped test data dict from :func:`e2e_test_data`.
-        clean_test_data: Ensures DB is clean before and after the session.
         test_environment: The loaded test environment.
 
     Returns:

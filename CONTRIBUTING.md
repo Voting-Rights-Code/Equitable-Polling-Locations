@@ -580,7 +580,7 @@ To run the DB E2E tests:
 2. Ensure GCP Application Default Credentials are set up **inside the container** — see [Database Setup](#database-setup-optional) for the in-container `gcloud auth application-default login --no-launch-browser` flow. Credentials persist in the `gcloud-config` docker volume.
 3. Run via `python run.py e2e_tests -m e2e_db` — whether invoked from the host or from inside the container, the tests pick up credentials from the volume automatically.
 
-DB tests clean up after themselves by deleting all `e2e_`-prefixed data from the test dataset at both the start and end of each session.
+DB tests do not auto-clean their data — `e2e_`-prefixed rows accumulate in the test dataset across runs so they're available for manual inspection and feature-development work. Run an on-demand purge when the dataset gets bulky (no script ships with the repo today; a `bq query` against `tests_chad` filtered by `WHERE config_set LIKE 'e2e_%'` is the simplest interim approach).
 
 ### Test-Driven Development
 
