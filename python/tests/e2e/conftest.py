@@ -134,14 +134,23 @@ def pytest_collection_modifyitems(config, items):  # pylint: disable=unused-argu
 def _apply_log_transform(src_path: str, dest_path: str) -> None:
     """Read a distance CSV and write a copy with log-transformed distance_m values.
 
-    Values that are zero or negative are left unchanged (log is undefined there).
-
     Args:
         src_path: Path to the source CSV file containing a ``distance_m`` column.
         dest_path: Path where the log-transformed CSV will be written.
+
+    Raises:
+        ValueError: If any ``distance_m`` value is non-positive. ``log`` is
+            undefined there, and a non-positive distance indicates upstream
+            data corruption — surface it rather than silently mask.
     """
     df = pd.read_csv(src_path)
-    df['distance_m'] = df['distance_m'].apply(lambda x: math.log(x) if x > 0 else x)
+    bad_count = int((df['distance_m'] <= 0).sum())
+    if bad_count > 0:
+        raise ValueError(
+            f"{bad_count} rows in {src_path} have distance_m <= 0; "
+            f"log transform is undefined."
+        )
+    df['distance_m'] = df['distance_m'].apply(math.log)
     df.to_csv(dest_path, index=False)
 
 
