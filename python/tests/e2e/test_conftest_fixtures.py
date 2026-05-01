@@ -119,15 +119,10 @@ class TestE2eTestDataContent:
         assert 'distance_m' in df.columns
 
     def test_log_transform_applied_to_distances(self, e2e_test_data):
-        """Log-transformed distances must differ from the linear source distances."""
+        """Log has no fixed points: every row's distance_m differs from the linear source."""
         src_df = pd.read_csv(e2e_test_data['distances'])
         log_df = pd.read_csv(e2e_test_data['distances_log'])
-        # At least some values should differ after log transformation.
-        positive_mask = src_df['distance_m'] > 0
-        if positive_mask.any():
-            assert not src_df.loc[positive_mask, 'distance_m'].equals(
-                log_df.loc[positive_mask, 'distance_m']
-            )
+        assert (src_df['distance_m'] != log_df['distance_m']).all()
 
     def test_config_set_matches_session_id(self, e2e_test_data):
         """Every generated config YAML must have config_set equal to the session ID."""
