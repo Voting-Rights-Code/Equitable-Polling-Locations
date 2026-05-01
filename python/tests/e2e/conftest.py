@@ -88,42 +88,79 @@ def run_cli(script_module: str, *args, timeout: int = 600) -> subprocess.Complet
 # ---------------------------------------------------------------------------
 
 
+def _db_config_status() -> tuple[bool, str]:
+    """Check whether settings.yaml is configured for DB e2e tests.
+
+    Returns:
+        A tuple ``(ok, reason)``. ``ok`` is True when settings.yaml exists
+        and has a ``test`` entry; False otherwise. ``reason`` is a short
+        human-readable explanation suitable for inclusion in error or
+        warning messages.
+    """
+    if not os.path.isfile(SETTINGS_PATH):
+        return False, f'settings.yaml is missing at {SETTINGS_PATH}'
+    with open(SETTINGS_PATH, 'r', encoding='utf-8') as fh:
+        all_configs: dict = yaml.safe_load(fh) or {}
+    if 'test' not in all_configs:
+        return False, 'settings.yaml has no \'test\' environment entry'
+    return True, 'settings.yaml has a \'test\' entry'
+
+
 @pytest.hookimpl(trylast=True)
-def pytest_collection_modifyitems(config, items):  # pylint: disable=unused-argument
-    """Fail fast when the user explicitly targets DB tests but DB isn't configured.
+def pytest_collection_modifyitems(config, items):
+    """Surface missing DB configuration when DB e2e tests are collected.
 
-    If every collected test is marked ``e2e_db`` (e.g. ``pytest -m e2e_db`` or
-    pointing pytest at a DB-only test file), the user has opted into DB testing.
-    In that case a missing ``settings.yaml`` or missing ``test`` environment
-    should abort the session with a clear error — not silently skip every test,
-    which can read as "all green" to a casual observer.
+    Two branches:
 
-    In mixed runs (CSV + DB together, or CSV-only) the per-test
-    :func:`test_environment` fixture still handles skips gracefully so offline
-    development keeps working.
+    * **Strict exit:** if every collected test is marked ``e2e_db`` (e.g.
+      ``pytest -m e2e_db`` or pointing pytest at a DB-only test file), the
+      user has explicitly opted into DB testing. A missing ``settings.yaml``
+      or missing ``test`` entry aborts the session via :func:`pytest.exit`
+      so the failure is impossible to miss.
+    * **Visibility banner:** in mixed runs (CSV + DB together, or no marker)
+      the per-test :func:`test_environment` fixture still handles skips
+      gracefully — but pytest only shows ``S`` per skipped test in default
+      output, which can read as silent. If any ``e2e_db`` items are
+      collected and DB config is incomplete, emit a single prominent
+      banner at collection time so the user sees why those tests will skip
+      without needing ``-rs``.
     """
     if not items:
         return
-    if not all(item.get_closest_marker('e2e_db') for item in items):
-        return  # Mixed or non-DB run — fall through to the fixture's skip logic.
 
-    if not os.path.isfile(SETTINGS_PATH):
+    db_items = [item for item in items if item.get_closest_marker('e2e_db')]
+    if not db_items:
+        return  # No DB tests collected — nothing to warn about.
+
+    ok, reason = _db_config_status()
+    if ok:
+        return  # DB config is fine — no warning needed.
+
+    if len(db_items) == len(items):
         pytest.exit(
-            f"DB tests were explicitly selected, but settings.yaml is missing at "
-            f"{SETTINGS_PATH}. Configure a 'test' environment before running "
-            f"-m e2e_db. See CONTRIBUTING.md: Setting Up DB Tests.",
+            f'DB tests were explicitly selected, but {reason}. '
+            f'Configure a \'test\' environment before running -m e2e_db. '
+            f'See CONTRIBUTING.md: Setting Up DB Tests.',
             returncode=1,
         )
 
-    with open(SETTINGS_PATH, 'r', encoding='utf-8') as fh:
-        all_configs: dict = yaml.safe_load(fh) or {}
-
-    if 'test' not in all_configs:
-        pytest.exit(
-            "DB tests were explicitly selected, but settings.yaml has no 'test' "
-            "environment. See CONTRIBUTING.md: Setting Up DB Tests.",
-            returncode=1,
-        )
+    # Mixed run: emit a prominent banner. Tests still skip individually.
+    bar = '=' * 80
+    msg_lines = [
+        bar,
+        f'DB e2e tests will be skipped: {len(db_items)} tests marked e2e_db, '
+        f'but {reason}.',
+        'To enable: configure a \'test\' environment in settings.yaml. See',
+        'CONTRIBUTING.md → "Setting Up DB Tests".',
+        bar,
+    ]
+    reporter = config.pluginmanager.get_plugin('terminalreporter')
+    if reporter is not None:
+        for line in msg_lines:
+            reporter.write_line(line, bold=True, yellow=True)
+    else:
+        for line in msg_lines:
+            print(line, file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
