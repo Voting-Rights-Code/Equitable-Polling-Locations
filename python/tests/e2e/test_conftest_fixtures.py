@@ -124,6 +124,11 @@ class TestE2eTestDataContent:
         log_df = pd.read_csv(e2e_test_data['distances_log'])
         assert (src_df['distance_m'] != log_df['distance_m']).all()
 
+    def test_distance_m_values_are_positive(self, e2e_test_data):
+        """The linear distances CSV's distance_m column has no zero or negative values."""
+        df = pd.read_csv(e2e_test_data['distances'])
+        assert (df['distance_m'] > 0).all()
+
     def test_config_set_matches_session_id(self, e2e_test_data):
         """Every generated config YAML must have config_set equal to the session ID."""
         sid = e2e_test_data['sid']
