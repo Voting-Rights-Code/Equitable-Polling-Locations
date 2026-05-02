@@ -1,0 +1,48 @@
+# fields for the database
+config_set: 'Bartow_County_GA_change_locations_configs' #should match folder name
+config_name: 'Bartow_County_GA' #should match file name
+
+# Constants for the optimization function
+location: Bartow_County_GA
+census_year: '2020'
+year:
+    - '2025'
+bad_types:
+    - 'College Campus - Potential'
+    - 'Church - Potential'
+    - 'bg_centroid'
+beta: -2
+time_limit: 360000 #100 hours minutes
+limits_gap: 0.02
+capacity: 1.8
+fixed_capacity_site_number: null
+
+####Optional#####
+precincts_open: null
+max_min_mult: 5 #scalar >= 1
+maxpctnew: 0 # in interval [0,1]
+minpctold: 0 # in interval [0,1]
+driving: False
+log_distance: True
+penalized_sites: null
+
+###### For config generation ######
+field_to_vary: 'maxpctnew'
+new_range:
+    - 0.0589
+    - 0.1177
+    - 0.1765
+    - 0.2353
+    - 0.2942
+    - 0.3530
+    - 0.4118
+    - 0.4706
+    - 0.5295
+    - 0.5883
+    - 0.6471
+    - 0.7059
+    - 0.7648
+    - 0.8236
+    - 0.8824
+    - 0.9412
+    - 1
