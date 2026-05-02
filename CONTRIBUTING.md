@@ -152,7 +152,7 @@ Docker is the primary development method. All commands go through `run.py`, whic
 
 ```bash
 # Run the model locally
-python run.py model_run_cli -c NUM -l ./datasets/configs/<County>/config.yaml
+python run.py model_run_cli -c NUM -l ./datasets/configs/<config_set>/<config_name>.yaml
 
 # Run tests
 python run.py test
@@ -160,6 +160,8 @@ python run.py test
 # Run E2E tests
 python run.py e2e_tests
 ```
+
+The `-l` flag accepts a glob — e.g. `./datasets/configs/<config_set>/*.yaml` runs every config in the set.
 
 ### Dev Container — VS Code or Zed (recommended for editor-integrated development)
 
@@ -343,6 +345,8 @@ python
 
 ### Local Development with Conda (optional)
 
+> Skip this section if you're using Docker (the recommended path) — `run.py` already provides everything below inside the container.
+
 Conda can be set up for local development without Docker. This is useful for IDE integration and debugging.
 
 1. Install conda if you do not have it already
@@ -413,7 +417,7 @@ See [Database](docs/database.md) for full documentation on schema, imports, scra
 
 ### Python
 
-This project follows the [Google Python style guide](https://google.github.io/styleguide/pyguide.html), enforced via Pylint (see `.pylintrc`).
+This project follows the [Google Python style guide](https://google.github.io/styleguide/pyguide.html) for all new code. Pylint (see `.pylintrc`) is the project's linter and should be run before merges via `python run.py lint`.
 
 - **Indentation:** 4 spaces
 - **Line length:** 120 characters maximum
@@ -454,10 +458,9 @@ The R analysis scripts in `R/` follow the [tidyverse style guide](https://style.
 - **Data manipulation:** This project uses `data.table` — use `dt[i, j, by]` idiom, not dplyr verbs. Do not mix.
 - **Vectorize operations:** Avoid explicit loops for element-wise work. Use `vapply()` over `sapply()`. Use `seq_along(x)` / `seq_len(n)`, never `1:length(x)`.
 - **Linting:** Lint with `lintr::lint()`. Format with `styler::style_file()`.
-
 ### Commit Messages
 
-This project uses [Conventional Commits](https://www.conventionalcommits.org/):
+This project is adopting [Conventional Commits](https://www.conventionalcommits.org/). Examples:
 
 ```
 type(scope): description
@@ -473,7 +476,6 @@ fix(database): handle null driving distances in import
 test(e2e): add CSV workflow end-to-end tests
 docs(contributing): consolidate contributing guide
 ```
-
 
 ## Testing
 
@@ -737,7 +739,7 @@ When your change is ready:
 
 ### Code Review
 
-All pull requests require review by at least **two maintainers** before merge.
+All pull requests require review by a maintainer from Voting Rights Code before merge.
 
 - Request reviews early for larger features — don't wait until the entire feature is complete
 - If polishing a feature for merging is not what you're up for, that's okay. Tag it, and someone will get to it eventually

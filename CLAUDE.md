@@ -34,11 +34,11 @@ This project is designed to be developed inside the `.devcontainer/`. Full first
 **Run the model (local files):**
 ```bash
 # Host (via Docker)
-python run.py model_run_cli -c NUM -l ./datasets/configs/<County>/config.yaml
+python run.py model_run_cli -c NUM -l ./datasets/configs/<config_set>/<config_name>.yaml
 python run.py model_run_db_cli -e ENV -c NUM -l config_set/config_name
 
 # Inside dev container
-python -m python.scripts.model_run_cli -c NUM -l ./datasets/configs/<County>/config.yaml
+python -m python.scripts.model_run_cli -c NUM -l ./datasets/configs/<config_set>/<config_name>.yaml
 python -m python.scripts.model_run_db_cli -e ENV -c NUM -l config_set/config_name
 ```
 Add `-vv` for verbose logging.
