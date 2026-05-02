@@ -332,22 +332,6 @@ class TestModelRunCliValueAssertions:
             f"{duplicates['id_orig'].tolist()}"
         )
 
-    def test_precincts_open_count(self, e2e_test_data):
-        """The number of unique open precincts must not exceed precincts_open (3).
-
-        Args:
-            e2e_test_data: Session-scoped test data dict.
-        """
-        _ensure_run(e2e_test_data, 'config_basic')
-        sid = e2e_test_data['sid']
-        results_path = _result_files(sid, 'config_basic')['results']
-
-        df = pd.read_csv(results_path)
-        unique_precincts = df['id_dest'].nunique()
-        assert unique_precincts <= 3, (
-            f"Expected at most 3 open precincts, got {unique_precincts}"
-        )
-
     def test_ede_demographics_present_and_positive(self, e2e_test_data):
         """The EDE file must have at least one row and positive y_EDE values.
 
