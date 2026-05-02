@@ -32,7 +32,6 @@ Questions? [Ask us on Discord](https://discord.com/channels/1106301559811350540/
 - [Testing](#testing)
   - [Unit Tests](#unit-tests)
   - [End-to-End (E2E) Tests](#end-to-end-e2e-tests)
-  - [Test-Driven Development](#test-driven-development)
 - [Linting](#linting)
 - [Submitting Changes](#submitting-changes)
   - [Branching](#branching)
@@ -583,16 +582,6 @@ To run the DB E2E tests:
 3. Run via `python run.py e2e_tests -m e2e_db` — whether invoked from the host or from inside the container, the tests pick up credentials from the volume automatically.
 
 DB tests do not auto-clean their data — `e2e_`-prefixed rows accumulate in the test dataset across runs so they're available for manual inspection and feature-development work. Run an on-demand purge when the dataset gets bulky (no script ships with the repo today; a `bq query` against `tests_chad` filtered by `WHERE config_set LIKE 'e2e_%'` is the simplest interim approach).
-
-### Test-Driven Development
-
-All code should be written using TDD:
-
-1. **Write a failing test first** — before writing any implementation code, write a test that captures the desired behavior and confirm it fails for the right reason.
-2. **Write the minimum code to pass** — implement only enough to make the test green; do not add logic that is not covered by a test.
-3. **Refactor** — clean up while keeping all tests green.
-
-When modifying existing code, update the associated tests before or alongside the change, and confirm all relevant tests pass before considering the work done.
 
 ### Pre-Merge Checklist
 
