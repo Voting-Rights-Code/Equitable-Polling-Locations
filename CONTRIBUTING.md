@@ -485,28 +485,11 @@ Inline comments should explain *why*, not restate *what* the code does. Keep the
 The R analysis scripts in `R/` follow the [tidyverse style guide](https://style.tidyverse.org/).
 
 - **Naming:** `snake_case` for all names. Files: `snake_case.R`
-- **Assignment:** Always `<-`, never `=`. Use `TRUE`/`FALSE`, never `T`/`F`
-- **Data manipulation:** This project uses `data.table` — use `dt[i, j, by]` idiom, not dplyr verbs. Do not mix.
-- **Vectorize operations:** Avoid explicit loops for element-wise work. Use `vapply()` over `sapply()`. Use `seq_along(x)` / `seq_len(n)`, never `1:length(x)`.
+- **Assignment:** Preferentially use `<-`. Only use `=` when `<-` will cause an error (E.g. when using named vairables). 
+- **Data manipulation:** This project uses data.table — use `dt[i, j, by]` idiom. Only use dplyr verbs when there is no way to perform the action using data.table.
+- **Vectorize operations:** Avoid explicit loops for element-wise work. Use `seq_along(x)` / `seq_len(n)`, never `1:length(x)`.
 - **Linting:** Lint with `lintr::lint()`. Format with `styler::style_file()`.
-### Commit Messages
 
-This project is adopting [Conventional Commits](https://www.conventionalcommits.org/). Examples:
-
-```
-type(scope): description
-```
-
-- **Types:** `feat`, `fix`, `refactor`, `test`, `chore`, `docs`
-- **Scope:** Module name — `solver`, `database`, `scripts`, etc.
-
-Examples:
-```
-feat(solver): add overcrowding constraint support
-fix(database): handle null driving distances in import
-test(e2e): add CSV workflow end-to-end tests
-docs(contributing): consolidate contributing guide
-```
 
 ## Testing
 
@@ -525,6 +508,8 @@ pytest
 ```
 
 If you're using the [Dev Container](#dev-container--vs-code-or-zed-recommended-for-editor-integrated-development), you can also run and debug individual tests directly from the editor via the **▶ Run Test** / **🐞 Debug Test** buttons that appear above each `def test_*` function.
+
+The R code has no unit tests (yet).
 
 ### End-to-End (E2E) Tests
 
