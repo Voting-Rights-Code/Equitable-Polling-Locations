@@ -353,21 +353,55 @@ class TestModelRunCliValueAssertions:
         )
 
     def test_ede_demographics_present_and_positive(self, e2e_test_data):
-        """The EDE file must have at least one row and positive y_EDE values.
+        """EDE file has one row per demographic column in the result CSV, all with positive y_EDE.
+
+        The EDE file is built by grouping the result CSV on its demographic
+        columns (see ``python/solver/model_results.py``), so EDE row count
+        must equal the demographic-column count in the result CSV.  We
+        derive that count by intersecting the result CSV's columns with
+        the canonical ``DISTANCE_*`` constants in ``python/solver/constants``,
+        which keeps this test in step with the writer if demographics are
+        ever added or removed.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
         """
+        # Local import so the test file's top-level imports stay solver-free;
+        # the rest of this module treats the solver as a CLI black box.
+        from python.solver.constants import (  # pylint: disable=import-outside-toplevel
+            DISTANCE_TOTAL_POPULATION,
+            DISTANCE_WHITE, DISTANCE_BLACK, DISTANCE_NATIVE,
+            DISTANCE_ASIAN, DISTANCE_HISPANIC,
+        )
+        expected_demographics = {
+            DISTANCE_TOTAL_POPULATION,
+            DISTANCE_WHITE, DISTANCE_BLACK, DISTANCE_NATIVE,
+            DISTANCE_ASIAN, DISTANCE_HISPANIC,
+        }
+
         _ensure_run(e2e_test_data, 'config_basic')
         sid = e2e_test_data['sid']
+        results_path = _result_files(sid, 'config_basic')['results']
         edes_path = _result_files(sid, 'config_basic')['edes']
 
-        df = pd.read_csv(edes_path)
-        assert len(df) > 0, 'EDE file must have at least one row'
-        assert 'y_EDE' in df.columns, 'EDE file must have a y_EDE column'
-        assert (df['y_EDE'] > 0).all(), (
-            f"All y_EDE values must be positive; found non-positive: "
-            f"{df[df['y_EDE'] <= 0]['y_EDE'].tolist()}"
+        results_df = pd.read_csv(results_path)
+        edes_df = pd.read_csv(edes_path)
+
+        demographic_cols_in_results = expected_demographics & set(results_df.columns)
+        assert demographic_cols_in_results == expected_demographics, (
+            f'Result CSV is missing expected demographic columns: '
+            f'{sorted(expected_demographics - demographic_cols_in_results)}'
+        )
+
+        assert len(edes_df) == len(demographic_cols_in_results), (
+            f'Expected {len(demographic_cols_in_results)} EDE rows '
+            f'(one per demographic in the result CSV: '
+            f'{sorted(demographic_cols_in_results)}), got {len(edes_df)}'
+        )
+        assert 'y_EDE' in edes_df.columns, 'EDE file must have a y_EDE column'
+        assert (edes_df['y_EDE'] > 0).all(), (
+            f'All y_EDE values must be positive; found non-positive: '
+            f'{edes_df[edes_df["y_EDE"] <= 0]["y_EDE"].tolist()}'
         )
 
     def test_residence_distances_count(self, e2e_test_data):
