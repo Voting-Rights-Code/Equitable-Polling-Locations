@@ -42,7 +42,7 @@ Whether pulling from the database or csv, the analysis software compiles the rel
     1. A histogram comparing the distributions of how far people travel for an indicated set of config_names
 1. Maps are made and stored
     1. A heat map of how far people have to travel with polling locations indicated
-    1. A head map of how far people of a given demographic have to travel.
+    1. A heat map of how far people of a given demographic have to travel.
     1. Optimized precinct maps, according to which blocks are mapped to which polling location
 1. Regressions are made and stored
     1. Average distance traveled in each block group is plotted against the population density, by race
