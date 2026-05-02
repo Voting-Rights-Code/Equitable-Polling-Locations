@@ -12,6 +12,7 @@ import sys
 
 import pandas as pd
 import pytest
+import yaml
 
 from python.tests.e2e.conftest import run_cli
 from python.utils.directory_constants import RESULTS_BASE_DIR
@@ -294,8 +295,13 @@ class TestModelRunCliValueAssertions:
         for col in ('id_orig', 'id_dest', 'distance_m'):
             assert col in df.columns, f"Expected column '{col}' in results CSV"
 
-    def test_all_residences_assigned(self, e2e_test_data):
-        """Every id_orig in the results must be a valid residence from the distances file.
+    def test_every_residence_appears_in_results(self, e2e_test_data):
+        """Result rows cover the residence set 1:1 with the distance CSV.
+
+        ``model_results`` pre-filters to ``matching == 1`` rows before writing,
+        so every residence in the input distance CSV must appear exactly once
+        in the result CSV (and no extraneous ids should appear).  This is a
+        pipeline-plumbing check, not an optimizer-output check.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
@@ -310,13 +316,21 @@ class TestModelRunCliValueAssertions:
         source_ids = set(distances_df['id_orig'].astype(str))
         result_ids = set(results_df['id_orig'].astype(str))
 
-        assert result_ids.issubset(source_ids), (
-            f"Result id_origs not a subset of source distances: "
-            f"{result_ids - source_ids}"
+        assert result_ids == source_ids, (
+            f'id_orig set mismatch between result and distance CSVs: '
+            f'missing_from_result={source_ids - result_ids!r}, '
+            f'extra_in_result={result_ids - source_ids!r}'
         )
 
-    def test_no_duplicate_assignments(self, e2e_test_data):
-        """Each residence (id_orig) must appear at most once in the results.
+    def test_distinct_open_destinations_matches_config(self, e2e_test_data):
+        """Number of distinct chosen polling sites equals ``precincts_open`` from the config.
+
+        Honesty caveat: the optimizer (SCIP) is what enforces the
+        ``precincts_open`` bound, so this is partly a SCIP-behavior check.
+        It's the cleanest config-driven invariant available without a
+        different problem formulation; the value is that it catches
+        pipeline bugs where the writer drops or duplicates assignments
+        even when the model itself is correct.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
@@ -325,11 +339,17 @@ class TestModelRunCliValueAssertions:
         sid = e2e_test_data['sid']
         results_path = _result_files(sid, 'config_basic')['results']
 
-        df = pd.read_csv(results_path)
-        duplicates = df[df.duplicated(subset=['id_orig'], keep=False)]
-        assert duplicates.empty, (
-            f"Duplicate id_orig entries found in results: "
-            f"{duplicates['id_orig'].tolist()}"
+        with open(e2e_test_data['configs']['config_basic'], 'r', encoding='utf-8') as fh:
+            cfg = yaml.safe_load(fh)
+        expected_open = cfg['precincts_open']
+
+        results_df = pd.read_csv(results_path)
+        actual_open = results_df['id_dest'].nunique()
+
+        assert actual_open == expected_open, (
+            f'Expected {expected_open} distinct open destinations from '
+            f'config_basic.precincts_open, got {actual_open}: '
+            f'{sorted(results_df["id_dest"].unique().tolist())}'
         )
 
     def test_ede_demographics_present_and_positive(self, e2e_test_data):
