@@ -19,6 +19,17 @@ from python.utils.directory_constants import RESULTS_BASE_DIR
 
 MODULE = 'python.scripts.model_run_cli'
 
+# Committed baseline result CSV used as the canonical column-shape reference
+# for tests that assert the full result-CSV column set (rather than a hand-
+# picked subset). The baseline is also the value-bit-exact regression
+# fixture, so the column shape stays in step with whatever model_results.py
+# produces — there's no separate list to keep up to date.
+BASELINE_RESULT_CSV = os.path.join(
+    RESULTS_BASE_DIR,
+    'testing_results',
+    'testing.testing_config_no_bg_results.csv',
+)
+
 # ---------------------------------------------------------------------------
 # Result path helpers
 # ---------------------------------------------------------------------------
@@ -282,7 +293,13 @@ class TestModelRunCliValueAssertions:
     """Value-level assertions on result CSV content produced by model_run_cli."""
 
     def test_results_columns(self, e2e_test_data):
-        """The results CSV must contain id_orig, id_dest, and distance_m columns.
+        """Result CSV's column set matches the committed baseline.
+
+        Asserts that the result CSV produced by config_basic has exactly the
+        same column set as the committed baseline at ``BASELINE_RESULT_CSV``.
+        Using the committed baseline as the source of truth means the test
+        follows whatever ``python/solver/model_results.py`` writes today —
+        no hardcoded column list to keep in sync.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
@@ -291,9 +308,14 @@ class TestModelRunCliValueAssertions:
         sid = e2e_test_data['sid']
         results_path = _result_files(sid, 'config_basic')['results']
 
-        df = pd.read_csv(results_path)
-        for col in ('id_orig', 'id_dest', 'distance_m'):
-            assert col in df.columns, f"Expected column '{col}' in results CSV"
+        actual_df = pd.read_csv(results_path)
+        baseline_df = pd.read_csv(BASELINE_RESULT_CSV)
+
+        assert set(actual_df.columns) == set(baseline_df.columns), (
+            f'Result-CSV column set mismatch vs baseline {BASELINE_RESULT_CSV}: '
+            f'missing_from_actual={set(baseline_df.columns) - set(actual_df.columns)}, '
+            f'extra_in_actual={set(actual_df.columns) - set(baseline_df.columns)}'
+        )
 
     def test_every_residence_appears_in_results(self, e2e_test_data):
         """Result rows cover the residence set 1:1 with the distance CSV.
@@ -471,14 +493,16 @@ class TestModelRunCliValueAssertions:
 
         results_df = pd.read_csv(files['results'])
         edes_df = pd.read_csv(files['edes'])
+        baseline_df = pd.read_csv(BASELINE_RESULT_CSV)
 
         assert len(results_df) > 0, 'Penalty config results must have at least one row'
         assert len(edes_df) > 0, 'Penalty config EDE output must have at least one row'
 
-        for col in ('id_orig', 'id_dest', 'distance_m'):
-            assert col in results_df.columns, (
-                f"Expected column '{col}' in penalty results CSV"
-            )
+        assert set(results_df.columns) == set(baseline_df.columns), (
+            f'Penalty result-CSV column set mismatch vs baseline {BASELINE_RESULT_CSV}: '
+            f'missing_from_actual={set(baseline_df.columns) - set(results_df.columns)}, '
+            f'extra_in_actual={set(results_df.columns) - set(baseline_df.columns)}'
+        )
 
     def test_low_beta_differs_from_basic(self, e2e_test_data):
         """Different beta values should produce different EDE values.
