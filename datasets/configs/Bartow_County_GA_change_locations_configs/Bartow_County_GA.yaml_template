@@ -8,8 +8,6 @@ census_year: '2020'
 year:
     - '2025'
 bad_types:
-    - 'College Campus - Potential'
-    - 'Church - Potential'
     - 'bg_centroid'
 beta: -2
 time_limit: 360000 #100 hours minutes

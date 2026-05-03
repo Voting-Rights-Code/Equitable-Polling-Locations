@@ -290,8 +290,9 @@ make_bg_maps <-function(prepped_data, demo_str = 'population', driving_flag = DR
 
 	#place polling locations
 	plotted = plotted +
-		geom_point(data = bg_demo_sf, aes(x = dest_lon, y = dest_lat, color = dest_type))+
-		scale_color_manual(values = MAP_POLL_TYPE_COLORS, name = 'Poll Type') + xlab('') + ylab('')
+		geom_point(data = bg_demo_sf, aes(x = dest_lon, y = dest_lat, color = dest_type, shape = dest_type))+
+		scale_color_manual(values = MAP_POLL_TYPE_COLORS, name = 'Poll Type') +
+		scale_shape_manual(values = MAP_POLL_TYPE_SHAPES, name = 'Poll Type') + xlab('') + ylab('')
 	#add title
 	plotted = plotted + ggtitle(title_str, paste('Block group map', 'of', gsub('_', ' ', descriptor) )) + theme_tableau_map()
 	
@@ -414,12 +415,14 @@ make_precinct_map <- function(df_sf){
 	names(unpop_narrow) <- gsub('\\.y', '',names(unpop_narrow))
 
 	#combine populated and unpopulated data
-	precincts_sf_all <- rbind(unpop_narrow, precincts_sf_pop) %>% group_by(id_dest, descriptor, dest_lat, dest_lon) %>% summarize(precinct_geom = st_union(precinct_geom))
+	precincts_sf_all <- rbind(unpop_narrow, precincts_sf_pop) %>% group_by(id_dest, descriptor, dest_lat, dest_lon) %>% 
+								summarize(precinct_geom = st_union(precinct_geom)) %>% ungroup()
 
 	#coarsen the fidelity of the map to drop odds and ends of leftover lines
 	area_thresh <- units::set_units(2, km^2)
-	precincts_sf_valid <- st_make_valid(precincts_sf_all)
-	precincts_sf_clean <- precincts_sf_valid %>% st_buffer(50)
+	precincts_sf_valid <- precincts_sf_all %>%
+    		filter(st_geometry_type(.) %in% c("POLYGON", "MULTIPOLYGON")) %>%
+    		st_make_valid() %>% st_cast("MULTIPOLYGON")
 	plotted<- ggplot() +	
 		geom_sf(data = precincts_sf_valid, aes(fill = id_dest), show.legend = FALSE)+
 		geom_point(data = precincts_sf_all, aes(x = dest_lon, y = dest_lat), show.legend = FALSE)+ 

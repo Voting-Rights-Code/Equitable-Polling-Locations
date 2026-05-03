@@ -1,6 +1,6 @@
 # fields for the database
 config_set: 'Bartow_County_GA_original_configs' #should match folder name
-config_name: 'config_template_Bartow' #should match file name
+config_name: 'Bartow_County_GA' #should match file name
 
 # Constants for the optimization function
 location: Bartow_County_GA
@@ -8,9 +8,13 @@ census_year: '2020'
 year:
     - '2020'
 bad_types:
-    - 'College Campus - Potential'
-    - 'Church - Potential'
-    - 'bg_centroid'
+  - 'College Campus - Potential'
+  - 'Church - Potential'
+  - 'Library - Potential'
+  - 'Municipal - Potential'
+  - 'Other - Potential'
+  - 'Park - Potential'
+  - 'bg_centroid'
 beta: -2
 time_limit: 360000 #100 hours minutes
 limits_gap: 0.02
