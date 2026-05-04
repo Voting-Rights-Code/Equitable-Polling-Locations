@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 #
-# Wrapper around install_r_packages.R used by postCreateCommand in
-# devcontainer.json. The previous inline `|| echo ...` swallowed failures
-# silently — a killed or errored install left the R library half-built while
-# postCreate reported success. This wrapper:
+# R-package install wrapper used by postCreateCommand in devcontainer.json.
+# Bootstraps renv (one-line install.packages()), then runs renv::restore()
+# against renv.lock — the project's canonical pinned package set — into
+# /usr/local/lib/R/site-library. The previous inline `|| echo ...` swallowed
+# failures silently — a killed or errored install left the R library
+# half-built while postCreate reported success. This wrapper:
 #
 #   - writes a full log to /tmp/r-install.log (for diagnosing the next failure)
 #   - on failure, drops a marker file in $HOME and prints a loud banner to
@@ -20,7 +22,10 @@ set -u
 LOG=/tmp/r-install.log
 MARKER="${HOME}/.r-install-failed"
 
-if sudo Rscript .devcontainer/install_r_packages.R 2>&1 | sudo tee "$LOG"; then
+if (
+    sudo Rscript -e 'install.packages("renv", repos = "https://cloud.r-project.org")' \
+        && sudo Rscript -e 'renv::restore(library = "/usr/local/lib/R/site-library", prompt = FALSE)'
+   ) 2>&1 | sudo tee "$LOG"; then
     status="${PIPESTATUS[0]}"
 else
     status="${PIPESTATUS[0]}"

@@ -15,15 +15,9 @@
 # The package list comes from renv.lock (the project's pinned source of
 # truth) read via jsonlite::fromJSON. No hand-maintained mirror — when
 # renv::snapshot() updates the lockfile, this test follows automatically.
-#
-# `renv` itself is pinned in renv.lock but is not currently installed in
-# the container's system library (the build pipeline uses install.packages()
-# against the .devcontainer/install_r_packages.R list rather than
-# renv::restore()).  Filter it out until the build pipeline switches; once
-# that lands the setdiff() becomes a harmless no-op.
 
 lockfile <- jsonlite::fromJSON("renv.lock", simplifyVector = FALSE)
-packages <- setdiff(names(lockfile$Packages), "renv")
+packages <- names(lockfile$Packages)
 
 failed <- character()
 for (pkg in packages) {
