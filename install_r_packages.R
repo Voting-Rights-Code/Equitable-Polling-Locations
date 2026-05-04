@@ -1,30 +1,24 @@
 #!/usr/bin/env Rscript
 #
-# Development convenience script for adding or updating R packages.
+# Bulk-install the project's direct R dependencies into the current R env's
+# library.  Convenience for local (non-container) R installs only.
 #
-# This script is NOT executed during the Docker build — the Dockerfile uses
-# renv::restore() from renv.lock instead, which pins exact versions. Use this
-# script interactively when you need to add a new package or update existing
-# ones, then regenerate renv.lock to capture the change.
+# This script does NOT drive container builds — .devcontainer/run_r_install.sh
+# handles those by bootstrapping renv and running renv::restore() against
+# renv.lock (the canonical pinned set).
 #
-# Workflow for adding a new R package (commands below assume the dev
-# container — see note at bottom for local R installs):
+# Adding or updating a project R package — use the renv-native flow:
 #
-#   1. Add it to the `packages` vector below
-#   2. Install it:
-#        sudo Rscript install_r_packages.R
-#   3. Update the lockfile:
-#        sudo Rscript -e "renv::snapshot(library='/usr/local/lib/R/site-library', type='all', lockfile='renv.lock', prompt=FALSE, force=TRUE)"
-#   4. Update R/tests/r_smoke_test.R with the new package
-#   5. Verify:
-#        Rscript R/tests/r_smoke_test.R
-#   6. Commit renv.lock, this file, and r_smoke_test.R
+#   1. Rscript -e 'renv::install("pkg-name")'    # add or upgrade
+#   2. Rscript -e 'renv::snapshot()'             # capture into renv.lock
+#   3. Rscript R/tests/r_smoke_test.R            # smoke test reads renv.lock
+#                                                  directly; no separate list
+#                                                  to keep in sync
+#   4. Commit renv.lock
 #
-# Local R install (outside the container): drop `sudo` and omit
-# `library='/usr/local/lib/R/site-library'`. Both exist because the dev
-# container installs packages into a root-owned system library; a local R
-# install typically uses a user-owned library that renv detects
-# automatically.
+# The `packages` list below is for the local-install convenience only;
+# keep it loosely in sync with the project's direct deps but it is NOT
+# authoritative for container builds.
 
 options(repos = c(CRAN = "https://cloud.r-project.org"))
 
@@ -80,5 +74,6 @@ if (length(failed) > 0) {
 }
 
 cat("R setup OK — all packages loadable\n")
-cat("\nNext: update renv.lock by running:\n")
-cat("  sudo Rscript -e \"renv::snapshot(library='/usr/local/lib/R/site-library', type='all', lockfile='renv.lock', prompt=FALSE, force=TRUE)\"\n")
+cat("\nIf you added or updated a package, capture it into renv.lock:\n")
+cat("  Rscript -e 'renv::snapshot()'\n")
+cat("...then commit renv.lock.\n")

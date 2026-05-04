@@ -411,6 +411,38 @@ Database-backed workflows require GCP Application Default Credentials and a conf
 
 See [Database](docs/database.md) for full documentation on schema, imports, scratch dataset setup, and Alembic migrations.
 
+### R Package Management
+
+R packages are managed by [renv](https://rstudio.github.io/renv/). The repo's `renv.lock` is the canonical pinned package set (covers ~129 packages, including transitives). The dev container's `postCreateCommand` (`run_r_install.sh`) bootstraps renv and runs `renv::restore()` against `renv.lock` automatically, so no manual setup is needed inside the container.
+
+**To add a new R package:**
+
+```bash
+Rscript -e 'renv::install("pkg-name")'
+Rscript -e 'renv::snapshot()'    # captures the new state into renv.lock
+```
+
+Then commit `renv.lock`. The R smoke test (`python run.py r_test`) reads its package list from `renv.lock` directly, so there's no separate list to keep in sync.
+
+**To update an existing R package:**
+
+```bash
+Rscript -e 'renv::install("pkg-name@x.y.z")'   # specific version
+# or
+Rscript -e 'renv::update("pkg-name")'           # latest compatible
+Rscript -e 'renv::snapshot()'
+```
+
+Then commit `renv.lock`.
+
+**Smoke-testing the R env:**
+
+```bash
+python run.py r_test
+```
+
+Loads every package in `renv.lock` and reports any that fail to load.
+
 
 ## Code Style
 

@@ -25,3 +25,7 @@ Key libraries: `data.table`, `ggplot2`, `sf`, `bigrquery`, `googleCloudStorageR`
 - Pre-allocate vectors; never grow objects in a loop.
 - Lint with `lintr::lint()`. Format with `styler::style_file()`.
 - No formal test suite — validation scripts in `tests/` use manual comparison.
+
+## Package Management
+
+R packages are managed by [renv](https://rstudio.github.io/renv/). `renv.lock` at the repo root is the canonical pinned package set. To add or update a package, use `renv::install("pkg-name")` followed by `renv::snapshot()`, then commit `renv.lock`. The smoke test (`R/tests/r_smoke_test.R`) reads from `renv.lock` directly — no separate list to keep in sync.
