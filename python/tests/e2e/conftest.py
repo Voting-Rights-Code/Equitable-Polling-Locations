@@ -41,6 +41,24 @@ _SRC_BASE_CONFIG = os.path.join(_TESTING_CONFIG_DIR, 'testing_config_no_bg.yaml'
 # ---------------------------------------------------------------------------
 # Config variants
 # ---------------------------------------------------------------------------
+#
+# Curated cross-section of solver-config "knobs" the e2e suite exercises.
+# NOT a complete enumeration of every PollingModelConfig field (the full
+# config has ~30 fields; this dict toggles 7 of them).
+#
+# Selection criteria: each variant flips a high-value behavioral boundary
+# in the solver's input space:
+#
+#   - distance-metric choice: config_driving / config_log / config_driving_log
+#   - penalization: config_penalty
+#   - regularization sensitivity: config_low_beta
+#   - facility capacity: config_capacity
+#   - new-vs-old location mix: config_new_locations
+#
+# Fields deliberately NOT varied here include time_limit, limits_gap,
+# precincts_open, max_min_mult, bad_types, year, etc.  e2e tests cover
+# CLI plumbing and result-shape invariants — not solver parameter-space
+# coverage, which belongs in unit tests against the solver directly.
 
 CONFIG_VARIANTS = {
     'config_basic': {},

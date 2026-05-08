@@ -125,7 +125,29 @@ def _ensure_run(e2e_test_data: dict, config_suffix: str) -> None:
 @pytest.mark.e2e
 @pytest.mark.e2e_csv
 class TestModelRunCliBasic:
-    """Smoke tests verifying the CLI runs successfully and writes output files."""
+    """Smoke tests for ``model_run_cli``'s invocation patterns.
+
+    These tests exercise the CLI's argument-handling surface — single config,
+    multiple configs, concurrency, verbose flag, custom log dir — and assert
+    that each invocation produces the expected output artifacts.  Assertions
+    are CLI-shape checks (files exist, stdout is non-empty, etc.), not
+    solver-output checks.
+
+    Choice of ``config_*`` variant per test:
+
+    - 3 of 5 tests use ``config_basic`` (the no-overrides baseline) since
+      the assertion doesn't depend on solver behavior.
+    - ``test_multiple_configs`` uses ``config_low_beta`` + ``config_capacity``
+      so the multi-config invocation passes two genuinely different configs
+      (rather than the same config twice).
+    - ``test_concurrent_runs`` uses ``config_new_locations`` to give the
+      ``-c 2`` parallel run a non-trivial scenario; the choice is
+      otherwise incidental.
+
+    The variant choice across tests is therefore intentional but not
+    load-bearing — replacing every variant with ``config_basic`` would not
+    weaken any assertion in this class.
+    """
 
     def test_single_config_basic(self, e2e_test_data):
         """Running config_basic produces all four expected output CSV files.
