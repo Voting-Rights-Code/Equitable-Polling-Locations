@@ -16,7 +16,7 @@ Key libraries: `data.table`, `ggplot2`, `sf`, `bigrquery`, `googleCloudStorageR`
 ## Conventions
 
 - Follow the tidyverse style guide. Use `snake_case` for all names. Files: `snake_case.R`.
-- Assignment: Preferentially use `<-`. Only use `=` when `<-` will cause an error (E.g. when using named vairables). 
+- Assignment: Preferentially use `<-`. Only use `=` when `<-` will cause an error (E.g. when using named variables). 
 - Use `TRUE`/`FALSE`, never `T`/`F`.
 - All `library()` calls at the top of each script. 
 - Never use `setwd()` in a way that will not transfer across different users or different machines or different copies of the program in the same machine.

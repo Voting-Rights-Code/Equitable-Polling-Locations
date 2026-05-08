@@ -28,7 +28,6 @@ Questions? [Ask us on Discord](https://discord.com/channels/1106301559811350540/
 - [Code Style](#code-style)
   - [Python](#python)
   - [R](#r)
-  - [Commit Messages](#commit-messages)
 - [Testing](#testing)
   - [Unit Tests](#unit-tests)
   - [End-to-End (E2E) Tests](#end-to-end-e2e-tests)
@@ -485,7 +484,7 @@ Inline comments should explain *why*, not restate *what* the code does. Keep the
 The R analysis scripts in `R/` follow the [tidyverse style guide](https://style.tidyverse.org/).
 
 - **Naming:** `snake_case` for all names. Files: `snake_case.R`
-- **Assignment:** Preferentially use `<-`. Only use `=` when `<-` will cause an error (E.g. when using named vairables). 
+- **Assignment:** Preferentially use `<-`. Only use `=` when `<-` will cause an error (E.g. when using named variables). 
 - **Data manipulation:** This project uses data.table — use `dt[i, j, by]` idiom. Only use dplyr verbs when there is no way to perform the action using data.table.
 - **Vectorize operations:** Avoid explicit loops for element-wise work. Use `seq_along(x)` / `seq_len(n)`, never `1:length(x)`.
 - **Linting:** Lint with `lintr::lint()`. Format with `styler::style_file()`.
