@@ -449,30 +449,92 @@ class TestModelRunCliValueAssertions:
         )
 
     def test_residence_distances_count(self, e2e_test_data):
-        """The residence distances file must contain at least one row.
+        """The residence-distances file has one row per (residence, demographic) pair.
+
+        The writer in ``python/solver/model_results.py`` groups by
+        ``RESULT_DEMOGRAPHIC`` over the canonical ``DISTANCE_*`` constants,
+        so the row count equals (unique residences in the input distance
+        CSV) × (number of demographic columns in the result CSV).  Both
+        factors are fixed by the inputs, so we assert exact equality.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
         """
+        # Local import so the test file's top-level imports stay solver-free.
+        from python.solver.constants import (  # pylint: disable=import-outside-toplevel
+            DISTANCE_TOTAL_POPULATION,
+            DISTANCE_WHITE, DISTANCE_BLACK, DISTANCE_NATIVE,
+            DISTANCE_ASIAN, DISTANCE_HISPANIC,
+        )
+        expected_demographics = {
+            DISTANCE_TOTAL_POPULATION,
+            DISTANCE_WHITE, DISTANCE_BLACK, DISTANCE_NATIVE,
+            DISTANCE_ASIAN, DISTANCE_HISPANIC,
+        }
+
         _ensure_run(e2e_test_data, 'config_basic')
         sid = e2e_test_data['sid']
         res_path = _result_files(sid, 'config_basic')['residence_distances']
+        results_path = _result_files(sid, 'config_basic')['results']
+
+        distances_df = pd.read_csv(e2e_test_data['distances'])
+        results_df = pd.read_csv(results_path)
+        n_residences = distances_df['id_orig'].nunique()
+        n_demographics = len(expected_demographics & set(results_df.columns))
 
         df = pd.read_csv(res_path)
-        assert len(df) > 0, 'Residence distances file must have at least one row'
+        expected_rows = n_residences * n_demographics
+        assert len(df) == expected_rows, (
+            f'Expected {expected_rows} residence-distance rows '
+            f'({n_residences} residences x {n_demographics} demographics), '
+            f'got {len(df)}'
+        )
 
     def test_precinct_distances_count(self, e2e_test_data):
-        """The precinct distances file must contain at least one row.
+        """The precinct-distances file has one row per (precinct, demographic) pair.
+
+        The writer in ``python/solver/model_results.py`` groups by
+        ``RESULT_DEMOGRAPHIC`` over the canonical ``DISTANCE_*`` constants,
+        so the row count equals ``precincts_open`` (from the config — same
+        invariant ``test_distinct_open_destinations_matches_config`` checks
+        for the result CSV) × (number of demographic columns in the result
+        CSV).  Both factors are fixed by the inputs, so we assert exact
+        equality.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
         """
+        # Local import so the test file's top-level imports stay solver-free.
+        from python.solver.constants import (  # pylint: disable=import-outside-toplevel
+            DISTANCE_TOTAL_POPULATION,
+            DISTANCE_WHITE, DISTANCE_BLACK, DISTANCE_NATIVE,
+            DISTANCE_ASIAN, DISTANCE_HISPANIC,
+        )
+        expected_demographics = {
+            DISTANCE_TOTAL_POPULATION,
+            DISTANCE_WHITE, DISTANCE_BLACK, DISTANCE_NATIVE,
+            DISTANCE_ASIAN, DISTANCE_HISPANIC,
+        }
+
         _ensure_run(e2e_test_data, 'config_basic')
         sid = e2e_test_data['sid']
         prec_path = _result_files(sid, 'config_basic')['precinct_distances']
+        results_path = _result_files(sid, 'config_basic')['results']
+
+        with open(e2e_test_data['configs']['config_basic'], 'r', encoding='utf-8') as fh:
+            cfg = yaml.safe_load(fh)
+        n_precincts = cfg['precincts_open']
+
+        results_df = pd.read_csv(results_path)
+        n_demographics = len(expected_demographics & set(results_df.columns))
 
         df = pd.read_csv(prec_path)
-        assert len(df) > 0, 'Precinct distances file must have at least one row'
+        expected_rows = n_precincts * n_demographics
+        assert len(df) == expected_rows, (
+            f'Expected {expected_rows} precinct-distance rows '
+            f'({n_precincts} open precincts x {n_demographics} demographics), '
+            f'got {len(df)}'
+        )
 
     def test_capacity_constraint(self, e2e_test_data):
         """With capacity=3, no precinct exceeds ~3× the average assignment count.
