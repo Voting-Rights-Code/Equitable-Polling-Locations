@@ -46,14 +46,29 @@ _SRC_BASE_CONFIG = os.path.join(_TESTING_CONFIG_DIR, 'testing_config_no_bg.yaml'
 # NOT a complete enumeration of every PollingModelConfig field (the full
 # config has ~30 fields; this dict toggles 7 of them).
 #
-# Selection criteria: each variant flips a high-value behavioral boundary
-# in the solver's input space:
+# Each entry maps a variant suffix to override fields applied on top of a
+# single base config template by `_make_config()` (below).  NOT a 1-to-1
+# map to the files in `datasets/configs/testing/` — those pair with the
+# committed result baselines in `datasets/results/testing_results/`,
+# which the e2e column-set asserts also reference.
 #
-#   - distance-metric choice: config_driving / config_log / config_driving_log
-#   - penalization: config_penalty
-#   - regularization sensitivity: config_low_beta
-#   - facility capacity: config_capacity
-#   - new-vs-old location mix: config_new_locations
+# What each variant is used for in the test suite:
+#
+#   - config_basic         baseline; the reference for "different config ->
+#                          different output" assertions and the smoke-test
+#                          default.
+#   - config_driving       exercises the driving-distance input path.
+#   - config_log           exercises the log-distance input transform.
+#   - config_driving_log   the one combinatorial variant — verifies driving
+#                          and log-distance flags compose without breaking.
+#   - config_penalty       exercises the penalized_sites mechanism; also
+#                          drives the column-set assertion in
+#                          test_penalty_config_produces_valid_results.
+#   - config_low_beta      paired with config_basic to assert beta actually
+#                          affects EDE values (difference-detector).
+#   - config_capacity      exercises the per-facility capacity constraint.
+#   - config_new_locations provides the concurrent-run smoke test (-c 2)
+#                          with a non-trivial scenario.
 #
 # Fields deliberately NOT varied here include time_limit, limits_gap,
 # precincts_open, max_min_mult, bad_types, year, etc.  e2e tests cover
@@ -211,6 +226,12 @@ def _apply_log_transform(src_path: str, dest_path: str) -> None:
 
 def _make_config(base: dict, sid: str, suffix: str, overrides: dict) -> dict:
     """Return a config dict derived from *base* with e2e-specific fields applied.
+
+    Used by the ``e2e_test_data`` session fixture to synthesize each
+    :data:`CONFIG_VARIANTS` entry from a single in-memory base template (the
+    e2e variants are NOT loaded from on-disk files in
+    ``datasets/configs/testing/``).  See the CONFIG_VARIANTS comment block at
+    the top of this file for the full trace.
 
     Args:
         base: The base configuration loaded from the template YAML.
