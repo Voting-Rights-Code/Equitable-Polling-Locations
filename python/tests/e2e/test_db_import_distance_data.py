@@ -73,6 +73,12 @@ class TestDbImportDistanceData:
             f'unexpected={actual_cols - expected_cols!r}'
         )
 
+        assert (db_df['distance_m'] > 0).all(), (
+            f'All distance_m values must be positive for log_distance={log_distance}, '
+            f'driving={driving}; found non-positive values:\n'
+            f"{db_df[db_df['distance_m'] <= 0][['id_orig', 'id_dest', 'distance_m']].head()!r}"
+        )
+
     def test_linear_haversine(self, e2e_test_data, test_environment):
         """Linear haversine: log_distance=False, driving=False."""
         self._verify_imported_set(
