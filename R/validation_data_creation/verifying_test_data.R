@@ -10,7 +10,7 @@ setwd(here())
 #Read in data
 #######
 #This data is based off of Gwinnette County
-sample<- fread('datasets/polling/testing/testing_2020.csv')
+sample<- fread('datasets/polling/testing/testing_distances_2020.csv')
 
 #######
 #Calculate alpha

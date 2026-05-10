@@ -1,0 +1,39 @@
+{
+    "name": "Equitable-Polling-Locations",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "app",
+    "workspaceFolder": "/workspaces/Equitable-Polling-Locations",
+    "remoteUser": "vscode",
+    "containerEnv": {
+        "CONDA_PLUGINS_AUTO_ACCEPT_TOS": "true",
+        "PATH": "/opt/conda/envs/equitable-polls/bin:/opt/conda/bin:/usr/local/bin:/usr/bin:/bin",
+        "PROJ_LIB": "/opt/conda/envs/equitable-polls/share/proj",
+        "SHAPE_RESTORE_SHX": "YES"
+    },
+    "remoteEnv": {
+        "PATH": "/opt/conda/envs/equitable-polls/bin:${containerEnv:PATH}",
+        "PYTHONPATH": "/workspaces/Equitable-Polling-Locations",
+        "PYTHONUNBUFFERED": "1"
+    },
+    "postCreateCommand": "bash .devcontainer/post-create.sh",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.pylint",
+                "ms-python.debugpy"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "/opt/conda/envs/equitable-polls/bin/python",
+                "python.testing.pytestEnabled": true,
+                "python.testing.unittestEnabled": false,
+                "python.testing.pytestArgs": [
+                    "python/tests"
+                ],
+                "pylint.interpreter": [
+                    "/opt/conda/envs/equitable-polls/bin/python"
+                ]
+            }
+        }
+    }
+}

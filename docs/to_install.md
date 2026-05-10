@@ -18,24 +18,8 @@
 To confirm the installation is setup correctly, run pytest with the following command in the root of the project directory:
 
 ```
-docker compose run --rm app pytest
+python run.py test
 ```
 
 All tests should pass.
-
-
-## Development
-
-Conda can be optionally setup fro local development without docker
-
-1. Install conda if you do not have it already
-    1. This program uses SCIP as an optimizer, which is easily installed using Conda, but not using pip. (SCIP installation will be completed below by installing 'environment.yml')
-    1. If you do not have conda installed already, use the relevant instructions [here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)
-
-1. Create and activate conda environment. (Note, on a Windows machine, this requires using Anaconda Prompt.)
-    1. `$ conda env create -f environment.yml`
-    1. `$ conda activate equitable-polls`
-
-
-
 

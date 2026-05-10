@@ -3,7 +3,6 @@ from pathlib import Path
 import shutil
 import requests
 import subprocess
-import argparse
 import pandas as pd
 
 from python.utils import build_decennial_dir_path, build_decennial_file_paths
@@ -242,21 +241,3 @@ def pull_census_data(statecode, county, census_year, apikey = census_key, state_
     return "Success"
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        'state', help="U.S. state of interest. Two letter abbreviation, e.g. MD or NY",
-    )
-    parser.add_argument(
-        'county', help="County of interest. Full name, with proper capitalization, e.g. Norfolk city or Gwinnett County"
-    )
-    parser.add_argument(
-        'census_year', help="Decennial census data of interest"
-    )
-    #parser.add_argument(
-    #    'apikey', help="Census API key"
-    #)
-    args = parser.parse_args()
-    print(args)
-    #pull_census_data(args.state, args.county, args.apikey)
-    pull_census_data(args.state, args.county, args.census_year)
