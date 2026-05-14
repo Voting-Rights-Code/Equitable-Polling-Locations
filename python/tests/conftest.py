@@ -13,7 +13,8 @@ from python.solver.model_config import PollingModelConfig
 
 from .constants import (
   TESTING_CONFIG_BASE, TESTING_CONFIG_KEEP, TESTING_CONFIG_EXCLUDE, TESTING_CONFIG_PENALTY,
-  TESTING_CONFIG_PENALTY_UNUSED, TESTING_CONFIG_DRIVING, TESTING_POTENTIAL_LOCATIONS_PATH, MAP_SOURCE_DATE,
+  TESTING_CONFIG_PENALTY_UNUSED, TESTING_CONFIG_DRIVING, TESTING_CONFIG_FIXED_CAPACITY,
+  TESTING_POTENTIAL_LOCATIONS_PATH, MAP_SOURCE_DATE,
   TESTS_DIR,
 )
 
@@ -84,6 +85,10 @@ def testing_config_penalty():
 @pytest.fixture(scope='session')
 def testing_config_penalty_unused():
     return PollingModelConfig.load_config(TESTING_CONFIG_PENALTY_UNUSED)
+
+@pytest.fixture(scope='session')
+def testing_config_fixed_capacity():
+    yield PollingModelConfig.load_config(TESTING_CONFIG_FIXED_CAPACITY)
 
 @pytest.fixture(scope='session')
 def testing_config_keep():
@@ -167,6 +172,26 @@ def expanded_polling_model(clean_distances_df, alpha_min, testing_config_penalty
     )
     model_solver.solve_model(model, testing_config_penalty.time_limit, limits_gap=0.0)
 
+    yield model
+
+
+@pytest.fixture(scope='module')
+def fixed_capacity_polling_model(
+    clean_distances_df, alpha_min, testing_config_fixed_capacity,
+):
+    """Polling model built and solved with testing_config_fixed_capacity.
+
+    Reuses ``clean_distances_df`` and ``alpha_min`` from ``testing_config_base``
+    (both configs share ``bad_types`` and ``year``).
+    """
+    model = model_factory.polling_model_factory(
+        clean_distances_df, alpha_min, testing_config_fixed_capacity,
+    )
+    model_solver.solve_model(
+        model,
+        testing_config_fixed_capacity.time_limit,
+        limits_gap=0.0,
+    )
     yield model
 
 
