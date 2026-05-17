@@ -367,6 +367,30 @@ class TestModelRunCliValueAssertions:
             f'extra_in_result={result_ids - source_ids!r}'
         )
 
+    def test_bad_types_absent_from_results(self, e2e_test_data):
+        """The bad_types config field must filter those types out of the result CSV.
+
+        Closes the CLI pass-through gap: confirms that the bad_types list set
+        in the YAML config flows through model_run_cli, the solver, and the
+        result-writing path, ending up excluded from the output. The unit test
+        at model_data_test.py::test_clean_data covers the same filter at the
+        function level.
+
+        Args:
+            e2e_test_data: Session-scoped test data dict.
+        """
+        _ensure_run(e2e_test_data, 'config_bad_types')
+        sid = e2e_test_data['sid']
+
+        result_df = pd.read_csv(_result_files(sid, 'config_bad_types')['results'])
+        bad_types = ['bg_centroid', 'Elec Day School - Potential']
+        bad_rows = result_df[result_df['location_type'].isin(bad_types)]
+
+        assert len(bad_rows) == 0, (
+            f'Expected no bad_types in result CSV, found {len(bad_rows)} rows '
+            f'with location_type in {bad_types}'
+        )
+
     def test_distinct_open_destinations_matches_config(self, e2e_test_data):
         """Number of distinct chosen polling sites equals ``precincts_open`` from the config.
 
