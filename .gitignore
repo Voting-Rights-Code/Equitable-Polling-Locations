@@ -203,6 +203,7 @@ datasets/census
 !datasets/census/tiger/testing/*
 !datasets/driving/testing/*
 !datasets/polling/testing/*
+!datasets/configs/testing/*
 !datasets/results/testing_results/*
 
 
