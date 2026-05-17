@@ -69,6 +69,13 @@ _SRC_BASE_CONFIG = os.path.join(_TESTING_CONFIG_DIR, 'testing_config_no_bg.yaml'
 #   - config_capacity      exercises the per-facility capacity constraint.
 #   - config_new_locations provides the concurrent-run smoke test (-c 2)
 #                          with a non-trivial scenario.
+#   - config_low_capacity  paired with config_fixed_capacity to isolate the
+#                          effect of fixed_capacity_site_number; same
+#                          capacity=2.5 and precincts_open=4, no fixed cap.
+#   - config_fixed_capacity exercises the fixed_capacity_site_number
+#                          substitution in model_factory.py:257-261 — same
+#                          base as config_low_capacity but with
+#                          fixed_capacity_site_number=3.
 #
 # Fields deliberately NOT varied here include time_limit, limits_gap,
 # precincts_open, max_min_mult, bad_types, year, etc.  e2e tests cover
@@ -84,6 +91,8 @@ CONFIG_VARIANTS = {
     'config_low_beta': {'beta': -1},
     'config_capacity': {'capacity': 3},
     'config_new_locations': {'maxpctnew': 0.5, 'minpctold': 0.75},
+    'config_low_capacity': {'capacity': 2.5, 'precincts_open': 4},
+    'config_fixed_capacity': {'capacity': 2.5, 'precincts_open': 4, 'fixed_capacity_site_number': 3},
 }
 
 # ---------------------------------------------------------------------------

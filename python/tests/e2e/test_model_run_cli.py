@@ -610,6 +610,35 @@ class TestModelRunCliValueAssertions:
             'Expected different EDE values for beta=-1 vs beta=-2, but they are identical'
         )
 
+    def test_fixed_capacity_changes_assignment_vs_low_capacity(self, e2e_test_data):
+        """Setting fixed_capacity_site_number must change per-precinct populations.
+
+        Both variants share capacity=2.5 and precincts_open=4; only
+        ``fixed_capacity_site_number`` differs (unset vs 3). The flag substitutes
+        the per-site cap in ``model_factory.py`` and should drive a measurably
+        different residence-to-precinct assignment in ``precinct_distances``.
+
+        Args:
+            e2e_test_data: Session-scoped test data dict.
+        """
+        _ensure_run(e2e_test_data, 'config_low_capacity')
+        _ensure_run(e2e_test_data, 'config_fixed_capacity')
+        sid = e2e_test_data['sid']
+
+        low_capacity_pops = (
+            pd.read_csv(_result_files(sid, 'config_low_capacity')['precinct_distances'])
+            .groupby('id_dest')['demo_pop'].sum().to_dict()
+        )
+        fixed_capacity_pops = (
+            pd.read_csv(_result_files(sid, 'config_fixed_capacity')['precinct_distances'])
+            .groupby('id_dest')['demo_pop'].sum().to_dict()
+        )
+
+        assert low_capacity_pops != fixed_capacity_pops, (
+            'Expected fixed_capacity_site_number=3 to change per-precinct '
+            'populations vs the unconstrained variant, but they are identical'
+        )
+
     def test_driving_differs_from_basic(self, e2e_test_data):
         """Driving distances should produce different distance_m values than haversine.
 
