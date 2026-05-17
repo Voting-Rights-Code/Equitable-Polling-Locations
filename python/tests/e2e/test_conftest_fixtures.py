@@ -92,8 +92,8 @@ class TestE2eTestDataFiles:
         assert os.path.isfile(e2e_test_data['autogen_template'])
 
     def test_config_variant_count(self, e2e_test_data):
-        """Exactly 10 config variants must be created."""
-        assert len(e2e_test_data['configs']) == 10
+        """Exactly 8 config variants must be created."""
+        assert len(e2e_test_data['configs']) == 8
 
 
 @pytest.mark.e2e

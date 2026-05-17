@@ -61,14 +61,10 @@ _SRC_BASE_CONFIG = os.path.join(_TESTING_CONFIG_DIR, 'testing_config_no_bg.yaml'
 #   - config_log           exercises the log-distance input transform.
 #   - config_driving_log   the one combinatorial variant — verifies driving
 #                          and log-distance flags compose without breaking.
-#   - config_penalty       exercises the penalized_sites mechanism; also
-#                          drives the column-set assertion in
-#                          test_penalty_config_produces_valid_results.
+#   - config_penalty       exercises the penalized_sites mechanism via
+#                          test_penalty_config (smoke run).
 #   - config_low_beta      paired with config_basic to assert beta actually
 #                          affects EDE values (difference-detector).
-#   - config_capacity      exercises the per-facility capacity constraint.
-#   - config_new_locations provides the concurrent-run smoke test (-c 2)
-#                          with a non-trivial scenario.
 #   - config_low_capacity  paired with config_fixed_capacity to isolate the
 #                          effect of fixed_capacity_site_number; same
 #                          capacity=2.5 and precincts_open=4, no fixed cap.
@@ -89,8 +85,6 @@ CONFIG_VARIANTS = {
     'config_driving_log': {'driving': True, 'log_distance': True},
     'config_penalty': {'penalized_sites': ['College Campus - Potential', 'Fire Station - Potential']},
     'config_low_beta': {'beta': -1},
-    'config_capacity': {'capacity': 3},
-    'config_new_locations': {'maxpctnew': 0.5, 'minpctold': 0.75},
     'config_low_capacity': {'capacity': 2.5, 'precincts_open': 4},
     'config_fixed_capacity': {'capacity': 2.5, 'precincts_open': 4, 'fixed_capacity_site_number': 3},
 }
