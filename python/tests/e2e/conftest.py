@@ -77,9 +77,14 @@ _SRC_BASE_CONFIG = os.path.join(_TESTING_CONFIG_DIR, 'testing_config_no_bg.yaml'
 #                          (['bg_centroid', 'Elec Day School - Potential'])
 #                          which is paired with committed result baselines
 #                          and proven feasible.
+#   - config_year          exercises the year filter end-to-end. The test
+#                          fixture only encodes years in the EV_2022_2020
+#                          polling type so the e2e assertion is vacuously
+#                          true today; the assertion shape generalizes if
+#                          the fixture later gains year-distinct types.
 #
 # Fields deliberately NOT varied here include time_limit, limits_gap,
-# max_min_mult, year, etc.  e2e tests cover
+# max_min_mult, etc.  e2e tests cover
 # CLI plumbing and result-shape invariants — not solver parameter-space
 # coverage, which belongs in unit tests against the solver directly.
 
@@ -93,6 +98,7 @@ CONFIG_VARIANTS = {
     'config_low_capacity': {'capacity': 2.5, 'precincts_open': 4},
     'config_fixed_capacity': {'capacity': 2.5, 'precincts_open': 4, 'fixed_capacity_site_number': 3},
     'config_bad_types': {'bad_types': ['bg_centroid', 'Elec Day School - Potential']},
+    'config_year': {'year': ['2020']},
 }
 
 # ---------------------------------------------------------------------------
