@@ -391,6 +391,34 @@ class TestModelRunCliValueAssertions:
             f'with location_type in {bad_types}'
         )
 
+    def test_year_filter_applied_to_results(self, e2e_test_data):
+        """Every polling-typed result row's location_type contains a configured year.
+
+        Today this is a vacuously-true CLI pass-through check: the test
+        fixture has only one year-encoded location_type (EV_2022_2020), which
+        trivially contains every year value the filter would accept. The
+        assertion shape generalizes — adding year-distinct location_types to
+        the fixture will automatically tighten what this test catches
+        without needing edits here.
+
+        Args:
+            e2e_test_data: Session-scoped test data dict.
+        """
+        _ensure_run(e2e_test_data, 'config_year')
+        sid = e2e_test_data['sid']
+
+        result_df = pd.read_csv(_result_files(sid, 'config_year')['results'])
+        polling_rows = result_df[result_df['dest_type'] == 'polling']
+        bad_year_rows = polling_rows[
+            ~polling_rows['location_type'].str.contains('2020', regex=False)
+        ]
+
+        assert len(bad_year_rows) == 0, (
+            f"Expected every polling row's location_type to contain '2020' "
+            f'(the configured year), but {len(bad_year_rows)} did not: '
+            f'{bad_year_rows["location_type"].unique().tolist()}'
+        )
+
     def test_distinct_open_destinations_matches_config(self, e2e_test_data):
         """Number of distinct chosen polling sites equals ``precincts_open`` from the config.
 
