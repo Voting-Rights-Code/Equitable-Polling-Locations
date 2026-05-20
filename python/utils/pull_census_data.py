@@ -24,7 +24,7 @@ from python.utils.directory_constants import (
     BLOCK_GEO, BLOCK_GROUP_GEO, P3_NAME, P4_NAME,
 )
 
-HTTP_TIMEOUT_SECONDS = 60
+HTTP_TIMEOUT_SECONDS = 300
 
 
 CREDENTIALS_PATH = Path(__file__).resolve().parent.parent.parent / 'authentication_files' / 'credentials.json'
