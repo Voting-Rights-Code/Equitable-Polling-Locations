@@ -238,7 +238,7 @@ def pull_ptable_data(geography, pnum, state_fips, county_code, census_year, api_
     response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
     response.raise_for_status()
     data = pd.DataFrame(response.json())
-    metadata = pull_metadata(f'https://api.census.gov/data/{census_year}/dec/pl/groups/{pnum}')
+    metadata = pull_metadata(f'https://api.census.gov/data/{census_year}/dec/pl/groups/{pnum}?key={api_key}')
 
     # Reformat data to match manual download (for backwards compatibility).
     headers = data.iloc[0].values
