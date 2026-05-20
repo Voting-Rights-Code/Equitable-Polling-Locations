@@ -28,7 +28,7 @@ Alternatively, export the `CENSUS_API_KEY` environment variable — it takes pre
 To confirm the installation is setup correctly, run pytest with the following command in the root of the project directory:
 
 ```
-docker compose run --rm app pytest
+python run.py test
 ```
 
 All tests should pass.

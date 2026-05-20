@@ -8,14 +8,27 @@ the KP optimisation solver to the four output CSV files written per run.
 
 import os
 import shutil
+import sys
 
 import pandas as pd
 import pytest
+import yaml
 
 from python.tests.e2e.conftest import run_cli
 from python.utils.directory_constants import RESULTS_BASE_DIR
 
 MODULE = 'python.scripts.model_run_cli'
+
+# Committed baseline result CSV used as the canonical column-shape reference
+# for tests that assert the full result-CSV column set (rather than a hand-
+# picked subset). The baseline is also the value-bit-exact regression
+# fixture, so the column shape stays in step with whatever model_results.py
+# produces — there's no separate list to keep up to date.
+BASELINE_RESULT_CSV = os.path.join(
+    RESULTS_BASE_DIR,
+    'testing_results',
+    'testing.testing_config_no_bg_results.csv',
+)
 
 # ---------------------------------------------------------------------------
 # Result path helpers
@@ -64,18 +77,24 @@ def _result_files(session_id: str, config_suffix: str) -> dict[str, str]:
 
 
 @pytest.fixture(scope='module', autouse=True)
-def cleanup_results(e2e_session_id):
+def cleanup_results(e2e_session_id, pytestconfig):
     """Remove the session's result directory after all tests in this module.
 
     Args:
         e2e_session_id: The session identifier fixture.
+        pytestconfig: The pytest config object, used to read
+            ``--keep-e2e-outputs``.
 
     Yields:
         None
     """
     yield
     rdir = _result_dir(e2e_session_id)
-    if os.path.isdir(rdir):
+    if not os.path.isdir(rdir):
+        return
+    if pytestconfig.getoption('--keep-e2e-outputs'):
+        print(f'[--keep-e2e-outputs] retained: {rdir}', file=sys.stderr)
+    else:
         shutil.rmtree(rdir)
 
 
@@ -106,7 +125,29 @@ def _ensure_run(e2e_test_data: dict, config_suffix: str) -> None:
 @pytest.mark.e2e
 @pytest.mark.e2e_csv
 class TestModelRunCliBasic:
-    """Smoke tests verifying the CLI runs successfully and writes output files."""
+    """Smoke tests for ``model_run_cli``'s invocation patterns.
+
+    These tests exercise the CLI's argument-handling surface — single config,
+    multiple configs, concurrency, verbose flag, custom log dir — and assert
+    that each invocation produces the expected output artifacts.  Assertions
+    are CLI-shape checks (files exist, stdout is non-empty, etc.), not
+    solver-output checks.
+
+    Choice of ``config_*`` variant per test:
+
+    - 3 of 5 tests use ``config_basic`` (the no-overrides baseline) since
+      the assertion doesn't depend on solver behavior.
+    - ``test_multiple_configs`` uses ``config_low_beta`` + ``config_capacity``
+      so the multi-config invocation passes two genuinely different configs
+      (rather than the same config twice).
+    - ``test_concurrent_runs`` uses ``config_new_locations`` to give the
+      ``-c 2`` parallel run a non-trivial scenario; the choice is
+      otherwise incidental.
+
+    The variant choice across tests is therefore intentional but not
+    load-bearing — replacing every variant with ``config_basic`` would not
+    weaken any assertion in this class.
+    """
 
     def test_single_config_basic(self, e2e_test_data):
         """Running config_basic produces all four expected output CSV files.
@@ -144,17 +185,17 @@ class TestModelRunCliBasic:
             )
 
     def test_concurrent_runs(self, e2e_test_data):
-        """config_constrained runs successfully with -c 2.
+        """config_new_locations runs successfully with -c 2.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
         """
         sid = e2e_test_data['sid']
-        config_path = e2e_test_data['configs']['config_constrained']
+        config_path = e2e_test_data['configs']['config_new_locations']
 
         run_cli(MODULE, config_path, '-c', '2')
 
-        files = _result_files(sid, 'config_constrained')
+        files = _result_files(sid, 'config_new_locations')
         assert os.path.isfile(files['results']), (
             f"Results file missing after concurrent run: {files['results']}"
         )
@@ -274,7 +315,13 @@ class TestModelRunCliValueAssertions:
     """Value-level assertions on result CSV content produced by model_run_cli."""
 
     def test_results_columns(self, e2e_test_data):
-        """The results CSV must contain id_orig, id_dest, and distance_m columns.
+        """Result CSV's column set matches the committed baseline.
+
+        Asserts that the result CSV produced by config_basic has exactly the
+        same column set as the committed baseline at ``BASELINE_RESULT_CSV``.
+        Using the committed baseline as the source of truth means the test
+        follows whatever ``python/solver/model_results.py`` writes today —
+        no hardcoded column list to keep in sync.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
@@ -283,12 +330,22 @@ class TestModelRunCliValueAssertions:
         sid = e2e_test_data['sid']
         results_path = _result_files(sid, 'config_basic')['results']
 
-        df = pd.read_csv(results_path)
-        for col in ('id_orig', 'id_dest', 'distance_m'):
-            assert col in df.columns, f"Expected column '{col}' in results CSV"
+        actual_df = pd.read_csv(results_path)
+        baseline_df = pd.read_csv(BASELINE_RESULT_CSV)
 
-    def test_all_residences_assigned(self, e2e_test_data):
-        """Every id_orig in the results must be a valid residence from the distances file.
+        assert set(actual_df.columns) == set(baseline_df.columns), (
+            f'Result-CSV column set mismatch vs baseline {BASELINE_RESULT_CSV}: '
+            f'missing_from_actual={set(baseline_df.columns) - set(actual_df.columns)}, '
+            f'extra_in_actual={set(actual_df.columns) - set(baseline_df.columns)}'
+        )
+
+    def test_every_residence_appears_in_results(self, e2e_test_data):
+        """Result rows cover the residence set 1:1 with the distance CSV.
+
+        ``model_results`` pre-filters to ``matching == 1`` rows before writing,
+        so every residence in the input distance CSV must appear exactly once
+        in the result CSV (and no extraneous ids should appear).  This is a
+        pipeline-plumbing check, not an optimizer-output check.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
@@ -303,13 +360,21 @@ class TestModelRunCliValueAssertions:
         source_ids = set(distances_df['id_orig'].astype(str))
         result_ids = set(results_df['id_orig'].astype(str))
 
-        assert result_ids.issubset(source_ids), (
-            f"Result id_origs not a subset of source distances: "
-            f"{result_ids - source_ids}"
+        assert result_ids == source_ids, (
+            f'id_orig set mismatch between result and distance CSVs: '
+            f'missing_from_result={source_ids - result_ids!r}, '
+            f'extra_in_result={result_ids - source_ids!r}'
         )
 
-    def test_no_duplicate_assignments(self, e2e_test_data):
-        """Each residence (id_orig) must appear at most once in the results.
+    def test_distinct_open_destinations_matches_config(self, e2e_test_data):
+        """Number of distinct chosen polling sites equals ``precincts_open`` from the config.
+
+        Honesty caveat: the optimizer (SCIP) is what enforces the
+        ``precincts_open`` bound, so this is partly a SCIP-behavior check.
+        It's the cleanest config-driven invariant available without a
+        different problem formulation; the value is that it catches
+        pipeline bugs where the writer drops or duplicates assignments
+        even when the model itself is correct.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
@@ -318,72 +383,158 @@ class TestModelRunCliValueAssertions:
         sid = e2e_test_data['sid']
         results_path = _result_files(sid, 'config_basic')['results']
 
-        df = pd.read_csv(results_path)
-        duplicates = df[df.duplicated(subset=['id_orig'], keep=False)]
-        assert duplicates.empty, (
-            f"Duplicate id_orig entries found in results: "
-            f"{duplicates['id_orig'].tolist()}"
-        )
+        with open(e2e_test_data['configs']['config_basic'], 'r', encoding='utf-8') as fh:
+            cfg = yaml.safe_load(fh)
+        expected_open = cfg['precincts_open']
 
-    def test_precincts_open_count(self, e2e_test_data):
-        """The number of unique open precincts must not exceed precincts_open (3).
+        results_df = pd.read_csv(results_path)
+        actual_open = results_df['id_dest'].nunique()
 
-        Args:
-            e2e_test_data: Session-scoped test data dict.
-        """
-        _ensure_run(e2e_test_data, 'config_basic')
-        sid = e2e_test_data['sid']
-        results_path = _result_files(sid, 'config_basic')['results']
-
-        df = pd.read_csv(results_path)
-        unique_precincts = df['id_dest'].nunique()
-        assert unique_precincts <= 3, (
-            f"Expected at most 3 open precincts, got {unique_precincts}"
+        assert actual_open == expected_open, (
+            f'Expected {expected_open} distinct open destinations from '
+            f'config_basic.precincts_open, got {actual_open}: '
+            f'{sorted(results_df["id_dest"].unique().tolist())}'
         )
 
     def test_ede_demographics_present_and_positive(self, e2e_test_data):
-        """The EDE file must have at least one row and positive y_EDE values.
+        """EDE file has one row per demographic column in the result CSV, all with positive y_EDE.
+
+        The EDE file is built by grouping the result CSV on its demographic
+        columns (see ``python/solver/model_results.py``), so EDE row count
+        must equal the demographic-column count in the result CSV.  We
+        derive that count by intersecting the result CSV's columns with
+        the canonical ``DISTANCE_*`` constants in ``python/solver/constants``,
+        which keeps this test in step with the writer if demographics are
+        ever added or removed.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
         """
+        # Local import so the test file's top-level imports stay solver-free;
+        # the rest of this module treats the solver as a CLI black box.
+        from python.solver.constants import (  # pylint: disable=import-outside-toplevel
+            DISTANCE_TOTAL_POPULATION,
+            DISTANCE_WHITE, DISTANCE_BLACK, DISTANCE_NATIVE,
+            DISTANCE_ASIAN, DISTANCE_HISPANIC,
+        )
+        expected_demographics = {
+            DISTANCE_TOTAL_POPULATION,
+            DISTANCE_WHITE, DISTANCE_BLACK, DISTANCE_NATIVE,
+            DISTANCE_ASIAN, DISTANCE_HISPANIC,
+        }
+
         _ensure_run(e2e_test_data, 'config_basic')
         sid = e2e_test_data['sid']
+        results_path = _result_files(sid, 'config_basic')['results']
         edes_path = _result_files(sid, 'config_basic')['edes']
 
-        df = pd.read_csv(edes_path)
-        assert len(df) > 0, 'EDE file must have at least one row'
-        assert 'y_EDE' in df.columns, 'EDE file must have a y_EDE column'
-        assert (df['y_EDE'] > 0).all(), (
-            f"All y_EDE values must be positive; found non-positive: "
-            f"{df[df['y_EDE'] <= 0]['y_EDE'].tolist()}"
+        results_df = pd.read_csv(results_path)
+        edes_df = pd.read_csv(edes_path)
+
+        demographic_cols_in_results = expected_demographics & set(results_df.columns)
+        assert demographic_cols_in_results == expected_demographics, (
+            f'Result CSV is missing expected demographic columns: '
+            f'{sorted(expected_demographics - demographic_cols_in_results)}'
+        )
+
+        assert len(edes_df) == len(demographic_cols_in_results), (
+            f'Expected {len(demographic_cols_in_results)} EDE rows '
+            f'(one per demographic in the result CSV: '
+            f'{sorted(demographic_cols_in_results)}), got {len(edes_df)}'
+        )
+        assert 'y_EDE' in edes_df.columns, 'EDE file must have a y_EDE column'
+        assert (edes_df['y_EDE'] > 0).all(), (
+            f'All y_EDE values must be positive; found non-positive: '
+            f'{edes_df[edes_df["y_EDE"] <= 0]["y_EDE"].tolist()}'
         )
 
     def test_residence_distances_count(self, e2e_test_data):
-        """The residence distances file must contain at least one row.
+        """The residence-distances file has one row per (residence, demographic) pair.
+
+        The writer in ``python/solver/model_results.py`` groups by
+        ``RESULT_DEMOGRAPHIC`` over the canonical ``DISTANCE_*`` constants,
+        so the row count equals (unique residences in the input distance
+        CSV) × (number of demographic columns in the result CSV).  Both
+        factors are fixed by the inputs, so we assert exact equality.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
         """
+        # Local import so the test file's top-level imports stay solver-free.
+        from python.solver.constants import (  # pylint: disable=import-outside-toplevel
+            DISTANCE_TOTAL_POPULATION,
+            DISTANCE_WHITE, DISTANCE_BLACK, DISTANCE_NATIVE,
+            DISTANCE_ASIAN, DISTANCE_HISPANIC,
+        )
+        expected_demographics = {
+            DISTANCE_TOTAL_POPULATION,
+            DISTANCE_WHITE, DISTANCE_BLACK, DISTANCE_NATIVE,
+            DISTANCE_ASIAN, DISTANCE_HISPANIC,
+        }
+
         _ensure_run(e2e_test_data, 'config_basic')
         sid = e2e_test_data['sid']
         res_path = _result_files(sid, 'config_basic')['residence_distances']
+        results_path = _result_files(sid, 'config_basic')['results']
+
+        distances_df = pd.read_csv(e2e_test_data['distances'])
+        results_df = pd.read_csv(results_path)
+        n_residences = distances_df['id_orig'].nunique()
+        n_demographics = len(expected_demographics & set(results_df.columns))
 
         df = pd.read_csv(res_path)
-        assert len(df) > 0, 'Residence distances file must have at least one row'
+        expected_rows = n_residences * n_demographics
+        assert len(df) == expected_rows, (
+            f'Expected {expected_rows} residence-distance rows '
+            f'({n_residences} residences x {n_demographics} demographics), '
+            f'got {len(df)}'
+        )
 
     def test_precinct_distances_count(self, e2e_test_data):
-        """The precinct distances file must contain at least one row.
+        """The precinct-distances file has one row per (precinct, demographic) pair.
+
+        The writer in ``python/solver/model_results.py`` groups by
+        ``RESULT_DEMOGRAPHIC`` over the canonical ``DISTANCE_*`` constants,
+        so the row count equals ``precincts_open`` (from the config — same
+        invariant ``test_distinct_open_destinations_matches_config`` checks
+        for the result CSV) × (number of demographic columns in the result
+        CSV).  Both factors are fixed by the inputs, so we assert exact
+        equality.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
         """
+        # Local import so the test file's top-level imports stay solver-free.
+        from python.solver.constants import (  # pylint: disable=import-outside-toplevel
+            DISTANCE_TOTAL_POPULATION,
+            DISTANCE_WHITE, DISTANCE_BLACK, DISTANCE_NATIVE,
+            DISTANCE_ASIAN, DISTANCE_HISPANIC,
+        )
+        expected_demographics = {
+            DISTANCE_TOTAL_POPULATION,
+            DISTANCE_WHITE, DISTANCE_BLACK, DISTANCE_NATIVE,
+            DISTANCE_ASIAN, DISTANCE_HISPANIC,
+        }
+
         _ensure_run(e2e_test_data, 'config_basic')
         sid = e2e_test_data['sid']
         prec_path = _result_files(sid, 'config_basic')['precinct_distances']
+        results_path = _result_files(sid, 'config_basic')['results']
+
+        with open(e2e_test_data['configs']['config_basic'], 'r', encoding='utf-8') as fh:
+            cfg = yaml.safe_load(fh)
+        n_precincts = cfg['precincts_open']
+
+        results_df = pd.read_csv(results_path)
+        n_demographics = len(expected_demographics & set(results_df.columns))
 
         df = pd.read_csv(prec_path)
-        assert len(df) > 0, 'Precinct distances file must have at least one row'
+        expected_rows = n_precincts * n_demographics
+        assert len(df) == expected_rows, (
+            f'Expected {expected_rows} precinct-distance rows '
+            f'({n_precincts} open precincts x {n_demographics} demographics), '
+            f'got {len(df)}'
+        )
 
     def test_capacity_constraint(self, e2e_test_data):
         """With capacity=3, no precinct exceeds ~3× the average assignment count.
@@ -426,14 +577,16 @@ class TestModelRunCliValueAssertions:
 
         results_df = pd.read_csv(files['results'])
         edes_df = pd.read_csv(files['edes'])
+        baseline_df = pd.read_csv(BASELINE_RESULT_CSV)
 
         assert len(results_df) > 0, 'Penalty config results must have at least one row'
         assert len(edes_df) > 0, 'Penalty config EDE output must have at least one row'
 
-        for col in ('id_orig', 'id_dest', 'distance_m'):
-            assert col in results_df.columns, (
-                f"Expected column '{col}' in penalty results CSV"
-            )
+        assert set(results_df.columns) == set(baseline_df.columns), (
+            f'Penalty result-CSV column set mismatch vs baseline {BASELINE_RESULT_CSV}: '
+            f'missing_from_actual={set(baseline_df.columns) - set(results_df.columns)}, '
+            f'extra_in_actual={set(results_df.columns) - set(baseline_df.columns)}'
+        )
 
     def test_low_beta_differs_from_basic(self, e2e_test_data):
         """Different beta values should produce different EDE values.

@@ -13,44 +13,6 @@ Welcome to Voting Rights Code! Thank you for considering contributing to this pr
 
 Questions? [Ask us on Discord](https://discord.com/channels/1106301559811350540/1106301560507609241).
 
-## Code of Conduct
-
-**Who we are:** A bunch of volunteers that care enough about civil rights to check our egos at the door and roll up our sleeves.
-
-- We don't have a ton of processes (yet) because we're still figuring it out
-- We do have good communication skills and ask for help when we need it, and get it
-- We treat each other like friends even if we don't agree with everyone's every last idea
-- Care enough about the work to get it right, not just the 80% solution
-- Care enough about ourselves and each other to not force ourselves and each other to do work we don't want to do
-
-### How we work
-
-1. **Communicate.** We can't fix a problem if we don't know it needs fixing. Everyone is responsible for the quality and good this project does. If we don't see something we need:
-    1. Ask us why this is so (there may or may not be a good reason)
-    2. Build it
-
-2. **Code review early. Code review often.** Do not merge without a code review.
-    1. As we start a feature branch, check in with the team to see what unwritten requirements exist
-    2. Follow good coding practices, including commenting code, implementing tests, delinting code
-    3. Do not merge into main until it is polished code
-        - This may require asking for code reviews on feature branches for larger features
-        - **If polishing a feature for merging is not what you're up for, that's okay. Tag it, and someone will get to it eventually.**
-    4. All pull requests will be reviewed by at least two maintainers before merge
-
-3. **Respect our own and each other's time.**
-    1. Don't go too far into a project without checking in
-        - If you don't understand how someone else is working on a part of the problem, ask them
-        - If you don't know who else is working on a relevant part of the project, ask
-        - When you need support on a project, schedule time on someone else's calendar
-        - When someone asks for time and help, respond promptly and be realistic about what support you can provide
-    2. Avoid burnout
-        - Be realistic about your own schedule and time commitment
-        - Take on tasks that bring you joy
-            - **If a task doesn't bring you joy, don't do it.** Document that it needs doing and move on. Someone else will get to it.
-
-4. **If we make a mistake, or think someone else has made a mistake, talk about it.**
-
-
 ## Table of Contents
 
 <!-- toc -->
@@ -66,11 +28,9 @@ Questions? [Ask us on Discord](https://discord.com/channels/1106301559811350540/
 - [Code Style](#code-style)
   - [Python](#python)
   - [R](#r)
-  - [Commit Messages](#commit-messages)
 - [Testing](#testing)
   - [Unit Tests](#unit-tests)
   - [End-to-End (E2E) Tests](#end-to-end-e2e-tests)
-  - [Test-Driven Development](#test-driven-development)
 - [Linting](#linting)
 - [Submitting Changes](#submitting-changes)
   - [Branching](#branching)
@@ -150,7 +110,7 @@ This repository uses [Git LFS](https://git-lfs.com/) for large data files.
 From the project root, run:
 
 ```bash
-docker compose run --rm app pytest
+python run.py test
 ```
 
 All tests should pass. See [Installation](docs/to_install.md) for full setup details.
@@ -174,8 +134,10 @@ R/            # Post-optimization result analysis and visualization (see R/CLAUD
 The `run.py` wrapper translates commands into Docker calls:
 
 ```
-run.py <script_name> [args]  →  docker compose run --rm app python -m python.scripts.<script_name> [args]
+run.py <script_name> [args]  →  docker compose -f .devcontainer/docker-compose.yml run --rm app python -m python.scripts.<script_name> [args]
 ```
+
+A single image powers both the dev container and the host-invoked `run.py` workflow, so editing `environment.yml` or `renv.lock` and rebuilding the image updates both paths at once.
 
 See [Running the Program](docs/to_run.md) for full usage details and examples.
 
@@ -188,14 +150,16 @@ Docker is the primary development method. All commands go through `run.py`, whic
 
 ```bash
 # Run the model locally
-python run.py model_run_cli -c NUM -l ./datasets/configs/<County>/config.yaml
+python run.py model_run_cli -c NUM -l ./datasets/configs/<config_set>/<config_name>.yaml
 
 # Run tests
-docker compose run --rm app pytest
+python run.py test
 
 # Run E2E tests
 python run.py e2e_tests
 ```
+
+The `-l` flag accepts a glob — e.g. `./datasets/configs/<config_set>/*.yaml` runs every config in the set.
 
 ### Dev Container — VS Code or Zed (recommended for editor-integrated development)
 
@@ -206,31 +170,136 @@ The project ships with a [dev container](https://containers.dev/) config in `.de
 - Docker (see above)
 - Either:
     - **VS Code** with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-    - **Zed** (recent version with dev container support)
+    - **Zed** (recent version with dev container support — see [Zed caveats](#zed-caveats) below)
 
-**VS Code:**
+**VS Code (recommended) — first open:**
 
 1. Open the project folder in VS Code
 2. When prompted "Folder contains a Dev Container configuration file", click **Reopen in Container** (or Command Palette → `Dev Containers: Reopen in Container`)
-3. First build takes several minutes (conda solve + package install); subsequent opens reuse the container
-4. Recommended extensions (Python, Pylint, Debugpy) install automatically inside the container
-5. Open any file under `python/tests/` — **▶ Run Test** and **🐞 Debug Test** buttons appear inline above each test function. Test Explorer populates in the sidebar.
+3. VS Code builds the image automatically on first open (~5-10 minutes; progress shown in the output panel). Rebuild happens only when `.devcontainer/Dockerfile` or `environment.yml` changes.
+4. On first container creation, `postCreateCommand` installs R packages (~15-20 min, runs in the background). You can use the editor while it runs; R-dependent workflows just won't be available until it finishes. Subsequent opens are instant (packages persist in a docker volume).
+5. Recommended extensions (Python, Pylint, Debugpy) install automatically inside the container
+6. Open any file under `python/tests/` — **▶ Run Test** and **🐞 Debug Test** buttons appear inline above each test function. Test Explorer populates in the sidebar.
 
-**Zed:**
+No manual commands required on macOS or Windows.
 
-1. Open the project folder in Zed
-2. Zed detects `.devcontainer/devcontainer.json` and builds the container automatically
-3. **One-time setup:** Command Palette → search for `toolchain` (or Python interpreter selector) → choose `/opt/conda/envs/equitable-polls/bin/python`. Zed's test runner needs this to find `pytest`.
-4. Open any file under `python/tests/` — inline **▶** icons appear next to test functions
-5. Additional pytest and pylint tasks are available via Command Palette → `task: spawn` (defined in `.zed/tasks.json`)
+#### Windows contributors — notes
+
+The dev container works on native Windows (Docker Desktop with WSL2 backend, which is the default) without WSL-side VS Code. A few Windows-specific details:
+
+- **Line endings:** git on Windows defaults to `core.autocrlf=true`, which would otherwise make every file look modified inside the Linux container. The committed `.gitattributes` forces LF in the working tree on all platforms, so this is handled automatically for fresh clones. If you cloned before `.gitattributes` was committed, run once: `git add --renormalize . && git commit -m "chore: renormalize line endings"`.
+- **Git auth:** no Windows-specific setup needed. Contributors who want to run `git push/pull` from inside the container use `gh auth login` once (see [Git from inside the container](#git-from-inside-the-container-optional)) — same flow as macOS and Linux.
+- **GCP auth:** no Windows-specific setup needed. gcloud authentication happens inside the container (see [Database Setup](#database-setup-optional)) — container-local, so host path differences between `%APPDATA%\gcloud` and `~/.config/gcloud` don't matter.
+
+**Git from inside the container (optional):**
+
+If you want to run `git push/pull` inside the container (rather than from your host terminal), authenticate with GitHub once via device flow. The container doesn't mount your host SSH keys — `gh` provides git credentials instead.
+
+In the container's integrated terminal:
+
+```bash
+gh auth login          # pick GitHub.com → HTTPS → "Login with a web browser"
+gh auth setup-git      # configures git to use gh as its credential helper
+```
+
+`gh auth login` prints a URL and a short code; open the URL in your host browser, paste the code, approve, and come back. Your gh token is saved in the `gh-config` docker volume and persists across container rebuilds — no re-login needed unless you explicitly wipe the volume.
+
+After `gh auth setup-git`, any clone URL (HTTPS or SSH) works for pull/push from inside the container. Alternatively, run git commands from your host terminal as usual — the project files are shared between host and container either way.
+
+**SSH caveat under VS Code.** The Dev Containers extension forwards your host's SSH agent socket into shells it spawns — you'll see `SSH_AUTH_SOCK` set in VS Code terminals but not in the container's base env (`docker exec equitable_polling_locations-app-1 env` shows nothing). That means `git clone git@github.com:...` and other SSH operations also work under VS Code, using your host's in-memory keys. Under Zed there is no such forwarding. The exact socket path varies by VS Code version and host OS; the forwarding behavior is stable, the path isn't. The `gh` HTTPS credential helper is the canonical recommendation because it works in both editors and doesn't depend on the host having an SSH agent running.
+
+#### Zed caveats
+
+Zed's dev container pipeline has a bug where `build:` in `docker-compose.yml` is effectively ignored — it extracts only the Dockerfile's `FROM` line and skips every `RUN`/`COPY` step after it. As a result Zed cannot build this project's image directly. **Workaround: pre-build the image manually from your host terminal before opening in Zed:**
+
+```bash
+docker compose -f .devcontainer/docker-compose.build.yml build
+```
+
+Then open the project in Zed — it will start a container from the pre-built image. One-time setup per Zed contributor: Command Palette → search for `toolchain` → choose `/opt/conda/envs/equitable-polls/bin/python`. Zed's test runner needs this to find `pytest`. Additional pytest and pylint tasks are available via Command Palette → `task: spawn` (defined in `.zed/tasks.json`).
+
+Rebuild the image (same command above) when `.devcontainer/Dockerfile` or `environment.yml` changes, then rebuild the container from Zed.
+
+VS Code's dev container extension does not have this bug — VS Code users have no manual pre-build step.
+
+**Verifying the container is ready:**
+
+In the container's integrated terminal:
+
+```bash
+pytest --version       # should print: pytest 9.0.3
+pylint --version       # should print: pylint 4.0.x
+R --version            # should print: R version 4.3.x
+claude --version       # should print a Claude Code version
+ssh -T git@github.com  # should print: Hi <username>! You've successfully authenticated...
+```
+
+For R, also run the packages smoke test — but note that the R package install may still be running in the background on first open (see next subsection):
+
+```bash
+Rscript R/tests/r_smoke_test.R
+```
+
+**R: first-time setup**
+
+R is configured automatically as part of the Dev Container flow — no manual setup steps beyond opening the project. Here's what happens and how to verify / troubleshoot:
+
+1. **R binary + system libs** (`r-base`, `libgdal-dev`, `libproj-dev`, etc.) are installed during the image build. No action from you.
+
+2. **R packages** install automatically on first container creation via `postCreateCommand`, which runs `sudo Rscript .devcontainer/install_r_packages.R`. This takes **~15-20 minutes** the first time and runs in the background — you can use the editor for non-R work (Python tests, editing, terminal) while it finishes.
+
+3. **Packages persist across container recreations** in a docker volume named `equitable-polling-locations_r-site-library`, so the 15-minute install only happens once per developer. Rebuilding the image does not wipe the volume.
+
+**Verify R is ready:**
+
+```bash
+Rscript R/tests/r_smoke_test.R
+```
+
+Expected output: `OK: R 4.3.x with 17 packages loadable`.
+
+**If the smoke test reports missing packages:**
+
+Check whether the background install is still running:
+
+```bash
+ps -ef | grep Rscript | grep -v grep
+```
+
+- **Running:** wait for it to finish (tail `/tmp/r-install.log` if postCreate redirected output there, otherwise just periodically rerun the smoke test)
+- **Not running:** the initial postCreate died silently. Kick it off manually:
+    ```bash
+    sudo Rscript .devcontainer/install_r_packages.R
+    ```
+
+**To force a clean R package reinstall** (e.g. if a package gets corrupted), wipe the docker volume from the **host terminal** and restart the container:
+
+```bash
+docker volume rm equitable-polling-locations_r-site-library
+```
+
+The next container start re-runs the full install.
+
+**Adding or removing R packages** later — see [Adding or updating R packages](#adding-or-updating-r-packages).
+
+**Using R outside the Dev Container** — see [Working outside the Dev Container](#working-outside-the-dev-container).
+
+**Rebuilding after `.devcontainer/Dockerfile` or `environment.yml` changes:**
+
+- **VS Code users:** Command Palette → `Dev Containers: Rebuild Container`. VS Code builds the new image automatically. Nothing else to do.
+- **Zed users:** Rebuild the image manually first (see [Zed caveats](#zed-caveats)), then close the window, `docker rm -f equitable_polling_locations-app-1`, and reopen in Zed.
+
+The R packages persist in a docker volume independently of the image, so they don't reinstall on image rebuild. To force a clean R reinstall: `docker volume rm equitable-polling-locations_r-site-library`.
 
 **What's in the container:**
 
-- Python 3.11 + the pinned conda env `equitable-polls` (pytest, pylint, geopandas, etc.)
-- **R** + the project's R packages (`data.table`, `sf`, `ggplot2`, `bigrquery`, etc. — see `.devcontainer/install_r_packages.R`) for the analysis scripts in `R/`
-- Node.js 20 and `claude` CLI (for [Claude Code](#claude-code))
-- Git LFS (required for shapefiles and large data files)
-- GCP credentials mounted from your host `~/.config/gcloud` (so `run.py` and DB tests work without re-authentication)
+- Python 3.11 + the pinned conda env `equitable-polls` (pytest, pylint, geopandas, etc.) — baked into the image
+- **R 4.3** + the project's R packages (`data.table`, `sf`, `ggplot2`, `bigrquery`, `lintr`, `styler`, `languageserver`, etc. — see `.devcontainer/install_r_packages.R`) — R binary baked into image; packages installed on first container start and persisted in a docker volume
+- Node.js 20 + `claude` CLI (for [Claude Code](#claude-code))
+- Git + Git LFS + `gh` CLI (GitHub CLI — used as git's credential helper for HTTPS operations; see [Git from inside the container](#git-from-inside-the-container-optional))
+- **gcloud CLI + auth state** persisted in a docker volume (`gcloud-config`), isolated from host — run `gcloud auth application-default login --no-launch-browser` once per machine; credentials feed BigQuery and other GCP calls automatically via `GOOGLE_APPLICATION_CREDENTIALS`
+- **gh auth state** persisted in a docker volume (`gh-config`), isolated from host — `gh auth login` once per machine, no host SSH keys needed
+- **Claude Code state** persisted in a docker volume (`claude-state`), isolated from host Claude — container auth, MCP servers, and plugins survive rebuilds and don't cross-contaminate with your host Claude install
 
 **Using the container's integrated terminal:**
 
@@ -270,9 +339,11 @@ claude
 python
 ```
 
-You can still use `run.py` and `docker compose run` from a **host** terminal (outside the container) if you want a one-shot container invocation — the two workflows don't conflict and target the same image. Inside the dev container, use the direct commands above.
+`run.py` also works inside the container — it detects `/.dockerenv` and runs commands directly instead of trying to spawn another container. So `python run.py test`, `python run.py lint`, `python run.py r_test`, and `python run.py <script_name>` all work identically whether you invoke them from the host or from inside the dev container. Use whichever is convenient.
 
 ### Local Development with Conda (optional)
+
+> Skip this section if you're using Docker (the recommended path) — `run.py` already provides everything below inside the container.
 
 Conda can be set up for local development without Docker. This is useful for IDE integration and debugging.
 
@@ -284,6 +355,25 @@ Conda can be set up for local development without Docker. This is useful for IDE
     conda env create -f environment.yml
     conda activate equitable-polls
     ```
+
+#### Updating the conda environment
+
+When `environment.yml` changes (a dependency is added, removed, or pinned to a new version), sync your local env rather than recreating it:
+
+```bash
+conda activate equitable-polls
+conda env update -f environment.yml --prune
+```
+
+`--prune` removes packages that are no longer listed in `environment.yml`, keeping your env in lockstep with the file. If the update fails or the env drifts badly, fall back to a clean rebuild:
+
+```bash
+conda deactivate
+conda env remove -n equitable-polls
+conda env create -f environment.yml
+```
+
+Docker and Dev Container users: the conda env is baked into the image, so `environment.yml` changes are picked up at image rebuild. Rebuild from a host terminal with `docker compose -f .devcontainer/docker-compose.build.yml build`, then rebuild the container in your editor (VS Code: *Dev Containers: Rebuild Container*; Zed: close the window, `docker rm -f equitable_polling_locations-app-1`, reopen). A rebuilt image benefits both the dev container and host-invoked `run.py` — they share one image.
 
 ### IDE Setup for Local Conda (optional)
 
@@ -308,21 +398,56 @@ If you prefer running pylint outside the editor, use `python run.py lint` (see [
 
 ### Database Setup (optional)
 
-Database-backed workflows require GCP credentials and a configured environment in `settings.yaml`.
+Database-backed workflows require GCP Application Default Credentials and a configured environment in `settings.yaml`.
 
-- Run `gcloud auth application-default login` to set up Application Default Credentials
-- The `run.py` wrapper mounts GCP credentials into the Docker container automatically
+- **Authenticate inside the container** via device flow. From the container's integrated terminal:
+    ```bash
+    gcloud auth application-default login --no-launch-browser
+    ```
+    gcloud prints a URL — open it in your host browser, approve the consent, copy the returned verification code, and paste it back in the container. Credentials are saved to the `gcloud-config` docker volume and persist across container rebuilds (re-authenticate only if you `docker volume rm` the volume).
 - Use **scratch datasets** for development and testing — never develop directly against production
 - Run `alembic upgrade head` to initialize or update the database schema
 
 See [Database](docs/database.md) for full documentation on schema, imports, scratch dataset setup, and Alembic migrations.
+
+### R Package Management
+
+R packages are managed by [renv](https://rstudio.github.io/renv/). The repo's `renv.lock` is the canonical pinned package set (covers ~129 packages, including transitives). The dev container's `postCreateCommand` (`run_r_install.sh`) bootstraps renv and runs `renv::restore()` against `renv.lock` automatically, so no manual setup is needed inside the container.
+
+**To add a new R package:**
+
+```bash
+Rscript -e 'renv::install("pkg-name")'
+Rscript -e 'renv::snapshot()'    # captures the new state into renv.lock
+```
+
+Then commit `renv.lock`. The R smoke test (`python run.py r_test`) reads its package list from `renv.lock` directly, so there's no separate list to keep in sync.
+
+**To update an existing R package:**
+
+```bash
+Rscript -e 'renv::install("pkg-name@x.y.z")'   # specific version
+# or
+Rscript -e 'renv::update("pkg-name")'           # latest compatible
+Rscript -e 'renv::snapshot()'
+```
+
+Then commit `renv.lock`.
+
+**Smoke-testing the R env:**
+
+```bash
+python run.py r_test
+```
+
+Loads every package in `renv.lock` and reports any that fail to load.
 
 
 ## Code Style
 
 ### Python
 
-This project follows the [Google Python style guide](https://google.github.io/styleguide/pyguide.html), enforced via Pylint (see `.pylintrc`).
+This project follows the [Google Python style guide](https://google.github.io/styleguide/pyguide.html) for all new code. Pylint (see `.pylintrc`) is the project's linter and should be run before merges via `python run.py lint`.
 
 - **Indentation:** 4 spaces
 - **Line length:** 120 characters maximum
@@ -359,29 +484,10 @@ Inline comments should explain *why*, not restate *what* the code does. Keep the
 The R analysis scripts in `R/` follow the [tidyverse style guide](https://style.tidyverse.org/).
 
 - **Naming:** `snake_case` for all names. Files: `snake_case.R`
-- **Assignment:** Always `<-`, never `=`. Use `TRUE`/`FALSE`, never `T`/`F`
-- **Data manipulation:** This project uses `data.table` — use `dt[i, j, by]` idiom, not dplyr verbs. Do not mix.
-- **Vectorize operations:** Avoid explicit loops for element-wise work. Use `vapply()` over `sapply()`. Use `seq_along(x)` / `seq_len(n)`, never `1:length(x)`.
+- **Assignment:** Preferentially use `<-`. Only use `=` when `<-` will cause an error (E.g. when using named variables). 
+- **Data manipulation:** This project uses data.table — use `dt[i, j, by]` idiom. Only use dplyr verbs when there is no way to perform the action using data.table.
+- **Vectorize operations:** Avoid explicit loops for element-wise work. Use `seq_along(x)` / `seq_len(n)`, never `1:length(x)`.
 - **Linting:** Lint with `lintr::lint()`. Format with `styler::style_file()`.
-
-### Commit Messages
-
-This project uses [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-type(scope): description
-```
-
-- **Types:** `feat`, `fix`, `refactor`, `test`, `chore`, `docs`
-- **Scope:** Module name — `solver`, `database`, `scripts`, etc.
-
-Examples:
-```
-feat(solver): add overcrowding constraint support
-fix(database): handle null driving distances in import
-test(e2e): add CSV workflow end-to-end tests
-docs(contributing): consolidate contributing guide
-```
 
 
 ## Testing
@@ -391,7 +497,7 @@ docs(contributing): consolidate contributing guide
 Unit tests live in `python/tests/` and cover the solver, model data, config loading, and utilities. Run them via Docker:
 
 ```bash
-docker compose run --rm app pytest
+python run.py test
 ```
 
 Or locally with a conda environment:
@@ -401,6 +507,8 @@ pytest
 ```
 
 If you're using the [Dev Container](#dev-container--vs-code-or-zed-recommended-for-editor-integrated-development), you can also run and debug individual tests directly from the editor via the **▶ Run Test** / **🐞 Debug Test** buttons that appear above each `def test_*` function.
+
+The R code has no unit tests (yet).
 
 ### End-to-End (E2E) Tests
 
@@ -444,25 +552,52 @@ pytest python/tests/e2e/
 pytest python/tests/e2e/ -m e2e_csv
 ```
 
+#### Inspecting E2E Outputs
+
+By default the E2E suite cleans up every file and directory it generates after the session finishes. Pass `--keep-e2e-outputs` to skip the filesystem cleanup and inspect the inputs and outputs of each run — useful when a test fails and you want to look at what the solver actually produced, or when you want to reproduce a single run by hand.
+
+```bash
+# Host
+python run.py e2e_tests -m e2e_csv --keep-e2e-outputs
+
+# Dev container or local conda
+pytest python/tests/e2e/ -m e2e_csv --keep-e2e-outputs
+```
+
+Each session is namespaced by a random ID `e2e_<6 hex chars>` and writes to four directories under `datasets/`:
+
+| Path | Contents |
+| --- | --- |
+| `datasets/polling/e2e_<sid>/` | Inputs the run consumed: copied potential locations CSV plus 8 distance CSV variants |
+| `datasets/driving/e2e_<sid>/` | Source driving distances CSV |
+| `datasets/configs/e2e_<sid>/` | 8 generated YAML configs plus 1 autogen template (the inputs each test fed into the solver) |
+| `datasets/results/e2e_<sid>_results/` | **Model outputs** — `_results.csv`, `_precinct_distances.csv`, `_residence_distances.csv`, `_edes.csv` for each variant |
+
+The `_results/` directory is usually the most useful for debugging. To reproduce a single run by hand:
+
+```bash
+python run.py model_run_cli -c 1 -l ./datasets/configs/e2e_<sid>/e2e_<sid>_config_basic.yaml
+```
+
+The four directories are gitignored (see the `e2e_*` rules in `.gitignore`), so retained outputs will not show up in `git status` or be accidentally committed.
+
+**Cleanup when you're done:**
+
+```bash
+rm -rf datasets/polling/e2e_* datasets/driving/e2e_* datasets/configs/e2e_* datasets/results/e2e_*_results
+```
+
+The flag does **not** affect database cleanup — the `e2e_db` session still purges its BigQuery rows at start and end as described in [Setting Up DB Tests](#setting-up-db-tests) below.
+
 #### Setting Up DB Tests
 
 To run the DB E2E tests:
 
 1. Ensure `settings.yaml` has a `test` environment configured (see `settings_example.yaml`)
-2. Ensure GCP Application Default Credentials are set up (`gcloud auth application-default login`)
-3. Run via `python run.py e2e_tests -m e2e_db` — the `run.py` wrapper mounts GCP credentials into the Docker container automatically
+2. Ensure GCP Application Default Credentials are set up **inside the container** — see [Database Setup](#database-setup-optional) for the in-container `gcloud auth application-default login --no-launch-browser` flow. Credentials persist in the `gcloud-config` docker volume.
+3. Run via `python run.py e2e_tests -m e2e_db` — whether invoked from the host or from inside the container, the tests pick up credentials from the volume automatically.
 
-DB tests clean up after themselves by deleting all `e2e_`-prefixed data from the test dataset at both the start and end of each session.
-
-### Test-Driven Development
-
-All code should be written using TDD:
-
-1. **Write a failing test first** — before writing any implementation code, write a test that captures the desired behavior and confirm it fails for the right reason.
-2. **Write the minimum code to pass** — implement only enough to make the test green; do not add logic that is not covered by a test.
-3. **Refactor** — clean up while keeping all tests green.
-
-When modifying existing code, update the associated tests before or alongside the change, and confirm all relevant tests pass before considering the work done.
+DB tests do not auto-clean their data — `e2e_`-prefixed rows accumulate in the test dataset across runs so they're available for manual inspection and feature-development work. Run an on-demand purge when the dataset gets bulky (no script ships with the repo today; a `bq query` against `tests_chad` filtered by `WHERE config_set LIKE 'e2e_%'` is the simplest interim approach).
 
 ### Pre-Merge Checklist
 
@@ -563,18 +698,33 @@ styler::style_file("path/to/file.R")
 
 #### Adding or updating R packages
 
-R package versions are pinned in `.devcontainer/renv.lock` — the single source of truth (equivalent to `environment.yml` for Python). To add a new package or update an existing one:
+The package list lives in `.devcontainer/install_r_packages.R`. This script runs automatically via `postCreateCommand` on first container creation, installing the latest versions from CRAN into a docker volume mounted at `/usr/local/lib/R/site-library` so packages persist across container recreations.
 
-1. Add the package to the `packages` vector in `.devcontainer/install_r_packages.R`
-2. Install it: `sudo Rscript .devcontainer/install_r_packages.R`
-3. Regenerate the lockfile: `sudo Rscript -e "renv::snapshot(library='/usr/local/lib/R/site-library', type='all', lockfile='.devcontainer/renv.lock', prompt=FALSE, force=TRUE)"`
-4. Add the package to `R/tests/r_smoke_test.R`
-5. Verify: `Rscript R/tests/r_smoke_test.R`
-6. Commit `renv.lock`, `install_r_packages.R`, and `r_smoke_test.R`
+To add or update a package (in the dev container):
+
+1. Edit the `packages` vector in `.devcontainer/install_r_packages.R`
+2. Add the same package to `R/tests/r_smoke_test.R`
+3. Install it now: `sudo Rscript .devcontainer/install_r_packages.R`
+4. Verify: `Rscript R/tests/r_smoke_test.R`
+5. Commit `install_r_packages.R` and `r_smoke_test.R`
+
+**Force a clean R package reinstall** (e.g. if a package is in a bad state): from the host terminal, remove the docker volume, then rebuild the container:
+
+```bash
+docker volume rm equitable-polling-locations_r-site-library
+```
+
+The next time the container starts, `postCreateCommand` will reinstall all packages from scratch (~15-20 min).
 
 #### Working outside the Dev Container
 
-If you prefer a local R install, use `renv::restore(lockfile='.devcontainer/renv.lock')` to install the exact pinned versions, or install packages manually — `.devcontainer/install_r_packages.R` has the human-readable list.
+If you prefer a local R install, install the packages manually using the list in `.devcontainer/install_r_packages.R`:
+
+```r
+source(".devcontainer/install_r_packages.R")
+```
+
+Versions are not pinned — you'll get whatever CRAN ships at install time. If you need reproducibility across machines, consider setting up [renv](https://rstudio.github.io/renv/) locally.
 
 
 ## Submitting Changes
@@ -594,7 +744,7 @@ When your change is ready:
 
 ### Code Review
 
-All pull requests require review by at least **two maintainers** before merge.
+All pull requests require review by a maintainer from Voting Rights Code before merge.
 
 - Request reviews early for larger features — don't wait until the entire feature is complete
 - If polishing a feature for merging is not what you're up for, that's okay. Tag it, and someone will get to it eventually
@@ -624,7 +774,7 @@ You can run Claude Code either on your host system or inside the dev container. 
 
 **Inside the Dev Container (recommended if you already develop in-container):**
 
-The `claude` CLI is pre-installed inside the container via `postCreateCommand`. To start it:
+The `claude` CLI is pre-installed in the image (baked in at build time via `.devcontainer/Dockerfile`). To start it:
 
 1. **Open the project in your editor in the container:**
     - **VS Code:** open the project folder → click *Reopen in Container* if prompted, or Command Palette → `Dev Containers: Reopen in Container`
@@ -641,15 +791,15 @@ The `claude` CLI is pre-installed inside the container via `postCreateCommand`. 
     ```
     On first run, Claude Code prompts you to authenticate via a browser. Follow the link it prints, log in, and paste the returned code back into the terminal. `Ctrl+D` or typing `/exit` ends the session.
 
-**Your Claude Code state is shared with your host by default.** The dev container mounts your host `~/.claude/` directory (or `%USERPROFILE%\.claude` on Windows) at `/home/vscode/.claude` inside the container, so auth tokens, MCP servers, and plugins persist across container rebuilds and stay in sync with any host-side Claude Code install.
+**Your Claude Code state lives in an isolated docker volume** (`claude-state`), separate from your host's `~/.claude/`. Container and host can run different Claude versions, install different plugins, and authenticate independently without interfering with each other. The volume survives container recreations and image rebuilds, so you only need to log in once per machine (or once after `docker volume rm`).
 
-- **Before first use:** if you've never run Claude Code on this machine, `~/.claude/` won't exist yet. Docker will auto-create an empty directory — that's fine; `claude` will populate it on first login.
-- **Already running Claude Code on your host?** Your existing auth and MCP config carry straight into the container — no re-authentication needed.
-- **Prefer to isolate host and container state?** Remove the `- ${HOME:-${USERPROFILE}}/.claude:/home/vscode/.claude` line from `.devcontainer/docker-compose.yml` (your local change only) and rebuild. State will then be ephemeral and wiped on each container rebuild.
+- **First run in the container:** `claude` will prompt you to authenticate via browser. Log in once; subsequent runs read the saved auth from the volume.
+- **Plugins and MCP servers installed on your host DO NOT appear in the container** (and vice versa). Install them separately inside the container via `/plugins` and `claude mcp add` if you need them in both places. See [GitHub MCP Server](#github-mcp-server) below for an example.
+- **To reset the container's Claude state** (forget auth, plugins, MCP config): from the **host terminal**, `docker volume rm equitable-polling-locations_claude-state`, then restart the container. Next `claude` run will prompt for login again.
 
 **On the host (alternative):**
 
-Install Claude Code following the official instructions at [claude.ai/download](https://claude.ai/download). Use this if you prefer to keep AI tooling outside the container entirely. With the default mount in place, host and container use the same `~/.claude/` either way.
+Install Claude Code following the official instructions at [claude.ai/download](https://claude.ai/download). Use this if you prefer to keep AI tooling outside the container entirely. Host and container Claude installs are now fully independent — changes to one don't affect the other.
 
 ### GitHub MCP Server
 
@@ -676,11 +826,15 @@ Claude Code uses the GitHub MCP server to create and manage issues and pull requ
 
 ### Plugins
 
-Install the following plugins from `claude-plugins-official` via `/plugins`:
+The following plugins from `claude-plugins-official` are declared in `.claude/settings.json`'s `enabledPlugins` block:
 
 - **superpowers** — planning, code review, and development workflow skills
 - **commit-commands** — commit, push, and PR shortcuts
 - **pyright-lsp** — Python type checking and language server integration
+
+`.devcontainer/post-create.sh` registers the `claude-plugins-official` marketplace and pre-installs these on first container boot, so they are ready the first time you run `claude`. A fresh `claude-state` volume has no marketplaces registered by default — without post-create.sh, the declared plugins would silently fail to resolve. To force a reinstall (e.g., after `docker volume rm equitable-polling-locations_claude-state`), rerun `bash .devcontainer/post-create.sh` inside the container or rebuild the container.
+
+To see or manage the installed plugin set interactively, run `/plugins` inside a Claude session.
 
 
 ## Getting Help

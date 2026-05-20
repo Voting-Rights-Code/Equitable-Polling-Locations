@@ -182,7 +182,7 @@ class TestAutoGenerateConfigDb:
             if os.path.isfile(path):
                 os.remove(path)
 
-    def test_generate_with_db_flag(self, e2e_test_data, test_environment, clean_test_data):
+    def test_generate_with_db_flag(self, e2e_test_data, test_environment):
         """Running with -d -e test writes the generated configs to the database.
 
         Uses ``Query.find_model_configs_by_config_set`` to verify that at least
@@ -192,7 +192,6 @@ class TestAutoGenerateConfigDb:
         Args:
             e2e_test_data: Session-scoped test data dict.
             test_environment: The loaded test environment.
-            clean_test_data: Ensures the DB is clean before and after the session.
         """
         from python.database.query import Query  # pylint: disable=import-outside-toplevel
 

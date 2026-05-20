@@ -11,6 +11,7 @@ no 'test' environment is configured in settings.yaml.
 
 import os
 import shutil
+import sys
 
 import pytest
 
@@ -67,18 +68,24 @@ def _result_files(session_id: str, config_suffix: str) -> dict[str, str]:
 
 
 @pytest.fixture(scope='module', autouse=True)
-def cleanup_csv_results(e2e_session_id):
+def cleanup_csv_results(e2e_session_id, pytestconfig):
     """Remove the session's CSV result directory after all tests in this module.
 
     Args:
         e2e_session_id: The session identifier fixture.
+        pytestconfig: The pytest config object, used to read
+            ``--keep-e2e-outputs``.
 
     Yields:
         None
     """
     yield
     rdir = _result_dir(e2e_session_id)
-    if os.path.isdir(rdir):
+    if not os.path.isdir(rdir):
+        return
+    if pytestconfig.getoption('--keep-e2e-outputs'):
+        print(f'[--keep-e2e-outputs] retained: {rdir}', file=sys.stderr)
+    else:
         shutil.rmtree(rdir)
 
 
@@ -193,14 +200,19 @@ class TestModelRunDbCliDbOutput:
             f"No ModelConfig found for config_set='{sid}', config_name='{config_name}'"
         )
 
-        # Confirm at least one ModelRun was created for this config.
+        # Confirm exactly one ModelRun was created for this config.  A single
+        # `model_run_db_cli` invocation against a single config writes exactly
+        # one ModelRun row; nothing else in this test session writes ModelRuns
+        # for this config_name (the CSV-output tests use -o csv; other test
+        # files don't go through model_run_db_cli at all), so a count != 1
+        # would be a real bug we want surfaced.
         session = query.get_session()
         run_rows = (
             session.query(models.ModelRun)
             .filter(models.ModelRun.model_config_id == db_config.id)
             .all()
         )
-        assert len(run_rows) >= 1, (
-            f"Expected at least one ModelRun record for config_set='{sid}', "
-            f"config_name='{config_name}', but found none."
+        assert len(run_rows) == 1, (
+            f"Expected exactly one ModelRun record for config_set='{sid}', "
+            f"config_name='{config_name}', but found {len(run_rows)}."
         )

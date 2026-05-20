@@ -9,9 +9,9 @@
 #                   NULL indicates that this set of constants is only 
 #                   on for historical
 
-LOCATION = 'Dougherty_County_GA' #needed only for reading from csv and writing outputs
-ORIG_CONFIG_FOLDER = "Dougherty_County_GA_original_configs"
-POTENTIAL_CONFIG_FOLDER = "Dougherty_County_GA_log_configs" #leave NULL if only want historical analysis
+LOCATION = 'Muscogee_County_GA' #needed only for reading from csv and writing outputs
+ORIG_CONFIG_FOLDER = "Muscogee_County_GA_original_configs"
+POTENTIAL_CONFIG_FOLDER = "Muscogee_County_GA_log_configs" #leave NULL if only want historical analysis
 ORIG_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 POTENTIAL_FIELD_OF_INTEREST = '' #must not leave empty if config set has only one element
 
@@ -51,7 +51,7 @@ READ_FROM_CSV = FALSE
 PRINT_SQL = FALSE
 
 #constants for database queries
-#only need to define if READ_FROM_CSV = FALSE
+#only need to define if READ_FROM_CSV = TRUE
 PROJECT = "equitable-polling-locations"
 DATASET = "equitable_polling_locations_prod"
 BILLING = PROJECT

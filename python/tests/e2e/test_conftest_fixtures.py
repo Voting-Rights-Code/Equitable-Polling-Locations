@@ -101,10 +101,17 @@ class TestE2eTestDataFiles:
 class TestE2eTestDataContent:
     """Verify that the generated files have the expected content."""
 
-    def test_potential_locations_csv_is_non_empty(self, e2e_test_data):
-        """The potential locations CSV must contain at least one data row."""
+    def test_potential_locations_csv_matches_committed_sample(self, e2e_test_data):
+        """The potential locations CSV has the row count and columns of the
+        committed testing sample at
+        ``datasets/polling/testing/testing_potential_locations.csv``.
+        """
         df = pd.read_csv(e2e_test_data['potential_locations'])
-        assert len(df) > 0
+        assert len(df) == 18, f'Expected 18 rows, got {len(df)}'
+        assert list(df.columns) == [
+            'Location', 'Address', 'Location type',
+            'Latitude', 'Longitude', 'Lat, Lon',
+        ], f'Unexpected columns: {list(df.columns)!r}'
 
     def test_log_distances_have_distance_m_column(self, e2e_test_data):
         """The log-transformed distances CSV must have a 'distance_m' column."""
@@ -112,15 +119,15 @@ class TestE2eTestDataContent:
         assert 'distance_m' in df.columns
 
     def test_log_transform_applied_to_distances(self, e2e_test_data):
-        """Log-transformed distances must differ from the linear source distances."""
+        """Log has no fixed points: every row's distance_m differs from the linear source."""
         src_df = pd.read_csv(e2e_test_data['distances'])
         log_df = pd.read_csv(e2e_test_data['distances_log'])
-        # At least some values should differ after log transformation.
-        positive_mask = src_df['distance_m'] > 0
-        if positive_mask.any():
-            assert not src_df.loc[positive_mask, 'distance_m'].equals(
-                log_df.loc[positive_mask, 'distance_m']
-            )
+        assert (src_df['distance_m'] != log_df['distance_m']).all()
+
+    def test_distance_m_values_are_positive(self, e2e_test_data):
+        """The linear distances CSV's distance_m column has no zero or negative values."""
+        df = pd.read_csv(e2e_test_data['distances'])
+        assert (df['distance_m'] > 0).all()
 
     def test_config_set_matches_session_id(self, e2e_test_data):
         """Every generated config YAML must have config_set equal to the session ID."""

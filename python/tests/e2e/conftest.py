@@ -41,6 +41,39 @@ _SRC_BASE_CONFIG = os.path.join(_TESTING_CONFIG_DIR, 'testing_config_no_bg.yaml'
 # ---------------------------------------------------------------------------
 # Config variants
 # ---------------------------------------------------------------------------
+#
+# Curated cross-section of solver-config "knobs" the e2e suite exercises.
+# NOT a complete enumeration of every PollingModelConfig field (the full
+# config has ~30 fields; this dict toggles 7 of them).
+#
+# Each entry maps a variant suffix to override fields applied on top of a
+# single base config template by `_make_config()` (below).  NOT a 1-to-1
+# map to the files in `datasets/configs/testing/` — those pair with the
+# committed result baselines in `datasets/results/testing_results/`,
+# which the e2e column-set asserts also reference.
+#
+# What each variant is used for in the test suite:
+#
+#   - config_basic         baseline; the reference for "different config ->
+#                          different output" assertions and the smoke-test
+#                          default.
+#   - config_driving       exercises the driving-distance input path.
+#   - config_log           exercises the log-distance input transform.
+#   - config_driving_log   the one combinatorial variant — verifies driving
+#                          and log-distance flags compose without breaking.
+#   - config_penalty       exercises the penalized_sites mechanism; also
+#                          drives the column-set assertion in
+#                          test_penalty_config_produces_valid_results.
+#   - config_low_beta      paired with config_basic to assert beta actually
+#                          affects EDE values (difference-detector).
+#   - config_capacity      exercises the per-facility capacity constraint.
+#   - config_new_locations provides the concurrent-run smoke test (-c 2)
+#                          with a non-trivial scenario.
+#
+# Fields deliberately NOT varied here include time_limit, limits_gap,
+# precincts_open, max_min_mult, bad_types, year, etc.  e2e tests cover
+# CLI plumbing and result-shape invariants — not solver parameter-space
+# coverage, which belongs in unit tests against the solver directly.
 
 CONFIG_VARIANTS = {
     'config_basic': {},
@@ -50,7 +83,7 @@ CONFIG_VARIANTS = {
     'config_penalty': {'penalized_sites': ['College Campus - Potential', 'Fire Station - Potential']},
     'config_low_beta': {'beta': -1},
     'config_capacity': {'capacity': 3},
-    'config_constrained': {'maxpctnew': 0.5, 'minpctold': 0.75},
+    'config_new_locations': {'maxpctnew': 0.5, 'minpctold': 0.75},
 }
 
 # ---------------------------------------------------------------------------
@@ -88,42 +121,79 @@ def run_cli(script_module: str, *args, timeout: int = 600) -> subprocess.Complet
 # ---------------------------------------------------------------------------
 
 
+def _db_config_status() -> tuple[bool, str]:
+    """Check whether settings.yaml is configured for DB e2e tests.
+
+    Returns:
+        A tuple ``(ok, reason)``. ``ok`` is True when settings.yaml exists
+        and has a ``test`` entry; False otherwise. ``reason`` is a short
+        human-readable explanation suitable for inclusion in error or
+        warning messages.
+    """
+    if not os.path.isfile(SETTINGS_PATH):
+        return False, f'settings.yaml is missing at {SETTINGS_PATH}'
+    with open(SETTINGS_PATH, 'r', encoding='utf-8') as fh:
+        all_configs: dict = yaml.safe_load(fh) or {}
+    if 'test' not in all_configs:
+        return False, 'settings.yaml has no \'test\' environment entry'
+    return True, 'settings.yaml has a \'test\' entry'
+
+
 @pytest.hookimpl(trylast=True)
-def pytest_collection_modifyitems(config, items):  # pylint: disable=unused-argument
-    """Fail fast when the user explicitly targets DB tests but DB isn't configured.
+def pytest_collection_modifyitems(config, items):
+    """Surface missing DB configuration when DB e2e tests are collected.
 
-    If every collected test is marked ``e2e_db`` (e.g. ``pytest -m e2e_db`` or
-    pointing pytest at a DB-only test file), the user has opted into DB testing.
-    In that case a missing ``settings.yaml`` or missing ``test`` environment
-    should abort the session with a clear error — not silently skip every test,
-    which can read as "all green" to a casual observer.
+    Two branches:
 
-    In mixed runs (CSV + DB together, or CSV-only) the per-test
-    :func:`test_environment` fixture still handles skips gracefully so offline
-    development keeps working.
+    * **Strict exit:** if every collected test is marked ``e2e_db`` (e.g.
+      ``pytest -m e2e_db`` or pointing pytest at a DB-only test file), the
+      user has explicitly opted into DB testing. A missing ``settings.yaml``
+      or missing ``test`` entry aborts the session via :func:`pytest.exit`
+      so the failure is impossible to miss.
+    * **Visibility banner:** in mixed runs (CSV + DB together, or no marker)
+      the per-test :func:`test_environment` fixture still handles skips
+      gracefully — but pytest only shows ``S`` per skipped test in default
+      output, which can read as silent. If any ``e2e_db`` items are
+      collected and DB config is incomplete, emit a single prominent
+      banner at collection time so the user sees why those tests will skip
+      without needing ``-rs``.
     """
     if not items:
         return
-    if not all(item.get_closest_marker('e2e_db') for item in items):
-        return  # Mixed or non-DB run — fall through to the fixture's skip logic.
 
-    if not os.path.isfile(SETTINGS_PATH):
+    db_items = [item for item in items if item.get_closest_marker('e2e_db')]
+    if not db_items:
+        return  # No DB tests collected — nothing to warn about.
+
+    ok, reason = _db_config_status()
+    if ok:
+        return  # DB config is fine — no warning needed.
+
+    if len(db_items) == len(items):
         pytest.exit(
-            f"DB tests were explicitly selected, but settings.yaml is missing at "
-            f"{SETTINGS_PATH}. Configure a 'test' environment before running "
-            f"-m e2e_db. See CONTRIBUTING.md: Setting Up DB Tests.",
+            f'DB tests were explicitly selected, but {reason}. '
+            f'Configure a \'test\' environment before running -m e2e_db. '
+            f'See CONTRIBUTING.md: Setting Up DB Tests.',
             returncode=1,
         )
 
-    with open(SETTINGS_PATH, 'r', encoding='utf-8') as fh:
-        all_configs: dict = yaml.safe_load(fh) or {}
-
-    if 'test' not in all_configs:
-        pytest.exit(
-            "DB tests were explicitly selected, but settings.yaml has no 'test' "
-            "environment. See CONTRIBUTING.md: Setting Up DB Tests.",
-            returncode=1,
-        )
+    # Mixed run: emit a prominent banner. Tests still skip individually.
+    bar = '=' * 80
+    msg_lines = [
+        bar,
+        f'DB e2e tests will be skipped: {len(db_items)} tests marked e2e_db, '
+        f'but {reason}.',
+        'To enable: configure a \'test\' environment in settings.yaml. See',
+        'CONTRIBUTING.md → "Setting Up DB Tests".',
+        bar,
+    ]
+    reporter = config.pluginmanager.get_plugin('terminalreporter')
+    if reporter is not None:
+        for line in msg_lines:
+            reporter.write_line(line, bold=True, yellow=True)
+    else:
+        for line in msg_lines:
+            print(line, file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
@@ -134,19 +204,34 @@ def pytest_collection_modifyitems(config, items):  # pylint: disable=unused-argu
 def _apply_log_transform(src_path: str, dest_path: str) -> None:
     """Read a distance CSV and write a copy with log-transformed distance_m values.
 
-    Values that are zero or negative are left unchanged (log is undefined there).
-
     Args:
         src_path: Path to the source CSV file containing a ``distance_m`` column.
         dest_path: Path where the log-transformed CSV will be written.
+
+    Raises:
+        ValueError: If any ``distance_m`` value is non-positive. ``log`` is
+            undefined there, and a non-positive distance indicates upstream
+            data corruption — surface it rather than silently mask.
     """
     df = pd.read_csv(src_path)
-    df['distance_m'] = df['distance_m'].apply(lambda x: math.log(x) if x > 0 else x)
+    bad_count = int((df['distance_m'] <= 0).sum())
+    if bad_count > 0:
+        raise ValueError(
+            f"{bad_count} rows in {src_path} have distance_m <= 0; "
+            f"log transform is undefined."
+        )
+    df['distance_m'] = df['distance_m'].apply(math.log)
     df.to_csv(dest_path, index=False)
 
 
 def _make_config(base: dict, sid: str, suffix: str, overrides: dict) -> dict:
     """Return a config dict derived from *base* with e2e-specific fields applied.
+
+    Used by the ``e2e_test_data`` session fixture to synthesize each
+    :data:`CONFIG_VARIANTS` entry from a single in-memory base template (the
+    e2e variants are NOT loaded from on-disk files in
+    ``datasets/configs/testing/``).  See the CONFIG_VARIANTS comment block at
+    the top of this file for the full trace.
 
     Args:
         base: The base configuration loaded from the template YAML.
@@ -181,7 +266,7 @@ def e2e_session_id() -> str:
 
 
 @pytest.fixture(scope='session')
-def e2e_test_data(e2e_session_id):
+def e2e_test_data(e2e_session_id, pytestconfig):
     """Create isolated test data directories and files for the e2e session.
 
     Copies source testing CSVs into location-namespaced subdirectories, creates
@@ -191,6 +276,11 @@ def e2e_test_data(e2e_session_id):
     Also creates an autogen template (``.yaml_template``) that varies over
     ``year`` with both 2020 and 2022, and an explicit driving/log/penalized_sites
     block.
+
+    Args:
+        e2e_session_id: The session identifier fixture.
+        pytestconfig: The pytest config object, used to read
+            ``--keep-e2e-outputs``.
 
     Yields:
         dict: A mapping of path keys to absolute paths:
@@ -210,7 +300,9 @@ def e2e_test_data(e2e_session_id):
 
     Cleanup:
         Removes the three created directories and all their contents after the
-        session completes, regardless of test outcome.
+        session completes, regardless of test outcome. Skipped when
+        ``--keep-e2e-outputs`` is passed; in that case the retained paths are
+        printed to stderr.
     """
     sid = e2e_session_id
 
@@ -324,9 +416,14 @@ def e2e_test_data(e2e_session_id):
         'autogen_template': autogen_template_path,
     }
 
-    # Teardown — remove the directories unconditionally.
+    # Teardown — remove the directories unless --keep-e2e-outputs was passed.
+    keep_outputs = pytestconfig.getoption('--keep-e2e-outputs')
     for dirpath in (polling_subdir, driving_subdir, config_subdir):
-        if os.path.isdir(dirpath):
+        if not os.path.isdir(dirpath):
+            continue
+        if keep_outputs:
+            print(f'[--keep-e2e-outputs] retained: {dirpath}', file=sys.stderr)
+        else:
             shutil.rmtree(dirpath)
 
 
@@ -370,146 +467,17 @@ def test_environment():
     yield env
 
 
-@pytest.fixture(scope='session')
-def clean_test_data(test_environment):
-    """Delete all e2e-prefixed rows from the DB before (and after) the session.
-
-    Deletion order respects foreign-key constraints by removing children before
-    parents. No cascade deletes are assumed on the database side.
-
-    The fixture runs cleanup both at setup (to clear stale data from previous
-    interrupted runs) and at teardown (to leave the DB clean after the session).
-
-    Args:
-        test_environment: The loaded test :class:`~python.utils.environments.Environment`.
-
-    Yields:
-        None
-    """
-    def _do_cleanup():
-        # Import lazily to avoid pulling in DB dependencies unless this fixture
-        # is actually requested.
-        from python.database.query import Query  # pylint: disable=import-outside-toplevel
-        from python.database import models  # pylint: disable=import-outside-toplevel
-
-        query = Query(test_environment)
-        session = query.get_session()
-
-        # --- ModelConfig / ModelRun / result tables --------------------------
-
-        config_ids = [
-            row.id for row in
-            session.query(models.ModelConfig.id)
-            .filter(models.ModelConfig.config_set.like('e2e_%'))
-            .all()
-        ]
-
-        if config_ids:
-            run_ids = [
-                row.id for row in
-                session.query(models.ModelRun.id)
-                .filter(models.ModelRun.model_config_id.in_(config_ids))
-                .all()
-            ]
-
-            if run_ids:
-                session.query(models.Result).filter(
-                    models.Result.model_run_id.in_(run_ids)
-                ).delete(synchronize_session=False)
-
-                session.query(models.EDES).filter(
-                    models.EDES.model_run_id.in_(run_ids)
-                ).delete(synchronize_session=False)
-
-                session.query(models.PrecintDistance).filter(
-                    models.PrecintDistance.model_run_id.in_(run_ids)
-                ).delete(synchronize_session=False)
-
-                session.query(models.ResidenceDistance).filter(
-                    models.ResidenceDistance.model_run_id.in_(run_ids)
-                ).delete(synchronize_session=False)
-
-                session.query(models.ModelRun).filter(
-                    models.ModelRun.model_config_id.in_(config_ids)
-                ).delete(synchronize_session=False)
-
-            session.query(models.ModelConfig).filter(
-                models.ModelConfig.config_set.like('e2e_%')
-            ).delete(synchronize_session=False)
-
-        # --- DistanceDataSet / DistanceData ----------------------------------
-
-        distance_set_ids = [
-            row.id for row in
-            session.query(models.DistanceDataSet.id)
-            .filter(models.DistanceDataSet.location.like('e2e_%'))
-            .all()
-        ]
-
-        if distance_set_ids:
-            session.query(models.DistanceData).filter(
-                models.DistanceData.distance_data_set_id.in_(distance_set_ids)
-            ).delete(synchronize_session=False)
-
-            session.query(models.DistanceDataSet).filter(
-                models.DistanceDataSet.location.like('e2e_%')
-            ).delete(synchronize_session=False)
-
-        # --- DrivingDistancesSet / DrivingDistance ---------------------------
-
-        driving_set_ids = [
-            row.id for row in
-            session.query(models.DrivingDistancesSet.id)
-            .filter(models.DrivingDistancesSet.location.like('e2e_%'))
-            .all()
-        ]
-
-        if driving_set_ids:
-            session.query(models.DrivingDistance).filter(
-                models.DrivingDistance.driving_distance_set_id.in_(driving_set_ids)
-            ).delete(synchronize_session=False)
-
-            session.query(models.DrivingDistancesSet).filter(
-                models.DrivingDistancesSet.location.like('e2e_%')
-            ).delete(synchronize_session=False)
-
-        # --- PotentialLocationsSet / PotentialLocations ----------------------
-
-        pl_set_ids = [
-            row.id for row in
-            session.query(models.PotentialLocationsSet.id)
-            .filter(models.PotentialLocationsSet.location.like('e2e_%'))
-            .all()
-        ]
-
-        if pl_set_ids:
-            session.query(models.PotentialLocations).filter(
-                models.PotentialLocations.potential_locations_set_id.in_(pl_set_ids)
-            ).delete(synchronize_session=False)
-
-            session.query(models.PotentialLocationsSet).filter(
-                models.PotentialLocationsSet.location.like('e2e_%')
-            ).delete(synchronize_session=False)
-
-        session.commit()
-
-    _do_cleanup()
-    yield
-    _do_cleanup()
-
-
 # ---------------------------------------------------------------------------
 # Shared DB import fixtures
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope='session')
-def imported_potential_locations(e2e_test_data, clean_test_data, test_environment):
+def imported_potential_locations(e2e_test_data, test_environment):
     """Import potential locations for the e2e session into the DB.
 
     Args:
         e2e_test_data: Session-scoped test data dict from :func:`e2e_test_data`.
-        clean_test_data: Ensures DB is clean before and after the session.
         test_environment: The loaded test environment.
 
     Returns:
@@ -520,12 +488,11 @@ def imported_potential_locations(e2e_test_data, clean_test_data, test_environmen
 
 
 @pytest.fixture(scope='session')
-def imported_driving_distances(e2e_test_data, clean_test_data, test_environment):
+def imported_driving_distances(e2e_test_data, test_environment):
     """Import driving distances for the e2e session into the DB.
 
     Args:
         e2e_test_data: Session-scoped test data dict from :func:`e2e_test_data`.
-        clean_test_data: Ensures DB is clean before and after the session.
         test_environment: The loaded test environment.
 
     Returns:
@@ -538,7 +505,6 @@ def imported_driving_distances(e2e_test_data, clean_test_data, test_environment)
 @pytest.fixture(scope='session')
 def imported_distance_data_all(
     e2e_test_data,
-    clean_test_data,
     test_environment,
     imported_potential_locations,
     imported_driving_distances,
@@ -560,7 +526,6 @@ def imported_distance_data_all(
 
     Args:
         e2e_test_data: Session-scoped test data dict from :func:`e2e_test_data`.
-        clean_test_data: Ensures DB is clean before and after the session.
         test_environment: The loaded test environment.
         imported_potential_locations: Ensures potential locations are already in DB.
         imported_driving_distances: Ensures driving distances are already in DB.
@@ -621,12 +586,11 @@ def imported_distance_data_all(
 
 
 @pytest.fixture(scope='session')
-def imported_configs(e2e_test_data, clean_test_data, test_environment):
+def imported_configs(e2e_test_data, test_environment):
     """Import all variant config YAML files for the e2e session into the DB.
 
     Args:
         e2e_test_data: Session-scoped test data dict from :func:`e2e_test_data`.
-        clean_test_data: Ensures DB is clean before and after the session.
         test_environment: The loaded test environment.
 
     Returns:

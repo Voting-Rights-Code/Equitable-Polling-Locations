@@ -48,9 +48,9 @@ if (length(args) != 1){
 ###
 #For inline testing only
 ###
-#source('R/result_analysis/Basic_analysis_configs/Tarrant_County_original_and_fair_capacity_2.r')
 #source('R/result_analysis/Basic_analysis_configs/Berkeley_County_original.r')
-#source('R/result_analysis/Basic_analysis_configs/Tarrant_County_original.r')
+
+#source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
 
 #######
 #Check that location and folders valid
@@ -91,10 +91,11 @@ descriptor_dict = DESCRIPTOR_DICT_POTENTIAL)
 #2. Calculate a single average distance bound across all datasets
 #########
 
+#for block group maps
 #split results by config_name 
 #Merge map and result_df at block group level
-orig_list_prepped <- prepare_outputs_for_maps( orig_output_df_list$result)
-potential_list_prepped <- prepare_outputs_for_maps( potential_output_df_list$result)
+orig_list_prepped <- prepare_outputs_for_bg_maps( orig_output_df_list$result)
+potential_list_prepped <- prepare_outputs_for_bg_maps( potential_output_df_list$result)
 
 #get avg distance bounds for map coloring
 #This defines a global max and min to 
@@ -104,6 +105,11 @@ all_prepped_output <- do.call(rbind, c(orig_list_prepped, potential_list_prepped
 all_prepped_output <- all_prepped_output[demographic == 'population', ][, avg_dist := demo_avg_dist]
 global_color_bounds <- distance_bounds(all_prepped_output)
 
+#for precinct and other block level maps
+#split results by config_name 
+#Merge with geography at block level
+orig_list_block_prepped <-prepare_outputs_for_precinct_maps(orig_output_df_list$result)
+potential_list_block_prepped <-prepare_outputs_for_precinct_maps(potential_output_df_list$result)
 #########
 #Set up regressions
 #########
@@ -166,6 +172,8 @@ if(!HISTORICAL_FLAG){
     sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'white'))
     sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'hispanic'))
     sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
+    sapply(potential_list_block_prepped, function(x)make_precinct_map_no_people(x))
+    sapply(potential_list_block_prepped, function(x)make_precinct_map(x))
 }
 
 #######
@@ -196,6 +204,8 @@ sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'black'))
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'white'))
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'hispanic'))
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
+sapply(orig_list_block_prepped, function(x)make_precinct_map_no_people(x))
+sapply(orig_list_block_prepped, function(x)make_precinct_map(x))
 
 #plot distance v density graphs and regressions
 

@@ -12,27 +12,12 @@
 # for the R scripts (see R/CLAUDE.md). This only confirms the R environment
 # is correctly provisioned.
 #
-# Keep the package list in sync with .devcontainer/install_r_packages.R.
+# The package list comes from renv.lock (the project's pinned source of
+# truth) read via jsonlite::fromJSON. No hand-maintained mirror — when
+# renv::snapshot() updates the lockfile, this test follows automatically.
 
-packages <- c(
-    "data.table",
-    "here",
-    "sf",
-    "ggplot2",
-    "stringr",
-    "plotly",
-    "DBI",
-    "bigrquery",
-    "yaml",
-    "googleCloudStorageR",
-    "gargle",
-    "lubridate",
-    "reticulate",
-    "interactions",
-    "lintr",
-    "styler",
-    "languageserver"
-)
+lockfile <- jsonlite::fromJSON("renv.lock", simplifyVector = FALSE)
+packages <- names(lockfile$Packages)
 
 failed <- character()
 for (pkg in packages) {
