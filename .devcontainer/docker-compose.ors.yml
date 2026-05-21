@@ -16,14 +16,20 @@ services:
     environment:
       REBUILD_GRAPHS: "false"
       CONTAINER_LOG_LEVEL: INFO
-      JVM_MAX_RAM_PERCENTAGE: "75.0"
+      # The ORS v8 image's launcher caps the JVM at ~2 GB heap even when
+      # JVM_MAX_RAM_PERCENTAGE is set, which is enough for state-sized PBFs
+      # under ~250 MB (e.g. Georgia, peak usage ~1.9 GB) but OOMs on bigger
+      # extracts (Texas at ~800 MB needs ~6-10 GB). JAVA_OPTS overrides the
+      # baked-in cap. Bump -Xmx if you swap to a larger state. Requires the
+      # host's Docker Desktop memory limit to be >= the -Xmx setting.
+      JAVA_OPTS: "-Xms2g -Xmx10g"
       # Explicit source: the container writes example-heidelberg.osm.gz into
       # /home/ors/files on first boot, so auto-detection picks the demo data
       # instead of the .pbf we want. Setting source_file forces our file.
       # To switch states, change this filename to match the new .pbf put in
       # .devcontainer/ors_data/ by `python run.py ors_setup_cli --state X`.
       # (Multi-state convenience is filed as a follow-up.)
-      ors.engine.source_file: /home/ors/files/georgia-latest.osm.pbf
+      ors.engine.source_file: /home/ors/files/texas-latest.osm.pbf
     volumes:
       - ./ors_data:/home/ors/files
       - ors_graphs:/home/ors/graphs
