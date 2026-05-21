@@ -137,6 +137,8 @@ celerybeat.pid
 
 # Environments
 .env
+# Intentionally tracked: sets COMPOSE_PROJECT_NAME for the sibling ORS compose file.
+!.devcontainer/.env
 .venv
 env/
 venv/
