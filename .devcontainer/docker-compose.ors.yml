@@ -17,6 +17,13 @@ services:
       REBUILD_GRAPHS: "false"
       CONTAINER_LOG_LEVEL: INFO
       JVM_MAX_RAM_PERCENTAGE: "75.0"
+      # Explicit source: the container writes example-heidelberg.osm.gz into
+      # /home/ors/files on first boot, so auto-detection picks the demo data
+      # instead of the .pbf we want. Setting source_file forces our file.
+      # To switch states, change this filename to match the new .pbf put in
+      # .devcontainer/ors_data/ by `python run.py ors_setup_cli --state X`.
+      # (Multi-state convenience is filed as a follow-up.)
+      ors.engine.source_file: /home/ors/files/georgia-latest.osm.pbf
     volumes:
       - ./ors_data:/home/ors/files
       - ors_graphs:/home/ors/graphs
