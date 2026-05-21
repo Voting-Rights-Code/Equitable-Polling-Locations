@@ -65,11 +65,15 @@ def query_directions(source, dest, server):
 
     Returns:
         Driving distance in meters, or ``None`` if ORS returned an error
-        (e.g. no route found).
+        (e.g. no route found) or a malformed success payload lacking the
+        expected ``features[0].properties.segments[0].distance`` path.
     '''
     url = f'{server}?start={source[0]},{source[1]}&end={dest[0]},{dest[1]}'
     response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
     parsed = json.loads(response.text)
     if 'error' in parsed:
         return None
-    return parsed['features'][0]['properties']['segments'][0]['distance']
+    try:
+        return parsed['features'][0]['properties']['segments'][0]['distance']
+    except (KeyError, IndexError):
+        return None

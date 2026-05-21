@@ -56,6 +56,12 @@ class TestQueryMatrix:
         with pytest.raises(OrsMatrixError, match='6010'):
             query_matrix([[-84.0, 33.9], [-84.1, 34.0]], [0], [1], MATRIX_URL)
 
+    @patch('python.utils.ors_client.requests.post')
+    def test_metric_kwarg_plumbs_through(self, mock_post):
+        mock_post.return_value = MagicMock(text='{"distances": [[0]]}')
+        query_matrix([[0.0, 0.0]], [0], [0], MATRIX_URL, metric='duration')
+        assert mock_post.call_args.kwargs['json']['metrics'] == ['duration']
+
 
 class TestQueryDirections:
     '''Single-pair directions GET and parsing.'''
@@ -84,3 +90,8 @@ class TestQueryDirections:
         url = mock_get.call_args.args[0]
         assert 'start=-84.0,33.9' in url
         assert 'end=-84.1,34.0' in url
+
+    @patch('python.utils.ors_client.requests.get')
+    def test_returns_none_on_malformed_success_payload(self, mock_get):
+        mock_get.return_value = MagicMock(text='{"features": []}')
+        assert query_directions([-84.0, 33.9], [-84.1, 34.0], DIRECTIONS_URL) is None
