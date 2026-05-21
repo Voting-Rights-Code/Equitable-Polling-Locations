@@ -11,6 +11,7 @@ are exposed for testing and for ad-hoc reuse.
 import time
 
 import pandas as pd
+import requests
 from haversine import haversine, Unit
 
 from python.utils.ors_client import OrsMatrixError, query_directions, query_matrix
@@ -186,7 +187,7 @@ def _retry_sources_individually(failed_sources, dest_ids, locations, matrix_url)
         for dest in dest_ids:
             try:
                 distance = query_directions(locations[source], locations[dest], directions_url)
-            except (ConnectionError, ValueError, KeyError, IndexError):
+            except requests.exceptions.RequestException:
                 continue
             if distance is not None:
                 rows.append({'id_orig': source, 'id_dest': dest, 'distance_m': distance})

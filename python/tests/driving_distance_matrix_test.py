@@ -5,6 +5,7 @@ import pandas as pd
 
 from python.utils.driving_distance_matrix import (
     MATRIX_CELL_LIMIT,
+    MAX_SOURCES_PER_BATCH,
     build_distance_matrix,
     estimate_origin,
     get_missing_origins,
@@ -135,6 +136,9 @@ class TestBuildDistanceMatrix:
         )
         # With 25 sources and batch <= 10, query_matrix is called at least 3 times.
         assert mock_query.call_count >= 3
+        for call in mock_query.call_args_list:
+            sources = call.args[1] if len(call.args) > 1 else call.kwargs.get('sources')
+            assert len(sources) <= MAX_SOURCES_PER_BATCH
         # MATRIX_CELL_LIMIT is exposed for callers that want to compute their own batches.
         assert MATRIX_CELL_LIMIT == 2500
 
@@ -153,6 +157,10 @@ class TestBuildDistanceMatrix:
         # query_directions should have been called for the failing source x each dest.
         assert mock_directions.called
         assert (result['distance_m'] == 12345.0).any()
+        # The directions URL must be derived from the matrix URL via the project helper.
+        expected_directions_url = 'http://ors:8080/ors/v2/directions/driving-car'
+        for call in mock_directions.call_args_list:
+            assert call.args[2] == expected_directions_url
 
 
 class TestResumeFromPartialOutput:
