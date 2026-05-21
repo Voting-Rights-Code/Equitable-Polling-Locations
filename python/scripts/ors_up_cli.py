@@ -12,12 +12,11 @@ import os
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime
 
-import requests
-
 from python.scripts.ors_setup_cli import ensure_host_only
-from python.utils.utils import log_date_prefix
 
 
 HEALTH_POLL_INTERVAL_S = 10
@@ -46,10 +45,10 @@ def poll_health(url: str, *, timeout_s: int = HEALTH_POLL_TIMEOUT_S,
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         try:
-            response = requests.get(url, timeout=5)
-            if response.status_code == 200:
-                return True
-        except (requests.RequestException, ConnectionError):
+            with urllib.request.urlopen(url, timeout=5) as response:
+                if response.getcode() == 200:
+                    return True
+        except (urllib.error.URLError, ConnectionError, TimeoutError):
             pass
         time.sleep(poll_interval_s)
     return False
@@ -101,7 +100,7 @@ def main(argv=None):
     ensure_host_only()
 
     os.makedirs(args.logdir, exist_ok=True)
-    log_path = os.path.join(args.logdir, f'{log_date_prefix()}_ors_up.log')
+    log_path = os.path.join(args.logdir, f'{datetime.now().strftime("%Y%m%d%H%M%S")}_ors_up.log')
     log_fh = open(log_path, 'a', encoding='utf-8')   # pylint: disable=consider-using-with  # closed in finally below
     try:
         _tee(f'[{datetime.now().isoformat(timespec="seconds")}] starting ORS', log_fh)

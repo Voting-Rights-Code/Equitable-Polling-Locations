@@ -1,4 +1,5 @@
 '''Tests for python/scripts/ors_up_cli.py.'''
+import urllib.error
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,17 +16,21 @@ class TestPollHealth:
     '''Tests for the ``poll_health`` helper.'''
 
     @patch('python.scripts.ors_up_cli.time.sleep', lambda _: None)
-    @patch('python.scripts.ors_up_cli.requests.get')
-    def test_returns_true_when_health_ok(self, mock_get):
+    @patch('python.scripts.ors_up_cli.urllib.request.urlopen')
+    def test_returns_true_when_health_ok(self, mock_urlopen):
         '''A single 200 response should short-circuit to True.'''
-        mock_get.return_value = MagicMock(status_code=200)
+        mock_response = MagicMock()
+        mock_response.getcode.return_value = 200
+        mock_urlopen.return_value.__enter__.return_value = mock_response
         assert poll_health('http://x/health', timeout_s=10) is True
 
     @patch('python.scripts.ors_up_cli.time.sleep', lambda _: None)
-    @patch('python.scripts.ors_up_cli.requests.get')
-    def test_returns_false_after_timeout(self, mock_get):
+    @patch('python.scripts.ors_up_cli.urllib.request.urlopen')
+    def test_returns_false_after_timeout(self, mock_urlopen):
         '''Persistent non-200 responses must eventually return False.'''
-        mock_get.return_value = MagicMock(status_code=503)
+        mock_response = MagicMock()
+        mock_response.getcode.return_value = 503
+        mock_urlopen.return_value.__enter__.return_value = mock_response
         assert poll_health(
             'http://x/health',
             timeout_s=1,
@@ -33,10 +38,13 @@ class TestPollHealth:
         ) is False
 
     @patch('python.scripts.ors_up_cli.time.sleep', lambda _: None)
-    @patch('python.scripts.ors_up_cli.requests.get', side_effect=ConnectionError)
-    def test_treats_connection_error_as_not_ready(self, unused_mock_get):
-        '''A raised ConnectionError must be treated as "not ready yet".'''
-        del unused_mock_get
+    @patch(
+        'python.scripts.ors_up_cli.urllib.request.urlopen',
+        side_effect=urllib.error.URLError('refused'),
+    )
+    def test_treats_connection_error_as_not_ready(self, unused_mock_urlopen):
+        '''A raised URLError must be treated as "not ready yet".'''
+        del unused_mock_urlopen
         assert poll_health(
             'http://x/health',
             timeout_s=1,

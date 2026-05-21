@@ -33,6 +33,12 @@ REPO_ROOT = Path(__file__).resolve().parent
 # the project image and should skip the docker-compose wrapper.
 IN_CONTAINER = Path("/.dockerenv").exists()
 
+# ORS lifecycle scripts must run on the host because they call
+# ``docker compose`` and write to ``.devcontainer/ors_data`` on the host
+# filesystem. ``main`` short-circuits these to bypass the usual docker
+# wrapper applied by ``run_command``.
+ORS_LIFECYCLE_COMMANDS = ("ors_setup_cli", "ors_up_cli", "ors_down_cli")
+
 
 def get_docker_compose_cmd() -> list[str]:
     """Returns the docker compose command prefix for the available version.
@@ -179,6 +185,28 @@ def main():
         print("Census API key saved to authentication_files/credentials.json")
         return
 
+    # Special commands: ORS lifecycle scripts. These must run on the host
+    # because they call docker compose / write to .devcontainer/ors_data on
+    # the host filesystem. Bypass the docker compose wrapper that run_command
+    # would otherwise apply.
+    if len(sys.argv) > 1 and sys.argv[1] in ORS_LIFECYCLE_COMMANDS:
+        if IN_CONTAINER:
+            print(
+                f"The {sys.argv[1]} command must be run from the host "
+                f"(you appear to be inside the dev container). "
+                f"Open a host terminal and try again."
+            )
+            sys.exit(2)
+        cmd = [sys.executable, "-m", f"python.scripts.{sys.argv[1]}"] + sys.argv[2:]
+        try:
+            subprocess.run(cmd, cwd=REPO_ROOT, check=True)
+        except subprocess.CalledProcessError as e:
+            sys.exit(e.returncode)
+        except KeyboardInterrupt:
+            print("\n[Terminated by User]")
+            sys.exit(130)
+        return
+
     available_scripts = get_scripts()
 
     script_list = "\n  ".join(available_scripts)
@@ -198,6 +226,9 @@ def main():
             "  lint            Run pylint against python/ (e.g. python run.py lint --errors-only)\n"
             "  r_test          Run the R environment smoke test\n"
             "  set_census_key  Store your census API key in credentials.json\n"
+            "  ors_setup_cli   [HOST-ONLY] Download a state OSM extract from Geofabrik\n"
+            "  ors_up_cli      [HOST-ONLY] Start the sibling ORS container and wait for readiness\n"
+            "  ors_down_cli    [HOST-ONLY] Stop the sibling ORS container (--purge-graphs optional)\n"
             "\n"
             f"Available scripts:\n  {script_list}"
         ),
