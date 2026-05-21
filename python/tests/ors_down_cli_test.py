@@ -8,7 +8,7 @@ class TestMain:
     '''Tests for the ors_down_cli main entry point.'''
 
     @patch('python.scripts.ors_down_cli.subprocess.run')
-    @patch('python.scripts.ors_down_cli.ensure_host_only')
+    @patch('python.scripts.ors_down_cli._ensure_host_only')
     def test_invokes_docker_compose_down(self, unused_mock_host, mock_run):
         '''Default invocation runs `docker compose down` without -v.'''
         del unused_mock_host
@@ -20,7 +20,7 @@ class TestMain:
         assert '-v' not in cmd        # No volume purge by default.
 
     @patch('python.scripts.ors_down_cli.subprocess.run')
-    @patch('python.scripts.ors_down_cli.ensure_host_only')
+    @patch('python.scripts.ors_down_cli._ensure_host_only')
     def test_purge_graphs_passes_v_flag(self, unused_mock_host, mock_run):
         '''`--purge-graphs` appends -v so the ors_graphs volume is removed.'''
         del unused_mock_host

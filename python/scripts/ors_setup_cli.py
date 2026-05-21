@@ -62,11 +62,19 @@ def build_geofabrik_url(state_code: str) -> str:
     return f'{GEOFABRIK_BASE_URL}/{slug}-latest.osm.pbf'
 
 
-def ensure_host_only() -> None:
-    '''Exit with a clear message if running inside the dev container.'''
+def _ensure_host_only() -> None:
+    '''Exit if running inside the dev container.
+
+    Duplicated from ors_setup_cli.py rather than imported: this script is
+    invoked from the host as a file path (not via the python.scripts.<name>
+    module path), so cross-script imports inside the python/ package are
+    not available.
+    '''
     if os.path.exists('/.dockerenv'):
-        print('This command must be run from the host (you appear to be inside the dev '
-              'container). Open a host terminal and try again.')
+        print(
+            'This command must be run from the host (you appear to be inside the '
+            'dev container). Open a host terminal and try again.'
+        )
         sys.exit(2)
 
 
@@ -83,7 +91,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
 def main(argv=None):
     '''CLI entry point.'''
     args = _build_arg_parser().parse_args(argv)
-    ensure_host_only()
+    _ensure_host_only()
 
     state_code = args.state.upper()
     url = build_geofabrik_url(state_code)

@@ -6,11 +6,33 @@ swapping in a new state's .pbf to force a clean rebuild on next ors_up).
 Host-only.
 '''
 import argparse
+import os
 import subprocess
 import sys
 
-from python.scripts.ors_setup_cli import ensure_host_only
-from python.scripts.ors_up_cli import COMPOSE_FILE
+
+COMPOSE_FILE = os.path.normpath(
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        '..', '..', '.devcontainer', 'docker-compose.ors.yml',
+    )
+)
+
+
+def _ensure_host_only() -> None:
+    '''Exit if running inside the dev container.
+
+    Duplicated from ors_setup_cli.py rather than imported: this script is
+    invoked from the host as a file path (not via the python.scripts.<name>
+    module path), so cross-script imports inside the python/ package are
+    not available.
+    '''
+    if os.path.exists('/.dockerenv'):
+        print(
+            'This command must be run from the host (you appear to be inside the '
+            'dev container). Open a host terminal and try again.'
+        )
+        sys.exit(2)
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
@@ -39,7 +61,7 @@ def main(argv=None):
         ``0`` on success.
     '''
     args = _build_arg_parser().parse_args(argv)
-    ensure_host_only()
+    _ensure_host_only()
 
     cmd = ['docker', 'compose', '-f', COMPOSE_FILE, 'down']
     if args.purge_graphs:

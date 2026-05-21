@@ -197,7 +197,8 @@ def main():
                 f"Open a host terminal and try again."
             )
             sys.exit(2)
-        cmd = [sys.executable, "-m", f"python.scripts.{sys.argv[1]}"] + sys.argv[2:]
+        script_path = REPO_ROOT / "python" / "scripts" / f"{sys.argv[1]}.py"
+        cmd = [sys.executable, str(script_path)] + sys.argv[2:]
         try:
             subprocess.run(cmd, cwd=REPO_ROOT, check=True)
         except subprocess.CalledProcessError as e:

@@ -16,7 +16,21 @@ import urllib.error
 import urllib.request
 from datetime import datetime
 
-from python.scripts.ors_setup_cli import ensure_host_only
+
+def _ensure_host_only() -> None:
+    '''Exit if running inside the dev container.
+
+    Duplicated from ors_setup_cli.py rather than imported: this script is
+    invoked from the host as a file path (not via the python.scripts.<name>
+    module path), so cross-script imports inside the python/ package are
+    not available.
+    '''
+    if os.path.exists('/.dockerenv'):
+        print(
+            'This command must be run from the host (you appear to be inside the '
+            'dev container). Open a host terminal and try again.'
+        )
+        sys.exit(2)
 
 
 HEALTH_POLL_INTERVAL_S = 10
@@ -97,7 +111,7 @@ def main(argv=None):
         comes up before the timeout.
     '''
     args = _build_arg_parser().parse_args(argv)
-    ensure_host_only()
+    _ensure_host_only()
 
     os.makedirs(args.logdir, exist_ok=True)
     log_path = os.path.join(args.logdir, f'{datetime.now().strftime("%Y%m%d%H%M%S")}_ors_up.log')

@@ -7,7 +7,7 @@ from python.scripts.ors_setup_cli import (
     GEOFABRIK_BASE_URL,
     STATE_TO_GEOFABRIK_SLUG,
     build_geofabrik_url,
-    ensure_host_only,
+    _ensure_host_only,
     main,
 )
 
@@ -43,25 +43,25 @@ class TestStateSlugTableCoverage:
 
 
 class TestHostOnlyCheck:
-    '''Tests for ensure_host_only dev-container detection.'''
+    '''Tests for _ensure_host_only dev-container detection.'''
 
     @patch('os.path.exists', return_value=True)
     def test_refuses_inside_dev_container(self, unused_mock_exists):
         del unused_mock_exists
         with pytest.raises(SystemExit):
-            ensure_host_only()
+            _ensure_host_only()
 
     @patch('os.path.exists', return_value=False)
     def test_allows_on_host(self, unused_mock_exists):
         del unused_mock_exists
-        ensure_host_only()   # No exception.
+        _ensure_host_only()   # No exception.
 
 
 class TestMainDownload:
     '''End-to-end main() path with download mocked.'''
 
     @patch('python.scripts.ors_setup_cli.urllib.request.urlretrieve')
-    @patch('python.scripts.ors_setup_cli.ensure_host_only')
+    @patch('python.scripts.ors_setup_cli._ensure_host_only')
     def test_downloads_to_devcontainer_ors_data(self, unused_mock_host, mock_retrieve, tmp_path):
         del unused_mock_host
         out_dir = tmp_path / 'ors_data'
@@ -75,7 +75,7 @@ class TestMainDownload:
             f'{GEOFABRIK_BASE_URL}/georgia-latest.osm.pbf'
 
     @patch('python.scripts.ors_setup_cli.urllib.request.urlretrieve')
-    @patch('python.scripts.ors_setup_cli.ensure_host_only')
+    @patch('python.scripts.ors_setup_cli._ensure_host_only')
     def test_skips_when_file_exists_without_force(self, unused_mock_host, mock_retrieve, tmp_path):
         del unused_mock_host
         out_dir = tmp_path / 'ors_data'
@@ -87,7 +87,7 @@ class TestMainDownload:
         assert not mock_retrieve.called
 
     @patch('python.scripts.ors_setup_cli.urllib.request.urlretrieve')
-    @patch('python.scripts.ors_setup_cli.ensure_host_only')
+    @patch('python.scripts.ors_setup_cli._ensure_host_only')
     def test_force_redownloads(self, unused_mock_host, mock_retrieve, tmp_path):
         del unused_mock_host
         out_dir = tmp_path / 'ors_data'

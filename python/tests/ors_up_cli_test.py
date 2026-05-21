@@ -62,7 +62,7 @@ class TestMainOrchestration:
 
     @patch('python.scripts.ors_up_cli.poll_health', return_value=True)
     @patch('python.scripts.ors_up_cli.subprocess.run')
-    @patch('python.scripts.ors_up_cli.ensure_host_only')
+    @patch('python.scripts.ors_up_cli._ensure_host_only')
     def test_invokes_docker_compose_up(self, unused_mock_host, mock_run, unused_mock_poll):
         '''``main`` must shell out to ``docker compose -f <file> up -d``.'''
         del unused_mock_host, unused_mock_poll
@@ -77,7 +77,7 @@ class TestMainOrchestration:
 
     @patch('python.scripts.ors_up_cli.poll_health', return_value=False)
     @patch('python.scripts.ors_up_cli.subprocess.run')
-    @patch('python.scripts.ors_up_cli.ensure_host_only')
+    @patch('python.scripts.ors_up_cli._ensure_host_only')
     def test_exits_nonzero_when_health_times_out(
         self, unused_mock_host, mock_run, unused_mock_poll,
     ):
