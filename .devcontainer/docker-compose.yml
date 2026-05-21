@@ -68,6 +68,13 @@ services:
             # both services on the same Docker network. ORS v8 listens on 8082
             # internally. Override per-invocation with `--server <url>`.
             - ORS_URL=http://ors:8082/ors/v2/matrix/driving-car
+        # Make the in-container CWD the project root regardless of how the
+        # container is launched. The Dockerfile's WORKDIR is /workspaces (its
+        # parent); VS Code/Zed devcontainers override that via the dev container
+        # config, but `docker compose run --rm app ...` invocations (e.g. via
+        # run.py) inherit the Dockerfile default and would otherwise see
+        # /workspaces, breaking any relative path like `datasets/configs/...`.
+        working_dir: /workspaces/Equitable-Polling-Locations
         # Keep the container alive for dev container use. The dev containers CLI
         # auto-appends this via overrideCommand, but keeping it explicit lets you
         # `docker compose up` this file standalone.
