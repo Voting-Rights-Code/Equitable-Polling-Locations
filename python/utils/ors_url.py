@@ -5,7 +5,7 @@ import os
 DEFAULT_MATRIX_URL = 'http://localhost:8080/ors/v2/matrix/driving-car'
 
 
-def resolve_ors_url(cli_override: str = None) -> str:
+def resolve_ors_url(cli_override: str | None = None) -> str:
     '''Return the ORS matrix URL: CLI override, then $ORS_URL, then default.
 
     Args:

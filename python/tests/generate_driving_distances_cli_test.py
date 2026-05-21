@@ -162,3 +162,88 @@ class TestMain:
 
         assert rc == 0
         assert not driving_dir.exists() or not expected_output.exists()
+
+    @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
+    @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
+    @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
+    def test_resume_skips_pairs_already_in_output(
+        self, mock_cfg_cls, mock_derive, mock_build, tmp_path,
+    ):
+        '''When the output CSV exists, only the remaining pairs are sent to build_distance_matrix.'''
+        mock_cfg_cls.load_config.return_value = MagicMock(
+            location='Gwinnett_GA', census_year='2020',
+            config_file_path=str(tmp_path / 'cfg.yaml'),
+        )
+        mock_derive.return_value = (
+            {'a': [-84.0, 33.9], 'b': [-84.0, 33.91], 'x': [-84.1, 34.0]},
+            ['a', 'b'],
+            ['x'],
+        )
+        mock_build.return_value = pd.DataFrame({
+            'id_orig': ['b'], 'id_dest': ['x'], 'distance_m': [777.0],
+        })
+
+        driving_dir = tmp_path / 'datasets' / 'driving' / 'Gwinnett_GA'
+        os.makedirs(driving_dir, exist_ok=True)
+        expected_output = driving_dir / 'Gwinnett_GA_driving_distances.csv'
+        # Pre-existing partial output: (a, x) already done.
+        pd.DataFrame({
+            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [100.0],
+        }).to_csv(expected_output, index=False)
+
+        logdir = tmp_path / 'logs'
+        os.makedirs(logdir, exist_ok=True)
+        with patch(
+            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
+            return_value=str(expected_output),
+        ):
+            main([
+                '-l', str(tmp_path / 'cfg.yaml'),
+                '--logdir', str(logdir),
+            ])
+
+        # build_distance_matrix should have been called with ONLY the remaining source/dest.
+        build_call_kwargs = mock_build.call_args.kwargs
+        assert build_call_kwargs['source_ids'] == ['b']
+        assert build_call_kwargs['dest_ids'] == ['x']
+
+        # Combined output: both (a, x) and (b, x) present, no duplicates.
+        written = pd.read_csv(expected_output)
+        assert set(zip(written['id_orig'], written['id_dest'])) == {('a', 'x'), ('b', 'x')}
+
+    @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
+    @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
+    @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
+    def test_resume_short_circuits_when_nothing_remains(
+        self, mock_cfg_cls, mock_derive, mock_build, tmp_path,
+    ):
+        '''When every requested pair is already in the output CSV, build_distance_matrix is never called.'''
+        mock_cfg_cls.load_config.return_value = MagicMock(
+            location='Gwinnett_GA', census_year='2020',
+            config_file_path=str(tmp_path / 'cfg.yaml'),
+        )
+        mock_derive.return_value = (
+            {'a': [-84.0, 33.9], 'x': [-84.1, 34.0]},
+            ['a'],
+            ['x'],
+        )
+
+        driving_dir = tmp_path / 'datasets' / 'driving' / 'Gwinnett_GA'
+        os.makedirs(driving_dir, exist_ok=True)
+        expected_output = driving_dir / 'Gwinnett_GA_driving_distances.csv'
+        pd.DataFrame({
+            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [100.0],
+        }).to_csv(expected_output, index=False)
+
+        logdir = tmp_path / 'logs'
+        os.makedirs(logdir, exist_ok=True)
+        with patch(
+            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
+            return_value=str(expected_output),
+        ):
+            main([
+                '-l', str(tmp_path / 'cfg.yaml'),
+                '--logdir', str(logdir),
+            ])
+
+        assert not mock_build.called

@@ -10,6 +10,8 @@ import os
 import sys
 from datetime import datetime
 
+import pandas as pd
+
 from python.solver.constants import (
     TIGER20_GEOID20,
     TIGER20_INTPTLAT20,
@@ -21,6 +23,7 @@ from python.utils.directory_constants import DRIVING_DIR
 from python.utils.driving_distance_matrix import (
     build_distance_matrix,
     get_missing_origins,
+    resume_from_partial_output,
 )
 from python.utils.ors_url import resolve_ors_url
 from python.utils.utils import build_potential_locations_file_path, log_date_prefix
@@ -154,13 +157,38 @@ def main(argv=None):
             _tee(f'unroutable origins: {sorted(bad)}', log_fh)
             return 0
 
-        df = build_distance_matrix(
-            locations=locations, source_ids=source_ids, dest_ids=dest_ids,
+        output_path = build_output_csv_path(config.location)
+        existing_df, remaining_pairs = resume_from_partial_output(
+            output_path, source_ids, dest_ids,
+        )
+        _tee(
+            f'resume: {len(existing_df)} rows present, '
+            f'{len(remaining_pairs)} pairs to fetch',
+            log_fh,
+        )
+
+        if not remaining_pairs:
+            write_output_csv(existing_df, output_path)
+            _tee(
+                f'no new pairs to fetch; rewrote {len(existing_df)} rows to {output_path}',
+                log_fh,
+            )
+            return 0
+
+        remaining_sources = sorted({pair[0] for pair in remaining_pairs})
+        remaining_dests = sorted({pair[1] for pair in remaining_pairs})
+        new_df = build_distance_matrix(
+            locations=locations,
+            source_ids=remaining_sources,
+            dest_ids=remaining_dests,
             matrix_url=matrix_url,
         )
-        output_path = build_output_csv_path(config.location)
-        write_output_csv(df, output_path)
-        _tee(f'wrote {len(df)} rows to {output_path}', log_fh)
+
+        combined = pd.concat([existing_df, new_df], ignore_index=True)
+        combined = combined.drop_duplicates(subset=['id_orig', 'id_dest'], keep='last')
+
+        write_output_csv(combined, output_path)
+        _tee(f'wrote {len(combined)} rows to {output_path}', log_fh)
         return 0
     finally:
         log_fh.close()
