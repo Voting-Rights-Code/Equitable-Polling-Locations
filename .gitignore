@@ -177,6 +177,7 @@ cython_debug/
 
 # API keys and other folders
 authentication_files/
+.devcontainer/ors_data/*.pbf
 
 #/test_configs
 

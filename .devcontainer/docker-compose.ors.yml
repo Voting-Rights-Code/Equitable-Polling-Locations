@@ -1,0 +1,19 @@
+# Sibling ORS service. Brought up separately from the main dev container
+# via `python run.py ors_up`. Shares the polling_default network so the
+# app container can reach it at http://ors:8080/...
+services:
+  ors:
+    image: openrouteservice/openrouteservice:v8.0.0
+    container_name: ors
+    environment:
+      JAVA_OPTS: "-Xms1g -Xmx4g"
+      ORS_CONFIG_LOCATION: /home/ors/config/ors-config.yml
+    volumes:
+      - ./ors_data:/home/ors/files
+      - ors_graphs:/home/ors/graphs
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  ors_graphs:
