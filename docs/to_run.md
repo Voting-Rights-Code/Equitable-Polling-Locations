@@ -121,14 +121,3 @@ The driving CLI defaults to `http://localhost:8080/ors/v2/matrix/driving-car`. O
 
 The `ors_setup_cli`, `ors_up_cli`, and `ors_down_cli` commands are **host-only** — they need access to the host's Docker daemon. From inside the dev container they refuse with a clear message. `generate_driving_distances_cli` itself only speaks HTTP and runs fine from either side.
 
-### Known limitations (as of 2026-05-21)
-
-The `.devcontainer/docker-compose.ors.yml` config is **provisional and unverified against ORS v8.0.0**. Initial smoke testing surfaced two problems that the compose file does not yet address:
-
-1. The container loads ORS's built-in Heidelberg demo data instead of the `<state>-latest.osm.pbf` you fetched via `ors_setup_cli`. The compose file needs explicit env vars or a mounted `ors-config.yml` pointing ORS at the bind-mounted file (likely `ORS_ENGINE_PROFILE_DEFAULT_BUILD_SOURCE_FILE=/home/ors/files/<state>-latest.osm.pbf`, but the exact env name depends on ORS v8 documentation).
-2. After graph init, ORS appears to stop logging and never serves HTTP on the mapped port — possibly because `openrouteservice/openrouteservice:v8.0.0` is the engine-only artifact and an `:api` variant is needed, or because the v8 health endpoint moved.
-
-Until those are resolved, the lifecycle commands work as far as starting/stopping a container, but the produced container won't actually serve routing queries. The Python toolset (`generate_driving_distances_cli` and the library it sits on) is fully unit-tested but has not been validated against a real ORS HTTP round-trip.
-
-Verifying against current ORS v8 docs and patching the compose file (plus any health-path update in `ors_up_cli.py`) is filed as a follow-up.
-
