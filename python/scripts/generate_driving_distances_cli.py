@@ -39,7 +39,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         '-l', '--location-config', required=True,
-        help='Path under datasets/configs/, e.g. Gwinnett_GA/Gwinnett_config_2024.yaml',
+        help=(
+            'Path to a PollingModelConfig YAML, e.g. '
+            'datasets/configs/testing/testing_config_driving.yaml. Mirrors the '
+            'path form accepted by model_run_cli.'
+        ),
     )
     parser.add_argument(
         '--server', default=None,

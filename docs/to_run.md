@@ -103,7 +103,7 @@ Downloads `georgia-latest.osm.pbf` (~50–500 MB depending on state) to `.devcon
 
 ```
 python run.py ors_up_cli
-python run.py generate_driving_distances_cli -l Gwinnett_GA/<config>.yaml
+python run.py generate_driving_distances_cli -l datasets/configs/Gwinnett_GA/<config>.yaml
 python run.py ors_down_cli
 ```
 
