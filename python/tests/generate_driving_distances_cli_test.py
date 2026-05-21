@@ -123,3 +123,42 @@ class TestMain:
         written = pd.read_csv(driving_dir / 'Gwinnett_GA_driving_distances.csv')
         assert list(written.columns) == ['id_orig', 'id_dest', 'distance_m']
         assert written.iloc[0]['distance_m'] == 12345.0
+
+    @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
+    @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
+    @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
+    def test_check_bad_locations_writes_nothing(self, mock_cfg_cls, mock_derive, mock_build, tmp_path):
+        '''--check-bad-locations runs the probe but writes no CSV.'''
+        mock_cfg_cls.load_config.return_value = MagicMock(
+            location='Gwinnett_GA', census_year='2020',
+            config_file_path=str(tmp_path / 'cfg.yaml'),
+        )
+        mock_derive.return_value = (
+            {'a': [-84.0, 33.9], 'x': [-84.1, 34.0]},
+            ['a', 'b'],   # 'b' will be absent from the build result -> flagged unroutable
+            ['x'],
+        )
+        mock_build.return_value = pd.DataFrame({
+            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [12345.0],
+        })
+
+        driving_dir = tmp_path / 'datasets' / 'driving' / 'Gwinnett_GA'
+        logdir = tmp_path / 'logs'
+        os.makedirs(logdir, exist_ok=True)
+        # build_output_csv_path is NEVER reached in this code path, but patch it
+        # anyway so a regression that wrongly fell through would still not touch
+        # the real filesystem.
+        expected_output = driving_dir / 'Gwinnett_GA_driving_distances.csv'
+
+        with patch(
+            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
+            return_value=str(expected_output),
+        ):
+            rc = main([
+                '-l', str(tmp_path / 'cfg.yaml'),
+                '--logdir', str(logdir),
+                '--check-bad-locations',
+            ])
+
+        assert rc == 0
+        assert not driving_dir.exists() or not expected_output.exists()

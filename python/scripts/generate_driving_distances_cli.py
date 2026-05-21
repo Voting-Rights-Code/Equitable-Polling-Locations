@@ -120,7 +120,14 @@ def _tee(message: str, log_fh, *, to_screen: bool = True) -> None:
 
 
 def main(argv=None):
-    '''CLI entry point.'''
+    '''CLI entry point.
+
+    Args:
+        argv: Optional list of argv-style strings; ``None`` uses ``sys.argv``.
+
+    Returns:
+        ``0`` on success. (Exits via ``sys.exit(main())`` from the if __name__ block.)
+    '''
     args = build_arg_parser().parse_args(argv)
     config = PollingModelConfig.load_config(args.location_config)
     log_fh, log_path = _open_log_file(args.logdir, config.config_file_path)
@@ -141,6 +148,8 @@ def main(argv=None):
                 locations=locations, source_ids=source_ids, dest_ids=dest_ids,
                 matrix_url=matrix_url,
             )
+            # Two failure modes: snap returned no row (origin absent from df) or some
+            # dests still null after snapping (origin present with nulls). Union both.
             bad = get_missing_origins(df) | (set(source_ids) - set(df['id_orig']))
             _tee(f'unroutable origins: {sorted(bad)}', log_fh)
             return 0
