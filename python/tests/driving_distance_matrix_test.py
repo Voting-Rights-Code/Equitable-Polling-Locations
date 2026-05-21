@@ -21,7 +21,7 @@ class TestGetMissingOrigins:
         df = pd.DataFrame({
             'id_orig': ['a', 'a', 'b', 'b', 'c'],
             'id_dest': ['x', 'y', 'x', 'y', 'x'],
-            'driving_m': [10.0, None, 20.0, 30.0, None],
+            'distance_m': [10.0, None, 20.0, 30.0, None],
         })
         assert get_missing_origins(df) == {'a', 'c'}
 
@@ -29,7 +29,7 @@ class TestGetMissingOrigins:
         df = pd.DataFrame({
             'id_orig': ['a', 'b'],
             'id_dest': ['x', 'x'],
-            'driving_m': [10.0, 20.0],
+            'distance_m': [10.0, 20.0],
         })
         assert get_missing_origins(df) == set()
 
@@ -82,14 +82,14 @@ class TestEstimateOrigin:
         known_df = pd.DataFrame({
             'id_orig': ['good1', 'good1', 'good2', 'good2'],
             'id_dest': ['dest1', 'dest2', 'dest1', 'dest2'],
-            'driving_m': [100.0, 200.0, 9999.0, 9998.0],
+            'distance_m': [100.0, 200.0, 9999.0, 9998.0],
         })
         result = estimate_origin('bad', known_df, locations)
-        assert set(result.columns) >= {'id_orig', 'id_dest', 'driving_m'}
+        assert set(result.columns) >= {'id_orig', 'id_dest', 'distance_m'}
         assert set(result['id_dest']) == {'dest1', 'dest2'}
         # Only good1 is in range; estimate ~ 100 + ~111 = ~211 for dest1.
         dest1_row = result[result['id_dest'] == 'dest1'].iloc[0]
-        assert 200 < dest1_row['driving_m'] < 250
+        assert 200 < dest1_row['distance_m'] < 250
 
     def test_returns_empty_when_no_neighbor_in_range(self):
         locations = {
@@ -97,7 +97,7 @@ class TestEstimateOrigin:
             'far_only': [-83.000, 34.5000],   # ~80 km away
         }
         known_df = pd.DataFrame({
-            'id_orig': ['far_only'], 'id_dest': ['dest1'], 'driving_m': [5000.0],
+            'id_orig': ['far_only'], 'id_dest': ['dest1'], 'distance_m': [5000.0],
         })
         result = estimate_origin('bad', known_df, locations)
         assert len(result) == 0

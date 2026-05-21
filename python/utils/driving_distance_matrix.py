@@ -27,13 +27,13 @@ def get_missing_origins(df: pd.DataFrame) -> set:
     '''Return the set of origin ids that have any null driving distance.
 
     Args:
-        df: A DataFrame with columns ``id_orig`` and ``driving_m``.
+        df: A DataFrame with columns ``id_orig`` and ``distance_m``.
 
     Returns:
-        A set of ``id_orig`` values whose ``driving_m`` is null for at least
+        A set of ``id_orig`` values whose ``distance_m`` is null for at least
         one destination.
     '''
-    missing_rows = df[pd.isnull(df['driving_m'])]
+    missing_rows = df[pd.isnull(df['distance_m'])]
     return set(missing_rows['id_orig'])
 
 
@@ -61,17 +61,17 @@ def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFr
 
     For each destination, look at all known sources within
     ``HAVERSINE_SNAP_RADIUS_METERS`` haversine of ``origin``. For each such
-    source, compute ``driving_m + distance_to_mid`` (haversine offset from
+    source, compute ``distance_m + distance_to_mid`` (haversine offset from
     ``origin`` to that source). Take the minimum over those candidates.
 
     Args:
         origin: The id of the origin to estimate distances for.
-        df: A DataFrame with columns ``id_orig``, ``id_dest``, ``driving_m``
+        df: A DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``
             of already-known driving distances.
         locations: Mapping from id to ``[longitude, latitude]``.
 
     Returns:
-        A DataFrame with columns ``id_orig``, ``id_dest``, ``driving_m``,
+        A DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``,
         holding the best snapped estimate per destination. Empty if no
         in-range neighbor exists.
     '''
@@ -85,17 +85,16 @@ def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFr
 
     in_range = candidates[candidates['distance_to_mid'] < HAVERSINE_SNAP_RADIUS_METERS].copy()
     if in_range.empty:
-        return in_range[['id_orig', 'id_dest', 'driving_m']]
+        return in_range[['id_orig', 'id_dest', 'distance_m']]
 
-    in_range['estimated_m'] = in_range['driving_m'] + in_range['distance_to_mid']
+    in_range['estimated_m'] = in_range['distance_m'] + in_range['distance_to_mid']
     best = (in_range
             .sort_values('estimated_m')
             .groupby(['id_orig', 'id_dest'])
             .first()
             .reset_index())
-    best = best.rename(columns={'estimated_m': 'driving_m_snapped'})
-    best['driving_m'] = best['driving_m_snapped']
-    return best[['id_orig', 'id_dest', 'driving_m']]
+    best['distance_m'] = best['estimated_m']
+    return best[['id_orig', 'id_dest', 'distance_m']]
 
 
 def _build_locations_payload(locations, source_ids, dest_ids):
@@ -197,10 +196,6 @@ def _retry_sources_individually(failed_sources, dest_ids, locations, matrix_url)
 def _snap_unroutable_origins(df, source_ids, locations):
     '''Replace null rows for unroutable origins with snapped haversine estimates.
 
-    Inlines the null-row scan rather than calling ``get_missing_origins``,
-    which expects the legacy ``driving_m`` column. The matrix path produces
-    ``distance_m``, so we check that column here.
-
     Args:
         df: Long-form driving-distance DataFrame with column ``distance_m``.
         source_ids: All requested origin ids.
@@ -214,7 +209,7 @@ def _snap_unroutable_origins(df, source_ids, locations):
         null_origins = set()
         routed_origins = set()
     else:
-        null_origins = set(df.loc[pd.isnull(df['distance_m']), 'id_orig'])
+        null_origins = get_missing_origins(df)
         routed_origins = set(df.loc[~pd.isnull(df['distance_m']), 'id_orig'])
     missing = null_origins | (set(source_ids) - routed_origins)
     if not missing:
@@ -224,13 +219,10 @@ def _snap_unroutable_origins(df, source_ids, locations):
     if df.empty:
         return pd.DataFrame(columns=['id_orig', 'id_dest', 'distance_m'])
 
-    # estimate_origin works in the legacy ``driving_m`` namespace; bridge the names.
-    bridged = df.rename(columns={'distance_m': 'driving_m'})
-    snapped_parts = [estimate_origin(origin, bridged, locations) for origin in missing]
+    snapped_parts = [estimate_origin(origin, df, locations) for origin in missing]
     snapped = pd.concat(snapped_parts, ignore_index=True) if snapped_parts else pd.DataFrame(
-        columns=['id_orig', 'id_dest', 'driving_m'],
+        columns=['id_orig', 'id_dest', 'distance_m'],
     )
-    snapped = snapped.rename(columns={'driving_m': 'distance_m'})
     return pd.concat([df, snapped], ignore_index=True)
 
 
