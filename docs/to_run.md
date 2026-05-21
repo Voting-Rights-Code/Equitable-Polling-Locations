@@ -94,7 +94,7 @@ The solver consumes driving-distance CSVs at `datasets/driving/<Loc>_<ST>/<Loc>_
 ### One-time setup per state
 
 ```
-python run.py ors_setup --state GA
+python run.py ors_setup_cli --state GA
 ```
 
 Downloads `georgia-latest.osm.pbf` (~50–500 MB depending on state) to `.devcontainer/ors_data/`. Pass `--force` to re-download.
@@ -102,12 +102,12 @@ Downloads `georgia-latest.osm.pbf` (~50–500 MB depending on state) to `.devcon
 ### Bring ORS up, generate, bring it down
 
 ```
-python run.py ors_up
+python run.py ors_up_cli
 python run.py generate_driving_distances_cli -l Gwinnett_GA/<config>.yaml
-python run.py ors_down
+python run.py ors_down_cli
 ```
 
-`ors_up` polls the ORS health endpoint until ready. Graph build for a state-sized extract takes 5–10 minutes on first boot, then ~10 seconds on subsequent boots because the graph persists in a named volume. `ors_down --purge-graphs` removes the cached graph too — use it when you've swapped in a new state's `.pbf` and want a clean rebuild.
+`ors_up_cli` polls the ORS health endpoint until ready. Graph build for a state-sized extract takes 5–10 minutes on first boot, then ~10 seconds on subsequent boots because the graph persists in a named volume. `ors_down_cli --purge-graphs` removes the cached graph too — use it when you've swapped in a new state's `.pbf` and want a clean rebuild.
 
 ### Resource budget
 
@@ -119,5 +119,5 @@ The driving CLI defaults to `http://localhost:8080/ors/v2/matrix/driving-car`. O
 - CLI flag: `--server http://...` on `generate_driving_distances_cli`.
 - Env var: `ORS_URL=http://...`.
 
-The `ors_setup`, `ors_up`, and `ors_down` commands are **host-only** — they need access to the host's Docker daemon. From inside the dev container they refuse with a clear message. `generate_driving_distances_cli` itself only speaks HTTP and runs fine from either side.
+The `ors_setup_cli`, `ors_up_cli`, and `ors_down_cli` commands are **host-only** — they need access to the host's Docker daemon. From inside the dev container they refuse with a clear message. `generate_driving_distances_cli` itself only speaks HTTP and runs fine from either side.
 
