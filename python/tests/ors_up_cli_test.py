@@ -71,10 +71,15 @@ class TestMainOrchestration:
     @patch('python.scripts.ors_up_cli.subprocess.run')
     @patch('python.scripts.ors_up_cli.ensure_host_only')
     def test_exits_nonzero_when_health_times_out(
-        self, unused_mock_host, unused_mock_run, unused_mock_poll,
+        self, unused_mock_host, mock_run, unused_mock_poll,
     ):
         '''A health-poll timeout must surface as a non-zero exit code.'''
-        del unused_mock_host, unused_mock_run, unused_mock_poll
+        del unused_mock_host, unused_mock_poll
         with pytest.raises(SystemExit) as exc_info:
             main([])
         assert exc_info.value.code != 0
+        log_dump_calls = [
+            call for call in mock_run.call_args_list
+            if 'logs' in call.args[0] and '--tail=50' in call.args[0]
+        ]
+        assert log_dump_calls, 'Expected a docker compose logs --tail=50 invocation on timeout'

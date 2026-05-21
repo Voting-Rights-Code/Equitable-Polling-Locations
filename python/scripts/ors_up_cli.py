@@ -102,7 +102,7 @@ def main(argv=None):
 
     os.makedirs(args.logdir, exist_ok=True)
     log_path = os.path.join(args.logdir, f'{log_date_prefix()}_ors_up.log')
-    log_fh = open(log_path, 'a', encoding='utf-8')   # pylint: disable=consider-using-with
+    log_fh = open(log_path, 'a', encoding='utf-8')   # pylint: disable=consider-using-with  # closed in finally below
     try:
         _tee(f'[{datetime.now().isoformat(timespec="seconds")}] starting ORS', log_fh)
         _tee(f'compose file: {COMPOSE_FILE}', log_fh)
