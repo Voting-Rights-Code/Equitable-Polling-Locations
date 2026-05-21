@@ -1,11 +1,17 @@
 '''Tests for python/utils/driving_distance_matrix.py.'''
+from unittest.mock import patch
+
 import pandas as pd
 
 from python.utils.driving_distance_matrix import (
+    MATRIX_CELL_LIMIT,
+    build_distance_matrix,
     estimate_origin,
     get_missing_origins,
     matrix_response_to_long_df,
+    resume_from_partial_output,
 )
+from python.utils.ors_client import OrsMatrixError
 
 
 class TestGetMissingOrigins:
@@ -95,3 +101,89 @@ class TestEstimateOrigin:
         })
         result = estimate_origin('bad', known_df, locations)
         assert len(result) == 0
+
+
+class TestBuildDistanceMatrix:
+    '''Top-level orchestration: batch, retry, snap, reshape.'''
+
+    @patch('python.utils.driving_distance_matrix.query_matrix')
+    def test_returns_long_form_for_single_batch(self, mock_query):
+        mock_query.return_value = [[0.0, 100.0], [200.0, 0.0]]
+        locations = {'a': [-84.0, 33.9], 'b': [-84.1, 34.0]}
+        result = build_distance_matrix(
+            locations=locations,
+            source_ids=['a'],
+            dest_ids=['b'],
+            matrix_url='http://ors:8080/ors/v2/matrix/driving-car',
+        )
+        assert set(result.columns) == {'id_orig', 'id_dest', 'distance_m'}
+        # Only the 'a' -> 'b' pair is asked for; the helper requests only that pair.
+        assert len(result) == 1
+
+    @patch('python.utils.driving_distance_matrix.query_matrix')
+    def test_batches_when_sources_exceed_cell_limit(self, mock_query):
+        # 5 destinations x batch size N must keep cells <= MATRIX_CELL_LIMIT (2500).
+        # With 5 dests, max sources/batch is floor(2500/5) - 1 = 499; capped at 10.
+        mock_query.return_value = [[0.0] * 5]
+        locations = {f's{i}': [0.0, 0.0] for i in range(25)}
+        locations.update({f'd{j}': [1.0, 1.0] for j in range(5)})
+        build_distance_matrix(
+            locations=locations,
+            source_ids=[f's{i}' for i in range(25)],
+            dest_ids=[f'd{j}' for j in range(5)],
+            matrix_url='http://ors:8080/ors/v2/matrix/driving-car',
+        )
+        # With 25 sources and batch <= 10, query_matrix is called at least 3 times.
+        assert mock_query.call_count >= 3
+        # MATRIX_CELL_LIMIT is exposed for callers that want to compute their own batches.
+        assert MATRIX_CELL_LIMIT == 2500
+
+    @patch('python.utils.driving_distance_matrix.query_directions')
+    @patch('python.utils.driving_distance_matrix.query_matrix')
+    def test_retries_individual_sources_on_batch_failure(self, mock_matrix, mock_directions):
+        mock_matrix.side_effect = OrsMatrixError('batch failed')
+        mock_directions.return_value = 12345.0
+        locations = {'a': [-84.0, 33.9], 'b': [-84.1, 34.0]}
+        result = build_distance_matrix(
+            locations=locations,
+            source_ids=['a'],
+            dest_ids=['b'],
+            matrix_url='http://ors:8080/ors/v2/matrix/driving-car',
+        )
+        # query_directions should have been called for the failing source x each dest.
+        assert mock_directions.called
+        assert (result['distance_m'] == 12345.0).any()
+
+
+class TestResumeFromPartialOutput:
+    '''Partial-CSV resume: skip pairs already populated, do not silently exit.
+
+    Fixes the upstream geolib bug where an existing partial output caused
+    get_all_distances to return after printing missing origins (no work done).
+    '''
+
+    def test_returns_existing_pairs_unchanged_and_remaining_pairs_to_fetch(self, tmp_path):
+        existing_csv = tmp_path / 'partial.csv'
+        pd.DataFrame({
+            'id_orig': ['a', 'a'],
+            'id_dest': ['x', 'y'],
+            'distance_m': [100.0, 200.0],
+        }).to_csv(existing_csv, index=False)
+
+        existing_df, remaining_pairs = resume_from_partial_output(
+            existing_csv,
+            source_ids=['a', 'b'],
+            dest_ids=['x', 'y'],
+        )
+        assert len(existing_df) == 2
+        # b x {x, y} are the only pairs not yet present.
+        assert set(remaining_pairs) == {('b', 'x'), ('b', 'y')}
+
+    def test_returns_empty_existing_when_file_absent(self, tmp_path):
+        existing_df, remaining_pairs = resume_from_partial_output(
+            tmp_path / 'absent.csv',
+            source_ids=['a'],
+            dest_ids=['x'],
+        )
+        assert existing_df.empty
+        assert set(remaining_pairs) == {('a', 'x')}
