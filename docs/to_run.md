@@ -86,3 +86,38 @@ To run only the config `Gwinnett_County_GA_driving_no_bg_no_ed_14` from the data
 
 ***NOTE: BEWARE OF CAPITALIZATION***
 Both Gwinnett_G**A**_configs/Gwinnett* and Gwinnett_G**a**_configs/Gwinnett* will run on Windows. However, due to string replacement work in other parts of the programs, the former is preferred.
+
+## Generating driving distances
+
+The solver consumes driving-distance CSVs at `datasets/driving/<Loc>_<ST>/<Loc>_<ST>_driving_distances.csv`. The `generate_driving_distances_cli` script builds those CSVs from existing project data (TIGER block centroids + the `<Loc>_<ST>_potential_locations.csv` already used by the solver) by routing every origin × destination pair through a locally-hosted OpenRouteService (ORS) container.
+
+### One-time setup per state
+
+```
+python run.py ors_setup --state GA
+```
+
+Downloads `georgia-latest.osm.pbf` (~50–500 MB depending on state) to `.devcontainer/ors_data/`. Pass `--force` to re-download.
+
+### Bring ORS up, generate, bring it down
+
+```
+python run.py ors_up
+python run.py generate_driving_distances_cli -l Gwinnett_GA/<config>.yaml
+python run.py ors_down
+```
+
+`ors_up` polls the ORS health endpoint until ready. Graph build for a state-sized extract takes 5–10 minutes on first boot, then ~10 seconds on subsequent boots because the graph persists in a named volume. `ors_down --purge-graphs` removes the cached graph too — use it when you've swapped in a new state's `.pbf` and want a clean rebuild.
+
+### Resource budget
+
+ORS uses ~3–5 GB of RAM once a state's graph is loaded. The dev container also runs solver/Python workloads. **Bump Docker Desktop's memory to ≥ 12 GB if you run both at once** — the default 8 GB is too tight.
+
+### Where to override the ORS endpoint
+
+The driving CLI defaults to `http://localhost:8080/ors/v2/matrix/driving-car`. Overrides, in precedence order:
+- CLI flag: `--server http://...` on `generate_driving_distances_cli`.
+- Env var: `ORS_URL=http://...`.
+
+The `ors_setup`, `ors_up`, and `ors_down` commands are **host-only** — they need access to the host's Docker daemon. From inside the dev container they refuse with a clear message. `generate_driving_distances_cli` itself only speaks HTTP and runs fine from either side.
+
