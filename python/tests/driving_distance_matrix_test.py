@@ -1,11 +1,17 @@
 '''Tests for python/utils/driving_distance_matrix.py.'''
+import io
 from unittest.mock import patch
 
+import numpy as np
 import pandas as pd
 
 from python.utils.driving_distance_matrix import (
     MATRIX_CELL_LIMIT,
     MAX_SOURCES_PER_BATCH,
+    _LEVEL_DEFAULT,
+    _LEVEL_V,
+    _LEVEL_VV,
+    _emit,
     build_distance_matrix,
     estimate_origin,
     get_missing_origins,
@@ -116,6 +122,8 @@ class TestBuildDistanceMatrix:
             source_ids=['a'],
             dest_ids=['b'],
             matrix_url='http://ors:8080/ors/v2/matrix/driving-car',
+            log_fh=io.StringIO(),
+            verbosity=0,
         )
         assert set(result.columns) == {'id_orig', 'id_dest', 'distance_m'}
         # Only the 'a' -> 'b' pair is asked for; the helper requests only that pair.
@@ -133,6 +141,8 @@ class TestBuildDistanceMatrix:
             source_ids=[f's{i}' for i in range(25)],
             dest_ids=[f'd{j}' for j in range(5)],
             matrix_url='http://ors:8080/ors/v2/matrix/driving-car',
+            log_fh=io.StringIO(),
+            verbosity=0,
         )
         # With 25 sources and batch <= 10, query_matrix is called at least 3 times.
         assert mock_query.call_count >= 3
@@ -153,6 +163,8 @@ class TestBuildDistanceMatrix:
             source_ids=['a'],
             dest_ids=['b'],
             matrix_url='http://ors:8080/ors/v2/matrix/driving-car',
+            log_fh=io.StringIO(),
+            verbosity=0,
         )
         # query_directions should have been called for the failing source x each dest.
         assert mock_directions.called
@@ -195,3 +207,137 @@ class TestResumeFromPartialOutput:
         )
         assert existing_df.empty
         assert set(remaining_pairs) == {('a', 'x')}
+
+
+class TestEmitHelper:
+    '''_emit writes to log_fh always; to stdout only when level <= verbosity.'''
+
+    def test_level_default_always_visible_in_log_and_screen_at_verbosity_0(self, capsys):
+        log_fh = io.StringIO()
+        _emit('hello', _LEVEL_DEFAULT, log_fh, 0)
+        assert log_fh.getvalue() == 'hello\n'
+        assert capsys.readouterr().out == 'hello\n'
+
+    def test_level_v_hidden_from_screen_at_verbosity_0_but_in_log(self, capsys):
+        log_fh = io.StringIO()
+        _emit('per-batch', _LEVEL_V, log_fh, 0)
+        assert log_fh.getvalue() == 'per-batch\n'
+        assert capsys.readouterr().out == ''
+
+    def test_level_v_appears_on_screen_at_verbosity_1(self, capsys):
+        log_fh = io.StringIO()
+        _emit('per-batch', _LEVEL_V, log_fh, 1)
+        assert log_fh.getvalue() == 'per-batch\n'
+        assert capsys.readouterr().out == 'per-batch\n'
+
+    def test_level_vv_hidden_from_screen_at_verbosity_1(self, capsys):
+        log_fh = io.StringIO()
+        _emit('retry', _LEVEL_VV, log_fh, 1)
+        assert log_fh.getvalue() == 'retry\n'
+        assert capsys.readouterr().out == ''
+
+    def test_level_vv_appears_on_screen_at_verbosity_2(self, capsys):
+        log_fh = io.StringIO()
+        _emit('retry', _LEVEL_VV, log_fh, 2)
+        assert log_fh.getvalue() == 'retry\n'
+        assert capsys.readouterr().out == 'retry\n'
+
+    def test_level_constants_match_expected_integers(self):
+        assert (_LEVEL_DEFAULT, _LEVEL_V, _LEVEL_VV) == (0, 1, 2)
+
+
+class TestVerbosityGating:
+    '''build_distance_matrix writes per-batch + snap + retry events at the right levels.'''
+
+    @patch('python.utils.driving_distance_matrix.query_matrix')
+    def test_per_batch_in_log_but_not_screen_at_default(self, mock_query, capsys):
+        mock_query.return_value = [[0.0]]
+        log_fh = io.StringIO()
+        build_distance_matrix(
+            locations={'a': [-84.0, 33.9], 'd': [-84.1, 34.0]},
+            source_ids=['a'], dest_ids=['d'],
+            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
+            log_fh=log_fh, verbosity=0,
+        )
+        # batch-progress format is '{done}/{total}: {elapsed:.2f}s'
+        assert '1/1:' in log_fh.getvalue()
+        assert '1/1:' not in capsys.readouterr().out
+
+    @patch('python.utils.driving_distance_matrix.query_matrix')
+    def test_per_batch_appears_on_screen_at_v(self, mock_query, capsys):
+        mock_query.return_value = [[0.0]]
+        log_fh = io.StringIO()
+        build_distance_matrix(
+            locations={'a': [-84.0, 33.9], 'd': [-84.1, 34.0]},
+            source_ids=['a'], dest_ids=['d'],
+            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
+            log_fh=log_fh, verbosity=1,
+        )
+        assert '1/1:' in log_fh.getvalue()
+        assert '1/1:' in capsys.readouterr().out
+
+    @patch('python.utils.driving_distance_matrix.query_directions')
+    @patch('python.utils.driving_distance_matrix.query_matrix')
+    def test_retry_hidden_at_v_visible_at_vv(self, mock_matrix, mock_directions, capsys):
+        mock_matrix.side_effect = OrsMatrixError('boom')
+        mock_directions.return_value = 100.0
+
+        log_fh = io.StringIO()
+        build_distance_matrix(
+            locations={'a': [-84.0, 33.9], 'b': [-84.1, 34.0]},
+            source_ids=['a'], dest_ids=['b'],
+            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
+            log_fh=log_fh, verbosity=1,
+        )
+        assert 'retrying source a' in log_fh.getvalue()
+        assert 'retrying source a' not in capsys.readouterr().out
+
+        log_fh = io.StringIO()
+        build_distance_matrix(
+            locations={'a': [-84.0, 33.9], 'b': [-84.1, 34.0]},
+            source_ids=['a'], dest_ids=['b'],
+            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
+            log_fh=log_fh, verbosity=2,
+        )
+        assert 'retrying source a' in capsys.readouterr().out
+
+    @patch('python.utils.driving_distance_matrix.query_matrix')
+    def test_snap_success_emits_at_default_level(self, mock_query, capsys):
+        '''When ORS routes some pairs but a source has none, snap emits at default level.'''
+        # Two sources, one dest. Second source returns NaN -> 'missing'.
+        mock_query.return_value = [[100.0], [np.nan]]
+        # The two sources are within 1km haversine so snap finds a neighbor.
+        log_fh = io.StringIO()
+        build_distance_matrix(
+            locations={
+                's0': [-84.0000, 33.9500],
+                's1': [-84.0000, 33.9510],  # ~111m north of s0
+                'd':  [-84.1000, 34.0000],
+            },
+            source_ids=['s0', 's1'],
+            dest_ids=['d'],
+            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
+            log_fh=log_fh, verbosity=0,
+        )
+        assert 'snapped to nearest haversine neighbor' in log_fh.getvalue()
+        assert 'snapped to nearest haversine neighbor' in capsys.readouterr().out
+
+    @patch('python.utils.driving_distance_matrix.query_matrix')
+    def test_snap_fail_emits_at_default_level(self, mock_query, capsys):
+        '''When no in-range neighbor exists, the fail message emits at default level.'''
+        mock_query.return_value = [[100.0], [np.nan]]
+        # The second source is ~80km away — no in-range neighbor.
+        log_fh = io.StringIO()
+        build_distance_matrix(
+            locations={
+                's0': [-84.0000, 33.9500],
+                's1': [-83.0000, 34.5000],
+                'd':  [-84.1000, 34.0000],
+            },
+            source_ids=['s0', 's1'],
+            dest_ids=['d'],
+            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
+            log_fh=log_fh, verbosity=0,
+        )
+        assert 'no neighbor within 1km, dropped' in log_fh.getvalue()
+        assert 'no neighbor within 1km, dropped' in capsys.readouterr().out

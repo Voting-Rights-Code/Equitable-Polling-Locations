@@ -9,11 +9,15 @@ External callers should use ``build_distance_matrix``. The other functions
 are exposed for testing and for ad-hoc reuse.
 '''
 import time
+from typing import TextIO
 
 import pandas as pd
 import requests
 from haversine import haversine, Unit
 
+from python.solver.constants import (
+    DISTANCE_DISTANCE_M, DISTANCE_ID_DEST, DISTANCE_ID_ORIG,
+)
 from python.utils.ors_client import OrsMatrixError, query_directions, query_matrix
 from python.utils.ors_url import directions_url_from_matrix_url
 
@@ -22,6 +26,32 @@ HAVERSINE_SNAP_RADIUS_METERS = 1000
 MATRIX_CELL_LIMIT = 2500          # Below ORS's 3500 hard cap, with margin.
 MAX_SOURCES_PER_BATCH = 10        # Conservative even for small destination sets.
 PER_SOURCE_RETRY_SLEEP_S = 0.1
+
+# Verbosity level constants. The integers 0/1/2 are the public contract
+# (set by argparse 'count' in the CLI); these names are internal.
+_LEVEL_DEFAULT = 0
+_LEVEL_V = 1
+_LEVEL_VV = 2
+
+_OUTPUT_COLUMNS = [DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M]
+
+
+def _emit(message: str, level: int, log_fh: TextIO, verbosity: int) -> None:
+    '''Write to ``log_fh`` always; to stdout only if ``level <= verbosity``.
+
+    Args:
+        message: The string to emit.
+        level: The minimum verbosity required for the message to appear on screen.
+            ``_LEVEL_DEFAULT`` (0) is always on screen; ``_LEVEL_V`` (1) needs ``-v``;
+            ``_LEVEL_VV`` (2) needs ``-vv``.
+        log_fh: Open writable text file handle. The message is always written here,
+            regardless of verbosity, then flushed.
+        verbosity: Caller's verbosity ceiling. The CLI sets this from ``args.verbose``.
+    '''
+    log_fh.write(message + '\n')
+    log_fh.flush()
+    if level <= verbosity:
+        print(message)
 
 
 def get_missing_origins(df: pd.DataFrame) -> set:
@@ -168,39 +198,71 @@ def _fetch_one_batch(locations, source_batch, dest_ids, matrix_url):
     return matrix_response_to_long_df(source_batch, dest_ids, distances)
 
 
-def _retry_sources_individually(failed_sources, dest_ids, locations, matrix_url):
+def _retry_sources_individually(failed_sources: list[str],
+                                dest_ids: list[str],
+                                locations: dict[str, list[float]],
+                                matrix_url: str,
+                                *,
+                                log_fh: TextIO,
+                                verbosity: int) -> pd.DataFrame:
     '''For each failed source, query each destination via the directions endpoint.
 
-    Args:
-        failed_sources: Iterable of origin ids whose batch failed.
-        dest_ids: Iterable of destination ids.
-        locations: Mapping from id to ``[longitude, latitude]``.
-        matrix_url: ORS matrix endpoint URL (used to derive the directions URL).
+    Returns a long-form DataFrame of successful single-pair queries.
 
-    Returns:
-        A long-form DataFrame of successful single-pair queries.
+    Args:
+        failed_sources: Origin ids whose matrix batch failed; each is retried per-dest.
+        dest_ids: All destination ids to query for each failed source.
+        locations: Mapping from id to ``[longitude, latitude]``.
+        matrix_url: Matrix URL — the directions URL is derived from it.
+        log_fh: Open writable text file handle. Retry events are always written here.
+        verbosity: Screen-output ceiling. Retry events emit at ``_LEVEL_VV`` so they
+            require ``-vv`` to appear on screen.
     '''
     directions_url = directions_url_from_matrix_url(matrix_url)
     rows = []
     for source in failed_sources:
+        _emit(f'retrying source {source} via directions endpoint',
+              _LEVEL_VV, log_fh, verbosity)
         time.sleep(PER_SOURCE_RETRY_SLEEP_S)
         for dest in dest_ids:
             try:
                 distance = query_directions(locations[source], locations[dest], directions_url)
             except requests.exceptions.RequestException:
+                _emit(f'directions raised for {source} -> {dest}: skipping',
+                      _LEVEL_VV, log_fh, verbosity)
                 continue
-            if distance is not None:
-                rows.append({'id_orig': source, 'id_dest': dest, 'distance_m': distance})
-    return pd.DataFrame(rows, columns=['id_orig', 'id_dest', 'distance_m'])
+            if distance is None:
+                _emit(f'directions returned None for {source} -> {dest}: skipping',
+                      _LEVEL_VV, log_fh, verbosity)
+                continue
+            rows.append({
+                DISTANCE_ID_ORIG: source,
+                DISTANCE_ID_DEST: dest,
+                DISTANCE_DISTANCE_M: distance,
+            })
+    return pd.DataFrame(rows, columns=_OUTPUT_COLUMNS)
 
 
-def _snap_unroutable_origins(df, source_ids, locations):
+def _snap_unroutable_origins(df: pd.DataFrame,
+                             source_ids: list[str],
+                             locations: dict[str, list[float]],
+                             *,
+                             log_fh: TextIO,
+                             verbosity: int) -> pd.DataFrame:
     '''Replace null rows for unroutable origins with snapped haversine estimates.
+
+    For each origin ORS could not route, calls ``estimate_origin`` to find an
+    in-range haversine neighbor whose driving distance can be reused. Origins
+    with no in-range neighbor are dropped (emit at ``_LEVEL_DEFAULT``); origins
+    that snap successfully also emit at ``_LEVEL_DEFAULT``.
 
     Args:
         df: Long-form driving-distance DataFrame with column ``distance_m``.
         source_ids: All requested origin ids.
         locations: Mapping from id to ``[longitude, latitude]``.
+        log_fh: Open writable text file handle. Snap events are written here.
+        verbosity: Screen-output ceiling. Snap events emit at ``_LEVEL_DEFAULT``
+            so they appear on screen regardless of this value.
 
     Returns:
         A new DataFrame with nulls dropped and snapped rows appended for any
@@ -218,16 +280,32 @@ def _snap_unroutable_origins(df, source_ids, locations):
 
     df = df.dropna(subset=['distance_m'])
     if df.empty:
-        return pd.DataFrame(columns=['id_orig', 'id_dest', 'distance_m'])
+        return pd.DataFrame(columns=_OUTPUT_COLUMNS)
 
-    snapped_parts = [estimate_origin(origin, df, locations) for origin in missing]
-    snapped = pd.concat(snapped_parts, ignore_index=True) if snapped_parts else pd.DataFrame(
-        columns=['id_orig', 'id_dest', 'distance_m'],
+    snapped_parts = []
+    for origin in missing:
+        snapped = estimate_origin(origin, df, locations)
+        if snapped.empty:
+            _emit(f'unroutable origin {origin}: no neighbor within 1km, dropped',
+                  _LEVEL_DEFAULT, log_fh, verbosity)
+            continue
+        _emit(f'unroutable origin {origin}: snapped to nearest haversine neighbor within 1km',
+              _LEVEL_DEFAULT, log_fh, verbosity)
+        snapped_parts.append(snapped)
+
+    snapped_df = pd.concat(snapped_parts, ignore_index=True) if snapped_parts else pd.DataFrame(
+        columns=_OUTPUT_COLUMNS,
     )
-    return pd.concat([df, snapped], ignore_index=True)
+    return pd.concat([df, snapped_df], ignore_index=True)
 
 
-def build_distance_matrix(*, locations, source_ids, dest_ids, matrix_url) -> pd.DataFrame:
+def build_distance_matrix(*,
+                          locations: dict[str, list[float]],
+                          source_ids: list[str],
+                          dest_ids: list[str],
+                          matrix_url: str,
+                          log_fh: TextIO,
+                          verbosity: int = 0) -> pd.DataFrame:
     '''Build a long-form driving-distance DataFrame for every source x dest pair.
 
     Strategy:
@@ -243,6 +321,9 @@ def build_distance_matrix(*, locations, source_ids, dest_ids, matrix_url) -> pd.
         source_ids: Iterable of origin ids.
         dest_ids: Iterable of destination ids.
         matrix_url: ORS matrix endpoint URL.
+        log_fh: Open writable text file handle for the run log. Per-batch progress,
+            snap events, and retry detail are written here regardless of verbosity.
+        verbosity: Screen-output ceiling (0 = quiet default, 1 = ``-v``, 2 = ``-vv``).
 
     Returns:
         A long-form DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``.
@@ -254,21 +335,31 @@ def build_distance_matrix(*, locations, source_ids, dest_ids, matrix_url) -> pd.
     failed_sources = []
     batch_dfs = []
     for start in range(0, len(source_ids), batch_size):
+        batch_start = time.monotonic()
         source_batch = source_ids[start:start + batch_size]
         try:
             batch_dfs.append(_fetch_one_batch(locations, source_batch, dest_ids, matrix_url))
         except OrsMatrixError:
             failed_sources.extend(source_batch)
+        elapsed = time.monotonic() - batch_start
+        done = min(start + batch_size, len(source_ids))
+        _emit(f'{done}/{len(source_ids)}: {elapsed:.2f}s', _LEVEL_V, log_fh, verbosity)
 
     df = pd.concat(batch_dfs, ignore_index=True) if batch_dfs else pd.DataFrame(
         columns=['id_orig', 'id_dest', 'distance_m'],
     )
 
     if failed_sources:
-        retry_df = _retry_sources_individually(failed_sources, dest_ids, locations, matrix_url)
+        retry_df = _retry_sources_individually(
+            failed_sources, dest_ids, locations, matrix_url,
+            log_fh=log_fh, verbosity=verbosity,
+        )
         df = pd.concat([df, retry_df], ignore_index=True)
 
-    return _snap_unroutable_origins(df, source_ids, locations)
+    return _snap_unroutable_origins(
+        df, source_ids, locations,
+        log_fh=log_fh, verbosity=verbosity,
+    )
 
 
 def resume_from_partial_output(output_path, source_ids, dest_ids):

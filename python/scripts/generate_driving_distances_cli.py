@@ -13,6 +13,9 @@ from datetime import datetime
 import pandas as pd
 
 from python.solver.constants import (
+    DISTANCE_DISTANCE_M,
+    DISTANCE_ID_DEST,
+    DISTANCE_ID_ORIG,
     TIGER20_GEOID20,
     TIGER20_INTPTLAT20,
     TIGER20_INTPTLON20,
@@ -29,7 +32,7 @@ from python.utils.ors_url import resolve_ors_url
 from python.utils.utils import build_potential_locations_file_path, log_date_prefix
 
 
-OUTPUT_COLUMNS = ['id_orig', 'id_dest', 'distance_m']
+OUTPUT_COLUMNS = [DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M]
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -201,6 +204,7 @@ def main(argv=None):
             df = build_distance_matrix(
                 locations=locations, source_ids=source_ids, dest_ids=dest_ids,
                 matrix_url=matrix_url,
+                log_fh=log_fh, verbosity=args.verbose,
             )
             # Two failure modes: snap returned no row (origin absent from df) or some
             # dests still null after snapping (origin present with nulls). Union both.
@@ -233,6 +237,7 @@ def main(argv=None):
             source_ids=remaining_sources,
             dest_ids=remaining_dests,
             matrix_url=matrix_url,
+            log_fh=log_fh, verbosity=args.verbose,
         )
 
         combined = pd.concat([existing_df, new_df], ignore_index=True)
