@@ -34,7 +34,7 @@ def _ensure_host_only() -> None:
 
 
 HEALTH_POLL_INTERVAL_S = 10
-HEALTH_POLL_TIMEOUT_S = 900   # 15 minutes.
+HEALTH_POLL_TIMEOUT_S = 2700  # 45 minutes (state-sized graphs can take 20-30 min).
 DEFAULT_HEALTH_URL = 'http://localhost:8080/ors/v2/health'
 COMPOSE_FILE = os.path.normpath(
     os.path.join(

@@ -54,7 +54,7 @@ class TestPollHealth:
     def test_default_constants_are_sane(self):
         '''Default constants should match the documented values.'''
         assert HEALTH_POLL_INTERVAL_S == 10
-        assert HEALTH_POLL_TIMEOUT_S == 900   # 15 minutes
+        assert HEALTH_POLL_TIMEOUT_S == 2700   # 45 minutes (state-sized graphs can take 20-30 min)
 
 
 class TestMainOrchestration:
