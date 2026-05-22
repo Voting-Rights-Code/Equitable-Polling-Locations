@@ -33,9 +33,6 @@ _LEVEL_DEFAULT = 0
 _LEVEL_V = 1
 _LEVEL_VV = 2
 
-_OUTPUT_COLUMNS = [DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M]
-
-
 def _emit(message: str, level: int, log_fh: TextIO, verbosity: int) -> None:
     '''Write to ``log_fh`` always; to stdout only if ``level <= verbosity``.
 
@@ -64,8 +61,8 @@ def get_missing_origins(df: pd.DataFrame) -> set:
         A set of ``id_orig`` values whose ``distance_m`` is null for at least
         one destination.
     '''
-    missing_rows = df[pd.isnull(df['distance_m'])]
-    return set(missing_rows['id_orig'])
+    missing_rows = df[pd.isnull(df[DISTANCE_DISTANCE_M])]
+    return set(missing_rows[DISTANCE_ID_ORIG])
 
 
 def matrix_response_to_long_df(source_names, dest_names, distances) -> pd.DataFrame:
@@ -83,8 +80,15 @@ def matrix_response_to_long_df(source_names, dest_names, distances) -> pd.DataFr
     rows = []
     for source, source_row in zip(source_names, distances):
         for dest, distance_m in zip(dest_names, source_row):
-            rows.append({'id_orig': source, 'id_dest': dest, 'distance_m': distance_m})
-    return pd.DataFrame(rows, columns=['id_orig', 'id_dest', 'distance_m'])
+            rows.append({
+                DISTANCE_ID_ORIG: source,
+                DISTANCE_ID_DEST: dest,
+                DISTANCE_DISTANCE_M: distance_m,
+            })
+    return pd.DataFrame(
+        rows,
+        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
+    )
 
 
 def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFrame:
@@ -106,8 +110,8 @@ def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFr
         holding the best snapped estimate per destination. Empty if no
         in-range neighbor exists.
     '''
-    candidates = df.rename(columns={'id_orig': 'midpoint'}).copy()
-    candidates['id_orig'] = origin
+    candidates = df.rename(columns={DISTANCE_ID_ORIG: 'midpoint'}).copy()
+    candidates[DISTANCE_ID_ORIG] = origin
 
     origin_latlon = tuple(reversed(locations[origin]))
     candidates['distance_to_mid'] = candidates['midpoint'].apply(
@@ -116,16 +120,16 @@ def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFr
 
     in_range = candidates[candidates['distance_to_mid'] < HAVERSINE_SNAP_RADIUS_METERS].copy()
     if in_range.empty:
-        return in_range[['id_orig', 'id_dest', 'distance_m']]
+        return in_range[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M]]
 
-    in_range['estimated_m'] = in_range['distance_m'] + in_range['distance_to_mid']
+    in_range['estimated_m'] = in_range[DISTANCE_DISTANCE_M] + in_range['distance_to_mid']
     best = (in_range
             .sort_values('estimated_m')
-            .groupby(['id_orig', 'id_dest'])
+            .groupby([DISTANCE_ID_ORIG, DISTANCE_ID_DEST])
             .first()
             .reset_index())
-    best['distance_m'] = best['estimated_m']
-    return best[['id_orig', 'id_dest', 'distance_m']]
+    best[DISTANCE_DISTANCE_M] = best['estimated_m']
+    return best[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M]]
 
 
 def _build_locations_payload(locations, source_ids, dest_ids):
@@ -240,7 +244,10 @@ def _retry_sources_individually(failed_sources: list[str],
                 DISTANCE_ID_DEST: dest,
                 DISTANCE_DISTANCE_M: distance,
             })
-    return pd.DataFrame(rows, columns=_OUTPUT_COLUMNS)
+    return pd.DataFrame(
+        rows,
+        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
+    )
 
 
 def _snap_unroutable_origins(df: pd.DataFrame,
@@ -273,14 +280,16 @@ def _snap_unroutable_origins(df: pd.DataFrame,
         routed_origins = set()
     else:
         null_origins = get_missing_origins(df)
-        routed_origins = set(df.loc[~pd.isnull(df['distance_m']), 'id_orig'])
+        routed_origins = set(df.loc[~pd.isnull(df[DISTANCE_DISTANCE_M]), DISTANCE_ID_ORIG])
     missing = null_origins | (set(source_ids) - routed_origins)
     if not missing:
         return df
 
-    df = df.dropna(subset=['distance_m'])
+    df = df.dropna(subset=[DISTANCE_DISTANCE_M])
     if df.empty:
-        return pd.DataFrame(columns=_OUTPUT_COLUMNS)
+        return pd.DataFrame(
+            columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
+        )
 
     snapped_parts = []
     for origin in missing:
@@ -294,7 +303,7 @@ def _snap_unroutable_origins(df: pd.DataFrame,
         snapped_parts.append(snapped)
 
     snapped_df = pd.concat(snapped_parts, ignore_index=True) if snapped_parts else pd.DataFrame(
-        columns=_OUTPUT_COLUMNS,
+        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
     )
     return pd.concat([df, snapped_df], ignore_index=True)
 
@@ -346,7 +355,7 @@ def build_distance_matrix(*,
         _emit(f'{done}/{len(source_ids)}: {elapsed:.2f}s', _LEVEL_V, log_fh, verbosity)
 
     df = pd.concat(batch_dfs, ignore_index=True) if batch_dfs else pd.DataFrame(
-        columns=['id_orig', 'id_dest', 'distance_m'],
+        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
     )
 
     if failed_sources:
@@ -383,9 +392,14 @@ def resume_from_partial_output(output_path, source_ids, dest_ids):
     try:
         existing_df = pd.read_csv(output_path)
     except (FileNotFoundError, pd.errors.EmptyDataError):
-        existing_df = pd.DataFrame(columns=['id_orig', 'id_dest', 'distance_m'])
+        existing_df = pd.DataFrame(
+            columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
+        )
 
-    present = set(zip(existing_df.get('id_orig', []), existing_df.get('id_dest', [])))
+    present = set(zip(
+        existing_df.get(DISTANCE_ID_ORIG, []),
+        existing_df.get(DISTANCE_ID_DEST, []),
+    ))
     all_pairs = [(s, d) for s in source_ids for d in dest_ids]
     remaining = [pair for pair in all_pairs if pair not in present]
     return existing_df, remaining

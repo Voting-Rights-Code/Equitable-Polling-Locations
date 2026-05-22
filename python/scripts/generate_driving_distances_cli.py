@@ -32,9 +32,6 @@ from python.utils.ors_url import resolve_ors_url
 from python.utils.utils import build_potential_locations_file_path, log_date_prefix
 
 
-OUTPUT_COLUMNS = [DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M]
-
-
 def build_arg_parser() -> argparse.ArgumentParser:
     '''Return the CLI argument parser.'''
     parser = argparse.ArgumentParser(
@@ -155,7 +152,7 @@ def _pick_coord_extractor(columns):
 
 def write_output_csv(df, path: str) -> None:
     '''Write the canonical 3-column CSV (id_orig, id_dest, distance_m).'''
-    df[OUTPUT_COLUMNS].to_csv(path, index=False)
+    df[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M]].to_csv(path, index=False)
 
 
 def _open_log_file(logdir: str, config_file_path: str):
@@ -208,7 +205,7 @@ def main(argv=None):
             )
             # Two failure modes: snap returned no row (origin absent from df) or some
             # dests still null after snapping (origin present with nulls). Union both.
-            bad = get_missing_origins(df) | (set(source_ids) - set(df['id_orig']))
+            bad = get_missing_origins(df) | (set(source_ids) - set(df[DISTANCE_ID_ORIG]))
             _tee(f'unroutable origins: {sorted(bad)}', log_fh)
             return 0
 
@@ -241,7 +238,9 @@ def main(argv=None):
         )
 
         combined = pd.concat([existing_df, new_df], ignore_index=True)
-        combined = combined.drop_duplicates(subset=['id_orig', 'id_dest'], keep='last')
+        combined = combined.drop_duplicates(
+            subset=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST], keep='last',
+        )
 
         write_output_csv(combined, output_path)
         _tee(f'wrote {len(combined)} rows to {output_path}', log_fh)
