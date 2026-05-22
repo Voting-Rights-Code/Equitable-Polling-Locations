@@ -94,13 +94,60 @@ def derive_origins_and_destinations(config):
         locations[geoid] = [float(row[TIGER20_INTPTLON20]), float(row[TIGER20_INTPTLAT20])]
         source_ids.append(geoid)
 
+    extract_lon_lat = _pick_coord_extractor(list(pots_df.columns))
     dest_ids = []
     for _, row in pots_df.iterrows():
         loc_id = str(row['Location'])
-        locations[loc_id] = [float(row['Longitude']), float(row['Latitude'])]
+        lon, lat = extract_lon_lat(row)
+        locations[loc_id] = [lon, lat]
         dest_ids.append(loc_id)
 
     return locations, source_ids, dest_ids
+
+
+def _pick_coord_extractor(columns):
+    '''Return a callable that reads ``(lon, lat)`` from a potential-locations row.
+
+    The project carries two CSV schemas in the wild:
+
+    - Separate ``Latitude`` / ``Longitude`` columns (e.g. the ``testing`` fixture).
+    - A single combined column named ``"Lat, Long"`` or ``"Lat, Lon"`` whose
+      value is a string like ``"32.707497 , -97.252456"`` (lat first, comma,
+      lon; tolerating whitespace) — used by Tarrant_County_TX.
+
+    Args:
+        columns: Sequence of column names from the loaded DataFrame.
+
+    Returns:
+        A callable ``extract(row) -> (lon, lat)`` for use in the dest loop.
+
+    Raises:
+        ValueError: If neither schema is present in the columns.
+    '''
+    if 'Longitude' in columns and 'Latitude' in columns:
+        def extract_separate(row):
+            return float(row['Longitude']), float(row['Latitude'])
+        return extract_separate
+
+    combined_col = next(
+        (col for col in columns if col.lower().replace(' ', '').startswith('lat,l')),
+        None,
+    )
+    if combined_col is not None:
+        def extract_combined(row):
+            value = str(row[combined_col])
+            parts = value.split(',')
+            if len(parts) != 2:
+                raise ValueError(
+                    f'Expected lat, lon format in combined column {combined_col!r}, got: {value!r}'
+                )
+            return float(parts[1].strip()), float(parts[0].strip())
+        return extract_combined
+
+    raise ValueError(
+        f'Potential-locations CSV has neither separate Latitude/Longitude '
+        f'columns nor a combined Lat, Lon column. Got columns: {list(columns)}'
+    )
 
 
 def write_output_csv(df, path: str) -> None:

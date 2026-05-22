@@ -83,6 +83,47 @@ class TestDeriveOriginsAndDestinations:
         assert locations['111'] == [-84.0, 33.9]      # ``[lon, lat]`` order
         assert locations['pollA'] == [-84.05, 33.95]
 
+    @patch('python.scripts.generate_driving_distances_cli.load_potential_locations_csv')
+    @patch('python.scripts.generate_driving_distances_cli.get_blocks_gdf')
+    def test_handles_combined_lat_lon_column(self, mock_blocks, mock_pots):
+        '''Tarrant_County_TX-style CSV uses a single "Lat, Long" column with "lat , lon" values.'''
+        mock_blocks.return_value = pd.DataFrame({
+            'GEOID20': ['111'],
+            'INTPTLAT20': ['32.7'],
+            'INTPTLON20': ['-97.3'],
+        })
+        mock_pots.return_value = pd.DataFrame({
+            'Location': ['pollA', 'pollB'],
+            'Lat, Long': ['32.707497 , -97.252456', '32.711546,-97.189768'],  # both spacings
+        })
+
+        config = MagicMock(location='Tarrant_County_TX', census_year='2020')
+        locations, source_ids, dest_ids = derive_origins_and_destinations(config)
+        assert set(source_ids) == {'111'}
+        assert set(dest_ids) == {'pollA', 'pollB'}
+        # ``[lon, lat]`` order — parser puts lon first.
+        assert locations['pollA'] == [-97.252456, 32.707497]
+        assert locations['pollB'] == [-97.189768, 32.711546]
+
+    @patch('python.scripts.generate_driving_distances_cli.load_potential_locations_csv')
+    @patch('python.scripts.generate_driving_distances_cli.get_blocks_gdf')
+    def test_raises_when_no_coord_columns(self, mock_blocks, mock_pots):
+        '''Neither separate Latitude/Longitude nor combined column → clear ValueError.'''
+        mock_blocks.return_value = pd.DataFrame({
+            'GEOID20': ['111'],
+            'INTPTLAT20': ['32.7'],
+            'INTPTLON20': ['-97.3'],
+        })
+        mock_pots.return_value = pd.DataFrame({
+            'Location': ['pollA'],
+            'Address': ['somewhere'],
+            # no coord columns at all
+        })
+
+        config = MagicMock(location='Tarrant_County_TX', census_year='2020')
+        with pytest.raises(ValueError, match='Latitude/Longitude'):
+            derive_origins_and_destinations(config)
+
 
 class TestMain:
     '''Smoke-test the end-to-end flow with everything mocked.'''
