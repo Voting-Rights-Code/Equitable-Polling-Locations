@@ -179,7 +179,10 @@ cython_debug/
 
 # API keys and other folders
 authentication_files/
-.devcontainer/ors_data/*.pbf
+
+# OpenRouteService inputs (Geofabrik .pbf extracts, ORS-generated example data)
+datasets/openrouteservice/*.pbf
+datasets/openrouteservice/*.osm.gz
 
 #/test_configs
 

@@ -11,9 +11,10 @@ the command-line interface is identical.
 import argparse
 import getpass
 import json
-import os
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 
@@ -34,10 +35,15 @@ REPO_ROOT = Path(__file__).resolve().parent
 IN_CONTAINER = Path("/.dockerenv").exists()
 
 # ORS lifecycle scripts must run on the host because they call
-# ``docker compose`` and write to ``.devcontainer/ors_data`` on the host
+# ``docker compose`` and write to ``datasets/openrouteservice`` on the host
 # filesystem. ``main`` short-circuits these to bypass the usual docker
 # wrapper applied by ``run_command``.
-ORS_LIFECYCLE_COMMANDS = ("ors_setup_cli", "ors_up_cli", "ors_down_cli")
+ORS_LIFECYCLE_COMMANDS = ("ors_up_cli", "ors_down_cli")
+
+# Host-side URL ORS exposes (compose maps host 8080 -> container 8082).
+# Used by the generate_driving_distances_cli orchestration to detect whether
+# ORS is already running before deciding whether to spawn / tear down.
+ORS_DEFAULT_HEALTH_URL = "http://localhost:8080/ors/v2/health"
 
 
 def get_docker_compose_cmd() -> list[str]:
@@ -120,9 +126,52 @@ def write_credentials_json(census_key, output_dir=None):
     output_dir = Path(output_dir)
     output_dir.mkdir(exist_ok=True)
     creds_file = output_dir / "credentials.json"
-    with open(creds_file, 'w', encoding='utf-8') as f:
+    with open(creds_file, "w", encoding="utf-8") as f:
         json.dump({"census_key": census_key}, f)
     print(f"Credentials written to {creds_file}")
+
+
+def _peel_orchestration_args(argv: list[str]) -> tuple[str | None, bool, list[str]]:
+    """Split argv into (state, keep_ors_running, passthrough).
+
+    The state is the first positional argv element (or None if argv is empty).
+    --keep-ors-running is consumed by the host-side orchestrator and stripped
+    from passthrough; everything else is forwarded to the in-container matrix
+    script unchanged.
+
+    Args:
+        argv: The raw argv tail (everything after the
+            ``generate_driving_distances_cli`` subcommand name).
+
+    Returns:
+        A 3-tuple ``(state, keep_ors_running, passthrough)``. ``state`` may be
+        None if argv is empty.
+    """
+    if not argv:
+        return (None, False, [])
+    state = argv[0]
+    keep_running = False
+    passthrough: list[str] = []
+    for arg in argv[1:]:
+        if arg == "--keep-ors-running":
+            keep_running = True
+        else:
+            passthrough.append(arg)
+    return (state, keep_running, passthrough)
+
+
+def _ors_is_healthy() -> bool:
+    """Probe ORS_DEFAULT_HEALTH_URL once; return True if it 200s.
+
+    Returns:
+        True if the ORS health endpoint returns 200 within a 5s timeout.
+        False on any connection error, non-200 response, or timeout.
+    """
+    try:
+        with urllib.request.urlopen(ORS_DEFAULT_HEALTH_URL, timeout=5) as response:
+            return response.getcode() == 200
+    except (urllib.error.URLError, ConnectionError, TimeoutError):
+        return False
 
 
 def main():
@@ -149,34 +198,9 @@ def main():
         run_command(["Rscript", "R/tests/r_smoke_test.R"])
         return
 
-    # Special command: r_test runs the R environment smoke test inside the
-    # dev container. Confirms R and all project-required R packages load.
-    # Requires the .devcontainer setup (root Dockerfile does not install R).
-    if len(sys.argv) > 1 and sys.argv[1] == "r_test":
-        compose_cmd = get_docker_compose_cmd()
-        env = os.environ.copy()
-        env["GCP_CREDS_PATH"] = get_gcp_creds_path()
-        cmd = compose_cmd + [
-            "-f",
-            ".devcontainer/docker-compose.yml",
-            "run",
-            "--rm",
-            "app",
-            "Rscript",
-            "R/tests/r_smoke_test.R",
-        ]
-        try:
-            subprocess.run(cmd, env=env, check=True)
-        except subprocess.CalledProcessError as e:
-            sys.exit(e.returncode)
-        except KeyboardInterrupt:
-            print("\n[Terminated by User]")
-            sys.exit(130)
-        return
-
     # Special command: set_census_key stores a census API key in credentials.json.
     # No external dependencies required — uses only Python stdlib.
-    if len(sys.argv) > 1 and sys.argv[1] == 'set_census_key':
+    if len(sys.argv) > 1 and sys.argv[1] == "set_census_key":
         key = getpass.getpass("Enter your census API key: ")
         if not key.strip():
             print("Error: No key entered.")
@@ -186,7 +210,7 @@ def main():
         return
 
     # Special commands: ORS lifecycle scripts. These must run on the host
-    # because they call docker compose / write to .devcontainer/ors_data on
+    # because they call docker compose / write to datasets/openrouteservice on
     # the host filesystem. Bypass the docker compose wrapper that run_command
     # would otherwise apply.
     if len(sys.argv) > 1 and sys.argv[1] in ORS_LIFECYCLE_COMMANDS:
@@ -208,6 +232,63 @@ def main():
             sys.exit(130)
         return
 
+    # Special command: generate_driving_distances_cli auto-orchestrates ORS
+    # when run from the host (spawn-and-verify via ors_up_cli, then matrix
+    # inside the container via the standard wrapper, then ors_down_cli
+    # cleanup unless --keep-ors-running). Inside the container, falls through
+    # to the standard wrapper since ORS lifecycle is unavailable there.
+    if (
+        len(sys.argv) > 1
+        and sys.argv[1] == "generate_driving_distances_cli"
+        and not IN_CONTAINER
+    ):
+        state, keep_running, passthrough = _peel_orchestration_args(sys.argv[2:])
+        if state is None:
+            print(
+                "usage: python3 run.py generate_driving_distances_cli "
+                "<state> -l <config> [options]",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+        ors_was_already_up = _ors_is_healthy()
+
+        # ors_up_cli handles validate-slug + download-if-missing + docker
+        # compose up -d (idempotent) + health-poll + verify_loaded_state.
+        # We re-run it even when ORS is already up so verification happens
+        # for every matrix invocation, not just the ones that brought ORS up.
+        ors_up_script = REPO_ROOT / "python" / "scripts" / "ors_up_cli.py"
+        try:
+            subprocess.run(
+                [sys.executable, str(ors_up_script), state],
+                cwd=REPO_ROOT,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            sys.exit(e.returncode)
+
+        try:
+            run_command(
+                ["python", "-m", "python.scripts.generate_driving_distances_cli", state]
+                + passthrough
+            )
+        finally:
+            if not keep_running and not ors_was_already_up:
+                ors_down_script = REPO_ROOT / "python" / "scripts" / "ors_down_cli.py"
+                try:
+                    subprocess.run(
+                        [sys.executable, str(ors_down_script)],
+                        cwd=REPO_ROOT,
+                        check=True,
+                    )
+                except subprocess.CalledProcessError as e:
+                    print(
+                        f"warning: ors_down_cli exited with {e.returncode}; "
+                        f"ORS may still be running",
+                        file=sys.stderr,
+                    )
+        return
+
     available_scripts = get_scripts()
 
     script_list = "\n  ".join(available_scripts)
@@ -227,7 +308,6 @@ def main():
             "  lint            Run pylint against python/ (e.g. python run.py lint --errors-only)\n"
             "  r_test          Run the R environment smoke test\n"
             "  set_census_key  Store your census API key in credentials.json\n"
-            "  ors_setup_cli   [HOST-ONLY] Download a state OSM extract from Geofabrik\n"
             "  ors_up_cli      [HOST-ONLY] Start the sibling ORS container and wait for readiness\n"
             "  ors_down_cli    [HOST-ONLY] Stop the sibling ORS container (--purge-graphs optional)\n"
             "\n"

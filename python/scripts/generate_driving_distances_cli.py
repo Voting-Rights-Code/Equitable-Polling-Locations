@@ -8,6 +8,8 @@ writes the canonical three-column long-form CSV to
 import argparse
 import os
 import sys
+import urllib.error
+import urllib.request
 from datetime import datetime
 
 import pandas as pd
@@ -28,6 +30,7 @@ from python.utils.driving_distance_matrix import (
     get_missing_origins,
     resume_from_partial_output,
 )
+from python.utils.ors_setup import GEOFABRIK_STATE_SLUGS
 from python.utils.ors_url import resolve_ors_url
 from python.utils.utils import build_potential_locations_file_path, log_date_prefix
 
@@ -36,6 +39,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     '''Return the CLI argument parser.'''
     parser = argparse.ArgumentParser(
         description='Generate driving-distance CSV for a county config.',
+    )
+    parser.add_argument(
+        'state',
+        help='Geofabrik state slug for the data being processed (e.g. "georgia", '
+             '"new-york"). Used to confirm the right ORS graph is loaded.',
     )
     parser.add_argument(
         '-l', '--location-config', required=True,
@@ -173,6 +181,29 @@ def _tee(message: str, log_fh, *, to_screen: bool = True) -> None:
     log_fh.flush()
 
 
+def _assert_ors_reachable(matrix_url: str) -> None:
+    '''Probe the ORS health endpoint; exit with a clear message if unreachable.
+
+    Args:
+        matrix_url: ORS matrix URL; the health URL is derived by stripping
+            ``/matrix/...`` and appending ``/health``.
+    '''
+    health_url = matrix_url.rsplit('/matrix/', 1)[0] + '/health'
+    try:
+        with urllib.request.urlopen(health_url, timeout=5) as response:
+            if response.getcode() == 200:
+                return
+    except (urllib.error.URLError, ConnectionError, TimeoutError):
+        pass
+    print(
+        f'ORS is not reachable at {health_url}. From the host, run\n'
+        f'  python3 run.py generate_driving_distances_cli <state> -l <config>\n'
+        f'which auto-orchestrates the ORS lifecycle. To start ORS manually:\n'
+        f'  python3 run.py ors_up_cli <state>'
+    )
+    sys.exit(1)
+
+
 def main(argv=None):
     '''CLI entry point.
 
@@ -183,6 +214,18 @@ def main(argv=None):
         ``0`` on success. (Exits via ``sys.exit(main())`` from the if __name__ block.)
     '''
     args = build_arg_parser().parse_args(argv)
+
+    if args.state not in GEOFABRIK_STATE_SLUGS:
+        print(
+            f'Unknown state slug: {args.state!r}. Use the full Geofabrik slug, '
+            f'e.g. "georgia", "new-york", "district-of-columbia". See '
+            f'python/utils/ors_setup.py for the full list.'
+        )
+        sys.exit(2)
+
+    matrix_url = resolve_ors_url(args.server)
+    _assert_ors_reachable(matrix_url)
+
     config = PollingModelConfig.load_config(args.location_config)
     log_fh, log_path = _open_log_file(args.logdir, config.config_file_path)
     try:
@@ -193,7 +236,6 @@ def main(argv=None):
         locations, source_ids, dest_ids = derive_origins_and_destinations(config)
         _tee(f'origins: {len(source_ids)}, destinations: {len(dest_ids)}', log_fh)
 
-        matrix_url = resolve_ors_url(args.server)
         _tee(f'ORS matrix URL: {matrix_url}', log_fh)
 
         if args.check_bad_locations:

@@ -1,5 +1,6 @@
 '''Tests for python/scripts/generate_driving_distances_cli.py.'''
 import os
+import urllib.error
 from unittest.mock import patch, MagicMock
 
 import pandas as pd
@@ -19,27 +20,36 @@ class TestArgParser:
     def test_requires_location_config(self):
         parser = build_arg_parser()
         with pytest.raises(SystemExit):
-            parser.parse_args([])
+            parser.parse_args(['georgia'])
 
     def test_parses_location_config(self):
         parser = build_arg_parser()
-        args = parser.parse_args(['-l', 'Gwinnett_GA/cfg.yaml'])
+        args = parser.parse_args(['georgia', '-l', 'Gwinnett_GA/cfg.yaml'])
         assert args.location_config == 'Gwinnett_GA/cfg.yaml'
+        assert args.state == 'georgia'
 
     def test_default_logdir(self):
         parser = build_arg_parser()
-        args = parser.parse_args(['-l', 'x.yaml'])
+        args = parser.parse_args(['georgia', '-l', 'x.yaml'])
         assert args.logdir == './logs'
 
     def test_server_and_logdir_overrides(self):
         parser = build_arg_parser()
         args = parser.parse_args([
+            'georgia',
             '-l', 'x.yaml',
             '--server', 'http://foo:8080/ors/v2/matrix/driving-car',
             '--logdir', '/tmp/mylogs',
         ])
         assert args.server == 'http://foo:8080/ors/v2/matrix/driving-car'
         assert args.logdir == '/tmp/mylogs'
+
+    def test_requires_state_positional(self):
+        '''Without the positional state arg, argparse should exit with code 2.'''
+        parser = build_arg_parser()
+        with pytest.raises(SystemExit) as exc_info:
+            parser.parse_args(['-l', 'cfg.yaml'])
+        assert exc_info.value.code == 2
 
 
 class TestWriteOutputCsv:
@@ -128,10 +138,12 @@ class TestDeriveOriginsAndDestinations:
 class TestMain:
     '''Smoke-test the end-to-end flow with everything mocked.'''
 
+    @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
     @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
     @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
     @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
-    def test_writes_csv_at_expected_path(self, mock_cfg_cls, mock_derive, mock_build, tmp_path):
+    def test_writes_csv_at_expected_path(self, mock_cfg_cls, mock_derive, mock_build, unused_mock_reach, tmp_path):
+        del unused_mock_reach
         mock_cfg_cls.load_config.return_value = MagicMock(
             location='Gwinnett_GA', census_year='2020',
             config_file_path=str(tmp_path / 'cfg.yaml'),
@@ -157,6 +169,7 @@ class TestMain:
             return_value=str(driving_dir / 'Gwinnett_GA_driving_distances.csv'),
         ):
             main([
+                'georgia',
                 '-l', str(tmp_path / 'cfg.yaml'),
                 '--logdir', str(logdir),
             ])
@@ -165,11 +178,15 @@ class TestMain:
         assert list(written.columns) == ['id_orig', 'id_dest', 'distance_m']
         assert written.iloc[0]['distance_m'] == 12345.0
 
+    @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
     @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
     @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
     @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
-    def test_check_bad_locations_writes_nothing(self, mock_cfg_cls, mock_derive, mock_build, tmp_path):
+    def test_check_bad_locations_writes_nothing(
+        self, mock_cfg_cls, mock_derive, mock_build, unused_mock_reach, tmp_path,
+    ):
         '''--check-bad-locations runs the probe but writes no CSV.'''
+        del unused_mock_reach
         mock_cfg_cls.load_config.return_value = MagicMock(
             location='Gwinnett_GA', census_year='2020',
             config_file_path=str(tmp_path / 'cfg.yaml'),
@@ -196,6 +213,7 @@ class TestMain:
             return_value=str(expected_output),
         ):
             rc = main([
+                'georgia',
                 '-l', str(tmp_path / 'cfg.yaml'),
                 '--logdir', str(logdir),
                 '--check-bad-locations',
@@ -204,13 +222,15 @@ class TestMain:
         assert rc == 0
         assert not driving_dir.exists() or not expected_output.exists()
 
+    @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
     @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
     @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
     @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
     def test_resume_skips_pairs_already_in_output(
-        self, mock_cfg_cls, mock_derive, mock_build, tmp_path,
+        self, mock_cfg_cls, mock_derive, mock_build, unused_mock_reach, tmp_path,
     ):
         '''When the output CSV exists, only the remaining pairs are sent to build_distance_matrix.'''
+        del unused_mock_reach
         mock_cfg_cls.load_config.return_value = MagicMock(
             location='Gwinnett_GA', census_year='2020',
             config_file_path=str(tmp_path / 'cfg.yaml'),
@@ -239,6 +259,7 @@ class TestMain:
             return_value=str(expected_output),
         ):
             main([
+                'georgia',
                 '-l', str(tmp_path / 'cfg.yaml'),
                 '--logdir', str(logdir),
             ])
@@ -252,13 +273,15 @@ class TestMain:
         written = pd.read_csv(expected_output)
         assert set(zip(written['id_orig'], written['id_dest'])) == {('a', 'x'), ('b', 'x')}
 
+    @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
     @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
     @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
     @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
     def test_resume_short_circuits_when_nothing_remains(
-        self, mock_cfg_cls, mock_derive, mock_build, tmp_path,
+        self, mock_cfg_cls, mock_derive, mock_build, unused_mock_reach, tmp_path,
     ):
         '''When every requested pair is already in the output CSV, build_distance_matrix is never called.'''
+        del unused_mock_reach
         mock_cfg_cls.load_config.return_value = MagicMock(
             location='Gwinnett_GA', census_year='2020',
             config_file_path=str(tmp_path / 'cfg.yaml'),
@@ -283,8 +306,42 @@ class TestMain:
             return_value=str(expected_output),
         ):
             main([
+                'georgia',
                 '-l', str(tmp_path / 'cfg.yaml'),
                 '--logdir', str(logdir),
             ])
 
         assert not mock_build.called
+
+
+class TestStateValidation:
+    '''Tests for positional state-slug validation in main().'''
+
+    def test_rejects_unknown_state_slug(self):
+        '''An unknown slug must exit non-zero with a clear error.'''
+        with pytest.raises(SystemExit) as exc_info:
+            main(['atlantis', '-l', '/nonexistent.yaml'])
+        assert exc_info.value.code != 0
+
+    def test_requires_positional_state_arg(self):
+        '''Missing the state arg must trigger argparse error (exit code 2).'''
+        with pytest.raises(SystemExit) as exc_info:
+            main(['-l', '/nonexistent.yaml'])
+        assert exc_info.value.code == 2
+
+
+class TestInContainerHealthCheck:
+    '''Tests for the in-container ORS reachability check.'''
+
+    @patch('python.scripts.generate_driving_distances_cli.urllib.request.urlopen',
+           side_effect=urllib.error.URLError('connection refused'))
+    def test_exits_when_ors_unreachable(self, unused_mock_urlopen):
+        '''When ORS is unreachable, main must exit with code 1 from _assert_ors_reachable.
+
+        Asserting the exact exit code 1 (not just != 0) verifies the exit came from
+        the reachability probe, not from a later PollingModelConfig.load_config failure.
+        '''
+        del unused_mock_urlopen
+        with pytest.raises(SystemExit) as exc_info:
+            main(['georgia', '-l', '/nonexistent.yaml'])
+        assert exc_info.value.code == 1

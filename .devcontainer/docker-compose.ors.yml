@@ -1,14 +1,17 @@
 # Sibling ORS service. Brought up separately from the main dev container
-# via `python run.py ors_up_cli`. Both compose files set
-# COMPOSE_PROJECT_NAME=polling via .devcontainer/.env so the app container
-# can reach this service at http://ors:8080/... over the shared network.
+# via `python run.py ors_up_cli <state>` (or implicitly by
+# `python run.py generate_driving_distances_cli <state> -l <config>`).
+# Both compose files set COMPOSE_PROJECT_NAME=polling via .devcontainer/.env
+# so the app container can reach this service at http://ors:8080/... over
+# the shared network.
 #
 # ORS v8 listens on port 8082 internally; this file maps host 8080 -> 8082.
 # Host-side callers (e.g. ors_up_cli's health poll) use localhost:8080.
 #
-# The .pbf is auto-detected from /home/ors/files/. Put exactly one .pbf at
-# a time in .devcontainer/ors_data/ (via `python run.py ors_setup_cli --state X`).
-# To switch states: `ors_down_cli --purge-graphs`, swap the .pbf, `ors_up_cli`.
+# The .pbf to load is selected at runtime via the ORS_PBF_FILENAME env var,
+# which ors_up_cli sets when invoking `docker compose up -d`. The .pbf must
+# exist at datasets/openrouteservice/<filename> before this service starts;
+# ors_up_cli downloads it if missing.
 services:
   ors:
     image: openrouteservice/openrouteservice:v8.0.0
@@ -26,13 +29,11 @@ services:
       XMX: 10g
       # Explicit source: the container writes example-heidelberg.osm.gz into
       # /home/ors/files on first boot, so auto-detection picks the demo data
-      # instead of the .pbf we want. Setting source_file forces our file.
-      # To switch states, change this filename to match the new .pbf put in
-      # .devcontainer/ors_data/ by `python run.py ors_setup_cli --state X`.
-      # (Multi-state convenience is filed as a follow-up.)
-      ors.engine.source_file: /home/ors/files/texas-latest.osm.pbf
+      # instead of the .pbf we want. ORS_PBF_FILENAME is set by ors_up_cli
+      # based on the positional state arg.
+      ors.engine.source_file: /home/ors/files/${ORS_PBF_FILENAME:?ors_up_cli must set ORS_PBF_FILENAME}
     volumes:
-      - ./ors_data:/home/ors/files
+      - ../datasets/openrouteservice:/home/ors/files
       - ors_graphs:/home/ors/graphs
       - ors_elevation:/home/ors/elevation_cache
       - ors_logs:/home/ors/logs

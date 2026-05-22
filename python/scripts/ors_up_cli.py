@@ -1,9 +1,17 @@
-'''CLI: bring up the sibling ORS container and wait for it to become routable.
+'''CLI: bring up the sibling ORS container for a given state and verify it.
 
-After ``docker compose up -d`` the ORS API needs several minutes on first boot
-to build its routing graph. This script polls the health endpoint until it
-returns 200 or the timeout expires, dumping container logs on timeout so the
-operator can diagnose.
+Workflow for ``python3 run.py ors_up_cli <state>``:
+
+1. Validate the state slug against ``GEOFABRIK_STATE_SLUGS``.
+2. Download ``<state>-latest.osm.pbf`` to ``datasets/openrouteservice/`` if
+   missing (logs a clear message; downloads are hundreds of MB).
+3. Spawn the ORS container via ``docker compose up -d`` with
+   ``ORS_PBF_FILENAME`` set in the subprocess env so the compose file's
+   ``${ORS_PBF_FILENAME}`` substitution picks the right file.
+4. Poll ``/ors/v2/health`` until 200 or the 45-minute timeout expires
+   (state-sized graphs can take 20-30 min on first boot).
+5. Call ``verify_loaded_state`` to confirm ORS actually loaded the .pbf we
+   asked for, not the bundled Heidelberg demo extract.
 
 Host-only.
 '''
@@ -12,18 +20,50 @@ import os
 import subprocess
 import sys
 import time
+import typing
 import urllib.error
 import urllib.request
 from datetime import datetime
+
+# This script is invoked from the host as a file path (not via
+# python -m python.scripts.<name>), so cross-script imports must reach the
+# stdlib-only utils. Importing python.utils.ors_setup triggers
+# python/__init__.py which imports numpy — that's available on the host
+# only if the user has the project conda env active. Fall back to a
+# file-path import so host-side use without project deps still works.
+try:
+    from python.utils.ors_setup import GEOFABRIK_STATE_SLUGS, download_pbf_if_missing
+    from python.utils.ors_status import verify_loaded_state
+except ImportError:  # pragma: no cover - host-only fallback path
+    import importlib.util  # pylint: disable=import-outside-toplevel  # fallback for host invocation without project conda env
+    _here = os.path.dirname(os.path.abspath(__file__))
+    _setup_path = os.path.normpath(os.path.join(_here, '..', 'utils', 'ors_setup.py'))
+    _status_path = os.path.normpath(os.path.join(_here, '..', 'utils', 'ors_status.py'))
+    _setup_spec = importlib.util.spec_from_file_location('ors_setup', _setup_path)
+    if _setup_spec is None or _setup_spec.loader is None:
+        raise ImportError(  # pylint: disable=raise-missing-from  # already inside except ImportError; chaining adds noise
+            f'could not load python/utils/ors_setup.py from {_setup_path}'
+        )
+    _setup_module = importlib.util.module_from_spec(_setup_spec)
+    _setup_spec.loader.exec_module(_setup_module)
+    _status_spec = importlib.util.spec_from_file_location('ors_status', _status_path)
+    if _status_spec is None or _status_spec.loader is None:
+        raise ImportError(  # pylint: disable=raise-missing-from  # already inside except ImportError; chaining adds noise
+            f'could not load python/utils/ors_status.py from {_status_path}'
+        )
+    _status_module = importlib.util.module_from_spec(_status_spec)
+    _status_spec.loader.exec_module(_status_module)
+    GEOFABRIK_STATE_SLUGS = _setup_module.GEOFABRIK_STATE_SLUGS
+    download_pbf_if_missing = _setup_module.download_pbf_if_missing
+    verify_loaded_state = _status_module.verify_loaded_state
 
 
 def _ensure_host_only() -> None:
     '''Exit if running inside the dev container.
 
-    Duplicated from ors_setup_cli.py rather than imported: this script is
-    invoked from the host as a file path (not via the python.scripts.<name>
-    module path), so cross-script imports inside the python/ package are
-    not available.
+    Inlined rather than imported: this script is invoked from the host as a
+    file path (not via ``python -m python.scripts.<name>``), so cross-script
+    imports inside the python/ package are not always available.
     '''
     if os.path.exists('/.dockerenv'):
         print(
@@ -36,6 +76,7 @@ def _ensure_host_only() -> None:
 HEALTH_POLL_INTERVAL_S = 10
 HEALTH_POLL_TIMEOUT_S = 2700  # 45 minutes (state-sized graphs can take 20-30 min).
 DEFAULT_HEALTH_URL = 'http://localhost:8080/ors/v2/health'
+DEFAULT_MATRIX_URL = 'http://localhost:8080/ors/v2/matrix/driving-car'
 COMPOSE_FILE = os.path.normpath(
     os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
@@ -68,7 +109,7 @@ def poll_health(url: str, *, timeout_s: int = HEALTH_POLL_TIMEOUT_S,
     return False
 
 
-def _tee(message: str, log_fh) -> None:
+def _tee(message: str, log_fh: typing.IO[str]) -> None:
     '''Print ``message`` to stdout and append it to ``log_fh`` with a flush.
 
     Args:
@@ -87,11 +128,20 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         Configured ``argparse.ArgumentParser`` for this script.
     '''
     parser = argparse.ArgumentParser(
-        description='Start the sibling ORS container and wait for it to be ready.',
+        description='Start the sibling ORS container for a given state and wait for it to be ready.',
+    )
+    parser.add_argument(
+        'state',
+        help='Geofabrik state slug, e.g. "georgia", "new-york", "district-of-columbia".',
     )
     parser.add_argument(
         '--health-url', default=DEFAULT_HEALTH_URL,
         help=f'Health endpoint to poll (default {DEFAULT_HEALTH_URL}).',
+    )
+    parser.add_argument(
+        '--matrix-url', default=DEFAULT_MATRIX_URL,
+        help=f'Matrix endpoint URL (used to derive the status URL for verification; '
+             f'default {DEFAULT_MATRIX_URL}).',
     )
     parser.add_argument(
         '--logdir', default='./logs', help='Directory to write the run log into.',
@@ -108,19 +158,34 @@ def main(argv=None):
 
     Returns:
         ``0`` on success. Calls ``sys.exit(1)`` if the health endpoint never
-        comes up before the timeout.
+        comes up before the timeout, or if ``verify_loaded_state`` raises.
     '''
     args = _build_arg_parser().parse_args(argv)
     _ensure_host_only()
 
+    if args.state not in GEOFABRIK_STATE_SLUGS:
+        print(
+            f'Unknown state slug: {args.state!r}. Use the full Geofabrik slug, '
+            f'e.g. "georgia", "new-york", "district-of-columbia". See '
+            f'python/utils/ors_setup.py for the full list.'
+        )
+        sys.exit(2)
+
     os.makedirs(args.logdir, exist_ok=True)
     log_path = os.path.join(args.logdir, f'{datetime.now().strftime("%Y%m%d%H%M%S")}_ors_up.log')
-    log_fh = open(log_path, 'a', encoding='utf-8')   # pylint: disable=consider-using-with  # closed in finally below
+    log_fh = open(log_path, 'a', encoding='utf-8')  # pylint: disable=consider-using-with  # closed in finally
     try:
-        _tee(f'[{datetime.now().isoformat(timespec="seconds")}] starting ORS', log_fh)
+        _tee(f'[{datetime.now().isoformat(timespec="seconds")}] starting ORS for {args.state}', log_fh)
         _tee(f'compose file: {COMPOSE_FILE}', log_fh)
+
+        pbf_filesystem_path = download_pbf_if_missing(args.state)
+        _tee(f'pbf: {pbf_filesystem_path}', log_fh)
+
+        env = os.environ.copy()
+        env['ORS_PBF_FILENAME'] = os.path.basename(pbf_filesystem_path)
         subprocess.run(
             ['docker', 'compose', '-f', COMPOSE_FILE, 'up', '-d'],
+            env=env,
             check=True,
         )
         _tee(f'polling {args.health_url} ...', log_fh)
@@ -131,6 +196,14 @@ def main(argv=None):
                 check=False,
             )
             sys.exit(1)
+
+        _tee(f'verifying loaded graph matches {args.state} ...', log_fh)
+        try:
+            verify_loaded_state(args.state, args.matrix_url)
+        except RuntimeError as exc:
+            _tee(f'verify_loaded_state FAILED: {exc}', log_fh)
+            sys.exit(1)
+
         _tee('ORS is up and routing.', log_fh)
         return 0
     finally:

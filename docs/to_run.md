@@ -91,23 +91,35 @@ Both Gwinnett_G**A**_configs/Gwinnett* and Gwinnett_G**a**_configs/Gwinnett* wil
 
 The solver consumes driving-distance CSVs at `datasets/driving/<Loc>_<ST>/<Loc>_<ST>_driving_distances.csv`. The `generate_driving_distances_cli` script builds those CSVs from existing project data (TIGER block centroids + the `<Loc>_<ST>_potential_locations.csv` already used by the solver) by routing every origin × destination pair through a locally-hosted OpenRouteService (ORS) container.
 
-### One-time setup per state
-
-```
-python run.py ors_setup_cli --state GA
-```
-
-Downloads `georgia-latest.osm.pbf` (~50–500 MB depending on state) to `.devcontainer/ors_data/`. Pass `--force` to re-download.
-
-### Bring ORS up, generate, bring it down
-
-```
-python run.py ors_up_cli
-python run.py generate_driving_distances_cli -l datasets/configs/Gwinnett_GA/<config>.yaml
-python run.py ors_down_cli
+```bash
+python3 run.py generate_driving_distances_cli georgia \
+  -l datasets/configs/<config_set>/<config>.yaml
 ```
 
-`ors_up_cli` polls the ORS health endpoint until ready. Graph build for a state-sized extract takes 5–10 minutes on first boot, then ~10 seconds on subsequent boots because the graph persists in a named volume. `ors_down_cli --purge-graphs` removes the cached graph too — use it when you've swapped in a new state's `.pbf` and want a clean rebuild.
+First run for a state takes ~5-15 min (downloads the `.pbf` from Geofabrik if missing, then ORS builds its routing graph). Subsequent runs reuse the cached graph (~30s startup). The CLI auto-spawns ORS at the start and tears it down at the end; pass `--keep-ors-running` to leave it up across multiple invocations.
+
+State slugs are full Geofabrik names (`georgia`, `new-york`, `district-of-columbia`); see `python/utils/ors_setup.py` for the full list.
+
+### Manual lifecycle (debugging / repeated experiments)
+
+If you want ORS up persistently:
+
+```bash
+python3 run.py ors_up_cli georgia
+# ... run generate_driving_distances_cli or curl directly ...
+python3 run.py ors_down_cli
+```
+
+`ors_up_cli` downloads the `.pbf` if missing, spawns the ORS container, waits for the health endpoint, and verifies the loaded routing graph matches the state you asked for.
+
+### Switching states
+
+ORS loads one `.pbf` per container. To switch:
+
+```bash
+python3 run.py ors_down_cli --purge-graphs   # wipe the cached graph
+python3 run.py ors_up_cli texas              # downloads texas if missing
+```
 
 ### Resource budget
 
@@ -119,5 +131,15 @@ The driving CLI defaults to `http://localhost:8080/ors/v2/matrix/driving-car`. O
 - CLI flag: `--server http://...` on `generate_driving_distances_cli`.
 - Env var: `ORS_URL=http://...`.
 
-The `ors_setup_cli`, `ors_up_cli`, and `ors_down_cli` commands are **host-only** — they need access to the host's Docker daemon. From inside the dev container they refuse with a clear message. `generate_driving_distances_cli` itself only speaks HTTP and runs fine from either side.
+The `ors_up_cli` and `ors_down_cli` commands are **host-only** — they need access to the host's Docker daemon. From inside the dev container they refuse with a clear message. `generate_driving_distances_cli` from the host auto-orchestrates the lifecycle (so the `ors_up_cli`/`ors_down_cli` calls happen for you); from inside the container it only speaks HTTP and assumes ORS is already running.
+
+### Migration from earlier setup
+
+If you previously ran the older `ors_setup_cli --state X` / `ors_up_cli` workflow, your `.pbf` files lived under `.devcontainer/ors_data/`. The data directory has moved to `datasets/openrouteservice/` — one-time fix:
+
+```bash
+mv .devcontainer/ors_data/*.osm.pbf datasets/openrouteservice/
+```
+
+(This migration note can be deleted once everyone with prior installs has migrated.)
 
