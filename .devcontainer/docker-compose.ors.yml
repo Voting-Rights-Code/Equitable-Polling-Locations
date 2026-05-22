@@ -16,13 +16,14 @@ services:
     environment:
       REBUILD_GRAPHS: "false"
       CONTAINER_LOG_LEVEL: INFO
-      # The ORS v8 image's launcher caps the JVM at ~2 GB heap even when
-      # JVM_MAX_RAM_PERCENTAGE is set, which is enough for state-sized PBFs
-      # under ~250 MB (e.g. Georgia, peak usage ~1.9 GB) but OOMs on bigger
-      # extracts (Texas at ~800 MB needs ~6-10 GB). JAVA_OPTS overrides the
-      # baked-in cap. Bump -Xmx if you swap to a larger state. Requires the
-      # host's Docker Desktop memory limit to be >= the -Xmx setting.
-      JAVA_OPTS: "-Xms2g -Xmx10g"
+      # The ORS v8 image's launcher reads XMS/XMX env vars directly (defaults
+      # 1g/2g) and ignores -Xmx flags passed via JAVA_OPTS, so use these.
+      # The 2g default is enough for Georgia (peak ~1.9 GB) but OOMs on
+      # bigger state extracts (Texas at ~800 MB needs ~6-10 GB during graph
+      # preprocessing). Bump XMX if you swap to a larger state; requires the
+      # host's Docker Desktop memory limit to be >= XMX.
+      XMS: 2g
+      XMX: 10g
       # Explicit source: the container writes example-heidelberg.osm.gz into
       # /home/ors/files on first boot, so auto-detection picks the demo data
       # instead of the .pbf we want. Setting source_file forces our file.
