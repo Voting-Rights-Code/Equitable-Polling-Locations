@@ -11,7 +11,7 @@ import os
 
 from python.solver import model_factory
 from python.solver.model_run import ModelRun
-from python.tests.constants import TEST_KP_FACTOR, TESTING_RESULTS_DIR, TESTING_CONFIG_BASE
+from python.tests.constants import TEST_KP_FACTOR, TESTING_RESULTS_DIR
 
 pd.set_option('display.max_columns', None)
 
@@ -120,6 +120,11 @@ def test_result_df(testing_config_base):
     #round to rid floating point errors
     test_result_data['weighted_dist'] = test_result_data['weighted_dist'].round(9)
     file_result_data['weighted_dist'] = file_result_data['weighted_dist'].round(9)
+    # kp_factor goes through libm pow, which is not bit-identical across CPU
+    # architectures (aarch64 vs x86_64 glibc differ by 1-2 ULPs). Round like
+    # the other float columns so the baseline is portable across platforms.
+    test_result_data['kp_factor'] = test_result_data['kp_factor'].round(9)
+    file_result_data['kp_factor'] = file_result_data['kp_factor'].round(9)
 
     pd.testing.assert_frame_equal(left=test_result_data, right=file_result_data, check_exact=True)
 

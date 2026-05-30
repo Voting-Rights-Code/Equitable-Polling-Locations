@@ -69,7 +69,6 @@ def build_and_import_distance_data(
         driving=driving,
         log_distance=log_distance,
         map_source_date=maps_source_date,
-        log=False,
         query=query,
     )
     distance_data_set = query.create_db_distance_data_set(

@@ -18,26 +18,44 @@ from .constants import (
 )
 
 
+def pytest_addoption(parser):
+    ''' Register pytest CLI options shared across the test tree. '''
+    parser.addoption(
+        '--keep-e2e-outputs',
+        action='store_true',
+        default=False,
+        help=(
+            'Keep e2e session-namespaced data and result directories '
+            '(polling/driving/configs/results) after teardown for manual inspection. '
+            'Does not affect database cleanup.'
+        ),
+    )
+
+
 # Fixtures for import tests
+#
+# These CSVs are committed under python/tests/ (with explicit `.gitignore`
+# negations) so they can be opened and hand-edited for manual debugging.
+# Treat them as test data: changes affect the assertions in imports_test.py.
 
 @pytest.fixture(scope='session')
 def test_results_path():
-    ''' Path to valid test results CSV. '''
+    ''' Path to the committed valid results CSV. '''
     return os.path.join(TESTS_DIR, 'test_results.csv')
 
 @pytest.fixture(scope='session')
 def test_results_bad_int_path():
-    ''' Path to test results CSV with float values in integer columns. '''
+    ''' Path to the committed results CSV with float values in the integer matching column. '''
     return os.path.join(TESTS_DIR, 'test_results_bad_int.csv')
 
 @pytest.fixture(scope='session')
 def test_residence_distances_path():
-    ''' Path to valid test residence distances CSV. '''
+    ''' Path to the committed valid residence distances CSV. '''
     return os.path.join(TESTS_DIR, 'test_residence_distances.csv')
 
 @pytest.fixture(scope='session')
 def test_residence_distances_bad_avg_dist_path():
-    ''' Path to test residence distances CSV with null avg_dist. '''
+    ''' Path to the committed residence distances CSV with a null avg_dist row. '''
     return os.path.join(TESTS_DIR, 'test_residence_distances_bad_avg_dist.csv')
 
 def generate_penalties_df(config: PollingModelConfig) -> pd.DataFrame:

@@ -1,0 +1,65 @@
+[
+    {
+        "label": "pytest: all",
+        "command": "/opt/conda/envs/equitable-polls/bin/pytest",
+        "args": ["python/tests/"],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false
+    },
+    {
+        "label": "pytest: current file",
+        "command": "/opt/conda/envs/equitable-polls/bin/pytest",
+        "args": ["$ZED_FILE"],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false
+    },
+    {
+        "label": "pytest: test at cursor",
+        "command": "/opt/conda/envs/equitable-polls/bin/pytest",
+        "args": ["$ZED_FILE::$ZED_SYMBOL", "-v"],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false
+    },
+    {
+        "label": "pylint: python/",
+        "command": "/opt/conda/envs/equitable-polls/bin/pylint",
+        "args": ["python/"],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false
+    },
+    {
+        "label": "R: smoke test",
+        "command": "/usr/bin/Rscript",
+        "args": ["R/tests/r_smoke_test.R"],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false
+    },
+    {
+        "label": "R: run current file",
+        "command": "/usr/bin/Rscript",
+        "args": ["$ZED_FILE"],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false
+    },
+    {
+        "label": "R: lint current file",
+        "command": ".devcontainer/r_lint.sh",
+        "args": ["$ZED_FILE"],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false
+    }
+]

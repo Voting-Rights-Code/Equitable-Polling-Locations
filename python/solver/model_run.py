@@ -167,7 +167,6 @@ class ModelRun():
                     driving=self._config.driving,
                     log_distance=self._config.log_distance,
                     map_source_date=self._config.map_source_date,
-                    #log=self._log,
                 )
         else:
             # Force evaluates _query to create a Query instance in order to get the polling locations from the database
