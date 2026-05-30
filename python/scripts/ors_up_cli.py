@@ -80,19 +80,49 @@ ORS_GRAPHS_DIR = os.path.normpath(
 )
 
 
+def _dir_size_bytes(path: str) -> int:
+    '''Return the total byte size of all files under ``path`` (recursive).
+
+    Returns 0 if ``path`` does not exist or is unreadable, so callers
+    can use this for opportunistic progress reporting without try/except.
+
+    Args:
+        path: Filesystem directory to measure.
+
+    Returns:
+        Sum of file sizes in bytes, or 0 if the walk fails.
+    '''
+    total = 0
+    try:
+        for root, _, files in os.walk(path):
+            for fname in files:
+                try:
+                    total += os.path.getsize(os.path.join(root, fname))
+                except OSError:
+                    pass
+    except OSError:
+        return 0
+    return total
+
+
 def poll_health(url: str, *, timeout_s: int = HEALTH_POLL_TIMEOUT_S,
-                poll_interval_s: int = HEALTH_POLL_INTERVAL_S) -> bool:
+                poll_interval_s: int = HEALTH_POLL_INTERVAL_S,
+                on_iteration: typing.Callable[[int], None] | None = None) -> bool:
     '''Poll ``url`` until it returns 200 or ``timeout_s`` elapses.
 
     Args:
         url: ORS health endpoint URL.
         timeout_s: Maximum seconds to wait before giving up.
         poll_interval_s: Seconds between polls.
+        on_iteration: Optional callback invoked after each failed poll with
+            the elapsed seconds since ``poll_health`` was entered. Used by
+            ``main`` to emit a heartbeat with graph-build progress.
 
     Returns:
         True if a 200 was observed; False on timeout (or persistent error).
     '''
-    deadline = time.monotonic() + timeout_s
+    start = time.monotonic()
+    deadline = start + timeout_s
     while time.monotonic() < deadline:
         try:
             with urllib.request.urlopen(url, timeout=5) as response:
@@ -100,6 +130,8 @@ def poll_health(url: str, *, timeout_s: int = HEALTH_POLL_TIMEOUT_S,
                     return True
         except (urllib.error.URLError, ConnectionError, TimeoutError):
             pass
+        if on_iteration is not None:
+            on_iteration(int(time.monotonic() - start))
         time.sleep(poll_interval_s)
     return False
 
@@ -186,7 +218,18 @@ def main(argv=None):
             check=True,
         )
         _tee(f'polling {args.health_url} ...', log_fh)
-        if not poll_health(args.health_url):
+        _tee('graph build can take 5-15 min for state-sized data; watch the size grow:', log_fh)
+
+        def _heartbeat(elapsed_s: int) -> None:
+            '''Per-poll progress line showing elapsed time + bytes on disk.'''
+            minutes, seconds = divmod(elapsed_s, 60)
+            megabytes = _dir_size_bytes(state_graphs_dir) // (1024 * 1024)
+            if megabytes > 0:
+                _tee(f'  [{minutes:02d}:{seconds:02d}] building... ({megabytes} MB)', log_fh)
+            else:
+                _tee(f'  [{minutes:02d}:{seconds:02d}] building...', log_fh)
+
+        if not poll_health(args.health_url, on_iteration=_heartbeat):
             _tee('TIMEOUT waiting for ORS health endpoint', log_fh)
             subprocess.run(
                 ['docker', 'compose', '-f', COMPOSE_FILE, 'logs', '--tail=50', 'ors'],

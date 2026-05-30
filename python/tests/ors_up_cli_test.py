@@ -8,6 +8,7 @@ import pytest
 from python.scripts.ors_up_cli import (
     HEALTH_POLL_INTERVAL_S,
     HEALTH_POLL_TIMEOUT_S,
+    _dir_size_bytes,
     main,
     poll_health,
 )
@@ -56,6 +57,64 @@ class TestPollHealth:
         '''Default constants should match the documented values.'''
         assert HEALTH_POLL_INTERVAL_S == 10
         assert HEALTH_POLL_TIMEOUT_S == 2700   # 45 minutes
+
+    @patch('python.scripts.ors_up_cli.time.sleep', lambda _: None)
+    @patch('python.scripts.ors_up_cli.urllib.request.urlopen')
+    def test_invokes_on_iteration_each_poll(self, mock_urlopen):
+        '''Each failed poll iteration must invoke the on_iteration callback with elapsed seconds.'''
+        mock_response = MagicMock()
+        mock_response.getcode.return_value = 503
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+        calls = []
+        poll_health(
+            'http://x/health',
+            timeout_s=1,
+            poll_interval_s=0.1,
+            on_iteration=calls.append,
+        )
+        assert calls, 'Expected on_iteration to fire at least once'
+        assert all(isinstance(c, int) for c in calls), \
+            'on_iteration argument must be an integer elapsed-seconds count'
+
+    @patch('python.scripts.ors_up_cli.time.sleep', lambda _: None)
+    @patch('python.scripts.ors_up_cli.urllib.request.urlopen')
+    def test_skips_on_iteration_when_health_passes_immediately(self, mock_urlopen):
+        '''A first-poll 200 should NOT invoke the callback.'''
+        mock_response = MagicMock()
+        mock_response.getcode.return_value = 200
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+        calls = []
+        assert poll_health(
+            'http://x/health',
+            timeout_s=10,
+            on_iteration=calls.append,
+        ) is True
+        assert not calls, 'Callback must not fire when no waiting was needed'
+
+
+class TestDirSizeBytes:
+    '''Tests for the ``_dir_size_bytes`` helper.'''
+
+    def test_returns_zero_for_nonexistent_path(self, tmp_path):
+        '''A path that does not exist must produce 0 without raising.'''
+        assert _dir_size_bytes(str(tmp_path / 'missing')) == 0
+
+    def test_returns_zero_for_empty_dir(self, tmp_path):
+        '''An empty directory must report 0 bytes.'''
+        assert _dir_size_bytes(str(tmp_path)) == 0
+
+    def test_sums_file_sizes(self, tmp_path):
+        '''Top-level file sizes must be summed.'''
+        (tmp_path / 'a').write_bytes(b'x' * 1000)
+        (tmp_path / 'b').write_bytes(b'y' * 500)
+        assert _dir_size_bytes(str(tmp_path)) == 1500
+
+    def test_recurses_into_subdirs(self, tmp_path):
+        '''File sizes nested under subdirectories must be summed too.'''
+        sub = tmp_path / 'sub'
+        sub.mkdir()
+        (sub / 'nested').write_bytes(b'z' * 2048)
+        assert _dir_size_bytes(str(tmp_path)) == 2048
 
 
 class TestMainOrchestration:
