@@ -114,11 +114,23 @@ python3 run.py ors_down_cli
 
 ### Switching states
 
-ORS loads one `.pbf` per container. To switch:
+ORS loads one `.pbf` per container. Each state has its own bind-mounted
+graph cache directory under `datasets/ors_graphs/<state>/`, so switching
+states is just:
 
 ```bash
-python3 run.py ors_down_cli --purge-graphs   # wipe the cached graph
+python3 run.py ors_down_cli
 python3 run.py ors_up_cli texas              # downloads texas if missing
+```
+
+ORS sees the new state's empty (or pre-built) cache directory and rebuilds
+the graph automatically — no manual purge step.
+
+To force a clean rebuild for a specific state (e.g., after upgrading the
+`.pbf`), delete that state's cache directory manually:
+
+```bash
+rm -rf datasets/ors_graphs/georgia
 ```
 
 ### Resource budget

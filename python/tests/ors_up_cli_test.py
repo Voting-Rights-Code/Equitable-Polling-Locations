@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from python.scripts.ors_up_cli import (
-    DEFAULT_MATRIX_URL,
     HEALTH_POLL_INTERVAL_S,
     HEALTH_POLL_TIMEOUT_S,
     main,
@@ -57,23 +56,22 @@ class TestPollHealth:
         '''Default constants should match the documented values.'''
         assert HEALTH_POLL_INTERVAL_S == 10
         assert HEALTH_POLL_TIMEOUT_S == 2700   # 45 minutes
-        assert DEFAULT_MATRIX_URL == 'http://localhost:8080/ors/v2/matrix/driving-car'
 
 
 class TestMainOrchestration:
     '''Tests for the ``main`` orchestration function.'''
 
-    @patch('python.scripts.ors_up_cli.verify_loaded_state')
+    @patch('python.scripts.ors_up_cli.os.makedirs')
     @patch('python.scripts.ors_up_cli.poll_health', return_value=True)
     @patch('python.scripts.ors_up_cli.subprocess.run')
     @patch('python.scripts.ors_up_cli.download_pbf_if_missing',
            return_value='/abs/path/datasets/openrouteservice/georgia-latest.osm.pbf')
     @patch('python.scripts.ors_up_cli._ensure_host_only')
     def test_validates_state_then_downloads_then_spawns(
-        self, unused_mock_host, mock_download, mock_run, unused_mock_poll, unused_mock_verify,
+        self, unused_mock_host, mock_download, mock_run, unused_mock_poll, unused_mock_makedirs,
     ):
         '''main(['georgia']) must call download, then docker compose up -d.'''
-        del unused_mock_host, unused_mock_poll, unused_mock_verify
+        del unused_mock_host, unused_mock_poll, unused_mock_makedirs
         main(['georgia'])
         mock_download.assert_called_once_with('georgia')
         cmd = mock_run.call_args.args[0]
@@ -84,47 +82,47 @@ class TestMainOrchestration:
         assert 'up' in cmd
         assert '-d' in cmd
 
-    @patch('python.scripts.ors_up_cli.verify_loaded_state')
+    @patch('python.scripts.ors_up_cli.os.makedirs')
     @patch('python.scripts.ors_up_cli.poll_health', return_value=True)
     @patch('python.scripts.ors_up_cli.subprocess.run')
     @patch('python.scripts.ors_up_cli.download_pbf_if_missing',
            return_value='/abs/path/datasets/openrouteservice/georgia-latest.osm.pbf')
     @patch('python.scripts.ors_up_cli._ensure_host_only')
-    def test_passes_ors_pbf_filename_env(
-        self, unused_mock_host, unused_mock_download, mock_run, unused_mock_poll, unused_mock_verify,
+    def test_passes_ors_state_env(
+        self, unused_mock_host, unused_mock_download, mock_run, unused_mock_poll, unused_mock_makedirs,
     ):
-        '''docker compose up -d must be invoked with ORS_PBF_FILENAME set in the subprocess env.'''
-        del unused_mock_host, unused_mock_download, unused_mock_poll, unused_mock_verify
+        '''docker compose up -d must be invoked with ORS_STATE set in the subprocess env.'''
+        del unused_mock_host, unused_mock_download, unused_mock_poll, unused_mock_makedirs
         main(['georgia'])
         env = mock_run.call_args.kwargs.get('env')
         assert env is not None
-        assert env.get('ORS_PBF_FILENAME') == 'georgia-latest.osm.pbf'
+        assert env.get('ORS_STATE') == 'georgia'
 
-    @patch('python.scripts.ors_up_cli.verify_loaded_state')
     @patch('python.scripts.ors_up_cli.poll_health', return_value=True)
     @patch('python.scripts.ors_up_cli.subprocess.run')
     @patch('python.scripts.ors_up_cli.download_pbf_if_missing',
            return_value='/abs/path/datasets/openrouteservice/georgia-latest.osm.pbf')
     @patch('python.scripts.ors_up_cli._ensure_host_only')
-    def test_calls_verify_loaded_state_after_health_passes(
-        self, unused_mock_host, unused_mock_download, unused_mock_run, unused_mock_poll, mock_verify,
+    def test_pre_creates_per_state_graphs_dir(
+        self, unused_mock_host, unused_mock_download, unused_mock_run, unused_mock_poll, tmp_path,
     ):
-        '''After the health endpoint returns 200, main must call verify_loaded_state.'''
+        '''main must mkdir the per-state graphs dir before invoking docker compose.'''
         del unused_mock_host, unused_mock_download, unused_mock_run, unused_mock_poll
-        main(['georgia'])
-        mock_verify.assert_called_once_with('georgia', DEFAULT_MATRIX_URL)
+        with patch('python.scripts.ors_up_cli.ORS_GRAPHS_DIR', str(tmp_path)):
+            main(['georgia', '--logdir', str(tmp_path / 'logs')])
+        assert (tmp_path / 'georgia').is_dir()
 
-    @patch('python.scripts.ors_up_cli.verify_loaded_state')
+    @patch('python.scripts.ors_up_cli.os.makedirs')
     @patch('python.scripts.ors_up_cli.poll_health', return_value=False)
     @patch('python.scripts.ors_up_cli.subprocess.run')
     @patch('python.scripts.ors_up_cli.download_pbf_if_missing',
            return_value='/abs/path/datasets/openrouteservice/georgia-latest.osm.pbf')
     @patch('python.scripts.ors_up_cli._ensure_host_only')
     def test_exits_nonzero_when_health_times_out(
-        self, unused_mock_host, unused_mock_download, mock_run, unused_mock_poll, mock_verify,
+        self, unused_mock_host, unused_mock_download, mock_run, unused_mock_poll, unused_mock_makedirs,
     ):
-        '''A health-poll timeout must surface as a non-zero exit code and skip verify.'''
-        del unused_mock_host, unused_mock_download, unused_mock_poll
+        '''A health-poll timeout must surface as a non-zero exit code.'''
+        del unused_mock_host, unused_mock_download, unused_mock_poll, unused_mock_makedirs
         with pytest.raises(SystemExit) as exc_info:
             main(['georgia'])
         assert exc_info.value.code != 0
@@ -133,23 +131,6 @@ class TestMainOrchestration:
             if 'logs' in call.args[0] and '--tail=50' in call.args[0]
         ]
         assert log_dump_calls, 'Expected a docker compose logs --tail=50 invocation on timeout'
-        mock_verify.assert_not_called()
-
-    @patch('python.scripts.ors_up_cli.verify_loaded_state',
-           side_effect=RuntimeError('wrong state loaded'))
-    @patch('python.scripts.ors_up_cli.poll_health', return_value=True)
-    @patch('python.scripts.ors_up_cli.subprocess.run')
-    @patch('python.scripts.ors_up_cli.download_pbf_if_missing',
-           return_value='/abs/path/datasets/openrouteservice/georgia-latest.osm.pbf')
-    @patch('python.scripts.ors_up_cli._ensure_host_only')
-    def test_exits_nonzero_when_verify_fails(
-        self, unused_mock_host, unused_mock_download, unused_mock_run, unused_mock_poll, unused_mock_verify,
-    ):
-        '''A verify_loaded_state RuntimeError must surface as a non-zero exit code.'''
-        del unused_mock_host, unused_mock_download, unused_mock_run, unused_mock_poll, unused_mock_verify
-        with pytest.raises(SystemExit) as exc_info:
-            main(['georgia'])
-        assert exc_info.value.code != 0
 
     @patch('python.scripts.ors_up_cli._ensure_host_only')
     def test_rejects_unknown_state_slug(self, unused_mock_host):
@@ -175,6 +156,6 @@ class TestMainOrchestration:
              patch('python.scripts.ors_up_cli.download_pbf_if_missing',
                    return_value=os.path.join(str(tmp_path), 'georgia-latest.osm.pbf')), \
              patch('python.scripts.ors_up_cli.poll_health', return_value=True), \
-             patch('python.scripts.ors_up_cli.verify_loaded_state'):
+             patch('python.scripts.ors_up_cli.ORS_GRAPHS_DIR', str(tmp_path / 'graphs')):
             main(['georgia', '--logdir', str(tmp_path)])
         assert any(p.name.endswith('_ors_up.log') for p in tmp_path.iterdir())

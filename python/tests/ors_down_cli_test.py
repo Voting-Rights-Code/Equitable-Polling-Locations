@@ -10,20 +10,21 @@ class TestMain:
     @patch('python.scripts.ors_down_cli.subprocess.run')
     @patch('python.scripts.ors_down_cli._ensure_host_only')
     def test_invokes_docker_compose_down(self, unused_mock_host, mock_run):
-        '''Default invocation runs `docker compose down` without -v.'''
+        '''Default invocation runs `docker compose down`.'''
         del unused_mock_host
         main([])
         cmd = mock_run.call_args.args[0]
         assert cmd[0] == 'docker'
         assert 'compose' in cmd
         assert 'down' in cmd
-        assert '-v' not in cmd        # No volume purge by default.
 
     @patch('python.scripts.ors_down_cli.subprocess.run')
     @patch('python.scripts.ors_down_cli._ensure_host_only')
-    def test_purge_graphs_passes_v_flag(self, unused_mock_host, mock_run):
-        '''`--purge-graphs` appends -v so the ors_graphs volume is removed.'''
+    def test_supplies_ors_state_placeholder_for_compose_parse(self, unused_mock_host, mock_run):
+        '''compose -f references ${ORS_STATE:?...}; teardown must set it.'''
         del unused_mock_host
-        main(['--purge-graphs'])
-        cmd = mock_run.call_args.args[0]
-        assert '-v' in cmd            # `docker compose down -v` removes volumes.
+        with patch.dict('python.scripts.ors_down_cli.os.environ', {}, clear=True):
+            main([])
+        env = mock_run.call_args.kwargs.get('env')
+        assert env is not None
+        assert env.get('ORS_STATE') == 'unset'

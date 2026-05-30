@@ -3,6 +3,7 @@
 # Rationale: _peel_orchestration_args and _ors_is_healthy are module-level
 # helpers in run.py (not class members). Pylint W0212 fires because they are
 # accessed via ``run_module._name``; the warning is a false-positive here.
+import subprocess
 import urllib.error
 from unittest.mock import MagicMock, patch
 
@@ -146,6 +147,35 @@ class TestGenerateDrivingDistancesOrchestration:
             if any('ors_down_cli.py' in str(a) for a in c.args[0])
         ]
         assert len(ors_down_calls) == 1
+
+    @patch('run.IN_CONTAINER', False)
+    @patch('run._ors_is_healthy', return_value=False)
+    @patch('run.subprocess.run')
+    @patch('run.run_command')
+    def test_still_tears_down_when_ors_up_fails(
+            self, mock_run_command, mock_subprocess_run, unused_mock_healthy):
+        '''An ors_up_cli failure must still trigger ors_down cleanup (#223).'''
+        del unused_mock_healthy, mock_run_command
+
+        def fake_subprocess_run(cmd, *args, **kwargs):
+            del args, kwargs
+            if any('ors_up_cli.py' in str(a) for a in cmd):
+                raise subprocess.CalledProcessError(1, cmd)
+            return MagicMock(returncode=0)
+
+        mock_subprocess_run.side_effect = fake_subprocess_run
+        with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
+                                'georgia', '-l', 'cfg.yaml']):
+            with pytest.raises(SystemExit):
+                run_module.main()
+        ors_down_calls = [
+            c for c in mock_subprocess_run.call_args_list
+            if any('ors_down_cli.py' in str(a) for a in c.args[0])
+        ]
+        assert len(ors_down_calls) == 1, (
+            'Expected ors_down_cli to fire even when ors_up_cli failed; '
+            'this regression test guards #223 fix.'
+        )
 
     @patch('run.IN_CONTAINER', True)
     @patch('run.subprocess.run')

@@ -253,21 +253,22 @@ def main():
 
         ors_was_already_up = _ors_is_healthy()
 
-        # ors_up_cli handles validate-slug + download-if-missing + docker
-        # compose up -d (idempotent) + health-poll + verify_loaded_state.
-        # We re-run it even when ORS is already up so verification happens
-        # for every matrix invocation, not just the ones that brought ORS up.
+        # Unified try/finally so an ors_up_cli failure (or matrix failure)
+        # still triggers teardown when we were the ones who brought ORS up.
+        # The inner try translates ors_up_cli's CalledProcessError into a
+        # sys.exit so we forward its exit code; SystemExit is then caught by
+        # the outer finally before propagating.
         ors_up_script = REPO_ROOT / "python" / "scripts" / "ors_up_cli.py"
         try:
-            subprocess.run(
-                [sys.executable, str(ors_up_script), state],
-                cwd=REPO_ROOT,
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            sys.exit(e.returncode)
+            try:
+                subprocess.run(
+                    [sys.executable, str(ors_up_script), state],
+                    cwd=REPO_ROOT,
+                    check=True,
+                )
+            except subprocess.CalledProcessError as e:
+                sys.exit(e.returncode)
 
-        try:
             run_command(
                 ["python", "-m", "python.scripts.generate_driving_distances_cli", state]
                 + passthrough

@@ -1,17 +1,17 @@
-'''CLI: bring up the sibling ORS container for a given state and verify it.
+'''CLI: bring up the sibling ORS container for a given state.
 
 Workflow for ``python3 run.py ors_up_cli <state>``:
 
 1. Validate the state slug against ``GEOFABRIK_STATE_SLUGS``.
 2. Download ``<state>-latest.osm.pbf`` to ``datasets/openrouteservice/`` if
    missing (logs a clear message; downloads are hundreds of MB).
-3. Spawn the ORS container via ``docker compose up -d`` with
-   ``ORS_PBF_FILENAME`` set in the subprocess env so the compose file's
-   ``${ORS_PBF_FILENAME}`` substitution picks the right file.
-4. Poll ``/ors/v2/health`` until 200 or the 45-minute timeout expires
+3. Ensure the per-state graph cache dir ``datasets/ors_graphs/<state>/``
+   exists so the bind mount resolves to a host-owned (not root-owned) dir.
+4. Spawn the ORS container via ``docker compose up -d`` with ``ORS_STATE``
+   set in the subprocess env so compose substitutes it into both the
+   ``ors.engine.source_file`` path and the per-state graph bind mount.
+5. Poll ``/ors/v2/health`` until 200 or the 45-minute timeout expires
    (state-sized graphs can take 20-30 min on first boot).
-5. Call ``verify_loaded_state`` to confirm ORS actually loaded the .pbf we
-   asked for, not the bundled Heidelberg demo extract.
 
 Host-only.
 '''
@@ -33,12 +33,10 @@ from datetime import datetime
 # file-path import so host-side use without project deps still works.
 try:
     from python.utils.ors_setup import GEOFABRIK_STATE_SLUGS, download_pbf_if_missing
-    from python.utils.ors_status import verify_loaded_state
 except ImportError:  # pragma: no cover - host-only fallback path
     import importlib.util  # pylint: disable=import-outside-toplevel  # fallback for host invocation without project conda env
     _here = os.path.dirname(os.path.abspath(__file__))
     _setup_path = os.path.normpath(os.path.join(_here, '..', 'utils', 'ors_setup.py'))
-    _status_path = os.path.normpath(os.path.join(_here, '..', 'utils', 'ors_status.py'))
     _setup_spec = importlib.util.spec_from_file_location('ors_setup', _setup_path)
     if _setup_spec is None or _setup_spec.loader is None:
         raise ImportError(  # pylint: disable=raise-missing-from  # already inside except ImportError; chaining adds noise
@@ -46,16 +44,8 @@ except ImportError:  # pragma: no cover - host-only fallback path
         )
     _setup_module = importlib.util.module_from_spec(_setup_spec)
     _setup_spec.loader.exec_module(_setup_module)
-    _status_spec = importlib.util.spec_from_file_location('ors_status', _status_path)
-    if _status_spec is None or _status_spec.loader is None:
-        raise ImportError(  # pylint: disable=raise-missing-from  # already inside except ImportError; chaining adds noise
-            f'could not load python/utils/ors_status.py from {_status_path}'
-        )
-    _status_module = importlib.util.module_from_spec(_status_spec)
-    _status_spec.loader.exec_module(_status_module)
     GEOFABRIK_STATE_SLUGS = _setup_module.GEOFABRIK_STATE_SLUGS
     download_pbf_if_missing = _setup_module.download_pbf_if_missing
-    verify_loaded_state = _status_module.verify_loaded_state
 
 
 def _ensure_host_only() -> None:
@@ -76,11 +66,16 @@ def _ensure_host_only() -> None:
 HEALTH_POLL_INTERVAL_S = 10
 HEALTH_POLL_TIMEOUT_S = 2700  # 45 minutes (state-sized graphs can take 20-30 min).
 DEFAULT_HEALTH_URL = 'http://localhost:8080/ors/v2/health'
-DEFAULT_MATRIX_URL = 'http://localhost:8080/ors/v2/matrix/driving-car'
 COMPOSE_FILE = os.path.normpath(
     os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         '..', '..', '.devcontainer', 'docker-compose.ors.yml',
+    )
+)
+ORS_GRAPHS_DIR = os.path.normpath(
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        '..', '..', 'datasets', 'ors_graphs',
     )
 )
 
@@ -139,11 +134,6 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help=f'Health endpoint to poll (default {DEFAULT_HEALTH_URL}).',
     )
     parser.add_argument(
-        '--matrix-url', default=DEFAULT_MATRIX_URL,
-        help=f'Matrix endpoint URL (used to derive the status URL for verification; '
-             f'default {DEFAULT_MATRIX_URL}).',
-    )
-    parser.add_argument(
         '--logdir', default='./logs', help='Directory to write the run log into.',
     )
     return parser
@@ -158,7 +148,7 @@ def main(argv=None):
 
     Returns:
         ``0`` on success. Calls ``sys.exit(1)`` if the health endpoint never
-        comes up before the timeout, or if ``verify_loaded_state`` raises.
+        comes up before the timeout.
     '''
     args = _build_arg_parser().parse_args(argv)
     _ensure_host_only()
@@ -181,8 +171,15 @@ def main(argv=None):
         pbf_filesystem_path = download_pbf_if_missing(args.state)
         _tee(f'pbf: {pbf_filesystem_path}', log_fh)
 
+        # Pre-create the per-state graph cache dir so the compose bind mount
+        # resolves to a user-owned directory (Docker would otherwise auto-
+        # create it as root, which then can't be modified without sudo).
+        state_graphs_dir = os.path.join(ORS_GRAPHS_DIR, args.state)
+        os.makedirs(state_graphs_dir, exist_ok=True)
+        _tee(f'graphs dir: {state_graphs_dir}', log_fh)
+
         env = os.environ.copy()
-        env['ORS_PBF_FILENAME'] = os.path.basename(pbf_filesystem_path)
+        env['ORS_STATE'] = args.state
         subprocess.run(
             ['docker', 'compose', '-f', COMPOSE_FILE, 'up', '-d'],
             env=env,
@@ -195,13 +192,6 @@ def main(argv=None):
                 ['docker', 'compose', '-f', COMPOSE_FILE, 'logs', '--tail=50', 'ors'],
                 check=False,
             )
-            sys.exit(1)
-
-        _tee(f'verifying loaded graph matches {args.state} ...', log_fh)
-        try:
-            verify_loaded_state(args.state, args.matrix_url)
-        except RuntimeError as exc:
-            _tee(f'verify_loaded_state FAILED: {exc}', log_fh)
             sys.exit(1)
 
         _tee('ORS is up and routing.', log_fh)

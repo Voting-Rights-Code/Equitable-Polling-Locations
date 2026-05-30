@@ -1,7 +1,11 @@
-'''CLI: stop the sibling ORS container. Preserves built graphs by default.
+'''CLI: stop the sibling ORS container.
 
-Pass --purge-graphs to also remove the ors_graphs named volume (use after
-swapping in a new state's .pbf to force a clean rebuild on next ors_up).
+The routing graph for each state lives under ``datasets/ors_graphs/<state>/``
+on the host filesystem (bind-mounted into the container). It survives
+``ors_down_cli`` automatically; to force a fresh rebuild for a given state,
+delete that state's directory manually:
+
+    rm -rf datasets/ors_graphs/<state>
 
 Host-only.
 '''
@@ -22,10 +26,9 @@ COMPOSE_FILE = os.path.normpath(
 def _ensure_host_only() -> None:
     '''Exit if running inside the dev container.
 
-    Duplicated from ors_setup_cli.py rather than imported: this script is
-    invoked from the host as a file path (not via the python.scripts.<name>
-    module path), so cross-script imports inside the python/ package are
-    not available.
+    Inlined rather than imported: this script is invoked from the host as a
+    file path (not via the python.scripts.<name> module path), so cross-script
+    imports inside the python/ package are not available.
     '''
     if os.path.exists('/.dockerenv'):
         print(
@@ -44,10 +47,6 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description='Stop the sibling ORS container.',
     )
-    parser.add_argument(
-        '--purge-graphs', action='store_true',
-        help='Also remove the ors_graphs named volume (forces clean rebuild next time).',
-    )
     return parser
 
 
@@ -60,13 +59,20 @@ def main(argv=None):
     Returns:
         ``0`` on success.
     '''
-    args = _build_arg_parser().parse_args(argv)
+    _build_arg_parser().parse_args(argv)
     _ensure_host_only()
 
-    cmd = ['docker', 'compose', '-f', COMPOSE_FILE, 'down']
-    if args.purge_graphs:
-        cmd.append('-v')
-    subprocess.run(cmd, check=True)
+    # ``docker compose down`` here also requires ORS_STATE to be set because
+    # the compose file references it. The actual value doesn't matter for
+    # teardown — compose just needs to be able to parse the file — so we set
+    # a harmless placeholder.
+    env = os.environ.copy()
+    env.setdefault('ORS_STATE', 'unset')
+    subprocess.run(
+        ['docker', 'compose', '-f', COMPOSE_FILE, 'down'],
+        env=env,
+        check=True,
+    )
     return 0
 
 

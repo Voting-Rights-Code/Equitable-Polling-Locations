@@ -8,10 +8,11 @@
 # ORS v8 listens on port 8082 internally; this file maps host 8080 -> 8082.
 # Host-side callers (e.g. ors_up_cli's health poll) use localhost:8080.
 #
-# The .pbf to load is selected at runtime via the ORS_PBF_FILENAME env var,
-# which ors_up_cli sets when invoking `docker compose up -d`. The .pbf must
-# exist at datasets/openrouteservice/<filename> before this service starts;
-# ors_up_cli downloads it if missing.
+# The state-of-the-world is selected at runtime via the ORS_STATE env var,
+# which ors_up_cli sets when invoking `docker compose up -d`. Compose derives
+# both the source .pbf filename and the per-state graph cache directory from
+# ORS_STATE. Per-state graph dirs sidestep the failure mode where a cached
+# graph from a previous state is silently reused (see issue #223).
 services:
   ors:
     image: openrouteservice/openrouteservice:v8.0.0
@@ -27,14 +28,15 @@ services:
       # host's Docker Desktop memory limit to be >= XMX.
       XMS: 2g
       XMX: 10g
-      # Explicit source: the container writes example-heidelberg.osm.gz into
-      # /home/ors/files on first boot, so auto-detection picks the demo data
-      # instead of the .pbf we want. ORS_PBF_FILENAME is set by ors_up_cli
-      # based on the positional state arg.
-      ors.engine.source_file: /home/ors/files/${ORS_PBF_FILENAME:?ors_up_cli must set ORS_PBF_FILENAME}
+      # Explicit source: without this, ORS auto-detects example-heidelberg.osm.gz
+      # that the image writes into /home/ors/files on first boot.
+      ors.engine.source_file: /home/ors/files/${ORS_STATE:?ors_up_cli must set ORS_STATE}-latest.osm.pbf
     volumes:
       - ../datasets/openrouteservice:/home/ors/files
-      - ors_graphs:/home/ors/graphs
+      # Per-state graph cache. Each state gets its own host directory; ORS
+      # rebuilds when the bind-mounted dir is empty, so switching states
+      # automatically forces a clean rebuild with no manual purge step.
+      - ../datasets/ors_graphs/${ORS_STATE:?ors_up_cli must set ORS_STATE}:/home/ors/graphs
       - ors_elevation:/home/ors/elevation_cache
       - ors_logs:/home/ors/logs
     ports:
@@ -50,6 +52,5 @@ services:
       retries: 3
 
 volumes:
-  ors_graphs:
   ors_elevation:
   ors_logs:

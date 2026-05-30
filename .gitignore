@@ -184,6 +184,11 @@ authentication_files/
 datasets/openrouteservice/*.pbf
 datasets/openrouteservice/*.osm.gz
 
+# Per-state ORS graph caches — bind-mounted into the container at /home/ors/graphs.
+# The parent dir is tracked via its .gitkeep; everything inside is ORS-generated.
+datasets/ors_graphs/*
+!datasets/ors_graphs/.gitkeep
+
 #/test_configs
 
 # Misc
