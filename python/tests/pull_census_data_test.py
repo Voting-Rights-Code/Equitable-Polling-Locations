@@ -13,6 +13,9 @@ from unittest.mock import MagicMock, patch
 from python.utils.pull_census_data import pull_state_CVAP_data
 
 
+TEST_RDH_URL = 'https://redistrictingdatahub.org/wp-json/download/list'
+
+
 def _make_list_response_bytes(rows):
     ''' Returns a CSV-encoded list API response as bytes given a list of row dicts. '''
     return pd.DataFrame(rows).to_csv(index=False).encode('utf-8')
@@ -68,7 +71,7 @@ def test_pull_state_CVAP_data_returns_dataframe():
     zip_bytes = _make_cvap_zip_bytes('2020')
 
     with patch('python.utils.pull_census_data.requests.get', side_effect=_mock_get(list_bytes, zip_bytes)):
-        result = pull_state_CVAP_data('Georgia', 'user', 'pass', '2020')
+        result = pull_state_CVAP_data('Georgia', 'user', 'pass', '2020', rdh_url=TEST_RDH_URL)
 
     assert isinstance(result, pd.DataFrame)
     assert result.shape[0] == 1
@@ -86,7 +89,7 @@ def test_pull_state_CVAP_data_raises_when_no_dataset_found():
 
     with patch('python.utils.pull_census_data.requests.get', return_value=list_resp):
         with pytest.raises(ValueError, match='No block-level CVAP CSV found'):
-            pull_state_CVAP_data('Georgia', 'user', 'pass', '2020')
+            pull_state_CVAP_data('Georgia', 'user', 'pass', '2020', rdh_url=TEST_RDH_URL)
 
 
 def test_pull_state_CVAP_data_raises_when_multiple_datasets_found():
@@ -101,7 +104,7 @@ def test_pull_state_CVAP_data_raises_when_multiple_datasets_found():
 
     with patch('python.utils.pull_census_data.requests.get', return_value=list_resp):
         with pytest.raises(ValueError, match='Multiple block-level CVAP CSVs found'):
-            pull_state_CVAP_data('Georgia', 'user', 'pass', '2020')
+            pull_state_CVAP_data('Georgia', 'user', 'pass', '2020', rdh_url=TEST_RDH_URL)
 
 
 def test_pull_state_CVAP_data_filters_by_year():
@@ -114,7 +117,7 @@ def test_pull_state_CVAP_data_filters_by_year():
     zip_bytes = _make_cvap_zip_bytes('2020')
 
     with patch('python.utils.pull_census_data.requests.get', side_effect=_mock_get(list_bytes, zip_bytes)):
-        result = pull_state_CVAP_data('Georgia', 'user', 'pass', '2020')
+        result = pull_state_CVAP_data('Georgia', 'user', 'pass', '2020', rdh_url=TEST_RDH_URL)
 
     assert isinstance(result, pd.DataFrame)
     assert result.shape[0] == 1
@@ -129,6 +132,6 @@ def test_pull_state_CVAP_data_ignores_shp_format():
     zip_bytes = _make_cvap_zip_bytes('2020')
 
     with patch('python.utils.pull_census_data.requests.get', side_effect=_mock_get(list_bytes, zip_bytes)):
-        result = pull_state_CVAP_data('Georgia', 'user', 'pass', '2020')
+        result = pull_state_CVAP_data('Georgia', 'user', 'pass', '2020', rdh_url=TEST_RDH_URL)
 
     assert isinstance(result, pd.DataFrame)

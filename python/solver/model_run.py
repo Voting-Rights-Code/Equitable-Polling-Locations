@@ -162,7 +162,7 @@ class ModelRun():
                 build_distance_data(
                     data_source=DATA_SOURCE_CSV,
                     census_year=self._config.census_year,
-                    census_data_type=self._config.census_data_type, #TODO: this needs to be added into the config
+                    census_data_type=self._config.census_data_type, 
                     location=self._config.location,
                     driving=self._config.driving,
                     log_distance=self._config.log_distance,

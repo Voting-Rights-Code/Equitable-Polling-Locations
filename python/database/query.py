@@ -176,6 +176,12 @@ class Query:
             if field.name in column_names
         }
 
+        # TODO (Abditus): remove this default once the census_data_type Alembic migration has run.
+        # Pre-migration DB rows return None for this column; 'redistricting' is correct for all
+        # existing records since they predate CVAP support.
+        if not model_config_dict.get('census_data_type'):
+            model_config_dict['census_data_type'] = 'redistricting'
+
         polling_model_config = PollingModelConfig(**model_config_dict)
         polling_model_config.db_id = config.id
 

@@ -90,6 +90,8 @@ STATE_LOOKUP = {
     'WY': 'Wyoming'
 }
 
+RDH_LIST_URL = 'https://redistrictingdatahub.org/wp-json/download/list'
+
 def get_all_states_fips_codes(census_year, api_key):
     """
     Get the fips codes for all 50 states
@@ -230,10 +232,8 @@ def pull_tiger_file(state, fips, county_ST, county_code, geo, census_year):
     unzip_file(fname, output_directory)
     return base_url, output_directory
 
-RDH_LIST_URL = 'https://redistrictingdatahub.org/wp-json/download/list'
-
-def pull_state_CVAP_data(state, username, password, census_year):
-    """Download block-level CVAP data for a state and year from the RDH API.
+def pull_state_CVAP_data(state, username, password, census_year, rdh_url = RDH_LIST_URL):
+    """Download block-level CVAP data for a state and year from the Redistricting Data Hub (RDH) API.
 
     Args:
         state: Full state name (e.g. 'Georgia').
@@ -247,7 +247,8 @@ def pull_state_CVAP_data(state, username, password, census_year):
     Raises:
         ValueError: When zero or more than one matching dataset is found in the catalog.
     """
-    # Step 2: Query the RDH catalog and filter to the block-level CSV for this state and year
+    
+    #Get the RDH catalog and filter to the block-level CSV for this state and year
     list_params = {
         'username': username,
         'password': password,
@@ -255,9 +256,10 @@ def pull_state_CVAP_data(state, username, password, census_year):
         'states': state,
         'keywords': 'CVAP',
     }
-    list_response = requests.get(RDH_LIST_URL, params=list_params, timeout=60)
+    list_response = requests.get(rdh_url, params=list_params, timeout=60)
     catalog = pd.read_csv(io.StringIO(list_response.content.decode('utf-8')))
 
+    #Get the correct url for the block level CVAP data for this census year.
     mask = (
         catalog['Title'].str.contains('Block Level', case=False, na=False)
         & catalog['Title'].str.contains(f'({census_year})', regex=False, na=False)
@@ -275,7 +277,7 @@ def pull_state_CVAP_data(state, username, password, census_year):
             f'{list(matches["Title"])}'
         )
 
-    # Step 3: Download the zip, extract the CSV, and return as a DataFrame
+    # Download the zip, extract the CSV, and return as a DataFrame
     listing_url = matches.iloc[0]['URL']
     file_path = listing_url.split('/file/')[1].split('?')[0]
     dataset_id = listing_url.split('datasetid=')[1]
@@ -300,7 +302,16 @@ def locality_CVAP_only(state_CVAP, countycode):
     locality_CVAP = state_CVAP[state_CVAP['GEOID20'].str.startswith(countycode)]
     return(locality_CVAP)
 
-def pull_CVAP_data(statecode, county, census_year, census_apikey=census_key, rdh_username=RDH_username, rdh_password=RDH_password, state_lookup=STATE_LOOKUP):
+def pull_CVAP_data(
+    statecode,
+    county,
+    census_year,
+    census_apikey=census_key,
+    rdh_username=RDH_username,
+    rdh_password=RDH_password,
+    state_lookup=STATE_LOOKUP,
+    rdh_url=RDH_LIST_URL,
+):
     """
     Given a statecode (i.e. MD or NY),
     and county (full name, must be capitalized properly),
@@ -326,7 +337,7 @@ def pull_CVAP_data(statecode, county, census_year, census_apikey=census_key, rdh
     county_ST = county.replace(' ','_')+ '_' + statecode
 
     fipscode5 = fipscode2 + countycode
-    state_CVAP = pull_state_CVAP_data(state, rdh_username, rdh_password, census_year)
+    state_CVAP = pull_state_CVAP_data(state, rdh_username, rdh_password, census_year, rdh_url)
     locality_CVAP = locality_CVAP_only(state_CVAP, fipscode5)
     
     if locality_CVAP.shape[0] == 0:

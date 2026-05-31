@@ -2,3 +2,6 @@ prod:
   project: equitable-polling-locations
   dataset: equitable_polling_locations_prod
 
+test:
+  project: equitable-polling-locations
+  dataset: tests_chad

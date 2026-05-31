@@ -659,6 +659,7 @@ def get_distance_data_csv(
 
 def get_distance_data_db(
         census_year: str,
+        census_data_type: str,
         location: str,
         log_distance: bool,
         driving: bool,
@@ -670,6 +671,7 @@ def get_distance_data_db(
         print(f'Loading distance data for {location} from database')
 
     # Load locations from the database
+    # TODO (Abditus): pass census_data_type to get_distance_data_set once the DB schema is updated.
     distance_data_set = query.get_distance_data_set(census_year, location, log_distance, driving)
     if not distance_data_set:
         raise ValueError(

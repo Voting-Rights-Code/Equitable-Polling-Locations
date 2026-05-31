@@ -41,6 +41,7 @@ def test_build_source_locations(testing_config_driving, location_df_with_driving
     demographics_block_df = model_data.get_demographics_block(
         census_year=testing_config_driving.census_year,
         location=testing_config_driving.location,
+        census_data_type=testing_config_driving.census_data_type,
     )
     # Get the blockgroup to get the expected Locations
     blockgroup = model_data.get_blockgroup_gdf(testing_config_driving.census_year, TEST_LOCATION)

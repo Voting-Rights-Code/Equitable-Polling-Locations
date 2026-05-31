@@ -92,6 +92,9 @@ class ModelConfig(ModelBase):
     census_year: str = Column(String(4), nullable=True, default='2020')
     ''' The year of the distance source data '''
 
+    census_data_type: str = Column(String(256), nullable=True, default='redistricting')
+    ''' The type of census data to use: redistricting, CVAP, or ACS. '''
+
     created_at: DateTime = Column(DateTime, nullable=False, default=current_time_utc)
     ''' The DateTime this model config was created. '''
 

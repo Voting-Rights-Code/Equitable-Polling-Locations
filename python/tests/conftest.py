@@ -115,7 +115,7 @@ def location_df_with_driving(
     model_data.build_distance_data(
         'csv',
         census_year=testing_config_driving.census_year,
-        census_data_type = test_config_driving.census_data_type,
+        census_data_type = testing_config_driving.census_data_type,
         location=testing_config_driving.location, # TEST_LOCATION,
         driving=testing_config_driving.driving,
         log_distance=testing_config_driving.log_distance,
@@ -135,6 +135,7 @@ def polling_locations_df(testing_config_base):
     polling_locations = model_data.get_distance_data(
         data_source='csv',
         census_year=testing_config_base.census_year,
+        census_data_type=testing_config_base.census_data_type,
         location=testing_config_base.location,
         log_distance=testing_config_base.log_distance,
         driving=testing_config_base.driving,
