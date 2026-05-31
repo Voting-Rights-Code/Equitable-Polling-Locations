@@ -1,4 +1,6 @@
+import io
 import os
+import zipfile
 from pathlib import Path
 import shutil
 import requests
@@ -22,9 +24,10 @@ except:
     census_key = None
 
 try:
-    from authentication_files.RDH_key import RDH_key
+    from authentication_files.RDH_key import RDH_username, RDH_password
 except:
-    RDH_key = None
+    RDH_username = None
+    RDH_password = None
 
 
 STATE_LOOKUP = {
@@ -227,11 +230,69 @@ def pull_tiger_file(state, fips, county_ST, county_code, geo, census_year):
     unzip_file(fname, output_directory)
     return base_url, output_directory
 
-def pull_state_CVAP_data(state, apikey):
-    #This is a stub for the apikey that needs to be written eventually.
-    #Note, this is Texas data
-    df = pd.read_csv("temp_CVAP/ga_cvap_2023_2020_b.csv")
-    return df
+RDH_LIST_URL = 'https://redistrictingdatahub.org/wp-json/download/list'
+
+def pull_state_CVAP_data(state, username, password, census_year):
+    """Download block-level CVAP data for a state and year from the RDH API.
+
+    Args:
+        state: Full state name (e.g. 'Georgia').
+        username: RDH API username.
+        password: RDH API password.
+        census_year: Four-digit census year string (e.g. '2020').
+
+    Returns:
+        DataFrame containing block-level CVAP data for the state.
+
+    Raises:
+        ValueError: When zero or more than one matching dataset is found in the catalog.
+    """
+    # Step 2: Query the RDH catalog and filter to the block-level CSV for this state and year
+    list_params = {
+        'username': username,
+        'password': password,
+        'format': 'csv',
+        'states': state,
+        'keywords': 'CVAP',
+    }
+    list_response = requests.get(RDH_LIST_URL, params=list_params, timeout=60)
+    catalog = pd.read_csv(io.StringIO(list_response.content.decode('utf-8')))
+
+    mask = (
+        catalog['Title'].str.contains('Block Level', case=False, na=False)
+        & catalog['Title'].str.contains(f'({census_year})', regex=False, na=False)
+        & (catalog['Format'] == 'CSV')
+    )
+    matches = catalog[mask]
+
+    if matches.shape[0] == 0:
+        raise ValueError(
+            f'No block-level CVAP CSV found for {state} year {census_year} in the RDH catalog.'
+        )
+    if matches.shape[0] > 1:
+        raise ValueError(
+            f'Multiple block-level CVAP CSVs found for {state} year {census_year}: '
+            f'{list(matches["Title"])}'
+        )
+
+    # Step 3: Download the zip, extract the CSV, and return as a DataFrame
+    listing_url = matches.iloc[0]['URL']
+    file_path = listing_url.split('/file/')[1].split('?')[0]
+    dataset_id = listing_url.split('datasetid=')[1]
+    download_url = f'https://redistrictingdatahub.org/wp-json/download/file/{file_path}'
+    download_params = {'username': username, 'password': password, 'datasetid': dataset_id}
+
+    download_response = requests.get(
+        download_url, params=download_params, allow_redirects=True, timeout=120,
+    )
+    download_response.raise_for_status()
+
+    with zipfile.ZipFile(io.BytesIO(download_response.content)) as zf:
+        csv_files = [name for name in zf.namelist() if name.endswith('.csv')]
+        if len(csv_files) != 1:
+            raise ValueError(f'Expected 1 CSV in zip, found: {csv_files}')
+        with zf.open(csv_files[0]) as csv_file:
+            return pd.read_csv(csv_file, low_memory=False)
 
 def locality_CVAP_only(state_CVAP, countycode):
     #TODO: Move GEOID20 constant definition so it can be used here too
@@ -239,7 +300,7 @@ def locality_CVAP_only(state_CVAP, countycode):
     locality_CVAP = state_CVAP[state_CVAP['GEOID20'].str.startswith(countycode)]
     return(locality_CVAP)
 
-def pull_CVAP_data(statecode, county, census_year, census_apikey = census_key, RDH_apikey = RDH_key, state_lookup=STATE_LOOKUP):
+def pull_CVAP_data(statecode, county, census_year, census_apikey=census_key, rdh_username=RDH_username, rdh_password=RDH_password, state_lookup=STATE_LOOKUP):
     """
     Given a statecode (i.e. MD or NY),
     and county (full name, must be capitalized properly),
@@ -252,7 +313,7 @@ def pull_CVAP_data(statecode, county, census_year, census_apikey = census_key, R
 
     #TODO: Refactor this and pull census data so that tiger files not pulled twice
     #TODO: Refactor to reduce repeated code
-    if RDH_apikey is None:
+    if rdh_username is None or rdh_password is None:
         pass
         #TODO: Eventually raise this error. No API connection yet.
         #raise ValueError('No RDH key available. Please request one from the census to download census data. See README.')
@@ -265,7 +326,7 @@ def pull_CVAP_data(statecode, county, census_year, census_apikey = census_key, R
     county_ST = county.replace(' ','_')+ '_' + statecode
 
     fipscode5 = fipscode2 + countycode
-    state_CVAP = pull_state_CVAP_data(state, RDH_apikey)
+    state_CVAP = pull_state_CVAP_data(state, rdh_username, rdh_password, census_year)
     locality_CVAP = locality_CVAP_only(state_CVAP, fipscode5)
     
     if locality_CVAP.shape[0] == 0:
