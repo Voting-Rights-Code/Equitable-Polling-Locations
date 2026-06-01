@@ -334,12 +334,17 @@ def main():
             except subprocess.CalledProcessError as e:
                 sys.exit(e.returncode)
 
-            # Matrix step: the in-container generate_driving_distances_cli
-            # re-derives state from the config independently (single source of
-            # truth = config.location). We do NOT forward --state through;
-            # `passthrough` already excludes it (parse_known_args consumed it).
+            # Matrix step: forward the resolved state to the in-container
+            # script via --state. This covers both the explicit-override case
+            # (user passed --state for a synthetic config like `testing` whose
+            # location can't be derived) and the derived case (we resolved
+            # state from config.location above) — in both, the in-container
+            # script should NOT re-derive. Its own derivation logic stays as
+            # the fallback for direct-in-container invocations that bypass
+            # run.py.
             run_command(
-                ["python", "-m", "python.scripts.generate_driving_distances_cli"]
+                ["python", "-m", "python.scripts.generate_driving_distances_cli",
+                 "--state", state]
                 + passthrough
             )
         finally:

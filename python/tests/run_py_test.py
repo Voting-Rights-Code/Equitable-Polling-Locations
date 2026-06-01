@@ -63,10 +63,12 @@ class TestGenerateDrivingDistancesOrchestration:
         matrix_argv = mock_run_command.call_args.args[0]
         assert matrix_argv[:3] == ['python', '-m',
                                    'python.scripts.generate_driving_distances_cli']
-        assert 'georgia' not in matrix_argv, (
-            'After this change, the in-container script derives its own state; '
-            'the orchestrator must not pass --state through to the matrix step.'
+        assert '--state' in matrix_argv, (
+            'The orchestrator must forward the resolved state to the in-container '
+            'script so synthetic-config invocations (--state override on configs '
+            'whose location is undeerivable) work end-to-end.'
         )
+        assert 'georgia' in matrix_argv
         assert '-l' in matrix_argv
         assert 'cfg.yaml' in matrix_argv
 
@@ -173,8 +175,12 @@ class TestGenerateDrivingDistancesOrchestration:
     @patch('run.run_command')
     def test_derives_state_from_config_when_orchestrating(
             self, mock_run_command, mock_subprocess_run, unused_mock_healthy, tmp_path):
-        '''No --state on argv -> orchestrator derives slug from config.location.'''
-        del unused_mock_healthy, mock_run_command
+        '''No --state on argv -> orchestrator derives slug from config.location.
+
+        Verifies the derived slug reaches BOTH the ors_up_cli subprocess
+        and the in-container matrix step (via --state forwarding).
+        '''
+        del unused_mock_healthy
         cfg = tmp_path / 'cfg.yaml'
         cfg.write_text('config_set: prod\nlocation: Gwinnett_County_GA\n')
         with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
@@ -188,6 +194,12 @@ class TestGenerateDrivingDistancesOrchestration:
         ors_up_argv = ors_up_calls[0].args[0]
         assert 'georgia' in ors_up_argv, (
             f'Expected derived state "georgia" passed to ors_up_cli; got argv {ors_up_argv}'
+        )
+        assert mock_run_command.call_count == 1, 'matrix step should fire exactly once'
+        matrix_argv = mock_run_command.call_args.args[0]
+        assert '--state' in matrix_argv and 'georgia' in matrix_argv, (
+            f'Expected derived state forwarded to matrix step as --state georgia; '
+            f'got argv {matrix_argv}'
         )
 
     @patch('run.IN_CONTAINER', False)
