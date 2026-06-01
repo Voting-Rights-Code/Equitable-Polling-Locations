@@ -11,6 +11,7 @@ from python.utils.driving_distance_matrix import (
     _LEVEL_DEFAULT,
     _LEVEL_V,
     _LEVEL_VV,
+    _coerce_negative_distances_to_null,
     _emit,
     build_distance_matrix,
     estimate_origin,
@@ -341,3 +342,41 @@ class TestVerbosityGating:
         )
         assert 'no neighbor within 1km, dropped' in log_fh.getvalue()
         assert 'no neighbor within 1km, dropped' in capsys.readouterr().out
+
+
+class TestCoerceNegativeDistancesToNull:
+    '''Negative distances are mapped to NaN so they behave like no-route.'''
+
+    def test_negative_becomes_nan_zero_and_positive_untouched(self):
+        df = pd.DataFrame({
+            'id_orig': ['a', 'b', 'c'],
+            'id_dest': ['x', 'x', 'x'],
+            'distance_m': [-1.0, 0.0, 50.0],
+        })
+        result = _coerce_negative_distances_to_null(df)
+        assert pd.isnull(result.loc[0, 'distance_m'])
+        assert result.loc[1, 'distance_m'] == 0.0
+        assert result.loc[2, 'distance_m'] == 50.0
+
+
+class TestBuildMatrixNegativeHandling:
+    '''A negative matrix cell is treated as unroutable, never emitted.'''
+
+    @patch('python.utils.driving_distance_matrix.query_matrix')
+    def test_negative_distance_treated_as_unroutable_and_snapped(self, mock_query):
+        # s1's cell is negative -> must be coerced to NaN and snapped to s0.
+        mock_query.return_value = [[100.0], [-1.0]]
+        log_fh = io.StringIO()
+        df = build_distance_matrix(
+            locations={
+                's0': [-84.0000, 33.9500],
+                's1': [-84.0000, 33.9510],  # ~111m north of s0, within 1km
+                'd':  [-84.1000, 34.0000],
+            },
+            source_ids=['s0', 's1'],
+            dest_ids=['d'],
+            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
+            log_fh=log_fh, verbosity=0,
+        )
+        assert (df['distance_m'] >= 0).all()
+        assert 'snapped to nearest haversine neighbor' in log_fh.getvalue()

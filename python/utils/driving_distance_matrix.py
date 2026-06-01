@@ -91,6 +91,24 @@ def matrix_response_to_long_df(source_names, dest_names, distances) -> pd.DataFr
     )
 
 
+def _coerce_negative_distances_to_null(df: pd.DataFrame) -> pd.DataFrame:
+    '''Replace any negative ``distance_m`` with NaN, in place.
+
+    ORS signals "no route" with null, which becomes NaN and is recovered by the
+    snap/retry path. A negative distance is never a valid real-world value; if a
+    routing backend ever emits one, treat it as no-route so it flows through the
+    same recovery and never reaches the output CSV. ``0`` is left untouched.
+
+    Args:
+        df: Long-form DataFrame with a ``distance_m`` column.
+
+    Returns:
+        The same DataFrame, with any ``distance_m < 0`` set to NaN.
+    '''
+    df.loc[df[DISTANCE_DISTANCE_M] < 0, DISTANCE_DISTANCE_M] = float('nan')
+    return df
+
+
 def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFrame:
     '''Estimate distances for an unroutable origin by snapping to a nearby neighbor.
 
@@ -364,6 +382,10 @@ def build_distance_matrix(*,
             log_fh=log_fh, verbosity=verbosity,
         )
         df = pd.concat([df, retry_df], ignore_index=True)
+
+    # Treat any negative distance as no-route before snapping, so it flows
+    # through the same recovery as a real ORS null and never reaches the CSV.
+    df = _coerce_negative_distances_to_null(df)
 
     return _snap_unroutable_origins(
         df, source_ids, locations,
