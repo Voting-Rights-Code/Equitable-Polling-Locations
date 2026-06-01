@@ -1,8 +1,8 @@
 '''Tests for run.py's generate_driving_distances_cli host-side orchestration.'''
 # pylint: disable=protected-access
-# Rationale: _peel_orchestration_args and _ors_is_healthy are module-level
-# helpers in run.py (not class members). Pylint W0212 fires because they are
-# accessed via ``run_module._name``; the warning is a false-positive here.
+# Rationale: _ors_is_healthy is a module-level helper in run.py (not a class
+# member). Pylint W0212 fires because it is accessed via ``run_module._name``;
+# the warning is a false-positive here.
 import subprocess
 import urllib.error
 from unittest.mock import MagicMock, patch
@@ -10,34 +10,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import run as run_module
-
-
-class TestPeelOrchestrationArgs:
-    '''Tests for the ``_peel_orchestration_args`` helper.'''
-
-    def test_returns_none_for_empty_argv(self):
-        assert run_module._peel_orchestration_args([]) == (None, False, [])
-
-    def test_extracts_state_as_first_positional(self):
-        state, keep_running, passthrough = run_module._peel_orchestration_args(
-            ['georgia', '-l', 'cfg.yaml'])
-        assert state == 'georgia'
-        assert keep_running is False
-        assert passthrough == ['-l', 'cfg.yaml']
-
-    def test_strips_keep_ors_running_flag(self):
-        state, keep_running, passthrough = run_module._peel_orchestration_args(
-            ['georgia', '-l', 'cfg.yaml', '--keep-ors-running'])
-        assert state == 'georgia'
-        assert keep_running is True
-        assert passthrough == ['-l', 'cfg.yaml']
-
-    def test_preserves_other_flags(self):
-        state, keep_running, passthrough = run_module._peel_orchestration_args(
-            ['georgia', '-l', 'cfg.yaml', '-vv', '--check-bad-locations'])
-        assert state == 'georgia'
-        assert keep_running is False
-        assert passthrough == ['-l', 'cfg.yaml', '-vv', '--check-bad-locations']
 
 
 class TestOrsIsHealthy:
@@ -75,7 +47,7 @@ class TestGenerateDrivingDistancesOrchestration:
         '''Default path: bring ORS up, run the matrix, then bring ORS down.'''
         del unused_mock_healthy
         with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
-                                'georgia', '-l', 'cfg.yaml']):
+                                '--state', 'georgia', '-l', 'cfg.yaml']):
             run_module.main()
         ors_up_calls = [
             c for c in mock_subprocess_run.call_args_list
@@ -91,7 +63,10 @@ class TestGenerateDrivingDistancesOrchestration:
         matrix_argv = mock_run_command.call_args.args[0]
         assert matrix_argv[:3] == ['python', '-m',
                                    'python.scripts.generate_driving_distances_cli']
-        assert 'georgia' in matrix_argv
+        assert 'georgia' not in matrix_argv, (
+            'After this change, the in-container script derives its own state; '
+            'the orchestrator must not pass --state through to the matrix step.'
+        )
         assert '-l' in matrix_argv
         assert 'cfg.yaml' in matrix_argv
 
@@ -104,7 +79,8 @@ class TestGenerateDrivingDistancesOrchestration:
         '''--keep-ors-running should leave ORS up after the matrix completes.'''
         del unused_mock_healthy, mock_run_command
         with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
-                                'georgia', '-l', 'cfg.yaml', '--keep-ors-running']):
+                                '--state', 'georgia', '-l', 'cfg.yaml',
+                                '--keep-ors-running']):
             run_module.main()
         ors_down_calls = [
             c for c in mock_subprocess_run.call_args_list
@@ -121,7 +97,7 @@ class TestGenerateDrivingDistancesOrchestration:
         '''If ORS was already running, the orchestration must not tear it down.'''
         del unused_mock_healthy, mock_run_command
         with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
-                                'georgia', '-l', 'cfg.yaml']):
+                                '--state', 'georgia', '-l', 'cfg.yaml']):
             run_module.main()
         ors_down_calls = [
             c for c in mock_subprocess_run.call_args_list
@@ -139,7 +115,7 @@ class TestGenerateDrivingDistancesOrchestration:
         del unused_mock_healthy
         mock_run_command.side_effect = SystemExit(1)
         with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
-                                'georgia', '-l', 'cfg.yaml']):
+                                '--state', 'georgia', '-l', 'cfg.yaml']):
             with pytest.raises(SystemExit):
                 run_module.main()
         ors_down_calls = [
@@ -165,7 +141,7 @@ class TestGenerateDrivingDistancesOrchestration:
 
         mock_subprocess_run.side_effect = fake_subprocess_run
         with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
-                                'georgia', '-l', 'cfg.yaml']):
+                                '--state', 'georgia', '-l', 'cfg.yaml']):
             with pytest.raises(SystemExit):
                 run_module.main()
         ors_down_calls = [
@@ -185,8 +161,50 @@ class TestGenerateDrivingDistancesOrchestration:
         '''Inside the container, host-side orchestration is skipped.'''
         del mock_subprocess_run
         with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
-                                'georgia', '-l', 'cfg.yaml']):
+                                '--state', 'georgia', '-l', 'cfg.yaml']):
             run_module.main()
         # run_command should have been invoked exactly once with the normal
         # python -m wrapper form (no ORS lifecycle subprocesses).
         assert mock_run_command.call_count == 1
+
+    @patch('run.IN_CONTAINER', False)
+    @patch('run._ors_is_healthy', return_value=False)
+    @patch('run.subprocess.run')
+    @patch('run.run_command')
+    def test_derives_state_from_config_when_orchestrating(
+            self, mock_run_command, mock_subprocess_run, unused_mock_healthy, tmp_path):
+        '''No --state on argv -> orchestrator derives slug from config.location.'''
+        del unused_mock_healthy, mock_run_command
+        cfg = tmp_path / 'cfg.yaml'
+        cfg.write_text('config_set: prod\nlocation: Gwinnett_County_GA\n')
+        with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
+                                '-l', str(cfg)]):
+            run_module.main()
+        ors_up_calls = [
+            c for c in mock_subprocess_run.call_args_list
+            if any('ors_up_cli.py' in str(a) for a in c.args[0])
+        ]
+        assert len(ors_up_calls) == 1, 'ors_up_cli should be invoked exactly once'
+        ors_up_argv = ors_up_calls[0].args[0]
+        assert 'georgia' in ors_up_argv, (
+            f'Expected derived state "georgia" passed to ors_up_cli; got argv {ors_up_argv}'
+        )
+
+    @patch('run.IN_CONTAINER', False)
+    @patch('run._ors_is_healthy', return_value=False)
+    @patch('run.subprocess.run')
+    @patch('run.run_command')
+    def test_errors_before_docker_when_state_not_derivable(
+            self, mock_run_command, mock_subprocess_run, unused_mock_healthy, tmp_path):
+        '''No --state, location='testing' -> exit 2 before any docker activity.'''
+        del unused_mock_healthy, mock_run_command
+        cfg = tmp_path / 'cfg.yaml'
+        cfg.write_text('config_set: testing\nlocation: testing\n')
+        with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
+                                '-l', str(cfg)]):
+            with pytest.raises(SystemExit) as exc_info:
+                run_module.main()
+        assert exc_info.value.code == 2
+        assert mock_subprocess_run.call_count == 0, (
+            'No subprocess (docker) calls should fire when state derivation fails'
+        )

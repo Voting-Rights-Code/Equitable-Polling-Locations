@@ -34,6 +34,37 @@ REPO_ROOT = Path(__file__).resolve().parent
 # the project image and should skip the docker-compose wrapper.
 IN_CONTAINER = Path("/.dockerenv").exists()
 
+
+# These helpers live in python/utils/ors_setup.py but run.py can't use the
+# normal `from python.utils.ors_setup import ...` because python/__init__.py
+# imports numpy (unavailable on the host without the project conda env).
+# Use importlib.util to load the file directly, mirroring the pattern in
+# python/scripts/ors_up_cli.py.
+def _load_ors_setup_helpers():
+    """Load state_slug_from_location + location_from_config_file from disk.
+
+    Returns:
+        A 2-tuple of the two helper callables.
+    """
+    try:
+        from python.utils.ors_setup import (  # pylint: disable=import-outside-toplevel
+            location_from_config_file,
+            state_slug_from_location,
+        )
+        return state_slug_from_location, location_from_config_file
+    except ImportError:
+        import importlib.util  # pylint: disable=import-outside-toplevel
+        setup_path = REPO_ROOT / "python" / "utils" / "ors_setup.py"
+        spec = importlib.util.spec_from_file_location("ors_setup", str(setup_path))
+        if spec is None or spec.loader is None:
+            raise ImportError(  # pylint: disable=raise-missing-from
+                f"could not load python/utils/ors_setup.py from {setup_path}"
+            )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.state_slug_from_location, module.location_from_config_file
+
+
 # ORS lifecycle scripts must run on the host because they call
 # ``docker compose`` and write to ``datasets/openrouteservice`` on the host
 # filesystem. ``main`` short-circuits these to bypass the usual docker
@@ -131,33 +162,29 @@ def write_credentials_json(census_key, output_dir=None):
     print(f"Credentials written to {creds_file}")
 
 
-def _peel_orchestration_args(argv: list[str]) -> tuple[str | None, bool, list[str]]:
-    """Split argv into (state, keep_ors_running, passthrough).
+def _config_path_from_passthrough(passthrough: list[str]) -> str | None:
+    """Find the value of -l or --location-config in a passthrough argv list.
 
-    The state is the first positional argv element (or None if argv is empty).
-    --keep-ors-running is consumed by the host-side orchestrator and stripped
-    from passthrough; everything else is forwarded to the in-container matrix
-    script unchanged.
+    Mirrors argparse's behavior for short flag (-l VALUE) and long flag
+    (--location-config VALUE) without owning the full parser; the in-container
+    script is the authoritative parser.
 
     Args:
-        argv: The raw argv tail (everything after the
-            ``generate_driving_distances_cli`` subcommand name).
+        passthrough: The argv tail that survived the orchestrator's
+            parse_known_args (i.e. everything other than --state /
+            --keep-ors-running).
 
     Returns:
-        A 3-tuple ``(state, keep_ors_running, passthrough)``. ``state`` may be
-        None if argv is empty.
+        The config path if found; None otherwise. Caller surfaces a usage
+        error when None.
     """
-    if not argv:
-        return (None, False, [])
-    state = argv[0]
-    keep_running = False
-    passthrough: list[str] = []
-    for arg in argv[1:]:
-        if arg == "--keep-ors-running":
-            keep_running = True
-        else:
-            passthrough.append(arg)
-    return (state, keep_running, passthrough)
+    i = 0
+    while i < len(passthrough):
+        arg = passthrough[i]
+        if arg in ("-l", "--location-config") and i + 1 < len(passthrough):
+            return passthrough[i + 1]
+        i += 1
+    return None
 
 
 def _ors_is_healthy() -> bool:
@@ -242,14 +269,52 @@ def main():
         and sys.argv[1] == "generate_driving_distances_cli"
         and not IN_CONTAINER
     ):
-        state, keep_running, passthrough = _peel_orchestration_args(sys.argv[2:])
+        # Peel out orchestrator-only flags with parse_known_args; everything
+        # else (-l, --server, --logdir, etc.) is forwarded to the in-container
+        # script's own argparse via `passthrough`. Watch-out: argparse
+        # prefix-matches --state against any future --state-* flag; allow-list
+        # if a collision ever appears.
+        orchestrator_parser = argparse.ArgumentParser(add_help=False)
+        orchestrator_parser.add_argument("--state", default=None)
+        orchestrator_parser.add_argument(
+            "--keep-ors-running", action="store_true", default=False,
+        )
+        orchestrator_args, passthrough = orchestrator_parser.parse_known_args(
+            sys.argv[2:]
+        )
+
+        state = orchestrator_args.state
         if state is None:
-            print(
-                "usage: python3 run.py generate_driving_distances_cli "
-                "<state> -l <config> [options]",
-                file=sys.stderr,
+            # Derive from the -l/--location-config that the in-container script
+            # will receive. Read the YAML on the host (stdlib only) to avoid
+            # importing PollingModelConfig (would pull numpy via python/__init__).
+            config_path = _config_path_from_passthrough(passthrough)
+            if config_path is None:
+                print(
+                    "usage: python3 run.py generate_driving_distances_cli "
+                    "[--state <slug>] -l <config> [options]\n"
+                    "  --state and -l/--location-config are both effectively required: "
+                    "either pass --state, or pass -l so the state can be derived "
+                    "from the config's location.",
+                    file=sys.stderr,
+                )
+                sys.exit(2)
+            state_slug_from_location, location_from_config_file = (
+                _load_ors_setup_helpers()
             )
-            sys.exit(2)
+            try:
+                location = location_from_config_file(config_path)
+                state = state_slug_from_location(location)
+            except ValueError as exc:
+                print(
+                    f"Couldn't derive state from {config_path}: {exc}.\n"
+                    f"Either rename the location to end in _<ST> "
+                    f"or pass an explicit override:\n"
+                    f"  python3 run.py generate_driving_distances_cli "
+                    f"--state georgia -l {config_path}",
+                    file=sys.stderr,
+                )
+                sys.exit(2)
 
         ors_was_already_up = _ors_is_healthy()
 
@@ -269,12 +334,16 @@ def main():
             except subprocess.CalledProcessError as e:
                 sys.exit(e.returncode)
 
+            # Matrix step: the in-container generate_driving_distances_cli
+            # re-derives state from the config independently (single source of
+            # truth = config.location). We do NOT forward --state through;
+            # `passthrough` already excludes it (parse_known_args consumed it).
             run_command(
-                ["python", "-m", "python.scripts.generate_driving_distances_cli", state]
+                ["python", "-m", "python.scripts.generate_driving_distances_cli"]
                 + passthrough
             )
         finally:
-            if not keep_running and not ors_was_already_up:
+            if not orchestrator_args.keep_ors_running and not ors_was_already_up:
                 ors_down_script = REPO_ROOT / "python" / "scripts" / "ors_down_cli.py"
                 try:
                     subprocess.run(

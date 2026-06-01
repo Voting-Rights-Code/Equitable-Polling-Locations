@@ -92,8 +92,18 @@ Both Gwinnett_G**A**_configs/Gwinnett* and Gwinnett_G**a**_configs/Gwinnett* wil
 The solver consumes driving-distance CSVs at `datasets/driving/<Loc>_<ST>/<Loc>_<ST>_driving_distances.csv`. The `generate_driving_distances_cli` script builds those CSVs from existing project data (TIGER block centroids + the `<Loc>_<ST>_potential_locations.csv` already used by the solver) by routing every origin × destination pair through a locally-hosted OpenRouteService (ORS) container.
 
 ```bash
-python3 run.py generate_driving_distances_cli georgia \
+python3 run.py generate_driving_distances_cli \
   -l datasets/configs/<config_set>/<config>.yaml
+```
+
+The state is derived automatically from the config's `location:` field
+(`<Name>_<ST>` convention, e.g. `Gwinnett_County_GA` → `georgia`). For
+synthetic configs whose location doesn't end in a 2-letter postal code
+(e.g. the `testing` fixture), pass an explicit `--state` override:
+
+```bash
+python3 run.py generate_driving_distances_cli --state georgia \
+  -l datasets/configs/testing/testing_config_driving.yaml
 ```
 
 First run for a state takes ~5-15 min (downloads the `.pbf` from Geofabrik if missing, then ORS builds its routing graph). Subsequent runs reuse the cached graph (~30s startup). The CLI auto-spawns ORS at the start and tears it down at the end; pass `--keep-ors-running` to leave it up across multiple invocations.

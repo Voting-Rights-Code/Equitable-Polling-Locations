@@ -30,7 +30,7 @@ from python.utils.driving_distance_matrix import (
     get_missing_origins,
     resume_from_partial_output,
 )
-from python.utils.ors_setup import GEOFABRIK_STATE_SLUGS
+from python.utils.ors_setup import GEOFABRIK_STATE_SLUGS, state_slug_from_location
 from python.utils.ors_url import resolve_ors_url
 from python.utils.utils import build_potential_locations_file_path, log_date_prefix
 
@@ -41,9 +41,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
         description='Generate driving-distance CSV for a county config.',
     )
     parser.add_argument(
-        'state',
-        help='Geofabrik state slug for the data being processed (e.g. "georgia", '
-             '"new-york"). Used to confirm the right ORS graph is loaded.',
+        '--state', default=None,
+        help='Geofabrik state slug override (e.g. "georgia", "new-york"). '
+             'When omitted, derived by parsing the trailing _<ST> postal code '
+             'from the config location.',
     )
     parser.add_argument(
         '-l', '--location-config', required=True,
@@ -197,7 +198,7 @@ def _assert_ors_reachable(matrix_url: str) -> None:
         pass
     print(
         f'ORS is not reachable at {health_url}. From the host, run\n'
-        f'  python3 run.py generate_driving_distances_cli <state> -l <config>\n'
+        f'  python3 run.py generate_driving_distances_cli -l <config>\n'
         f'which auto-orchestrates the ORS lifecycle. To start ORS manually:\n'
         f'  python3 run.py ors_up_cli <state>'
     )
@@ -215,18 +216,31 @@ def main(argv=None):
     '''
     args = build_arg_parser().parse_args(argv)
 
-    if args.state not in GEOFABRIK_STATE_SLUGS:
-        print(
-            f'Unknown state slug: {args.state!r}. Use the full Geofabrik slug, '
-            f'e.g. "georgia", "new-york", "district-of-columbia". See '
-            f'python/utils/ors_setup.py for the full list.'
-        )
-        sys.exit(2)
-
     matrix_url = resolve_ors_url(args.server)
     _assert_ors_reachable(matrix_url)
 
     config = PollingModelConfig.load_config(args.location_config)
+
+    state = args.state
+    if state is None:
+        try:
+            state = state_slug_from_location(config.location)
+        except ValueError as exc:
+            print(
+                f'Couldn\'t derive state from config (location={config.location!r}; {exc}).\n'
+                f'Either rename the location to end in _<ST> '
+                f'(e.g. {config.location}_GA) or pass an explicit override:\n'
+                f'  python3 run.py generate_driving_distances_cli --state georgia '
+                f'-l {args.location_config}'
+            )
+            sys.exit(2)
+    if state not in GEOFABRIK_STATE_SLUGS:
+        print(
+            f'Unknown state slug: {state!r}. Use the full Geofabrik slug, '
+            f'e.g. "georgia", "new-york", "district-of-columbia". See '
+            f'python/utils/ors_setup.py for the full list.'
+        )
+        sys.exit(2)
     log_fh, log_path = _open_log_file(args.logdir, config.config_file_path)
     try:
         _tee(f'[{datetime.now().isoformat(timespec="seconds")}] starting for '

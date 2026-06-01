@@ -20,36 +20,37 @@ class TestArgParser:
     def test_requires_location_config(self):
         parser = build_arg_parser()
         with pytest.raises(SystemExit):
-            parser.parse_args(['georgia'])
+            parser.parse_args([])
 
     def test_parses_location_config(self):
         parser = build_arg_parser()
-        args = parser.parse_args(['georgia', '-l', 'Gwinnett_GA/cfg.yaml'])
+        args = parser.parse_args(['-l', 'Gwinnett_GA/cfg.yaml'])
         assert args.location_config == 'Gwinnett_GA/cfg.yaml'
-        assert args.state == 'georgia'
 
     def test_default_logdir(self):
         parser = build_arg_parser()
-        args = parser.parse_args(['georgia', '-l', 'x.yaml'])
+        args = parser.parse_args(['-l', 'x.yaml'])
         assert args.logdir == './logs'
+
+    def test_state_defaults_to_none(self):
+        parser = build_arg_parser()
+        args = parser.parse_args(['-l', 'x.yaml'])
+        assert args.state is None
+
+    def test_explicit_state_flag(self):
+        parser = build_arg_parser()
+        args = parser.parse_args(['--state', 'georgia', '-l', 'x.yaml'])
+        assert args.state == 'georgia'
 
     def test_server_and_logdir_overrides(self):
         parser = build_arg_parser()
         args = parser.parse_args([
-            'georgia',
             '-l', 'x.yaml',
             '--server', 'http://foo:8080/ors/v2/matrix/driving-car',
             '--logdir', '/tmp/mylogs',
         ])
         assert args.server == 'http://foo:8080/ors/v2/matrix/driving-car'
         assert args.logdir == '/tmp/mylogs'
-
-    def test_requires_state_positional(self):
-        '''Without the positional state arg, argparse should exit with code 2.'''
-        parser = build_arg_parser()
-        with pytest.raises(SystemExit) as exc_info:
-            parser.parse_args(['-l', 'cfg.yaml'])
-        assert exc_info.value.code == 2
 
 
 class TestWriteOutputCsv:
@@ -169,7 +170,7 @@ class TestMain:
             return_value=str(driving_dir / 'Gwinnett_GA_driving_distances.csv'),
         ):
             main([
-                'georgia',
+                '--state', 'georgia',
                 '-l', str(tmp_path / 'cfg.yaml'),
                 '--logdir', str(logdir),
             ])
@@ -213,7 +214,7 @@ class TestMain:
             return_value=str(expected_output),
         ):
             rc = main([
-                'georgia',
+                '--state', 'georgia',
                 '-l', str(tmp_path / 'cfg.yaml'),
                 '--logdir', str(logdir),
                 '--check-bad-locations',
@@ -259,7 +260,7 @@ class TestMain:
             return_value=str(expected_output),
         ):
             main([
-                'georgia',
+                '--state', 'georgia',
                 '-l', str(tmp_path / 'cfg.yaml'),
                 '--logdir', str(logdir),
             ])
@@ -306,7 +307,7 @@ class TestMain:
             return_value=str(expected_output),
         ):
             main([
-                'georgia',
+                '--state', 'georgia',
                 '-l', str(tmp_path / 'cfg.yaml'),
                 '--logdir', str(logdir),
             ])
@@ -315,18 +316,122 @@ class TestMain:
 
 
 class TestStateValidation:
-    '''Tests for positional state-slug validation in main().'''
+    '''Tests for --state validation and config-derived fallback.'''
 
-    def test_rejects_unknown_state_slug(self):
-        '''An unknown slug must exit non-zero with a clear error.'''
+    def test_rejects_unknown_state_slug(self, tmp_path):
+        '''An explicit --state with an unknown slug must exit non-zero with a clear error.'''
+        del tmp_path
         with pytest.raises(SystemExit) as exc_info:
-            main(['atlantis', '-l', '/nonexistent.yaml'])
+            main(['--state', 'atlantis', '-l', '/nonexistent.yaml'])
         assert exc_info.value.code != 0
 
-    def test_requires_positional_state_arg(self):
-        '''Missing the state arg must trigger argparse error (exit code 2).'''
+    def test_state_flag_no_longer_required_on_cli(self):
+        '''argparse should accept --state-less invocation; derivation runs in main().'''
+        # This is the bare-parser case; the parser itself must accept it.
+        # main() will later try to load the config and derive; that error
+        # path is exercised by test_errors_when_neither_flag_nor_derivable_location.
+        parser = build_arg_parser()
+        args = parser.parse_args(['-l', '/nonexistent.yaml'])
+        assert args.state is None
+
+
+class TestConfigDerivedState:
+    '''Tests for deriving the state from config.location when --state is absent.'''
+
+    @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
+    @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
+    @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
+    @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
+    def test_derives_state_from_config_location_when_no_flag(
+            self, mock_cfg_cls, mock_derive, mock_build, unused_mock_reach, tmp_path):
+        '''No --state, config.location='Gwinnett_County_GA' -> state resolves to georgia.
+
+        The script doesn't expose the derived state via a return value, but
+        if derivation fails the call exits non-zero. Asserting a clean run
+        confirms the happy-path derivation.
+        '''
+        del unused_mock_reach
+        mock_cfg_cls.load_config.return_value = MagicMock(
+            location='Gwinnett_County_GA', census_year='2020',
+            config_file_path=str(tmp_path / 'cfg.yaml'),
+        )
+        mock_derive.return_value = (
+            {'a': [-84.0, 33.9], 'x': [-84.1, 34.0]},
+            ['a'],
+            ['x'],
+        )
+        mock_build.return_value = pd.DataFrame({
+            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [12345.0],
+        })
+        driving_dir = tmp_path / 'datasets' / 'driving' / 'Gwinnett_County_GA'
+        logdir = tmp_path / 'logs'
+        os.makedirs(driving_dir, exist_ok=True)
+        os.makedirs(logdir, exist_ok=True)
+        with patch(
+            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
+            return_value=str(driving_dir / 'Gwinnett_County_GA_driving_distances.csv'),
+        ):
+            rc = main([
+                '-l', str(tmp_path / 'cfg.yaml'),
+                '--logdir', str(logdir),
+            ])
+        assert rc == 0
+
+    @patch('python.scripts.generate_driving_distances_cli.state_slug_from_location')
+    @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
+    @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
+    @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
+    @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
+    def test_explicit_state_flag_overrides_config_derivation(
+            self, mock_cfg_cls, mock_derive, mock_build, unused_mock_reach, mock_state_derive, tmp_path):
+        '''--state texas wins even when config.location would derive to georgia.
+
+        Asserts that the explicit override is accepted (no SystemExit on a
+        non-matching state). The script does not fail just because state
+        and location disagree — operators may legitimately point at a
+        different graph.
+        '''
+        del unused_mock_reach
+        mock_cfg_cls.load_config.return_value = MagicMock(
+            location='Gwinnett_County_GA', census_year='2020',
+            config_file_path=str(tmp_path / 'cfg.yaml'),
+        )
+        mock_derive.return_value = (
+            {'a': [-84.0, 33.9], 'x': [-84.1, 34.0]},
+            ['a'],
+            ['x'],
+        )
+        mock_build.return_value = pd.DataFrame({
+            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [12345.0],
+        })
+        driving_dir = tmp_path / 'datasets' / 'driving' / 'Gwinnett_County_GA'
+        logdir = tmp_path / 'logs'
+        os.makedirs(driving_dir, exist_ok=True)
+        os.makedirs(logdir, exist_ok=True)
+        with patch(
+            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
+            return_value=str(driving_dir / 'Gwinnett_County_GA_driving_distances.csv'),
+        ):
+            rc = main([
+                '--state', 'texas',
+                '-l', str(tmp_path / 'cfg.yaml'),
+                '--logdir', str(logdir),
+            ])
+        assert rc == 0
+        mock_state_derive.assert_not_called()
+
+    @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
+    @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
+    def test_errors_when_neither_flag_nor_derivable_location(
+            self, mock_cfg_cls, unused_mock_reach):
+        '''No --state, config.location='testing' -> exit 2 with actionable error.'''
+        del unused_mock_reach
+        mock_cfg_cls.load_config.return_value = MagicMock(
+            location='testing', census_year='2020',
+            config_file_path='/tmp/cfg.yaml',
+        )
         with pytest.raises(SystemExit) as exc_info:
-            main(['-l', '/nonexistent.yaml'])
+            main(['-l', '/tmp/cfg.yaml'])
         assert exc_info.value.code == 2
 
 
@@ -343,5 +448,5 @@ class TestInContainerHealthCheck:
         '''
         del unused_mock_urlopen
         with pytest.raises(SystemExit) as exc_info:
-            main(['georgia', '-l', '/nonexistent.yaml'])
+            main(['--state', 'georgia', '-l', '/nonexistent.yaml'])
         assert exc_info.value.code == 1
