@@ -1,0 +1,21 @@
+# Build-only compose file. Kept separate from docker-compose.yml because
+# Zed's dev container pipeline breaks `build:` inside the compose file used
+# by `dockerComposeFile` — it extracts only the Dockerfile's FROM line and
+# skips the rest of the build steps. See docker-compose.yml's `image:` comment.
+#
+# Use this file to build the dev container image:
+#   docker compose -f .devcontainer/docker-compose.build.yml build
+#
+# That produces `equitable-polling-locations-app:latest`, which the Zed
+# dev container pipeline then picks up via `image:` in docker-compose.yml.
+services:
+    app:
+        image: equitable-polling-locations-app:latest
+        # Build context is the repo root so the Dockerfile can COPY
+        # environment.yml (and any other repo-root files) directly, without
+        # needing an initializeCommand to pre-copy them into .devcontainer/.
+        # This file is NOT referenced by devcontainer.json (so Zed's path bug
+        # with dockerComposeFile+build doesn't apply); only the CLI builds it.
+        build:
+            context: ..
+            dockerfile: .devcontainer/Dockerfile

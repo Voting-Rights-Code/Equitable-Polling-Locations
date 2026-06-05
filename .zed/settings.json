@@ -1,0 +1,18 @@
+{
+    "languages": {
+        "Python": {
+            "language_servers": ["pyright"]
+        }
+    },
+    "lsp": {
+        "pyright": {
+            "settings": {
+                "python": {
+                    "pythonPath": "/opt/conda/envs/equitable-polls/bin/python",
+                    "venvPath": "/opt/conda/envs",
+                    "venv": "equitable-polls"
+                }
+            }
+        }
+    }
+}
