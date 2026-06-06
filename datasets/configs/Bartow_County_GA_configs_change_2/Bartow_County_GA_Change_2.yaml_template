@@ -1,0 +1,33 @@
+# fields for the database
+config_set: 'Bartow_County_GA_configs_change_2' #should match folder name
+config_name: 'Bartow_County_GA_Change_2' #should match file name
+
+# Constants for the optimization function
+location: Bartow_County_GA
+census_year: '2020'
+year:
+    - '2025'
+bad_types:
+    - 'bg_centroid'
+beta: -2
+time_limit: 360000 #100 hours minutes
+limits_gap: 0.02
+capacity: 1.8
+fixed_capacity_site_number: null
+
+####Optional#####
+precincts_open: null
+max_min_mult: 5 #scalar >= 1
+maxpctnew: 1 # in interval [0,1]
+minpctold: .88 # in interval [0,1]
+driving: False
+log_distance: True
+penalized_sites: null
+
+###### For config generation ######
+field_to_vary: 'precincts_open'
+new_range:
+    - 17
+    - 18
+    - 19
+    - 20
