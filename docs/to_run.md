@@ -16,6 +16,26 @@ See [Installation](to_install.md) for more detail.
 
 > **Local (non-Docker) execution** is also supported via a conda environment. See [Contributing — Development Guide](../CONTRIBUTING.md#development-environment) for setup.
 
+## Census API Key
+
+The model needs a free [census API key](https://api.census.gov/data/key_signup.html) whenever it has to pull demographics or TIGER shapefiles for a county that isn't already in `datasets/census/`. If you're only re-running an existing config against data that's already on disk (or in the database), you can skip this section.
+
+Store your key with `run.py` (one-time, interactive prompt — no external Python packages required):
+
+```bash
+python run.py set_census_key
+```
+
+This saves the key to `authentication_files/credentials.json` (gitignored). Subsequent runs pick it up automatically.
+
+**Alternative — environment variable.** Export `CENSUS_API_KEY` instead — it takes precedence over `credentials.json` and is useful inside containers and CI:
+```bash
+export CENSUS_API_KEY=your-key-here
+python run.py pull_census_data_cli TX "Tarrant County" 2020
+```
+
+See [Input Data — Census Data](input_files.md#census-data-demographics-and-shapefiles) for the full list of files pulled, and [Installation — Census API Key](to_install.md#census-api-key-optional-for-new-counties) for the same setup summarized from the install flow.
+
 ## Running the Model
 
 From the project root, run the model. There are two command line options, one to write data locally, and the other to write data to the database:
@@ -66,3 +86,82 @@ To run only the config `Gwinnett_County_GA_driving_no_bg_no_ed_14` from the data
 
 ***NOTE: BEWARE OF CAPITALIZATION***
 Both Gwinnett_G**A**_configs/Gwinnett* and Gwinnett_G**a**_configs/Gwinnett* will run on Windows. However, due to string replacement work in other parts of the programs, the former is preferred.
+
+## Generating driving distances
+
+The solver consumes driving-distance CSVs at `datasets/driving/<Loc>_<ST>/<Loc>_<ST>_driving_distances.csv`. The `generate_driving_distances_cli` script builds those CSVs from existing project data (TIGER block centroids + the `<Loc>_<ST>_potential_locations.csv` already used by the solver) by routing every origin × destination pair through a locally-hosted OpenRouteService (ORS) container.
+
+```bash
+python3 run.py generate_driving_distances_cli \
+  -l datasets/configs/<config_set>/<config>.yaml
+```
+
+The state is derived automatically from the config's `location:` field
+(`<Name>_<ST>` convention, e.g. `Gwinnett_County_GA` → `georgia`). For
+synthetic configs whose location doesn't end in a 2-letter postal code
+(e.g. the `testing` fixture), pass an explicit `--state` override:
+
+```bash
+python3 run.py generate_driving_distances_cli --state georgia \
+  -l datasets/configs/testing/testing_config_driving.yaml
+```
+
+First run for a state takes ~5-15 min (downloads the `.pbf` from Geofabrik if missing, then ORS builds its routing graph). Subsequent runs reuse the cached graph (~30s startup). The CLI auto-spawns ORS at the start and tears it down at the end; pass `--keep-ors-running` to leave it up across multiple invocations.
+
+State slugs are full Geofabrik names (`georgia`, `new-york`, `district-of-columbia`); see `python/utils/ors_setup.py` for the full list.
+
+### Manual lifecycle (debugging / repeated experiments)
+
+If you want ORS up persistently:
+
+```bash
+python3 run.py ors_up_cli georgia
+# ... run generate_driving_distances_cli or curl directly ...
+python3 run.py ors_down_cli
+```
+
+`ors_up_cli` downloads the `.pbf` if missing, spawns the ORS container, waits for the health endpoint, and verifies the loaded routing graph matches the state you asked for.
+
+### Switching states
+
+ORS loads one `.pbf` per container. Each state has its own bind-mounted
+graph cache directory under `datasets/ors_graphs/<state>/`, so switching
+states is just:
+
+```bash
+python3 run.py ors_down_cli
+python3 run.py ors_up_cli texas              # downloads texas if missing
+```
+
+ORS sees the new state's empty (or pre-built) cache directory and rebuilds
+the graph automatically — no manual purge step.
+
+To force a clean rebuild for a specific state (e.g., after upgrading the
+`.pbf`), delete that state's cache directory manually:
+
+```bash
+rm -rf datasets/ors_graphs/georgia
+```
+
+### Resource budget
+
+ORS uses ~3–5 GB of RAM once a state's graph is loaded. The dev container also runs solver/Python workloads. **Bump Docker Desktop's memory to ≥ 12 GB if you run both at once** — the default 8 GB is too tight.
+
+### Where to override the ORS endpoint
+
+The driving CLI defaults to `http://localhost:8080/ors/v2/matrix/driving-car`. Overrides, in precedence order:
+- CLI flag: `--server http://...` on `generate_driving_distances_cli`.
+- Env var: `ORS_URL=http://...`.
+
+The `ors_up_cli` and `ors_down_cli` commands are **host-only** — they need access to the host's Docker daemon. From inside the dev container they refuse with a clear message. `generate_driving_distances_cli` from the host auto-orchestrates the lifecycle (so the `ors_up_cli`/`ors_down_cli` calls happen for you); from inside the container it only speaks HTTP and assumes ORS is already running.
+
+### Migration from earlier setup
+
+If you previously ran the older `ors_setup_cli --state X` / `ors_up_cli` workflow, your `.pbf` files lived under `.devcontainer/ors_data/`. The data directory has moved to `datasets/openrouteservice/` — one-time fix:
+
+```bash
+mv .devcontainer/ors_data/*.osm.pbf datasets/openrouteservice/
+```
+
+(This migration note can be deleted once everyone with prior installs has migrated.)
+
