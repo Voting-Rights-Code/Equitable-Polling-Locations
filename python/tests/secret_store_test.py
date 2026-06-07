@@ -207,6 +207,12 @@ class TestStoreClearMask:
         monkeypatch.setattr(secret_store, "keyring", None)
         assert secret_store.clear(self._secret(tmp_path)) == []
 
+    def test_clear_reports_only_file_when_not_in_keyring(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(secret_store, "keyring", FakeKeyring())
+        secret = self._secret(tmp_path)
+        secret_store._write_file(secret, "k")
+        assert secret_store.clear(secret) == ["file"]
+
     def test_mask_short_and_long(self):
         assert secret_store.mask("abcdef") == "****cdef"
         assert secret_store.mask("ab") == "****"
