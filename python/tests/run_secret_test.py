@@ -55,6 +55,20 @@ class TestSecretHandlers:
         secret_store._write_file(secret, "k")
         run.secret_clear(secret)
         assert "file" in capsys.readouterr().out
+        assert secret_store._read_file(secret) is None
+
+    def test_set_reports_keyring_storage(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(secret_store, "store", lambda secret, value: "keyring")
+        secret = self._secret(tmp_path)
+        monkeypatch.setattr(run.getpass, "getpass", lambda prompt="": "typed-key")
+        run.secret_set(secret)
+        assert "OS keystore" in capsys.readouterr().out
+
+    def test_handle_command_get_show_reveals(self, monkeypatch, capsys):
+        monkeypatch.setattr(secret_store, "keyring", None)
+        monkeypatch.setenv("CENSUS_API_KEY", "abcdef")
+        run.handle_secret_command(["get", "census", "--show"])
+        assert "abcdef" in capsys.readouterr().out
 
 
 class TestSecretInjection:
@@ -65,11 +79,13 @@ class TestSecretInjection:
     def test_flags_and_env_when_resolvable(self, monkeypatch):
         monkeypatch.setattr(run.secret_store, "resolve", lambda secret: "resolved")
         env, flags = run.build_secret_env_and_flags()
-        assert env["CENSUS_API_KEY"] == "resolved"
-        assert flags == ["-e", "CENSUS_API_KEY"]
+        assert len(flags) == 2 * len(secret_store.SECRETS)
+        for secret in secret_store.SECRETS.values():
+            assert env[secret.env_var] == "resolved"
+            assert secret.env_var in flags
 
     def test_no_flags_when_unset(self, monkeypatch):
         monkeypatch.setattr(run.secret_store, "resolve", lambda secret: None)
         env, flags = run.build_secret_env_and_flags()
         assert flags == []
-        assert env.get("CENSUS_API_KEY") in (None, "")
+        assert "CENSUS_API_KEY" not in env
