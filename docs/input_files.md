@@ -12,13 +12,13 @@ When setting up a **new location** for the first time, the following inputs are 
 
 The software requires a free census API key to run new counties. You can [apply on the census site](https://api.census.gov/data/key_signup.html) and be approved in seconds.
 
-To store your census API key (one-time, no external packages required):
+To store your census API key (one-time):
 
 ```bash
-python run.py set_census_key
+python run.py secret set census
 ```
 
-This prompts for your key and saves it to `authentication_files/credentials.json` (gitignored). Subsequent runs pick it up automatically.
+This prompts for your key and stores it. If the optional `keyring` package is installed on the host it goes into your OS keystore; otherwise it falls back to `authentication_files/credentials.json` (gitignored). Either way, subsequent runs pick it up automatically. See [to_install.md](to_install.md) for the optional `keyring` setup and [to_run.md](to_run.md) for the full `secret` command (`set`/`get`/`clear`).
 
 Alternatively, set the `CENSUS_API_KEY` environment variable — it takes precedence over `credentials.json` and is useful inside containers and CI:
 
