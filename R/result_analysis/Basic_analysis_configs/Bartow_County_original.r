@@ -50,7 +50,7 @@ if (HISTORICAL_FLAG){
 }
 
 #constants for reading data
-READ_FROM_CSV = TRUE
+READ_FROM_CSV = FALSE
 PRINT_SQL = FALSE
 
 #constants for database queries

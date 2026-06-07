@@ -414,17 +414,20 @@ make_precinct_map <- function(df_sf){
 	unpop_narrow <- unpop_join[ , !(grepl('\\.x', names(unpop_join)))]
 	names(unpop_narrow) <- gsub('\\.y', '',names(unpop_narrow))
 
+	#make everything multipolygon geometry for rbinding
+	precincts_sf_pop$precinct_geom <- st_cast(precincts_sf_pop$precinct_geom, 'MULTIPOLYGON') %>% st_make_valid()
+	unpop_narrow$precinct_geom <- st_cast(unpop_narrow$precinct_geom, 'MULTIPOLYGON') %>% st_make_valid()
+
 	#combine populated and unpopulated data
-	precincts_sf_all <- rbind(unpop_narrow, precincts_sf_pop) %>% group_by(id_dest, descriptor, dest_lat, dest_lon) %>% 
+	precincts_sf_all <- rbind(unpop_narrow, precincts_sf_pop) %>%group_by(id_dest, descriptor, dest_lat, dest_lon) %>% 
 								summarize(precinct_geom = st_union(precinct_geom)) %>% ungroup()
 
 	#coarsen the fidelity of the map to drop odds and ends of leftover lines
 	area_thresh <- units::set_units(2, km^2)
-	precincts_sf_valid <- precincts_sf_all %>%
-    		filter(st_geometry_type(.) %in% c("POLYGON", "MULTIPOLYGON")) %>%
-    		st_make_valid() %>% st_cast("MULTIPOLYGON")
+	#precincts_sf_valid <- precincts_sf_all %>%
+    #		st_make_valid()
 	plotted<- ggplot() +	
-		geom_sf(data = precincts_sf_valid, aes(fill = id_dest), show.legend = FALSE)+
+		geom_sf(data = precincts_sf_all, aes(fill = id_dest), show.legend = FALSE)+
 		geom_point(data = precincts_sf_all, aes(x = dest_lon, y = dest_lat), show.legend = FALSE)+ 
 		ggtitle(title_str, subtitle_str) + xlab('') + ylab('')
 	
@@ -435,7 +438,7 @@ make_precinct_map <- function(df_sf){
 
 	shp_file_path = paste0(location, '_','precinct','_',descriptor,'.shp')
 	add_graph_to_graph_file_manifest(shp_file_path)
-	st_write(precincts_sf_valid, shp_file_path, delete_layer = TRUE)
+	st_write(precincts_sf_all, shp_file_path, delete_layer = TRUE)
 }
 
 ###################
