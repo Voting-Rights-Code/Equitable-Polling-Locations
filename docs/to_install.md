@@ -18,11 +18,26 @@
 If you plan to download census data for counties not already in the repo, you need a free census API key.
 
 1. [Apply for a census API key](https://api.census.gov/data/key_signup.html) (approved in seconds)
-2. Store your key: `python run.py set_census_key` (prompts for the key and saves it to `authentication_files/credentials.json`, which is gitignored)
+2. Store your key (interactive prompt — no external Python packages required):
+   ```bash
+   python run.py secret set census
+   ```
 
-No external Python packages are required — `run.py` uses only the standard library.
+Alternatively, export the `CENSUS_API_KEY` environment variable — it takes precedence over the stored secret, which is useful inside containers and CI.
 
-Alternatively, export the `CENSUS_API_KEY` environment variable — it takes precedence over `credentials.json`, which is useful inside containers and CI.
+At model-run time `run.py` resolves the key automatically and forwards it into the container, so no extra steps are needed beyond storing it once.
+
+#### Optional: keyring backend
+
+By default, `secret set` stores secrets in `authentication_files/credentials.json` (gitignored). That file is wiped by `git clean -fdx`.
+
+Install `keyring` on the host to store secrets in your OS keystore instead, so they survive working-tree wipes:
+
+```bash
+pip install keyring
+```
+
+Headless Linux environments may also need a Secret Service backend (e.g. `pip install secretstorage`). Nothing breaks without `keyring` — the file fallback is automatic.
 
 ### Test the Installation
 To confirm the installation is setup correctly, run pytest with the following command in the root of the project directory:
