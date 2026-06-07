@@ -3,10 +3,13 @@
 import pytest
 
 import secret_store
+from secret_store import _read_file, _write_file
 import run
 
 
 class TestSecretHandlers:
+    """Tests for the secret_set, secret_get, and secret_clear command handlers."""
+
     def _secret(self, tmp_path):
         return secret_store.Secret(
             name="census", keyring_service="svc", keyring_username="user",
@@ -19,7 +22,7 @@ class TestSecretHandlers:
         secret = self._secret(tmp_path)
         monkeypatch.setattr(run.getpass, "getpass", lambda prompt="": "typed-key")
         run.secret_set(secret)
-        assert secret_store._read_file(secret) == "typed-key"
+        assert _read_file(secret) == "typed-key"
         assert "file" in capsys.readouterr().out
 
     def test_set_rejects_empty(self, tmp_path, monkeypatch):
@@ -31,7 +34,7 @@ class TestSecretHandlers:
     def test_get_masks_by_default(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setattr(secret_store, "keyring", None)
         secret = self._secret(tmp_path)
-        secret_store._write_file(secret, "abcdef")
+        _write_file(secret, "abcdef")
         run.secret_get(secret, show=False)
         out = capsys.readouterr().out
         assert "****cdef" in out
@@ -40,7 +43,7 @@ class TestSecretHandlers:
     def test_get_show_reveals(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setattr(secret_store, "keyring", None)
         secret = self._secret(tmp_path)
-        secret_store._write_file(secret, "abcdef")
+        _write_file(secret, "abcdef")
         run.secret_get(secret, show=True)
         assert "abcdef" in capsys.readouterr().out
 
@@ -52,10 +55,10 @@ class TestSecretHandlers:
     def test_clear_reports_removed(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setattr(secret_store, "keyring", None)
         secret = self._secret(tmp_path)
-        secret_store._write_file(secret, "k")
+        _write_file(secret, "k")
         run.secret_clear(secret)
         assert "file" in capsys.readouterr().out
-        assert secret_store._read_file(secret) is None
+        assert _read_file(secret) is None
 
     def test_set_reports_keyring_storage(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setattr(secret_store, "store", lambda secret, value: "keyring")
@@ -72,6 +75,8 @@ class TestSecretHandlers:
 
 
 class TestSecretInjection:
+    """Tests for build_secret_env_and_flags injecting resolved secrets into Docker env."""
+
     @pytest.fixture(autouse=True)
     def _clear_env(self, monkeypatch):
         monkeypatch.delenv("CENSUS_API_KEY", raising=False)
@@ -87,5 +92,5 @@ class TestSecretInjection:
     def test_no_flags_when_unset(self, monkeypatch):
         monkeypatch.setattr(run.secret_store, "resolve", lambda secret: None)
         env, flags = run.build_secret_env_and_flags()
-        assert flags == []
+        assert not flags
         assert "CENSUS_API_KEY" not in env

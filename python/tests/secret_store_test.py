@@ -5,10 +5,11 @@ import json
 import pytest
 
 import secret_store
-from secret_store import SECRETS, Secret, get_secret
+from secret_store import SECRETS, Secret, get_secret, _read_file, _write_file, _clear_file, _read_keyring, _store_keyring
 
 
 class TestRegistry:
+    """Tests for the SECRETS registry and get_secret lookup."""
     def test_census_secret_registered(self):
         secret = get_secret("census")
         assert isinstance(secret, Secret)
@@ -24,6 +25,7 @@ class TestRegistry:
 
 
 class TestFileBackend:
+    """Tests for the file-based credential read/write/clear helpers."""
     def _secret(self, tmp_path):
         return Secret(
             name="census",
@@ -36,31 +38,31 @@ class TestFileBackend:
 
     def test_write_then_read_file(self, tmp_path):
         secret = self._secret(tmp_path)
-        secret_store._write_file(secret, "file-key")
-        assert secret_store._read_file(secret) == "file-key"
+        _write_file(secret, "file-key")
+        assert _read_file(secret) == "file-key"
 
     def test_read_missing_file_returns_none(self, tmp_path):
-        assert secret_store._read_file(self._secret(tmp_path)) is None
+        assert _read_file(self._secret(tmp_path)) is None
 
     def test_read_malformed_file_returns_none(self, tmp_path):
         secret = self._secret(tmp_path)
         secret.file_path.parent.mkdir(parents=True)
-        secret.file_path.write_text("not json{{{")
-        assert secret_store._read_file(secret) is None
+        secret.file_path.write_text("not json{{{", encoding="utf-8")
+        assert _read_file(secret) is None
 
     def test_clear_file_removes_field_and_empty_file(self, tmp_path):
         secret = self._secret(tmp_path)
-        secret_store._write_file(secret, "file-key")
-        removed = secret_store._clear_file(secret)
+        _write_file(secret, "file-key")
+        removed = _clear_file(secret)
         assert removed is True
         assert not secret.file_path.exists()
 
     def test_clear_file_preserves_other_fields(self, tmp_path):
         secret = self._secret(tmp_path)
         secret.file_path.parent.mkdir(parents=True)
-        secret.file_path.write_text(json.dumps({"census_key": "k", "other": "v"}))
-        secret_store._clear_file(secret)
-        data = json.loads(secret.file_path.read_text())
+        secret.file_path.write_text(json.dumps({"census_key": "k", "other": "v"}), encoding="utf-8")
+        _clear_file(secret)
+        data = json.loads(secret.file_path.read_text(encoding="utf-8"))
         assert data == {"other": "v"}
 
 
@@ -88,6 +90,8 @@ class FakeKeyring:
 
 
 class TestKeyringBackend:
+    """Tests for the keyring-based credential read/write helpers."""
+
     def _secret(self):
         return get_secret("census")
 
@@ -103,24 +107,26 @@ class TestKeyringBackend:
         fake = FakeKeyring()
         monkeypatch.setattr(secret_store, "keyring", fake)
         secret = self._secret()
-        secret_store._store_keyring(secret, "kr-key")
-        assert secret_store._read_keyring(secret) == "kr-key"
+        _store_keyring(secret, "kr-key")
+        assert _read_keyring(secret) == "kr-key"
 
     def test_read_keyring_none_when_module_none(self, monkeypatch):
         monkeypatch.setattr(secret_store, "keyring", None)
-        assert secret_store._read_keyring(self._secret()) is None
+        assert _read_keyring(self._secret()) is None
 
     def test_read_keyring_none_on_error(self, monkeypatch):
         monkeypatch.setattr(secret_store, "keyring", FakeKeyring(fail=True))
-        assert secret_store._read_keyring(self._secret()) is None
+        assert _read_keyring(self._secret()) is None
 
     def test_store_keyring_raises_on_error(self, monkeypatch):
         monkeypatch.setattr(secret_store, "keyring", FakeKeyring(fail=True))
         with pytest.raises(secret_store.KeyringError):
-            secret_store._store_keyring(self._secret(), "x")
+            _store_keyring(self._secret(), "x")
 
 
 class TestResolve:
+    """Tests for secret_store.resolve priority order (env > keyring > file)."""
+
     @pytest.fixture(autouse=True)
     def _clear_env(self, monkeypatch):
         monkeypatch.delenv("CENSUS_API_KEY", raising=False)
@@ -136,21 +142,21 @@ class TestResolve:
         monkeypatch.setattr(secret_store, "keyring", FakeKeyring())
         monkeypatch.setenv("CENSUS_API_KEY", "env-key")
         secret = self._secret(tmp_path)
-        secret_store._store_keyring(secret, "kr-key")
-        secret_store._write_file(secret, "file-key")
+        _store_keyring(secret, "kr-key")
+        _write_file(secret, "file-key")
         assert secret_store.resolve(secret) == "env-key"
 
     def test_keyring_beats_file(self, tmp_path, monkeypatch):
         monkeypatch.setattr(secret_store, "keyring", FakeKeyring())
         secret = self._secret(tmp_path)
-        secret_store._store_keyring(secret, "kr-key")
-        secret_store._write_file(secret, "file-key")
+        _store_keyring(secret, "kr-key")
+        _write_file(secret, "file-key")
         assert secret_store.resolve(secret) == "kr-key"
 
     def test_file_when_no_env_or_keyring(self, tmp_path, monkeypatch):
         monkeypatch.setattr(secret_store, "keyring", None)
         secret = self._secret(tmp_path)
-        secret_store._write_file(secret, "file-key")
+        _write_file(secret, "file-key")
         assert secret_store.resolve(secret) == "file-key"
 
     def test_none_when_nothing(self, tmp_path, monkeypatch):
@@ -161,11 +167,13 @@ class TestResolve:
         monkeypatch.setattr(secret_store, "keyring", None)
         monkeypatch.setenv("CENSUS_API_KEY", "")
         secret = self._secret(tmp_path)
-        secret_store._write_file(secret, "file-key")
+        _write_file(secret, "file-key")
         assert secret_store.resolve(secret) == "file-key"
 
 
 class TestStoreClearMask:
+    """Tests for secret_store.store, clear, and mask public functions."""
+
     def _secret(self, tmp_path):
         return Secret(
             name="census", keyring_service="svc", keyring_username="user",
@@ -180,37 +188,37 @@ class TestStoreClearMask:
         where = secret_store.store(secret, "k")
         assert where == "keyring"
         assert not secret.file_path.exists()
-        assert secret_store._read_keyring(secret) == "k"
+        assert _read_keyring(secret) == "k"
 
     def test_store_falls_back_to_file_when_no_keyring(self, tmp_path, monkeypatch):
         monkeypatch.setattr(secret_store, "keyring", None)
         secret = self._secret(tmp_path)
         assert secret_store.store(secret, "k") == "file"
-        assert secret_store._read_file(secret) == "k"
+        assert _read_file(secret) == "k"
 
     def test_store_falls_back_to_file_on_backend_error(self, tmp_path, monkeypatch):
         monkeypatch.setattr(secret_store, "keyring", FakeKeyring(fail=True))
         secret = self._secret(tmp_path)
         assert secret_store.store(secret, "k") == "file"
-        assert secret_store._read_file(secret) == "k"
+        assert _read_file(secret) == "k"
 
     def test_clear_removes_keyring_and_file(self, tmp_path, monkeypatch):
         fake = FakeKeyring()
         monkeypatch.setattr(secret_store, "keyring", fake)
         secret = self._secret(tmp_path)
-        secret_store._store_keyring(secret, "k")
-        secret_store._write_file(secret, "k")
+        _store_keyring(secret, "k")
+        _write_file(secret, "k")
         removed = secret_store.clear(secret)
         assert set(removed) == {"keyring", "file"}
 
     def test_clear_returns_empty_when_nothing(self, tmp_path, monkeypatch):
         monkeypatch.setattr(secret_store, "keyring", None)
-        assert secret_store.clear(self._secret(tmp_path)) == []
+        assert not secret_store.clear(self._secret(tmp_path))
 
     def test_clear_reports_only_file_when_not_in_keyring(self, tmp_path, monkeypatch):
         monkeypatch.setattr(secret_store, "keyring", FakeKeyring())
         secret = self._secret(tmp_path)
-        secret_store._write_file(secret, "k")
+        _write_file(secret, "k")
         assert secret_store.clear(secret) == ["file"]
 
     def test_mask_short_and_long(self):
