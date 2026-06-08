@@ -182,6 +182,7 @@ STATE_LOOKUP = {
     'WY': 'Wyoming'
 }
 
+
 def get_census_json(url: str) -> Any:
     '''GET a census API URL and return its parsed JSON, retrying transient failures.
 

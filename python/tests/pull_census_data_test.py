@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 import requests
 
-from python.utils.pull_census_data import pull_tiger_file, unzip_file, _is_retryable_http_error, _request_with_retries, HTTP_MAX_RETRIES, get_census_json, download_file
+from python.utils.pull_census_data import pull_tiger_file, unzip_file, _is_retryable_http_error, _request_with_retries, HTTP_MAX_RETRIES, HTTP_RETRY_BACKOFF_SECONDS, get_census_json, download_file
 from python.utils.directory_constants import BLOCK_GEO
 from python.utils.utils import build_tiger_location_dir
 
@@ -126,6 +126,7 @@ class TestRequestWithRetries:
 
     def test_retries_transient_then_succeeds(self):
         calls = []
+        sleeps = []
 
         def operation():
             calls.append(1)
@@ -133,8 +134,9 @@ class TestRequestWithRetries:
                 raise requests.exceptions.ConnectionError("boom")
             return "ok"
 
-        assert _request_with_retries(operation, "x", sleep=self._no_sleep) == "ok"
+        assert _request_with_retries(operation, "x", sleep=sleeps.append) == "ok"
         assert len(calls) == 2
+        assert sleeps == [HTTP_RETRY_BACKOFF_SECONDS]
 
     def test_non_retryable_http_error_raises_immediately(self):
         calls = []
