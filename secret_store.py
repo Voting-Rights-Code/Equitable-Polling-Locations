@@ -59,6 +59,29 @@ SECRETS: dict[str, Secret] = {
         file_path=REPO_ROOT / "authentication_files" / "credentials.json",
         file_field="census_key",
     ),
+    "rdh_username": Secret(
+        name="rdh_username",
+        keyring_service="equitable-polling-locations",
+        keyring_username="rdh_username",
+        env_var="RDH_USERNAME",
+        file_path=REPO_ROOT / "authentication_files" / "credentials.json",
+        file_field="rdh_username",
+        sensitive=False,
+    ),
+    "rdh_password": Secret(
+        name="rdh_password",
+        keyring_service="equitable-polling-locations",
+        keyring_username="rdh_password",
+        env_var="RDH_PASSWORD",
+        file_path=REPO_ROOT / "authentication_files" / "credentials.json",
+        file_field="rdh_password",
+    ),
+}
+
+# Logical secrets that map to more than one stored value. The CLI expands a
+# group name to its member secrets and operates on each in turn.
+GROUPS: dict[str, tuple[str, ...]] = {
+    "rdh": ("rdh_username", "rdh_password"),
 }
 
 

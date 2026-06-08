@@ -235,3 +235,22 @@ class TestStoreClearMask:
     def test_mask_short_and_long(self):
         assert secret_store.mask("abcdef") == "****cdef"
         assert secret_store.mask("ab") == "****"
+
+
+class TestRdhRegistry:
+    """Tests for the RDH secrets and the rdh group."""
+
+    def test_rdh_username_registered_non_sensitive(self):
+        secret = get_secret("rdh_username")
+        assert secret.env_var == "RDH_USERNAME"
+        assert secret.file_field == "rdh_username"
+        assert secret.sensitive is False
+
+    def test_rdh_password_registered_sensitive(self):
+        secret = get_secret("rdh_password")
+        assert secret.env_var == "RDH_PASSWORD"
+        assert secret.file_field == "rdh_password"
+        assert secret.sensitive is True
+
+    def test_rdh_group_expands_to_members(self):
+        assert secret_store.GROUPS["rdh"] == ("rdh_username", "rdh_password")
