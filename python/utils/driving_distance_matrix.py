@@ -121,6 +121,12 @@ def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFr
     source, compute ``distance_m + distance_to_mid`` (haversine offset from
     ``origin`` to that source). Take the minimum over those candidates.
 
+    The chosen neighbor's ``duration_s`` is carried unchanged: the sub-1 km
+    haversine offset is applied to ``distance_m`` only, because converting
+    that offset to a travel time would require an invented speed constant.
+    This is a small, bounded approximation affecting only unroutable (snapped)
+    origins.
+
     Args:
         origin: The id of the origin to estimate distances for.
         df: A DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``
@@ -129,8 +135,8 @@ def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFr
 
     Returns:
         A DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``,
-        holding the best snapped estimate per destination. Empty if no
-        in-range neighbor exists.
+        ``duration_s``, holding the best snapped estimate per destination.
+        Empty if no in-range neighbor exists.
     '''
     candidates = df.rename(columns={DISTANCE_ID_ORIG: 'midpoint'}).copy()
     candidates[DISTANCE_ID_ORIG] = origin
@@ -142,7 +148,7 @@ def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFr
 
     in_range = candidates[candidates['distance_to_mid'] < HAVERSINE_SNAP_RADIUS_METERS].copy()
     if in_range.empty:
-        return in_range[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M]]
+        return in_range[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S]]
 
     in_range['estimated_m'] = in_range[DISTANCE_DISTANCE_M] + in_range['distance_to_mid']
     best = (in_range
@@ -151,7 +157,7 @@ def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFr
             .first()
             .reset_index())
     best[DISTANCE_DISTANCE_M] = best['estimated_m']
-    return best[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M]]
+    return best[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S]]
 
 
 def _build_locations_payload(locations, source_ids, dest_ids):
@@ -315,7 +321,7 @@ def _snap_unroutable_origins(df: pd.DataFrame,
     df = df.dropna(subset=[DISTANCE_DISTANCE_M])
     if df.empty:
         return pd.DataFrame(
-            columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
+            columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S],
         )
 
     snapped_parts = []
@@ -330,7 +336,7 @@ def _snap_unroutable_origins(df: pd.DataFrame,
         snapped_parts.append(snapped)
 
     snapped_df = pd.concat(snapped_parts, ignore_index=True) if snapped_parts else pd.DataFrame(
-        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
+        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S],
     )
     return pd.concat([df, snapped_df], ignore_index=True)
 
