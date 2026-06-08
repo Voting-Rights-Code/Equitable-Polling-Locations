@@ -363,6 +363,14 @@ class TestLoadRdhCredentials:
         assert _load_rdh_credentials(tmp_path / 'missing.json') == (None, None)
 
 
+def test_pull_CVAP_data_raises_when_rdh_credentials_missing(monkeypatch):
+    ''' pull_CVAP_data fails fast (before any network call) when RDH creds are absent. '''
+    import python.utils.pull_census_data as pcd
+    monkeypatch.setattr(pcd, '_load_rdh_credentials', lambda *a, **k: (None, None))
+    with pytest.raises(ValueError, match='No RDH credentials available'):
+        pcd.pull_CVAP_data('GA', 'Gwinnett County', '2020', census_apikey='fake-key')
+
+
 class TestGetCensusJson:
     """Tests for get_census_json()."""
 

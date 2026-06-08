@@ -154,13 +154,6 @@ def _load_rdh_credentials(credentials_path=CREDENTIALS_PATH) -> tuple[Optional[s
     return (username or data.get('rdh_username'), password or data.get('rdh_password'))
 
 
-try:
-    from authentication_files.RDH_key import RDH_username, RDH_password
-except:
-    RDH_username = None
-    RDH_password = None
-
-
 STATE_LOOKUP = {
     'AK': 'Alaska',
     'AL': 'Alabama',
@@ -568,8 +561,8 @@ def pull_CVAP_data(
     county,
     census_year,
     census_apikey=None,
-    rdh_username=RDH_username,
-    rdh_password=RDH_password,
+    rdh_username=None,
+    rdh_password=None,
     state_lookup=STATE_LOOKUP,
     rdh_url=RDH_LIST_URL,
 ):
@@ -588,9 +581,13 @@ def pull_CVAP_data(
     #TODO: Refactor this and pull census data so that tiger files not pulled twice
     #TODO: Refactor to reduce repeated code
     if rdh_username is None or rdh_password is None:
-        pass
-        #TODO: Eventually raise this error. No API connection yet.
-        #raise ValueError('No RDH key available. Please request one from the census to download census data. See README.')
+        loaded_username, loaded_password = _load_rdh_credentials()
+        rdh_username = rdh_username or loaded_username
+        rdh_password = rdh_password or loaded_password
+    if rdh_username is None or rdh_password is None:
+        raise ValueError(
+            'No RDH credentials available. Run `python run.py secret set rdh`. See README.'
+        )
     state = state_lookup.get(statecode)
     states_fips = get_all_states_fips_codes(census_year, census_apikey)  # get all fips codes for all states
     fipscode2 = states_fips[state]
