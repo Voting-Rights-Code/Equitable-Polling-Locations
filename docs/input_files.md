@@ -47,7 +47,7 @@ Alternatively, set the `RDH_USERNAME` and `RDH_PASSWORD` environment variables; 
 
 The software downloads and uses the following census datasets:
 
-### P3 and P4 tables
+### Redistricting data (P3 and P4 tables)
 
 Stored in `datasets/census/redistricting/<County_ST>/`
 
