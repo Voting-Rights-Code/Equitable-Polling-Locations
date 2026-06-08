@@ -16,6 +16,44 @@ See [Installation](to_install.md) for more detail.
 
 > **Local (non-Docker) execution** is also supported via a conda environment. See [Contributing — Development Guide](../CONTRIBUTING.md#development-environment) for setup.
 
+## Managing Secrets
+
+`run.py` provides a `secret` command for storing and retrieving named credentials. The only registered secret today is `census` (your Census API key).
+
+At model-run time, `run.py` resolves each secret using this precedence — **env var > OS keyring > credentials file** — and forwards it into the container automatically (the container reads `CENSUS_API_KEY`).
+
+### Census API Key
+
+The model needs a free [census API key](https://api.census.gov/data/key_signup.html) whenever it has to pull demographics or TIGER shapefiles for a county that isn't already in `datasets/census/`. If you're only re-running an existing config against data that's already on disk (or in the database), you can skip this section.
+
+**Store the key** (one-time, interactive prompt):
+
+```bash
+python run.py secret set census
+```
+
+**Check whether the key is set** (prints a masked value by default):
+
+```bash
+python run.py secret get census
+python run.py secret get census --show   # prints the raw value
+```
+
+**Remove the key from all backends:**
+
+```bash
+python run.py secret clear census
+```
+
+**Alternative — environment variable.** Export `CENSUS_API_KEY` instead — it takes precedence over the stored secret and is useful inside containers and CI:
+
+```bash
+export CENSUS_API_KEY=your-key-here
+python run.py pull_census_data_cli TX "Tarrant County" 2020
+```
+
+See [Input Data — Census Data](input_files.md#census-data-demographics-and-shapefiles) for the full list of files pulled, and [Installation — Census API Key](to_install.md#census-api-key-optional-for-new-counties) for keyring setup and other install-time details.
+
 ## Running the Model
 
 From the project root, run the model. There are two command line options, one to write data locally, and the other to write data to the database:
