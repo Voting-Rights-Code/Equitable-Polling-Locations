@@ -212,3 +212,25 @@ def test_filter_distance_data_allows_zero_distance(
     # Should not raise.
     model_data.filter_distance_data(testing_config_driving, df, False, False)
 
+
+def test_load_driving_distances_csv_tolerates_duration_column(tmp_path):
+    ''' The solver CSV loader must read the new 4-column schema without error. '''
+    path = tmp_path / 'd.csv'
+    path.write_text(
+        'id_orig,id_dest,distance_m,duration_s\n'
+        '1,A,100.0,12.0\n'
+        '2,A,200.0,24.0\n'
+    )
+    df = model_data.load_driving_distances_csv(str(path))
+    assert 'duration_s' in df.columns
+    assert df['distance_m'].tolist() == [100.0, 200.0]
+
+
+def test_load_driving_distances_csv_still_reads_legacy_three_column(tmp_path):
+    ''' Older CSVs without duration_s still load (default distance metric). '''
+    path = tmp_path / 'legacy.csv'
+    path.write_text('id_orig,id_dest,distance_m\n1,A,100.0\n')
+    df = model_data.load_driving_distances_csv(str(path))
+    assert df['distance_m'].tolist() == [100.0]
+    assert 'duration_s' not in df.columns
+
