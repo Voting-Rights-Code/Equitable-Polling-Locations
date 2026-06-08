@@ -423,6 +423,17 @@ class TestBuildMatrixHappyPathDuration:
         assert df.iloc[0]['duration_s'] == 12.0
 
 
+class TestResumeEmptyFrameHasDuration:
+    '''Resuming from a missing file yields the 4-column schema.'''
+
+    def test_missing_file_returns_four_column_frame(self, tmp_path):
+        existing_df, remaining = resume_from_partial_output(
+            str(tmp_path / 'nope.csv'), source_ids=['a'], dest_ids=['x'],
+        )
+        assert list(existing_df.columns) == ['id_orig', 'id_dest', 'distance_m', 'duration_s']
+        assert remaining == [('a', 'x')]
+
+
 class TestEstimateOriginCarriesDuration:
     '''Snapped origins inherit the chosen neighbor's duration_s.'''
 

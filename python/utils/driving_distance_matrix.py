@@ -418,7 +418,7 @@ def resume_from_partial_output(output_path, source_ids, dest_ids):
 
     Args:
         output_path: Path to a possibly-existing CSV with columns
-            ``id_orig``, ``id_dest``, ``distance_m``.
+            ``id_orig``, ``id_dest``, ``distance_m``, ``duration_s``.
         source_ids: All requested origin ids.
         dest_ids: All requested destination ids.
 
@@ -431,7 +431,7 @@ def resume_from_partial_output(output_path, source_ids, dest_ids):
         existing_df = pd.read_csv(output_path)
     except (FileNotFoundError, pd.errors.EmptyDataError):
         existing_df = pd.DataFrame(
-            columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
+            columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S],
         )
 
     present = set(zip(

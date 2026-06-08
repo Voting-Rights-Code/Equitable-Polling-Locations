@@ -16,6 +16,7 @@ import pandas as pd
 
 from python.solver.constants import (
     DISTANCE_DISTANCE_M,
+    DISTANCE_DURATION_S,
     DISTANCE_ID_DEST,
     DISTANCE_ID_ORIG,
     TIGER20_GEOID20,
@@ -160,8 +161,10 @@ def _pick_coord_extractor(columns):
 
 
 def write_output_csv(df, path: str) -> None:
-    '''Write the canonical 3-column CSV (id_orig, id_dest, distance_m).'''
-    df[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M]].to_csv(path, index=False)
+    '''Write the canonical 4-column CSV (id_orig, id_dest, distance_m, duration_s).'''
+    df[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S]].to_csv(
+        path, index=False,
+    )
 
 
 def _open_log_file(logdir: str, config_file_path: str):
