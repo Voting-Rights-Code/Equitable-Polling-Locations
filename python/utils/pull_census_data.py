@@ -126,6 +126,34 @@ def _load_census_key(credentials_path=CREDENTIALS_PATH):
     except (FileNotFoundError, json.JSONDecodeError):
         return None
 
+def _load_rdh_credentials(credentials_path=CREDENTIALS_PATH) -> tuple[Optional[str], Optional[str]]:
+    """Resolve the RDH username and password from env vars, then the credentials file.
+
+    `RDH_USERNAME` / `RDH_PASSWORD` env vars (forwarded into the container by
+    `run.py`) take precedence over the `rdh_username` / `rdh_password` fields in
+    `credentials.json`. Each value resolves independently, so a username in the
+    environment and a password in the file resolve together.
+
+    Args:
+        credentials_path: Path to the credentials JSON file. Defaults to
+            authentication_files/credentials.json at the project root.
+
+    Returns:
+        A (username, password) tuple; each element is None when that value is
+        unset in both the environment and the credentials file.
+    """
+    username = os.environ.get('RDH_USERNAME')
+    password = os.environ.get('RDH_PASSWORD')
+    if username and password:
+        return username, password
+    try:
+        with open(credentials_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        data = {}
+    return (username or data.get('rdh_username'), password or data.get('rdh_password'))
+
+
 try:
     from authentication_files.RDH_key import RDH_username, RDH_password
 except:

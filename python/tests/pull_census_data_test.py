@@ -331,6 +331,38 @@ class TestDownloadFileRetry:
         assert Path(result).read_bytes() == b'hello world'
 
 
+class TestLoadRdhCredentials:
+    """Tests for _load_rdh_credentials()."""
+
+    def test_reads_from_env(self, monkeypatch, tmp_path):
+        monkeypatch.setenv('RDH_USERNAME', 'env-user')
+        monkeypatch.setenv('RDH_PASSWORD', 'env-pass')
+        from python.utils.pull_census_data import _load_rdh_credentials
+        assert _load_rdh_credentials(tmp_path / 'missing.json') == ('env-user', 'env-pass')
+
+    def test_reads_from_file(self, monkeypatch, tmp_path):
+        monkeypatch.delenv('RDH_USERNAME', raising=False)
+        monkeypatch.delenv('RDH_PASSWORD', raising=False)
+        creds = tmp_path / 'credentials.json'
+        creds.write_text('{"rdh_username": "file-user", "rdh_password": "file-pass"}', encoding='utf-8')
+        from python.utils.pull_census_data import _load_rdh_credentials
+        assert _load_rdh_credentials(creds) == ('file-user', 'file-pass')
+
+    def test_env_username_file_password(self, monkeypatch, tmp_path):
+        monkeypatch.setenv('RDH_USERNAME', 'env-user')
+        monkeypatch.delenv('RDH_PASSWORD', raising=False)
+        creds = tmp_path / 'credentials.json'
+        creds.write_text('{"rdh_password": "file-pass"}', encoding='utf-8')
+        from python.utils.pull_census_data import _load_rdh_credentials
+        assert _load_rdh_credentials(creds) == ('env-user', 'file-pass')
+
+    def test_none_when_absent(self, monkeypatch, tmp_path):
+        monkeypatch.delenv('RDH_USERNAME', raising=False)
+        monkeypatch.delenv('RDH_PASSWORD', raising=False)
+        from python.utils.pull_census_data import _load_rdh_credentials
+        assert _load_rdh_credentials(tmp_path / 'missing.json') == (None, None)
+
+
 class TestGetCensusJson:
     """Tests for get_census_json()."""
 
