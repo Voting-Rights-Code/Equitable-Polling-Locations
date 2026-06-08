@@ -11,7 +11,7 @@ from python.utils.driving_distance_matrix import (
     _LEVEL_DEFAULT,
     _LEVEL_V,
     _LEVEL_VV,
-    _coerce_negative_distances_to_null,
+    _coerce_negative_metrics_to_null,
     _emit,
     build_distance_matrix,
     estimate_origin,
@@ -348,19 +348,23 @@ class TestVerbosityGating:
         assert 'no neighbor within 1km, dropped' in capsys.readouterr().out
 
 
-class TestCoerceNegativeDistancesToNull:
-    '''Negative distances are mapped to NaN so they behave like no-route.'''
+class TestCoerceNegativeMetricsToNull:
+    '''Negative distance_m OR duration_s is mapped to NaN; 0 and positives kept.'''
 
-    def test_negative_becomes_nan_zero_and_positive_untouched(self):
+    def test_negative_distance_and_duration_become_nan(self):
         df = pd.DataFrame({
             'id_orig': ['a', 'b', 'c'],
             'id_dest': ['x', 'x', 'x'],
             'distance_m': [-1.0, 0.0, 50.0],
+            'duration_s': [12.0, -2.0, 30.0],
         })
-        result = _coerce_negative_distances_to_null(df)
-        assert pd.isnull(result.loc[0, 'distance_m'])
-        assert result.loc[1, 'distance_m'] == 0.0
-        assert result.loc[2, 'distance_m'] == 50.0
+        result = _coerce_negative_metrics_to_null(df)
+        assert pd.isnull(result.loc[0, 'distance_m'])   # -1 distance -> NaN
+        assert result.loc[1, 'distance_m'] == 0.0       # 0 kept
+        assert result.loc[2, 'distance_m'] == 50.0      # positive kept
+        assert result.loc[0, 'duration_s'] == 12.0      # positive kept
+        assert pd.isnull(result.loc[1, 'duration_s'])   # -2 duration -> NaN
+        assert result.loc[2, 'duration_s'] == 30.0      # positive kept
 
 
 class TestBuildMatrixNegativeHandling:

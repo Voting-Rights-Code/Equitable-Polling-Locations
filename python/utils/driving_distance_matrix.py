@@ -95,21 +95,22 @@ def matrix_response_to_long_df(source_names, dest_names, distances, durations) -
     )
 
 
-def _coerce_negative_distances_to_null(df: pd.DataFrame) -> pd.DataFrame:
-    '''Replace any negative ``distance_m`` with NaN, in place.
+def _coerce_negative_metrics_to_null(df: pd.DataFrame) -> pd.DataFrame:
+    '''Replace any negative ``distance_m`` or ``duration_s`` with NaN, in place.
 
     ORS signals "no route" with null, which becomes NaN and is recovered by the
-    snap/retry path. A negative distance is never a valid real-world value; if a
-    routing backend ever emits one, treat it as no-route so it flows through the
-    same recovery and never reaches the output CSV. ``0`` is left untouched.
+    snap/retry path. A negative distance or duration is never a valid real-world
+    value; if a routing backend ever emits one, treat it as no-route so it flows
+    through the same recovery and never reaches the output CSV. ``0`` is kept.
 
     Args:
-        df: Long-form DataFrame with a ``distance_m`` column.
+        df: Long-form DataFrame with ``distance_m`` and ``duration_s`` columns.
 
     Returns:
-        The same DataFrame, with any ``distance_m < 0`` set to NaN.
+        The same DataFrame, with any negative ``distance_m``/``duration_s`` set to NaN.
     '''
     df.loc[df[DISTANCE_DISTANCE_M] < 0, DISTANCE_DISTANCE_M] = float('nan')
+    df.loc[df[DISTANCE_DURATION_S] < 0, DISTANCE_DURATION_S] = float('nan')
     return df
 
 
@@ -388,7 +389,7 @@ def build_distance_matrix(*,
         _emit(f'{done}/{len(source_ids)}: {elapsed:.2f}s', _LEVEL_V, log_fh, verbosity)
 
     df = pd.concat(batch_dfs, ignore_index=True) if batch_dfs else pd.DataFrame(
-        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
+        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S],
     )
 
     if failed_sources:
@@ -398,9 +399,9 @@ def build_distance_matrix(*,
         )
         df = pd.concat([df, retry_df], ignore_index=True)
 
-    # Treat any negative distance as no-route before snapping, so it flows
-    # through the same recovery as a real ORS null and never reaches the CSV.
-    df = _coerce_negative_distances_to_null(df)
+    # Treat any negative distance or duration as no-route before snapping, so it
+    # flows through the same recovery as a real ORS null and never reaches the CSV.
+    df = _coerce_negative_metrics_to_null(df)
 
     return _snap_unroutable_origins(
         df, source_ids, locations,
