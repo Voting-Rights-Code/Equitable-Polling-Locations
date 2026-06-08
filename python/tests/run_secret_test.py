@@ -102,6 +102,13 @@ class TestSecretHandlers:
     def test_secrets_for_name_single(self):
         assert [s.name for s in run.secrets_for_name("census")] == ["census"]
 
+    def test_handle_command_get_group_lists_both_members(self, monkeypatch, capsys):
+        monkeypatch.setattr(secret_store, "resolve", lambda secret: "value")
+        run.handle_secret_command(["get", "rdh"])
+        out = capsys.readouterr().out
+        assert "rdh_username: present" in out
+        assert "rdh_password: present" in out
+
 
 class TestSecretInjection:
     """Tests for build_secret_env_and_flags injecting resolved secrets into Docker env."""
