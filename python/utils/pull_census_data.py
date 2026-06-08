@@ -11,7 +11,6 @@ then `authentication_files/credentials.json`.
 import json
 import os
 from pathlib import Path
-import shutil
 import time
 import zipfile
 from typing import Any, Callable, Optional
@@ -29,6 +28,7 @@ from python.utils.directory_constants import (
 HTTP_TIMEOUT_SECONDS = 300
 HTTP_MAX_RETRIES = 3            # total attempts per request
 HTTP_RETRY_BACKOFF_SECONDS = 2  # base for exponential backoff (~2s, then 4s)
+DOWNLOAD_CHUNK_SIZE = 1024 * 1024  # 1 MiB streaming chunk
 
 _RETRYABLE_REQUEST_ERRORS = (
     requests.exceptions.ConnectionError,
@@ -358,6 +358,10 @@ def save_pdata(df, census_year, county_st, geo, pnum, meta=False):
 def download_file(url, local_dir):
     '''Download a file from `url` into `local_dir`, streaming the body.
 
+    Retries transient failures (5xx, dropped or mid-stream-broken connections,
+    timeouts) with exponential backoff; the destination is rewritten on each
+    attempt so a truncated partial download is overwritten cleanly.
+
     Args:
         url: Fully-qualified URL to download.
         local_dir: Destination directory; created if it does not exist.
@@ -366,16 +370,22 @@ def download_file(url, local_dir):
         Path to the downloaded file on disk.
 
     Raises:
-        requests.HTTPError: If the server returns an error status.
+        requests.HTTPError: If the server returns a non-retryable status, or a
+            5xx status once retries are exhausted.
     '''
     if not os.path.exists(local_dir):
         os.makedirs(local_dir)
     local_filename = Path(local_dir).joinpath(url.split('/')[-1])
-    with requests.get(url, stream=True, timeout=HTTP_TIMEOUT_SECONDS) as response:
-        response.raise_for_status()
-        with open(local_filename, 'wb') as out_file:
-            shutil.copyfileobj(response.raw, out_file)
-    return local_filename
+
+    def operation():
+        with requests.get(url, stream=True, timeout=HTTP_TIMEOUT_SECONDS) as response:
+            response.raise_for_status()
+            with open(local_filename, 'wb') as out_file:
+                for chunk in response.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
+                    out_file.write(chunk)
+        return local_filename
+
+    return _request_with_retries(operation, f'download {url}')
 
 
 def unzip_file(fpath, outdir):

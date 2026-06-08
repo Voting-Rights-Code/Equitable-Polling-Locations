@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 import requests
 
-from python.utils.pull_census_data import pull_tiger_file, unzip_file, _is_retryable_http_error, _request_with_retries, HTTP_MAX_RETRIES, get_census_json
+from python.utils.pull_census_data import pull_tiger_file, unzip_file, _is_retryable_http_error, _request_with_retries, HTTP_MAX_RETRIES, get_census_json, download_file
 from python.utils.directory_constants import BLOCK_GEO
 from python.utils.utils import build_tiger_location_dir
 
@@ -157,6 +157,37 @@ class TestRequestWithRetries:
         with pytest.raises(requests.exceptions.Timeout):
             _request_with_retries(operation, "x", sleep=self._no_sleep)
         assert len(calls) == HTTP_MAX_RETRIES
+
+
+class TestDownloadFileRetry:
+    """Tests for download_file() retry behavior."""
+
+    def _response_cm(self, response):
+        cm = MagicMock()
+        cm.__enter__.return_value = response
+        cm.__exit__.return_value = False
+        return cm
+
+    def test_retries_mid_stream_break_and_overwrites_partial(self, tmp_path):
+        def broken_stream():
+            yield b'partial-bytes'
+            raise requests.exceptions.ChunkedEncodingError('connection broken')
+
+        bad_response = MagicMock()
+        bad_response.raise_for_status.return_value = None
+        bad_response.iter_content.return_value = broken_stream()
+
+        good_response = MagicMock()
+        good_response.raise_for_status.return_value = None
+        good_response.iter_content.return_value = [b'hello ', b'world']
+
+        with patch(
+            'python.utils.pull_census_data.requests.get',
+            side_effect=[self._response_cm(bad_response), self._response_cm(good_response)],
+        ), patch('python.utils.pull_census_data.time.sleep', return_value=None):
+            result = download_file('http://example/tl_x.zip', tmp_path)
+
+        assert Path(result).read_bytes() == b'hello world'
 
 
 class TestGetCensusJson:
