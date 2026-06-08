@@ -16,7 +16,7 @@ import requests
 from haversine import haversine, Unit
 
 from python.solver.constants import (
-    DISTANCE_DISTANCE_M, DISTANCE_ID_DEST, DISTANCE_ID_ORIG,
+    DISTANCE_DISTANCE_M, DISTANCE_DURATION_S, DISTANCE_ID_DEST, DISTANCE_ID_ORIG,
 )
 from python.utils.ors_client import OrsMatrixError, query_directions, query_matrix
 from python.utils.ors_url import directions_url_from_matrix_url
@@ -65,29 +65,33 @@ def get_missing_origins(df: pd.DataFrame) -> set:
     return set(missing_rows[DISTANCE_ID_ORIG])
 
 
-def matrix_response_to_long_df(source_names, dest_names, distances) -> pd.DataFrame:
-    '''Reshape an ORS matrix response into a long ``(id_orig, id_dest, distance_m)`` frame.
+def matrix_response_to_long_df(source_names, dest_names, distances, durations) -> pd.DataFrame:
+    '''Reshape ORS matrix grids into a long ``(id_orig, id_dest, distance_m, duration_s)`` frame.
 
     Args:
         source_names: Row labels (one per origin).
         dest_names: Column labels (one per destination).
         distances: ``distances[i][j]`` is the distance from ``source_names[i]``
             to ``dest_names[j]``, as returned by ORS.
+        durations: ``durations[i][j]`` is the corresponding travel time, along
+            the same route.
 
     Returns:
-        A long-form DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``.
+        A long-form DataFrame with columns ``id_orig``, ``id_dest``,
+        ``distance_m``, ``duration_s``.
     '''
     rows = []
-    for source, source_row in zip(source_names, distances):
-        for dest, distance_m in zip(dest_names, source_row):
+    for source, distance_row, duration_row in zip(source_names, distances, durations):
+        for dest, distance_m, duration_s in zip(dest_names, distance_row, duration_row):
             rows.append({
                 DISTANCE_ID_ORIG: source,
                 DISTANCE_ID_DEST: dest,
                 DISTANCE_DISTANCE_M: distance_m,
+                DISTANCE_DURATION_S: duration_s,
             })
     return pd.DataFrame(
         rows,
-        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
+        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S],
     )
 
 
@@ -211,13 +215,16 @@ def _fetch_one_batch(locations, source_batch, dest_ids, matrix_url):
         matrix_url: ORS matrix endpoint URL.
 
     Returns:
-        A long-form DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``.
+        A long-form DataFrame with columns ``id_orig``, ``id_dest``,
+        ``distance_m``, ``duration_s``.
     '''
     coords, source_indices, dest_indices = _build_locations_payload(
         locations, source_batch, dest_ids,
     )
-    distances = query_matrix(coords, source_indices, dest_indices, matrix_url)
-    return matrix_response_to_long_df(source_batch, dest_ids, distances)
+    grids = query_matrix(coords, source_indices, dest_indices, matrix_url)
+    return matrix_response_to_long_df(
+        source_batch, dest_ids, grids['distance'], grids['duration'],
+    )
 
 
 def _retry_sources_individually(failed_sources: list[str],
@@ -248,23 +255,25 @@ def _retry_sources_individually(failed_sources: list[str],
         time.sleep(PER_SOURCE_RETRY_SLEEP_S)
         for dest in dest_ids:
             try:
-                distance = query_directions(locations[source], locations[dest], directions_url)
+                result = query_directions(locations[source], locations[dest], directions_url)
             except requests.exceptions.RequestException:
                 _emit(f'directions raised for {source} -> {dest}: skipping',
                       _LEVEL_VV, log_fh, verbosity)
                 continue
-            if distance is None:
+            if result is None:
                 _emit(f'directions returned None for {source} -> {dest}: skipping',
                       _LEVEL_VV, log_fh, verbosity)
                 continue
+            distance, duration = result
             rows.append({
                 DISTANCE_ID_ORIG: source,
                 DISTANCE_ID_DEST: dest,
                 DISTANCE_DISTANCE_M: distance,
+                DISTANCE_DURATION_S: duration,
             })
     return pd.DataFrame(
         rows,
-        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
+        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S],
     )
 
 

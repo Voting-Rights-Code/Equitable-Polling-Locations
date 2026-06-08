@@ -50,14 +50,16 @@ class TestMatrixResponseToLongDf:
             source_names=['a', 'b'],
             dest_names=['x', 'y'],
             distances=[[0.0, 100.0], [200.0, 0.0]],
+            durations=[[0.0, 9.0], [18.0, 0.0]],
         )
-        assert set(df.columns) == {'id_orig', 'id_dest', 'distance_m'}
+        assert set(df.columns) == {'id_orig', 'id_dest', 'distance_m', 'duration_s'}
 
     def test_row_count_is_sources_times_dests(self):
         df = matrix_response_to_long_df(
             source_names=['a', 'b', 'c'],
             dest_names=['x', 'y'],
             distances=[[1, 2], [3, 4], [5, 6]],
+            durations=[[0, 0], [0, 0], [0, 0]],
         )
         assert len(df) == 6
 
@@ -66,6 +68,7 @@ class TestMatrixResponseToLongDf:
             source_names=['a', 'b'],
             dest_names=['x', 'y'],
             distances=[[10.0, 20.0], [30.0, 40.0]],
+            durations=[[1.0, 2.0], [3.0, 4.0]],
         )
         a_x = df.loc[(df['id_orig'] == 'a') & (df['id_dest'] == 'x'), 'distance_m'].iloc[0]
         b_y = df.loc[(df['id_orig'] == 'b') & (df['id_dest'] == 'y'), 'distance_m'].iloc[0]
@@ -380,3 +383,36 @@ class TestBuildMatrixNegativeHandling:
         )
         assert (df['distance_m'] >= 0).all()
         assert 'snapped to nearest haversine neighbor' in log_fh.getvalue()
+
+
+class TestMatrixResponseCarriesDuration:
+    '''Reshape includes a duration_s column alongside distance_m.'''
+
+    def test_long_df_has_both_metric_columns(self):
+        df = matrix_response_to_long_df(
+            source_names=['a', 'b'],
+            dest_names=['x', 'y'],
+            distances=[[0.0, 100.0], [200.0, 0.0]],
+            durations=[[0.0, 9.0], [18.0, 0.0]],
+        )
+        assert set(df.columns) == {'id_orig', 'id_dest', 'distance_m', 'duration_s'}
+        row = df[(df['id_orig'] == 'a') & (df['id_dest'] == 'y')].iloc[0]
+        assert row['distance_m'] == 100.0
+        assert row['duration_s'] == 9.0
+
+
+class TestBuildMatrixHappyPathDuration:
+    '''build_distance_matrix surfaces duration_s on the normal matrix path.'''
+
+    @patch('python.utils.driving_distance_matrix.query_matrix')
+    def test_duration_column_present_and_correct(self, mock_query):
+        mock_query.return_value = {'distance': [[100.0]], 'duration': [[12.0]]}
+        log_fh = io.StringIO()
+        df = build_distance_matrix(
+            locations={'s0': [-84.0, 33.95], 'd': [-84.1, 34.0]},
+            source_ids=['s0'], dest_ids=['d'],
+            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
+            log_fh=log_fh, verbosity=0,
+        )
+        assert 'duration_s' in df.columns
+        assert df.iloc[0]['duration_s'] == 12.0
