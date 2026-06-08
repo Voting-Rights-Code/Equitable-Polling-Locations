@@ -29,9 +29,25 @@ python -m python.scripts.pull_census_data_cli TX "Tarrant County" 2020
 
 The necessary data is automatically pulled from the census (if needed) when the model is run. However, one may also run `python -m python.utils.pull_census_data` to manually retrieve the data.
 
+### A Redistricting Data Hub (RDH) account (one-time, CVAP only)
+
+Running CVAP-based configurations downloads block-level CVAP data from the [Redistricting Data Hub](https://redistrictingdatahub.org/), which requires a free account (username + password).
+
+To store your RDH credentials (one-time):
+
+```
+python run.py secret set rdh
+```
+
+This prompts for your RDH username (shown) and password (hidden) and stores them the same way as the census key — OS keystore when `keyring` is installed, otherwise `authentication_files/credentials.json` (gitignored). Subsequent runs pick them up automatically. Inspect with `python run.py secret get rdh` or remove with `python run.py secret clear rdh`.
+
+Alternatively, set the `RDH_USERNAME` and `RDH_PASSWORD` environment variables; they take precedence over `credentials.json` and are useful inside containers and CI.
+
+## Census Datasets
+
 The software downloads and uses the following census datasets:
 
-### Redistricting data (P3 and P4 tables)
+### P3 and P4 tables
 
 Stored in `datasets/census/redistricting/<County_ST>/`
 

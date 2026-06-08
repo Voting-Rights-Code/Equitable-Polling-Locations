@@ -27,6 +27,12 @@ Alternatively, export the `CENSUS_API_KEY` environment variable — it takes pre
 
 At model-run time `run.py` resolves the key automatically and forwards it into the container, so no extra steps are needed beyond storing it once.
 
+For CVAP runs, also store your Redistricting Data Hub credentials:
+
+```bash
+python run.py secret set rdh
+```
+
 #### Optional: keyring backend
 
 By default, `secret set` stores secrets in `authentication_files/credentials.json` (gitignored). That file is wiped by `git clean -fdx`.
