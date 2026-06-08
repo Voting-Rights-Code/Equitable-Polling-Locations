@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 import requests
 
-from python.utils.pull_census_data import pull_tiger_file, unzip_file, _is_retryable_http_error, _request_with_retries, HTTP_MAX_RETRIES
+from python.utils.pull_census_data import pull_tiger_file, unzip_file, _is_retryable_http_error, _request_with_retries, HTTP_MAX_RETRIES, get_census_json
 from python.utils.directory_constants import BLOCK_GEO
 from python.utils.utils import build_tiger_location_dir
 
@@ -157,3 +157,26 @@ class TestRequestWithRetries:
         with pytest.raises(requests.exceptions.Timeout):
             _request_with_retries(operation, "x", sleep=self._no_sleep)
         assert len(calls) == HTTP_MAX_RETRIES
+
+
+class TestGetCensusJson:
+    """Tests for get_census_json()."""
+
+    def test_returns_parsed_json(self):
+        ok = MagicMock()
+        ok.raise_for_status.return_value = None
+        ok.json.return_value = [["NAME", "state"], ["Texas", "48"]]
+        with patch('python.utils.pull_census_data.requests.get', return_value=ok):
+            result = get_census_json('http://example/api')
+        assert result == [["NAME", "state"], ["Texas", "48"]]
+
+    def test_retries_on_5xx_then_succeeds(self):
+        bad = MagicMock()
+        bad.raise_for_status.side_effect = _make_http_error(503)
+        ok = MagicMock()
+        ok.raise_for_status.return_value = None
+        ok.json.return_value = {"ok": True}
+        with patch('python.utils.pull_census_data.requests.get', side_effect=[bad, ok]), \
+             patch('python.utils.pull_census_data.time.sleep', return_value=None):
+            result = get_census_json('http://example/api')
+        assert result == {"ok": True}

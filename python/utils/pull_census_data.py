@@ -182,6 +182,26 @@ STATE_LOOKUP = {
     'WY': 'Wyoming'
 }
 
+def get_census_json(url: str) -> Any:
+    '''GET a census API URL and return its parsed JSON, retrying transient failures.
+
+    Args:
+        url: Fully-qualified census API URL.
+
+    Returns:
+        The parsed JSON body (a list or dict, depending on the endpoint).
+
+    Raises:
+        requests.exceptions.HTTPError: On a non-retryable status, or once retries
+            are exhausted.
+    '''
+    def operation() -> Any:
+        response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
+        response.raise_for_status()
+        return response.json()
+    return _request_with_retries(operation, f'GET {url}')
+
+
 def get_all_states_fips_codes(census_year, api_key):
     '''Get FIPS codes for all US states from the census API.
 
@@ -199,9 +219,8 @@ def get_all_states_fips_codes(census_year, api_key):
         f'https://api.census.gov/data/{census_year}/dec/pl'
         f'?get=NAME&for=state:*&key={api_key}'
     )
-    response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
-    response.raise_for_status()
-    state_to_fips = pd.Series(dict(response.json()[1:]))
+    data = get_census_json(url)
+    state_to_fips = pd.Series(dict(data[1:]))
     return state_to_fips
 
 
@@ -223,9 +242,7 @@ def get_all_state_county_codes(state_fips, census_year, api_key):
         f'https://api.census.gov/data/{census_year}/dec/pl'
         f'?get=NAME&for=county:*&in=state:{state_fips}&key={api_key}'
     )
-    response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
-    response.raise_for_status()
-    county_codes = pd.DataFrame(response.json())
+    county_codes = pd.DataFrame(get_census_json(url))
     headers = county_codes.iloc[0].values
     county_codes.columns = headers
     county_codes.drop(index=0, axis=0, inplace=True)
@@ -262,9 +279,7 @@ def pull_metadata(url):
     Raises:
         requests.HTTPError: If the census API returns an error status.
     '''
-    response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
-    response.raise_for_status()
-    variables = response.json()['variables']
+    variables = get_census_json(url)['variables']
     labels = {code: spec['label'] for code, spec in variables.items()}
     metadata = pd.DataFrame(pd.Series(labels, name='Label'))
     metadata.index.name = 'Column Name'
@@ -301,9 +316,7 @@ def pull_ptable_data(geography, pnum, state_fips, county_code, census_year, api_
         f'?get=group({pnum})&for={geo}:*'
         f'&in=state:{state_fips}&in=county:{county_code}&in=tract:*&key={api_key}'
     )
-    response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
-    response.raise_for_status()
-    data = pd.DataFrame(response.json())
+    data = pd.DataFrame(get_census_json(url))
     metadata = pull_metadata(f'https://api.census.gov/data/{census_year}/dec/pl/groups/{pnum}?key={api_key}')
 
     # Reformat data to match manual download (for backwards compatibility).
