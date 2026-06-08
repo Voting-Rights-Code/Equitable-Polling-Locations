@@ -73,6 +73,35 @@ class TestSecretHandlers:
         run.handle_secret_command(["get", "census", "--show"])
         assert "abcdef" in capsys.readouterr().out
 
+    def test_set_non_sensitive_uses_visible_input(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(secret_store, "keyring", None)
+        secret = secret_store.Secret(
+            name="rdh_username", keyring_service="svc", keyring_username="u",
+            env_var="RDH_USERNAME", file_path=tmp_path / "c.json",
+            file_field="rdh_username", sensitive=False,
+        )
+        monkeypatch.setattr("builtins.input", lambda prompt="": "votingrightscode@gmail.com")
+        run.secret_set(secret)
+        assert _read_file(secret) == "votingrightscode@gmail.com"
+
+    def test_get_non_sensitive_shows_plaintext(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(secret_store, "keyring", None)
+        secret = secret_store.Secret(
+            name="rdh_username", keyring_service="svc", keyring_username="u",
+            env_var="RDH_USERNAME", file_path=tmp_path / "c.json",
+            file_field="rdh_username", sensitive=False,
+        )
+        _write_file(secret, "votingrightscode@gmail.com")
+        run.secret_get(secret, show=False)
+        assert "votingrightscode@gmail.com" in capsys.readouterr().out
+
+    def test_secrets_for_name_expands_group(self):
+        secrets = run.secrets_for_name("rdh")
+        assert [s.name for s in secrets] == ["rdh_username", "rdh_password"]
+
+    def test_secrets_for_name_single(self):
+        assert [s.name for s in run.secrets_for_name("census")] == ["census"]
+
 
 class TestSecretInjection:
     """Tests for build_secret_env_and_flags injecting resolved secrets into Docker env."""

@@ -113,7 +113,11 @@ def secret_set(secret: secret_store.Secret) -> None:
     Args:
         secret: The registry entry describing where to store the value.
     """
-    value = getpass.getpass(f"Enter value for '{secret.name}': ").strip()
+    prompt = f"Enter value for '{secret.name}': "
+    if secret.sensitive:
+        value = getpass.getpass(prompt).strip()
+    else:
+        value = input(prompt).strip()
     if not value:
         print("Error: No value entered.")
         sys.exit(1)
@@ -142,7 +146,8 @@ def secret_get(secret: secret_store.Secret, show: bool) -> None:
     if value is None:
         print(f"{secret.name}: not set")
         return
-    shown = value if show else secret_store.mask(value)
+    reveal = show or not secret.sensitive
+    shown = value if reveal else secret_store.mask(value)
     print(f"{secret.name}: present, value: {shown}")
 
 
@@ -159,6 +164,23 @@ def secret_clear(secret: secret_store.Secret) -> None:
         print(f"'{secret.name}': nothing to remove.")
 
 
+def secrets_for_name(name: str) -> list[secret_store.Secret]:
+    """Expand a CLI name into one or more secrets.
+
+    A group name expands to its member secrets; any other name resolves to the
+    single secret registered under it.
+
+    Args:
+        name: A secret name or a group name.
+
+    Returns:
+        The list of secrets the command should act on, in order.
+    """
+    if name in secret_store.GROUPS:
+        return [secret_store.get_secret(member) for member in secret_store.GROUPS[name]]
+    return [secret_store.get_secret(name)]
+
+
 def handle_secret_command(argv: list[str]) -> None:
     """Parse and dispatch `run.py secret <action> <name> [--show]`.
 
@@ -167,17 +189,17 @@ def handle_secret_command(argv: list[str]) -> None:
     """
     parser = argparse.ArgumentParser(prog="python run.py secret")
     parser.add_argument("action", choices=["set", "get", "clear"])
-    parser.add_argument("name", choices=sorted(secret_store.SECRETS))
+    parser.add_argument("name", choices=sorted(set(secret_store.SECRETS) | set(secret_store.GROUPS)))
     parser.add_argument("--show", action="store_true",
                         help="Reveal the raw value (get only).")
     args = parser.parse_args(argv)
-    secret = secret_store.get_secret(args.name)
-    if args.action == "set":
-        secret_set(secret)
-    elif args.action == "get":
-        secret_get(secret, show=args.show)
-    else:
-        secret_clear(secret)
+    for secret in secrets_for_name(args.name):
+        if args.action == "set":
+            secret_set(secret)
+        elif args.action == "get":
+            secret_get(secret, show=args.show)
+        else:
+            secret_clear(secret)
 
 
 def build_secret_env_and_flags() -> tuple[dict[str, str], list[str]]:
