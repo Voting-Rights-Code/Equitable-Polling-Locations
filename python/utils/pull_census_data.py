@@ -27,6 +27,20 @@ from python.utils.directory_constants import (
 HTTP_TIMEOUT_SECONDS = 300
 
 
+def _is_retryable_http_error(error: requests.exceptions.HTTPError) -> bool:
+    '''Return whether an HTTPError represents a transient (retryable) failure.
+
+    Args:
+        error: The HTTPError raised by response.raise_for_status().
+
+    Returns:
+        True when the attached response has a 5xx status code (e.g. 520);
+        False for 4xx errors or when no response is attached.
+    '''
+    response = error.response
+    return response is not None and 500 <= response.status_code < 600
+
+
 CREDENTIALS_PATH = Path(__file__).resolve().parent.parent.parent / 'authentication_files' / 'credentials.json'
 
 

@@ -2,13 +2,37 @@
 
 import zipfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
+import requests
 
-from python.utils.pull_census_data import pull_tiger_file, unzip_file
+from python.utils.pull_census_data import pull_tiger_file, unzip_file, _is_retryable_http_error
 from python.utils.directory_constants import BLOCK_GEO
 from python.utils.utils import build_tiger_location_dir
+
+
+def _make_http_error(status):
+    """Build a requests.HTTPError carrying a response with the given status."""
+    response = requests.Response()
+    response.status_code = status
+    return requests.exceptions.HTTPError(response=response)
+
+
+class TestIsRetryableHttpError:
+    """Tests for _is_retryable_http_error()."""
+
+    def test_5xx_is_retryable(self):
+        assert _is_retryable_http_error(_make_http_error(500)) is True
+        assert _is_retryable_http_error(_make_http_error(503)) is True
+        assert _is_retryable_http_error(_make_http_error(520)) is True
+
+    def test_4xx_is_not_retryable(self):
+        assert _is_retryable_http_error(_make_http_error(401)) is False
+        assert _is_retryable_http_error(_make_http_error(404)) is False
+
+    def test_no_response_is_not_retryable(self):
+        assert _is_retryable_http_error(requests.exceptions.HTTPError()) is False
 
 
 class TestUnzipFile:
