@@ -12,7 +12,9 @@ import json
 import os
 from pathlib import Path
 import shutil
+import time
 import zipfile
+from typing import Any, Callable, Optional
 
 import pandas as pd
 import requests
@@ -25,6 +27,57 @@ from python.utils.directory_constants import (
 )
 
 HTTP_TIMEOUT_SECONDS = 300
+HTTP_MAX_RETRIES = 3            # total attempts per request
+HTTP_RETRY_BACKOFF_SECONDS = 2  # base for exponential backoff (~2s, then 4s)
+
+_RETRYABLE_REQUEST_ERRORS = (
+    requests.exceptions.ConnectionError,
+    requests.exceptions.ChunkedEncodingError,
+    requests.exceptions.Timeout,
+    requests.exceptions.HTTPError,
+)
+
+
+def _request_with_retries(
+    operation: Callable[[], Any],
+    description: str,
+    sleep: Optional[Callable[[float], None]] = None,
+) -> Any:
+    '''Run an HTTP operation, retrying transient failures with exponential backoff.
+
+    Args:
+        operation: Zero-argument callable that performs the request and returns a result.
+        description: Short label for the operation, used in retry notices.
+        sleep: Callable used to pause between attempts. Defaults to time.sleep;
+            injected in tests so they run instantly.
+
+    Returns:
+        The value returned by operation().
+
+    Raises:
+        requests.exceptions.HTTPError: A non-5xx (e.g. 4xx) error, raised immediately;
+            or the last 5xx error once retries are exhausted.
+        requests.exceptions.RequestException: The last transient connection/timeout
+            error once retries are exhausted.
+    '''
+    if sleep is None:
+        sleep = time.sleep
+    for attempt in range(1, HTTP_MAX_RETRIES + 1):
+        try:
+            return operation()
+        except _RETRYABLE_REQUEST_ERRORS as error:
+            non_retryable_status = (
+                isinstance(error, requests.exceptions.HTTPError)
+                and not _is_retryable_http_error(error)
+            )
+            if non_retryable_status or attempt == HTTP_MAX_RETRIES:
+                raise
+            print(
+                f'Transient error ({description}): {error}; '
+                f'retrying ({attempt + 1}/{HTTP_MAX_RETRIES})...'
+            )
+            sleep(HTTP_RETRY_BACKOFF_SECONDS * 2 ** (attempt - 1))
+    raise AssertionError('retry loop exited without returning or raising')
 
 
 def _is_retryable_http_error(error: requests.exceptions.HTTPError) -> bool:

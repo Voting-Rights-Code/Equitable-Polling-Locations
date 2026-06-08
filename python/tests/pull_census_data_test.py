@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 import requests
 
-from python.utils.pull_census_data import pull_tiger_file, unzip_file, _is_retryable_http_error
+from python.utils.pull_census_data import pull_tiger_file, unzip_file, _is_retryable_http_error, _request_with_retries, HTTP_MAX_RETRIES
 from python.utils.directory_constants import BLOCK_GEO
 from python.utils.utils import build_tiger_location_dir
 
@@ -106,3 +106,54 @@ class TestPullTigerFile:
         expected = Path(build_tiger_location_dir('Tarrant_County_TX'))
         assert Path(captured['local_dir']) == expected
         assert Path(captured['unzip_outdir']) == expected
+
+
+class TestRequestWithRetries:
+    """Tests for _request_with_retries()."""
+
+    def _no_sleep(self, _seconds):
+        return None
+
+    def test_returns_on_first_success(self):
+        calls = []
+
+        def operation():
+            calls.append(1)
+            return "ok"
+
+        assert _request_with_retries(operation, "x", sleep=self._no_sleep) == "ok"
+        assert len(calls) == 1
+
+    def test_retries_transient_then_succeeds(self):
+        calls = []
+
+        def operation():
+            calls.append(1)
+            if len(calls) < 2:
+                raise requests.exceptions.ConnectionError("boom")
+            return "ok"
+
+        assert _request_with_retries(operation, "x", sleep=self._no_sleep) == "ok"
+        assert len(calls) == 2
+
+    def test_non_retryable_http_error_raises_immediately(self):
+        calls = []
+
+        def operation():
+            calls.append(1)
+            raise _make_http_error(404)
+
+        with pytest.raises(requests.exceptions.HTTPError):
+            _request_with_retries(operation, "x", sleep=self._no_sleep)
+        assert len(calls) == 1
+
+    def test_exhausts_retries_and_raises_last_error(self):
+        calls = []
+
+        def operation():
+            calls.append(1)
+            raise requests.exceptions.Timeout("slow")
+
+        with pytest.raises(requests.exceptions.Timeout):
+            _request_with_retries(operation, "x", sleep=self._no_sleep)
+        assert len(calls) == HTTP_MAX_RETRIES
