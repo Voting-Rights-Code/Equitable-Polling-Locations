@@ -37,6 +37,8 @@ class Secret:
         env_var: Environment variable that overrides all stored values.
         file_path: Absolute path to the JSON credentials file fallback.
         file_field: JSON key under which the value is stored in file_path.
+        sensitive: When True, the CLI hides input and masks display; when
+            False (e.g. a username), input and display are shown in plaintext.
     """
 
     name: str
@@ -45,6 +47,7 @@ class Secret:
     env_var: str
     file_path: Path
     file_field: str
+    sensitive: bool = True
 
 
 SECRETS: dict[str, Secret] = {

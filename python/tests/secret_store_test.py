@@ -23,6 +23,17 @@ class TestRegistry:
     def test_census_in_registry(self):
         assert "census" in SECRETS
 
+    def test_census_is_sensitive_by_default(self):
+        assert get_secret("census").sensitive is True
+
+    def test_secret_accepts_non_sensitive(self, tmp_path):
+        secret = Secret(
+            name="x", keyring_service="svc", keyring_username="u",
+            env_var="X", file_path=tmp_path / "c.json", file_field="x",
+            sensitive=False,
+        )
+        assert secret.sensitive is False
+
 
 class TestFileBackend:
     """Tests for the file-based credential read/write/clear helpers."""
