@@ -369,7 +369,7 @@ def build_distance_matrix(*,
         verbosity: Screen-output ceiling (0 = quiet default, 1 = ``-v``, 2 = ``-vv``).
 
     Returns:
-        A long-form DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``.
+        A long-form DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``, ``duration_s``.
     '''
     source_ids = list(dict.fromkeys(source_ids))   # Dedup, preserve order.
     dest_ids = list(dict.fromkeys(dest_ids))
