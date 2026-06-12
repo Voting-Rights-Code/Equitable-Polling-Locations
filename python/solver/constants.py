@@ -84,7 +84,6 @@ DISTANCE_DEST_TYPE_POTENTIAL = 'potential'
 
 # Census data related constants
 CEN20_GEO_ID = 'GEO_ID'
-CEN20_NAME = 'NAME'
 CEN20_P3_TOTAL_POPULATION = 'P3_001N'
 ''' Total population '''
 CEN20_P3_WHITE = 'P3_003N'
@@ -107,6 +106,14 @@ CEN20_P4_HISPANIC = 'P4_002N'
 ''' Total hispanic '''
 CEN20_NON_HISPANIC = 'P4_003N'
 ''' Total non_hispanic '''
+
+DEMOGRAPHICS_OUTPUT_COLUMNS = {
+    CEN20_GEO_ID,
+    DISTANCE_TOTAL_POPULATION, DISTANCE_HISPANIC, DISTANCE_NON_HISPANIC,
+    DISTANCE_WHITE, DISTANCE_BLACK, DISTANCE_NATIVE, DISTANCE_ASIAN,
+    DISTANCE_PACIFIC_ISLANDER, DISTANCE_MULTIPLE_RACES, DISTANCE_OTHER,
+}
+''' The output column schema shared by get_CVAP_demographics and get_redistricting_demographics. '''
 
 # Census Block related constants
 CEN20_GEOID_PREFIX = '1000000US'

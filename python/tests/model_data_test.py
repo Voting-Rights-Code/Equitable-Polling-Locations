@@ -1,6 +1,7 @@
 ''' Test for model_data. '''
 
-# pylint: disable=line-too-long
+# pylint: disable=line-too-long,invalid-name
+# invalid-name: CVAP is an established acronym used throughout the codebase.
 
 from itertools import product
 
@@ -8,6 +9,14 @@ import pandas as pd
 import pytest
 
 from python.solver import model_data
+from python.solver.constants import (
+    CEN20_GEO_ID,
+    DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_ADDRESS,
+    DISTANCE_DEST_LAT, DISTANCE_DEST_LON, DISTANCE_ORIG_LAT, DISTANCE_ORIG_LON,
+    DISTANCE_LOCATION_TYPE, DISTANCE_DEST_TYPE,
+    DISTANCE_OTHER, DEMOGRAPHICS_OUTPUT_COLUMNS,
+    DISTANCE_DISTANCE_M, DISTANCE_SOURCE,
+)
 
 from .constants import TESTING_POTENTIAL_LOCATIONS_PATH, TESTING_DRIVING_DISTANCES_PATH, TEST_LOCATION, MAP_SOURCE_DATE
 
@@ -15,19 +24,19 @@ from .constants import TESTING_POTENTIAL_LOCATIONS_PATH, TESTING_DRIVING_DISTANC
 def test_build_source_columns(location_df_with_driving):
     ''' Checks that the columns in the location_df_driving match the expected columns. '''
 
-    expected_columns = [
-        'id_orig', 'id_dest', 'address', 'dest_lat', 'dest_lon', 'orig_lat',
-        'orig_lon', 'location_type', 'dest_type', 'population', 'hispanic',
-        'non_hispanic', 'white', 'black', 'native', 'asian', 'pacific_islander',
-        'other', 'multiple_races', 'distance_m', 'source'
-    ]
+    expected_columns = (DEMOGRAPHICS_OUTPUT_COLUMNS - {CEN20_GEO_ID}) | {
+        DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_ADDRESS,
+        DISTANCE_DEST_LAT, DISTANCE_DEST_LON, DISTANCE_ORIG_LAT, DISTANCE_ORIG_LON,
+        DISTANCE_LOCATION_TYPE, DISTANCE_DEST_TYPE,
+        DISTANCE_DISTANCE_M, DISTANCE_SOURCE,
+    }
 
-    actual_columns = location_df_with_driving.columns.tolist()
+    actual_columns = set(location_df_with_driving.columns)
 
     assert actual_columns == expected_columns, (
         f'Column mismatch.\n'
-        f'Expected: {expected_columns}\n'
-        f'Actual: {actual_columns}'
+        f'Missing: {expected_columns - actual_columns}\n'
+        f'Unexpected: {actual_columns - expected_columns}'
     )
 
 
@@ -162,4 +171,37 @@ def test_clean_data(testing_config_driving, location_df_with_driving):
 
     cleaned_data_with_alpha_dest_types = cleaned_data_with_alpha_df['dest_type'].unique().tolist()
     assert cleaned_data_with_alpha_dest_types == ['polling']
+
+
+class TestGetCVAPDemographics:
+    ''' Unit tests for model_data.get_CVAP_demographics using the committed testing fixture. '''
+
+    def test_output_columns_are_exactly_right(self):
+        ''' Returned DataFrame has exactly the shared distance schema columns — no raw CVAP names survive. '''
+        result = model_data.get_CVAP_demographics('2020', 'testing')
+        assert set(result.columns) == DEMOGRAPHICS_OUTPUT_COLUMNS
+
+    def test_other_race_column_is_all_nan(self):
+        ''' CVAP has no Other race category; the column must be fully NaN so downstream math is not silently wrong. '''
+        result = model_data.get_CVAP_demographics('2020', 'testing')
+        assert result[DISTANCE_OTHER].isna().all()
+
+    def test_geoid_is_string_dtype(self):
+        ''' GEO_ID must be string so merges on this column do not silently fail due to int/str type mismatch. '''
+        result = model_data.get_CVAP_demographics('2020', 'testing')
+        assert pd.api.types.is_string_dtype(result[CEN20_GEO_ID])
+
+    def test_missing_file_raises_value_error(self):
+        ''' A clear ValueError is raised when the CVAP directory exists but the requested year file does not. '''
+        with pytest.raises(ValueError, match='CVAP data not found'):
+            model_data.get_CVAP_demographics('2019', 'testing')
+
+
+class TestGetRedistrictingDemographics:
+    ''' Unit tests for model_data.get_redistricting_demographics using the committed testing fixture. '''
+
+    def test_output_columns_are_exactly_right(self):
+        ''' Returned DataFrame has exactly the shared distance schema columns — no raw census names survive. '''
+        result = model_data.get_redistricting_demographics('2020', 'testing')
+        assert set(result.columns) == DEMOGRAPHICS_OUTPUT_COLUMNS
 

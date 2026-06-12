@@ -49,7 +49,6 @@ POTENTIAL_LOCATIONS_COLS = [
 
 P3_COLUMNS = [
     CEN20_GEO_ID,
-    CEN20_NAME,
     CEN20_P3_TOTAL_POPULATION, # Total population
     CEN20_P3_WHITE, # White alone
     CEN20_P3_BLACK, # Black or African American alone
@@ -62,7 +61,6 @@ P3_COLUMNS = [
 
 P4_COLUMNS = [
     CEN20_GEO_ID,
-    CEN20_NAME,
     CEN20_P4_TOTAL_POPULATION, # Total population
     CEN20_P4_HISPANIC, # Total hispanic
     CEN20_NON_HISPANIC, # Total non_hispanic
@@ -78,7 +76,7 @@ CVAP_COLUMNS = [
     "CVAP_AMI",
     "CVAP_ASI",
     "CVAP_NHP",
-    "CVAP_OM"
+    "CVAP_2OM"
     ]
 
 BLOCK_SHAPE_COLS = [
@@ -270,8 +268,7 @@ def get_redistricting_demographics(census_year: str, location: str):
     # Combine P3 and P4 data to make a joint demographics set
     demographics = p4_df.merge(
         p3_df,
-        left_on=[CEN20_GEO_ID, CEN20_NAME],
-        right_on=[CEN20_GEO_ID, CEN20_NAME],
+        on=CEN20_GEO_ID,
         how=PD_OUTER,
     )
 
@@ -313,12 +310,15 @@ def get_CVAP_demographics(census_year: str, location: str):
         CVAP_df = pd.read_csv(CVAP_source_file,
             low_memory=False, # files are too big, set this to False to prevent errors
             )
+    else:
+        # pylint: disable-next=line-too-long
+        raise ValueError(f'CVAP data not found. Download using run.py secret set rdh or manually following download instructions in README. {CVAP_source_file}')
 
     #######
     #Clean data
     #######
     #remove year data
-    CVAP_df.columns= CVAP_df.columns.str.replace(r'\d+', '', regex=True)
+    CVAP_df.columns= CVAP_df.columns.str.replace(r'\d{2}$', '', regex=True)
     #select columns for each data set
     CVAP_df = CVAP_df[CVAP_COLUMNS]
     #add in an empty Other race column because CVAP doesn't have that
@@ -333,7 +333,7 @@ def get_CVAP_demographics(census_year: str, location: str):
         "CVAP_TOT": DISTANCE_TOTAL_POPULATION, "CVAP_WHT": DISTANCE_WHITE,
         "CVAP_BLA": DISTANCE_BLACK, "CVAP_AMI": DISTANCE_NATIVE, "CVAP_ASI": DISTANCE_ASIAN,
         "CVAP_NHP": DISTANCE_PACIFIC_ISLANDER, #CEN20_P3_OTHER: DISTANCE_OTHER,
-        "CVAP_OM": DISTANCE_MULTIPLE_RACES,
+        "CVAP_2OM": DISTANCE_MULTIPLE_RACES,
     })
 
     return(CVAP_df)
