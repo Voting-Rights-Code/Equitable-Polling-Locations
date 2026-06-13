@@ -487,19 +487,25 @@ def pull_tiger_file(state, fips, county_st, county_code, geo, census_year, verbo
     unzip_file(archive_path, output_directory)
 
 def pull_state_CVAP_data(state, username, password, census_year, rdh_url = RDH_LIST_URL):
-    """Download block-level CVAP data for a state and year from the Redistricting Data Hub (RDH) API.
+    """Download the most recent block-level CVAP data for a state from the RDH API.
+
+    Selects the most recent available CVAP dataset whose year falls within the census
+    decade [census_year, census_year+10). For example, with census_year='2020', it
+    will prefer a 2024 or 2023 release over the original 2020 release.
 
     Args:
         state: Full state name (e.g. 'Georgia').
         username: RDH API username.
         password: RDH API password.
-        census_year: Four-digit census year string (e.g. '2020').
+        census_year: Four-digit decennial census year string (e.g. '2020'). Defines
+            the start of the search window; data from the next decade is excluded.
 
     Returns:
         DataFrame containing block-level CVAP data for the state.
 
     Raises:
-        ValueError: When zero or more than one matching dataset is found in the catalog.
+        ValueError: When no dataset is found in the census window, or when multiple
+            datasets share the same most-recent year.
     """
     
     #Get the RDH catalog and filter to the block-level CSV for this state and year
@@ -513,21 +519,32 @@ def pull_state_CVAP_data(state, username, password, census_year, rdh_url = RDH_L
     list_response = requests.get(rdh_url, params=list_params, timeout=60)
     catalog = pd.read_csv(io.StringIO(list_response.content.decode('utf-8')))
 
-    #Get the correct url for the block level CVAP data for this census year.
-    mask = (
-        catalog['Title'].str.contains('Block Level', case=False, na=False)
-        & catalog['Title'].str.contains(f'({census_year})', regex=False, na=False)
-        & (catalog['Format'] == 'CSV')
-    )
-    matches = catalog[mask]
+    # Find all block-level CSV rows, extract their year, and pick the most recent
+    # within the census decade [census_year, census_year+10).
+    census_year_int = int(census_year)
+    next_census_year = census_year_int + 10
 
-    if matches.shape[0] == 0:
+    candidates = catalog[
+        catalog['Title'].str.contains('Block Level', case=False, na=False)
+        & (catalog['Format'] == 'CSV')
+    ].copy()
+    candidates['_year'] = candidates['Title'].str.extract(r'\((\d{4})\)')[0].astype(float)
+    candidates = candidates[
+        (candidates['_year'] >= census_year_int) & (candidates['_year'] < next_census_year)
+    ]
+
+    if candidates.shape[0] == 0:
         raise ValueError(
-            f'No block-level CVAP CSV found for {state} year {census_year} in the RDH catalog.'
+            f'No block-level CVAP CSV found for {state} in census window '
+            f'{census_year}-{next_census_year - 1} in the RDH catalog.'
         )
+
+    most_recent_year = candidates['_year'].max()
+    matches = candidates[candidates['_year'] == most_recent_year]
+
     if matches.shape[0] > 1:
         raise ValueError(
-            f'Multiple block-level CVAP CSVs found for {state} year {census_year}: '
+            f'Multiple block-level CVAP CSVs found for {state} year {int(most_recent_year)}: '
             f'{list(matches["Title"])}'
         )
 

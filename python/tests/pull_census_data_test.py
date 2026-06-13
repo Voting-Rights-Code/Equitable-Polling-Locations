@@ -122,19 +122,53 @@ def test_pull_state_CVAP_data_raises_when_multiple_datasets_found():
 
 
 def test_pull_state_CVAP_data_filters_by_year():
-    ''' Returns data only for the requested year even when multiple years are in the catalog. '''
+    ''' Selects the most recent year in the census window, excluding years before census_year. '''
     list_bytes = _make_list_response_bytes([
         _block_level_row('2019'),
         _block_level_row('2020'),
         _block_level_row('2021'),
     ])
-    zip_bytes = _make_cvap_zip_bytes('2020')
+    zip_bytes = _make_cvap_zip_bytes('2021')
 
-    with patch('python.utils.pull_census_data.requests.get', side_effect=_mock_get(list_bytes, zip_bytes)):
+    with patch('python.utils.pull_census_data.requests.get', side_effect=_mock_get(list_bytes, zip_bytes)) as mock_get:
         result = pull_state_CVAP_data('Georgia', 'user', 'pass', '2020', rdh_url=TEST_RDH_URL)
 
     assert isinstance(result, pd.DataFrame)
-    assert result.shape[0] == 1
+    download_url = mock_get.call_args_list[1][0][0]
+    assert 'ga_cvap_2021' in download_url
+
+
+def test_pull_state_CVAP_data_selects_most_recent_in_census_window():
+    ''' Selects the most recent CVAP dataset within the census decade when no exact-year match exists. '''
+    list_bytes = _make_list_response_bytes([
+        _block_level_row('2023'),
+        _block_level_row('2025'),
+    ])
+    zip_bytes = _make_cvap_zip_bytes('2025')
+
+    with patch('python.utils.pull_census_data.requests.get', side_effect=_mock_get(list_bytes, zip_bytes)) as mock_get:
+        result = pull_state_CVAP_data('Georgia', 'user', 'pass', '2020', rdh_url=TEST_RDH_URL)
+
+    assert isinstance(result, pd.DataFrame)
+    download_url = mock_get.call_args_list[1][0][0]
+    assert 'ga_cvap_2025' in download_url
+
+
+def test_pull_state_CVAP_data_excludes_next_census_decade():
+    ''' Does not select a dataset from the next census decade (e.g. 2030+) when census_year is 2020. '''
+    list_bytes = _make_list_response_bytes([
+        _block_level_row('2025'),
+        _block_level_row('2030'),
+    ])
+    zip_bytes = _make_cvap_zip_bytes('2025')
+
+    with patch('python.utils.pull_census_data.requests.get', side_effect=_mock_get(list_bytes, zip_bytes)) as mock_get:
+        result = pull_state_CVAP_data('Georgia', 'user', 'pass', '2020', rdh_url=TEST_RDH_URL)
+
+    assert isinstance(result, pd.DataFrame)
+    download_url = mock_get.call_args_list[1][0][0]
+    assert 'ga_cvap_2025' in download_url
+    assert 'ga_cvap_2030' not in download_url
 
 
 def test_pull_state_CVAP_data_ignores_shp_format():
