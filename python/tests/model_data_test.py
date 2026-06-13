@@ -4,6 +4,7 @@
 # invalid-name: CVAP is an established acronym used throughout the codebase.
 
 from itertools import product
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
@@ -196,6 +197,14 @@ class TestGetCVAPDemographics:
         with pytest.raises(ValueError, match='CVAP data not found'):
             model_data.get_CVAP_demographics('2019', 'testing')
 
+    def test_missing_directory_triggers_pull_CVAP_data(self):
+        ''' pull_CVAP_data is called when the CVAP directory does not exist. '''
+        with patch('python.solver.model_data.os.path.exists', return_value=False), \
+             patch('python.solver.model_data.pull_CVAP_data') as mock_pull, \
+             pytest.raises(ValueError):
+            model_data.get_CVAP_demographics('2020', 'Gwinnett_County_GA')
+        mock_pull.assert_called_once_with('GA', 'Gwinnett County', '2020')
+
 
 class TestGetRedistrictingDemographics:
     ''' Unit tests for model_data.get_redistricting_demographics using the committed testing fixture. '''
@@ -204,4 +213,17 @@ class TestGetRedistrictingDemographics:
         ''' Returned DataFrame has exactly the shared distance schema columns — no raw census names survive. '''
         result = model_data.get_redistricting_demographics('2020', 'testing')
         assert set(result.columns) == DEMOGRAPHICS_OUTPUT_COLUMNS
+
+    def test_missing_file_raises_value_error(self):
+        ''' A clear ValueError is raised when the redistricting directory exists but the requested year file does not. '''
+        with pytest.raises(ValueError, match='P3 not found'):
+            model_data.get_redistricting_demographics('2019', 'testing')
+
+    def test_missing_directory_triggers_pull_census_data(self):
+        ''' pull_census_data is called when the redistricting directory does not exist. '''
+        with patch('python.solver.model_data.os.path.exists', return_value=False), \
+             patch('python.solver.model_data.pull_census_data') as mock_pull, \
+             pytest.raises(ValueError):
+            model_data.get_redistricting_demographics('2020', 'Gwinnett_County_GA')
+        mock_pull.assert_called_once_with('GA', 'Gwinnett County', '2020')
 
