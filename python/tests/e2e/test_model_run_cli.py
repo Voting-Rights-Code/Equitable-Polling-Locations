@@ -303,6 +303,22 @@ class TestModelRunCliVariants:
             f"Results file missing for config_penalty: {files['results']}"
         )
 
+    def test_CVAP_config(self, e2e_test_data):
+        """config_CVAP runs successfully and produces result files.
+
+        Args:
+            e2e_test_data: Session-scoped test data dict.
+        """
+        sid = e2e_test_data['sid']
+        config_path = e2e_test_data['configs']['config_CVAP']
+
+        run_cli(MODULE, config_path)
+
+        files = _result_files(sid, 'config_CVAP')
+        assert os.path.isfile(files['results']), (
+            f"Results file missing for config_CVAP: {files['results']}"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Class: TestModelRunCliValueAssertions — value-level checks
