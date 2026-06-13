@@ -475,12 +475,18 @@ def pull_tiger_file(state, fips, county_st, county_code, geo, census_year, verbo
     else:
         raise ValueError(f'unknown geography: {geo}')
 
+    output_directory = Path(build_tiger_location_dir(county_st))
+    expected_shp = output_directory / f'tl_{census_year}_{fips}{county_code}_{geo_suffix}.shp'
+    if expected_shp.exists():
+        if verbose:
+            print(f'Tiger data already exists at {expected_shp}, skipping download.')
+        return
+
     base_url = (
         f'https://www2.census.gov/geo/tiger/TIGER{census_year}PL'
         f'/STATE/{fips}_{state.upper()}/{fips}{county_code}'
         f'/tl_{census_year}_{fips}{county_code}_{geo_suffix}.zip'
     )
-    output_directory = Path(build_tiger_location_dir(county_st))
     archive_path = download_file(base_url, output_directory)
     if verbose:
         print(archive_path)

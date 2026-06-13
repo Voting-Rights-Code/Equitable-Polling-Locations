@@ -54,11 +54,18 @@ def load_configs(config_paths: list[str], logdir: str) -> tuple[bool, list[Polli
         # Get the folder name that contains the config
         config_abs_path = os.path.abspath(config_path)
         config_folder = os.path.basename(os.path.dirname(config_abs_path))
+        config_file_stem = os.path.splitext(os.path.basename(config_abs_path))[0]
 
         # Return invalid if the config_set configured in the config does not match the folder name (case insensitive)
         if config and config_folder.upper() != config.config_set.upper():
             # pylint: disable-next=line-too-long
             print(f'Config folder "{config_folder}" name does not match config_set field "{config.config_set}" for config file {config_abs_path}')
+            valid = False
+
+        # Return invalid if the config_name configured in the config does not match the file name (case insensitive)
+        if config and config_file_stem.upper() != config.config_name.upper():
+            # pylint: disable-next=line-too-long
+            print(f'Config file "{config_file_stem}" name does not match config_name field "{config.config_name}" for config file {config_abs_path}')
             valid = False
 
     return (valid, results)
