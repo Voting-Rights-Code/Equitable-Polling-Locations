@@ -18,7 +18,7 @@ See [Installation](to_install.md) for more detail.
 
 ## Managing Secrets
 
-`run.py` provides a `secret` command for storing and retrieving named credentials. The only registered secret today is `census` (your Census API key).
+`run.py` provides a `secret` command for storing and retrieving named credentials. Two secrets are used: `census` (your Census API key) and `rdh` (your Redistricting Data Hub username and password, required for CVAP data).
 
 At model-run time, `run.py` resolves each secret using this precedence — **env var > OS keyring > credentials file** — and forwards it into the container automatically (the container reads `CENSUS_API_KEY`).
 
@@ -53,6 +53,38 @@ python run.py pull_census_data_cli TX "Tarrant County" 2020
 ```
 
 See [Input Data — Census Data](input_files.md#census-data-demographics-and-shapefiles) for the full list of files pulled, and [Installation — Census API Key](to_install.md#census-api-key-optional-for-new-counties) for keyring setup and other install-time details.
+
+### RDH Credentials
+
+CVAP-based configurations download block-level CVAP data from the [Redistricting Data Hub](https://redistrictingdatahub.org/), which requires a free account. [Register on the RDH site](https://redistrictingdatahub.org/), then store your credentials (one-time):
+
+```bash
+python run.py secret set rdh
+```
+
+This prompts for your RDH username (shown) and password (hidden) and stores them using the same backend as the census key — OS keystore when `keyring` is installed, otherwise `authentication_files/credentials.json` (gitignored).
+
+**Check whether credentials are set:**
+
+```bash
+python run.py secret get rdh
+python run.py secret get rdh --show   # prints the raw values
+```
+
+**Remove credentials from all backends:**
+
+```bash
+python run.py secret clear rdh
+```
+
+**Alternative — environment variables.** Set `RDH_USERNAME` and `RDH_PASSWORD` instead — they take precedence over the stored secret and are useful inside containers and CI:
+
+```bash
+export RDH_USERNAME=your-username
+export RDH_PASSWORD=your-password
+```
+
+See [Input Data — CVAP Data](input_files.md#cvap-data) for details on what is downloaded and RDH terms of use.
 
 ## Running the Model
 
