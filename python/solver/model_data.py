@@ -329,7 +329,8 @@ def _log_transform_metric_columns(distance_df: pd.DataFrame) -> pd.DataFrame:
         distance_df: Frame holding distance_m and optionally duration_s.
 
     Returns:
-        The same frame with the metric columns log-transformed.
+        The same DataFrame object, mutated in place, returned for call-site
+        convenience.
     '''
     metric_columns = [DISTANCE_DISTANCE_M]
     if DISTANCE_DURATION_S in distance_df.columns:

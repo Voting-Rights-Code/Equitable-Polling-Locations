@@ -302,3 +302,16 @@ def test_apply_metric_raises_when_duration_missing():
     with pytest.raises(ValueError, match='duration_s'):
         apply_metric(config, df)
 
+
+def test_driving_time_aliases_log_transformed_duration():
+    # With log_distance on, the build log-transforms duration_s; a driving_time run
+    # must then optimize on log(duration), not raw seconds. This locks the
+    # composition of the build transform and the solve-time alias.
+    config = _driving_config('driving_time')
+    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_S: [50.0]})
+
+    logged_df = _log_transform_metric_columns(df.copy(deep=True))
+    result = apply_metric(config, logged_df)
+
+    assert result[DISTANCE_DISTANCE_M].tolist() == [np.log(50.0)]
+
