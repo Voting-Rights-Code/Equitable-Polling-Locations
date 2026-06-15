@@ -77,9 +77,9 @@ _SRC_BASE_CONFIG = os.path.join(_TESTING_CONFIG_DIR, 'testing_config_no_bg.yaml'
 
 CONFIG_VARIANTS = {
     'config_basic': {},
-    'config_driving': {'driving': True},
+    'config_driving': {'driving': True, 'metric': 'driving_distance'},
     'config_log': {'log_distance': True},
-    'config_driving_log': {'driving': True, 'log_distance': True},
+    'config_driving_log': {'driving': True, 'log_distance': True, 'metric': 'driving_distance'},
     'config_penalty': {'penalized_sites': ['College Campus - Potential', 'Fire Station - Potential']},
     'config_low_beta': {'beta': -1},
     'config_capacity': {'capacity': 3},
@@ -391,6 +391,9 @@ def e2e_test_data(e2e_session_id, pytestconfig):
     autogen_template['new_range'] = [['2020'], ['2022']]
     autogen_template['driving'] = False
     autogen_template['log_distance'] = False
+    # auto_generate_config validates template fields against the ModelConfig DB
+    # model, which has no `metric` column yet, so the autogen template must omit it.
+    autogen_template.pop('metric', None)
     autogen_template['penalized_sites'] = []
 
     autogen_template_path = os.path.join(config_subdir, f'{sid}_autogen.yaml_template')

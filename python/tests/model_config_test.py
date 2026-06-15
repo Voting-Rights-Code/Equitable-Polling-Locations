@@ -35,3 +35,8 @@ def test_metric_loads_haversine(tmp_path):
     config_path = _write_config(tmp_path, overrides={'driving': False, 'metric': 'haversine'})
     config = PollingModelConfig.load_config(config_path)
     assert config.metric == 'haversine'
+
+
+def test_canonical_driving_config_declares_driving_distance():
+    config = PollingModelConfig.load_config(_BASE_DRIVING_YAML)
+    assert config.metric == 'driving_distance'

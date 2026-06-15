@@ -16,5 +16,6 @@ max_min_mult: 5
 maxpctnew: 0
 minpctold: 1
 driving: false
+metric: haversine # haversine | driving_distance | driving_time
 log_distance: true
 penalized_sites: null
