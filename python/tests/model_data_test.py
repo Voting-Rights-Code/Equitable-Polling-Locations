@@ -9,10 +9,11 @@ import pandas as pd
 import pytest
 
 from python.solver import model_data
-from python.solver.constants import DISTANCE_DISTANCE_M, DISTANCE_DURATION_S
-from python.solver.model_data import _log_transform_metric_columns
+from python.solver.constants import DISTANCE_DISTANCE_M, DISTANCE_DURATION_S, DISTANCE_ID_ORIG, DISTANCE_ID_DEST
+from python.solver.model_config import PollingModelConfig
+from python.solver.model_data import _log_transform_metric_columns, apply_metric
 
-from .constants import TESTING_POTENTIAL_LOCATIONS_PATH, TESTING_DRIVING_DISTANCES_PATH, TEST_LOCATION, MAP_SOURCE_DATE
+from .constants import TESTING_POTENTIAL_LOCATIONS_PATH, TESTING_DRIVING_DISTANCES_PATH, TEST_LOCATION, MAP_SOURCE_DATE, TESTING_CONFIG_DRIVING
 
 
 def test_build_source_columns(location_df_with_driving):
@@ -255,4 +256,49 @@ def test_log_transform_skips_duration_when_absent():
 
     assert DISTANCE_DURATION_S not in result.columns
     assert result[DISTANCE_DISTANCE_M].tolist() == [np.log(100.0)]
+
+
+def _driving_config(metric):
+    config = PollingModelConfig.load_config(TESTING_CONFIG_DRIVING)
+    config.driving = metric != 'haversine'
+    config.metric = metric
+    return config
+
+
+def test_apply_metric_aliases_duration_for_driving_time():
+    config = _driving_config('driving_time')
+    df = pd.DataFrame({
+        DISTANCE_ID_ORIG: ['a'], DISTANCE_ID_DEST: ['b'],
+        DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_S: [42.0],
+    })
+
+    result = apply_metric(config, df)
+
+    assert result[DISTANCE_DISTANCE_M].tolist() == [42.0]
+
+
+def test_apply_metric_noop_for_driving_distance():
+    config = _driving_config('driving_distance')
+    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_S: [42.0]})
+
+    result = apply_metric(config, df)
+
+    assert result[DISTANCE_DISTANCE_M].tolist() == [100.0]
+
+
+def test_apply_metric_noop_for_haversine():
+    config = _driving_config('haversine')
+    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0]})
+
+    result = apply_metric(config, df)
+
+    assert result[DISTANCE_DISTANCE_M].tolist() == [100.0]
+
+
+def test_apply_metric_raises_when_duration_missing():
+    config = _driving_config('driving_time')
+    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0]})
+
+    with pytest.raises(ValueError, match='duration_s'):
+        apply_metric(config, df)
 

@@ -715,6 +715,42 @@ def filter_dest_type(distance_df: pd.DataFrame, year_list: list[str]):
     )
 
 
+def apply_metric(config: PollingModelConfig, distance_df: pd.DataFrame) -> pd.DataFrame:
+    '''Alias the configured metric into the working distance_m column.
+
+    Only driving_time changes anything: the optimizer minimizes travel time by
+    reading the duration_s column through the existing distance_m column, so the
+    Kolm-Pollak math, penalties and results stay metric-agnostic. haversine and
+    driving_distance already live in distance_m and are returned unchanged. The
+    cached distance file is never mutated on disk (it holds meters in distance_m
+    and seconds in duration_s), so switching metric never invalidates the cache.
+
+    Args:
+        config: Model configuration providing the metric.
+        distance_df: Loaded distance data.
+
+    Returns:
+        The distance data with distance_m holding the selected metric. Returned
+        unchanged (same object) for haversine and driving_distance.
+
+    Raises:
+        ValueError: When driving_time is requested but duration_s is absent (e.g.
+            a legacy distance file, or the not-yet-supported database path; DB
+            duration support lands in Phase 3 / #230).
+    '''
+    if config.metric != METRIC_DRIVING_TIME:
+        return distance_df
+    if DISTANCE_DURATION_S not in distance_df.columns:
+        raise ValueError(
+            f'metric is {METRIC_DRIVING_TIME!r} but the distance data has no '
+            f'{DISTANCE_DURATION_S} column. Regenerate driving distances with duration, '
+            f'or choose a distance metric. (DB duration support lands in Phase 3.)'
+        )
+    result_df = distance_df.copy(deep=True)
+    result_df[DISTANCE_DISTANCE_M] = result_df[DISTANCE_DURATION_S]
+    return result_df
+
+
 # pylint: disable-next=unused-argument
 def filter_distance_data(config: PollingModelConfig, distance_df: pd.DataFrame, for_alpha: bool, log: bool):
     '''
