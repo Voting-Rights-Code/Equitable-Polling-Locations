@@ -4,10 +4,13 @@
 
 from itertools import product
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from python.solver import model_data
+from python.solver.constants import DISTANCE_DISTANCE_M, DISTANCE_DURATION_S
+from python.solver.model_data import _log_transform_metric_columns
 
 from .constants import TESTING_POTENTIAL_LOCATIONS_PATH, TESTING_DRIVING_DISTANCES_PATH, TEST_LOCATION, MAP_SOURCE_DATE
 
@@ -233,4 +236,23 @@ def test_load_driving_distances_csv_still_reads_legacy_three_column(tmp_path):
     df = model_data.load_driving_distances_csv(str(path))
     assert df['distance_m'].tolist() == [100.0]
     assert 'duration_s' not in df.columns
+
+
+def test_log_transform_applies_to_duration_when_present():
+    df = pd.DataFrame({
+        DISTANCE_DISTANCE_M: [0.0, 100.0],
+        DISTANCE_DURATION_S: [0.0, 50.0],
+    })
+    result = _log_transform_metric_columns(df.copy(deep=True))
+
+    assert result[DISTANCE_DISTANCE_M].tolist() == [np.log(0.001), np.log(100.0)]
+    assert result[DISTANCE_DURATION_S].tolist() == [np.log(0.001), np.log(50.0)]
+
+
+def test_log_transform_skips_duration_when_absent():
+    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0]})
+    result = _log_transform_metric_columns(df.copy(deep=True))
+
+    assert DISTANCE_DURATION_S not in result.columns
+    assert result[DISTANCE_DISTANCE_M].tolist() == [np.log(100.0)]
 

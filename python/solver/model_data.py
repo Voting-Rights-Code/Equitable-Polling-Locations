@@ -317,6 +317,29 @@ class BuildDistanceMetaData:
     potential_locations_set_id: str=None
 
 
+def _log_transform_metric_columns(distance_df: pd.DataFrame) -> pd.DataFrame:
+    '''Replace each driving-metric column with its natural log, in place.
+
+    Both distance_m and (when present) duration_s are log-transformed so a
+    log_distance run can later select either metric and find it already logged.
+    Zero values are floored to 0.001 first, matching the historical distance
+    behavior, since log(0) is undefined.
+
+    Args:
+        distance_df: Frame holding distance_m and optionally duration_s.
+
+    Returns:
+        The same frame with the metric columns log-transformed.
+    '''
+    metric_columns = [DISTANCE_DISTANCE_M]
+    if DISTANCE_DURATION_S in distance_df.columns:
+        metric_columns.append(DISTANCE_DURATION_S)
+    for column in metric_columns:
+        distance_df[column].mask(distance_df[column] == 0.0, 0.001, inplace=True)
+        distance_df[column] = np.log(distance_df[column])
+    return distance_df
+
+
 # Old Build source function
 @timer
 def build_distance_data(
@@ -434,8 +457,7 @@ def build_distance_data(
     if log_distance:
         distance_df[DISTANCE_SOURCE] = DISTANCE_SOURCE_LOG_WITH_SPACE + distance_df[DISTANCE_SOURCE]
         #TODO: why are there 0 distances showing up?
-        distance_df[DISTANCE_DISTANCE_M].mask(distance_df[DISTANCE_DISTANCE_M] == 0.0, 0.001, inplace=True)
-        distance_df[DISTANCE_DISTANCE_M] = np.log(distance_df[DISTANCE_DISTANCE_M])
+        distance_df = _log_transform_metric_columns(distance_df)
 
     # Ensure DISTANCE_ID_ORIG and DISTANCE_ID_DEST are strings
     distance_df[DISTANCE_ID_ORIG] = distance_df[DISTANCE_ID_ORIG].astype(str)
