@@ -1,6 +1,7 @@
 '''Tests for python/solver/model_config.py config loading and validation.'''
 import os
 
+import pytest
 import yaml
 
 from python.solver.model_config import PollingModelConfig
@@ -40,3 +41,33 @@ def test_metric_loads_haversine(tmp_path):
 def test_canonical_driving_config_declares_driving_distance():
     config = PollingModelConfig.load_config(_BASE_DRIVING_YAML)
     assert config.metric == 'driving_distance'
+
+
+def test_metric_required(tmp_path):
+    config_path = _write_config(tmp_path, drop=('metric',))
+    with pytest.raises(ValueError, match='must specify'):
+        PollingModelConfig.load_config(config_path)
+
+
+def test_metric_rejects_invalid_value(tmp_path):
+    config_path = _write_config(tmp_path, overrides={'driving': True, 'metric': 'minutes'})
+    with pytest.raises(ValueError, match='must specify'):
+        PollingModelConfig.load_config(config_path)
+
+
+def test_metric_haversine_requires_driving_false(tmp_path):
+    config_path = _write_config(tmp_path, overrides={'driving': True, 'metric': 'haversine'})
+    with pytest.raises(ValueError, match='inconsistent'):
+        PollingModelConfig.load_config(config_path)
+
+
+def test_metric_driving_distance_requires_driving_true(tmp_path):
+    config_path = _write_config(tmp_path, overrides={'driving': False, 'metric': 'driving_distance'})
+    with pytest.raises(ValueError, match='inconsistent'):
+        PollingModelConfig.load_config(config_path)
+
+
+def test_metric_accepts_driving_time(tmp_path):
+    config_path = _write_config(tmp_path, overrides={'driving': True, 'metric': 'driving_time'})
+    config = PollingModelConfig.load_config(config_path)
+    assert config.metric == 'driving_time'
