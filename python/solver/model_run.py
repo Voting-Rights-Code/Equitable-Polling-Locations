@@ -21,6 +21,7 @@ from .run_setup import RunSetup
 from .model_config import PollingModelConfig
 from .model_data import (
     alpha_min,
+    apply_metric,
     build_distance_data,
     filter_distance_data,
     get_distance_data,
@@ -182,6 +183,10 @@ class ModelRun():
 
         distance_data_set_id = distance_data.distance_data_set_id
         distance_df = distance_data.distance_df
+
+        # Select the configured metric (driving_time aliases duration_s into
+        # distance_m) so the solver, penalties and results stay metric-agnostic.
+        distance_df = apply_metric(self._config, distance_df)
 
         # get main data frame
         dist_df = filter_distance_data(self._config, distance_df, False, self._log)
