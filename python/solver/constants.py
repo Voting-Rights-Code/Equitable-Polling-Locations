@@ -34,6 +34,12 @@ CONFIG_FILE_PATH = 'config_file_path'
 CONFIG_LOG_FILE_PATH = 'log_file_path'
 CONFIG_MAP_SOURCE_DATE = 'map_source_date'
 CONFIG_LOCATION_SOURCE = 'data_source'
+CONFIG_DRIVING = 'driving'
+CONFIG_METRIC = 'metric'
+
+METRIC_HAVERSINE = 'haversine'
+METRIC_DRIVING_DISTANCE = 'driving_distance'
+METRIC_DRIVING_TIME = 'driving_time'
 
 # Potential locations data related constants
 POT_LOC_LOCATION = 'Location'

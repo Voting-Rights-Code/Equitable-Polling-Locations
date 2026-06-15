@@ -101,6 +101,12 @@ class PollingModelConfig:
     log_distance: bool = False
     ''' Log of the distance (driving or haversine) computed and used in optimization if True '''
 
+    metric: str = None
+    ''' Which travel metric to optimize on: 'haversine' (straight-line meters),
+    'driving_distance' (road meters) or 'driving_time' (road seconds). Required on
+    every config and validated for consistency with `driving` in load_config;
+    validation is added in a later task. There is no implicit default. '''
+
     commit_hash: str = None
     '''NOT CURRENTLY IN USE. Git commit under which this code was run'''
     run_time: dt.datetime = None
