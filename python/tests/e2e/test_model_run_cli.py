@@ -255,6 +255,22 @@ class TestModelRunCliVariants:
             f"Results file missing for config_driving: {files['results']}"
         )
 
+    def test_driving_duration_config(self, e2e_test_data):
+        """config_driving_duration (metric: driving_time) runs end to end.
+
+        Args:
+            e2e_test_data: Session-scoped test data dict.
+        """
+        sid = e2e_test_data['sid']
+        config_path = e2e_test_data['configs']['config_driving_duration']
+
+        run_cli(MODULE, config_path)
+
+        files = _result_files(sid, 'config_driving_duration')
+        assert os.path.isfile(files['results']), (
+            f"Results file missing for config_driving_duration: {files['results']}"
+        )
+
     def test_log_config(self, e2e_test_data):
         """config_log runs successfully and produces result files.
 

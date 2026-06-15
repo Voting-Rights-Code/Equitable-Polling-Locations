@@ -78,6 +78,7 @@ _SRC_BASE_CONFIG = os.path.join(_TESTING_CONFIG_DIR, 'testing_config_no_bg.yaml'
 CONFIG_VARIANTS = {
     'config_basic': {},
     'config_driving': {'driving': True, 'metric': 'driving_distance'},
+    'config_driving_duration': {'driving': True, 'metric': 'driving_time'},
     'config_log': {'log_distance': True},
     'config_driving_log': {'driving': True, 'log_distance': True, 'metric': 'driving_distance'},
     'config_penalty': {'penalized_sites': ['College Campus - Potential', 'Fire Station - Potential']},
@@ -325,7 +326,13 @@ def e2e_test_data(e2e_session_id, pytestconfig):
 
     shutil.copy(_SRC_POTENTIAL_LOCATIONS, potential_locations_path)
     shutil.copy(_SRC_DISTANCES, distances_path)
-    shutil.copy(_SRC_DRIVING_DISTANCES, driving_distances_path)
+    # Stage driving distances with a synthesized duration_s column so the
+    # driving_time metric path has data. duration_s is derived from distance_m
+    # at a fixed nominal speed; e2e asserts result shape, not exact values.
+    staged_driving_df = pd.read_csv(_SRC_DRIVING_DISTANCES)
+    if 'duration_s' not in staged_driving_df.columns:
+        staged_driving_df['duration_s'] = staged_driving_df['distance_m'] / 10.0
+    staged_driving_df.to_csv(driving_distances_path, index=False)
     # The db_import_driving_distances_cli only expects columns matching the
     # DrivingDistance model (id_orig, id_dest, distance_m) plus V1 (ignored).
     # The source CSV has extra columns (county, demographics, etc.) that would

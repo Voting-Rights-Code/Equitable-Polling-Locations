@@ -78,7 +78,7 @@ class TestE2eTestDataFiles:
         assert os.path.isfile(e2e_test_data['driving_distances_import'])
 
     def test_all_config_variants_exist(self, e2e_test_data):
-        """Each of the 8 CONFIG_VARIANTS must have a corresponding YAML file on disk."""
+        """Each of the 9 CONFIG_VARIANTS must have a corresponding YAML file on disk."""
         for suffix in CONFIG_VARIANTS:
             assert suffix in e2e_test_data['configs'], (
                 f"Missing key '{suffix}' in e2e_test_data['configs']"
@@ -92,8 +92,8 @@ class TestE2eTestDataFiles:
         assert os.path.isfile(e2e_test_data['autogen_template'])
 
     def test_config_variant_count(self, e2e_test_data):
-        """Exactly 8 config variants must be created."""
-        assert len(e2e_test_data['configs']) == 8
+        """Exactly 9 config variants must be created."""
+        assert len(e2e_test_data['configs']) == 9
 
 
 @pytest.mark.e2e
