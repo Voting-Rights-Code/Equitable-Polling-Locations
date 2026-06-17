@@ -65,6 +65,12 @@ Nothing breaks without `keyring` — the file fallback is automatic. Verify the 
 python3 -c "import keyring; print(keyring.get_keyring())"
 ```
 
+#### Inside the dev container
+
+`keyring` is a host-only OS service, so it is not available inside the dev container. When you run `python run.py secret set census` (or `set rdh`) from a shell **inside** the container, the secret is written to `authentication_files/credentials.json` in the mounted repo, which the solver reads directly — no environment variables required. This is the supported way to make credentials available to scripts run interactively in the container (e.g. `pull_census_data_cli` and CVAP pulls).
+
+Because `credentials.json` is gitignored and removed by `git clean -fdx`, re-run `secret set` after wiping your working tree. Host-launched `run.py` invocations are unaffected — they keep using the keyring path above.
+
 ### Test the Installation
 To confirm the installation is setup correctly, run pytest with the following command in the root of the project directory:
 
