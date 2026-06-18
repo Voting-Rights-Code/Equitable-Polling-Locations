@@ -161,18 +161,38 @@ def secret_clear(secret: secret_store.Secret) -> None:
         print(f"'{secret.name}': nothing to remove.")
 
 
+def secret_restore() -> None:
+    """Regenerate credentials.json from the durable source for every secret.
+
+    Run from the host after ``git clean -fdx`` wipes the file. The keyring copy
+    survives, so this rewrites credentials.json (which the dev container reads
+    via the repo mount) from it.
+    """
+    for secret in secret_store.SECRETS.values():
+        source = secret_store.restore_file(secret)
+        if source is None:
+            print(f"'{secret.name}': nothing to restore (no env var or keyring value).")
+        else:
+            print(f"'{secret.name}' restored to credentials.json (from {source}).")
+
+
 def handle_secret_command(argv: list[str]) -> None:
-    """Parse and dispatch `run.py secret <action> <name> [--show]`.
+    """Parse and dispatch `run.py secret <action> [name] [--show]`.
 
     Args:
         argv: The argument list following the `secret` subcommand.
     """
     parser = argparse.ArgumentParser(prog="python run.py secret")
-    parser.add_argument("action", choices=["set", "get", "clear"])
-    parser.add_argument("name", choices=sorted(secret_store.SECRETS))
+    parser.add_argument("action", choices=["set", "get", "clear", "restore"])
+    parser.add_argument("name", nargs="?", choices=sorted(secret_store.SECRETS))
     parser.add_argument("--show", action="store_true",
                         help="Reveal the raw value (get only).")
     args = parser.parse_args(argv)
+    if args.action == "restore":
+        secret_restore()
+        return
+    if args.name is None:
+        parser.error("the 'name' argument is required for set/get/clear")
     secret = secret_store.get_secret(args.name)
     if args.action == "set":
         secret_set(secret)

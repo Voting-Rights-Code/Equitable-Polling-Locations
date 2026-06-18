@@ -77,6 +77,22 @@ class TestSecretHandlers:
         run.handle_secret_command(["get", "census", "--show"])
         assert "abcdef" in capsys.readouterr().out
 
+    def test_handle_command_restore_reports_each_secret(self, monkeypatch, capsys):
+        monkeypatch.setattr(secret_store, "restore_file", lambda s: "keyring")
+        run.handle_secret_command(["restore"])
+        out = capsys.readouterr().out
+        assert "census" in out
+        assert "restored" in out
+
+    def test_handle_command_restore_reports_nothing_to_restore(self, monkeypatch, capsys):
+        monkeypatch.setattr(secret_store, "restore_file", lambda s: None)
+        run.handle_secret_command(["restore"])
+        assert "nothing to restore" in capsys.readouterr().out
+
+    def test_set_without_name_errors(self):
+        with pytest.raises(SystemExit):
+            run.handle_secret_command(["set"])
+
 
 class TestSecretInjection:
     """Tests for build_secret_env_and_flags injecting resolved secrets into Docker env."""
