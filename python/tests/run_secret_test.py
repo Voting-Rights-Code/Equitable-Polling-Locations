@@ -67,6 +67,7 @@ class TestSecretHandlers:
         run.secret_set(secret)
         out = capsys.readouterr().out
         assert "OS keystore" in out
+        assert str(secret.file_path) in out
 
     def test_handle_command_get_show_reveals(self, monkeypatch, capsys):
         monkeypatch.setattr(secret_store, "keyring", None)
