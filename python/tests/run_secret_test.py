@@ -22,8 +22,10 @@ class TestSecretHandlers:
         secret = self._secret(tmp_path)
         monkeypatch.setattr(run.getpass, "getpass", lambda prompt="": "typed-key")
         run.secret_set(secret)
+        out = capsys.readouterr().out
         assert _read_file(secret) == "typed-key"
-        assert "stored in" in capsys.readouterr().out
+        assert "stored in" in out
+        assert "Note:" in out
 
     def test_set_rejects_empty(self, tmp_path, monkeypatch):
         secret = self._secret(tmp_path)

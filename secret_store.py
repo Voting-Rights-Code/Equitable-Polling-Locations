@@ -1,8 +1,8 @@
 """Host-side secret store.
 
-Stores secrets in the OS keystore via `keyring` when available, falling back to
-`authentication_files/credentials.json` when it is not. Stdlib-only (plus an
-optional `keyring` import) so it is importable from the zero-setup host `run.py`
+Stores secrets in `authentication_files/credentials.json` and, when `keyring` is
+available, additionally in the OS keystore as a durable backup. Stdlib-only (plus
+an optional `keyring` import) so it is importable from the zero-setup host `run.py`
 as well as from inside the container.
 """
 
@@ -190,7 +190,7 @@ def _store_keyring(secret: Secret, value: str) -> None:
 
     Raises:
         KeyringError: When the OS keystore backend is present but unusable.
-            The caller (store()) catches this and falls back to the file.
+            The caller (store()) catches this; the credentials file is written regardless.
     """
     keyring.set_password(secret.keyring_service, secret.keyring_username, value)
 
