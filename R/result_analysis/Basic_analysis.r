@@ -67,6 +67,7 @@ config_dt_list<-c(orig_config_dt, potential_config_dt)
 #get driving flags
 DRIVING_FLAG <- set_global_flag(config_dt_list, 'driving')
 LOG_FLAG <- set_global_flag(config_dt_list, 'log_distance')
+CVAP_FLAG <- set_global_flag(config_dt_list, 'census_data_type', compare_to = 'CVAP')
 
 
 #######

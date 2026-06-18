@@ -25,7 +25,7 @@ Whether pulling from the database or csv, the analysis software compiles the rel
 1. Performs safety checks
     1. That the data pulled varies by only one field per set
     1. That the data contains the locations of interest
-1. Pulls out a Driving and a Log Flag from the config file
+1. Pulls out a Driving, a Log and a CVAP Flag from the config file
 1. Reads and coallates the output data by the four tables
     1. This includes and automatic generation of a descriptor field based off the field that varies
     1. This descriptor field may need to be mannually changed, depending on the specifics of the data.

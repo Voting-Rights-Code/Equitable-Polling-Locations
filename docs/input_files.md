@@ -7,6 +7,8 @@ When setting up a **new location** for the first time, the following inputs are 
 1. A *manually generated* dataset of past and potential polling locations, consistent with local laws
 1. A config file that contains the parameters for a given optimization
 1. Optionally, a dataset of driving distances if driving distance analysis is desired
+1. Optionally, if you are using CVAP data, a [Redistricting Data Hub](https://redistrictingdatahub.org/) username and password.
+  1. Note, if you are using any data from Redistricting Data Hub or data products derived from their data, you must comply with their [Terms and Conditions] (https://redistrictingdatahub.org/terms-and-conditions/)
 
 ## Census Data (demographics and shapefiles)
 
@@ -94,6 +96,17 @@ The model uses two shapefiles from the [TIGER/Line program](https://www.census.g
 **Block group shapefile** (`tl_<YYYY>_<FIPS>_bg<YY>.shp`): Same structure as the block shapefile but at the block group level. Download instructions are identical to the block file.
 
 Both files can be downloaded from the [TIGER/Line FTP Archive](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.2020.html#list-tab-790442341) by selecting the desired state and FIPS code.
+
+### CVAP data
+
+Stored in `datasets/census/CVAP/<County_ST>/`
+
+CVAP stands for citizen voting age population. This is collected by the census ACS at the block group level. [Redistricting Data Hub](https://redistrictingdatahub.org/) disaggregates it to the block level. 
+
+For documentation of their disaggregation process and their fields, see their [CVAP documentation](https://redistrictingdatahub.org/data/about-our-data/american-community-survey/#cvap) page.
+
+Note, any use of data or data products built on data from Redistricting Data Hub must comply with their [Terms and Condtions](https://redistrictingdatahub.org/terms-and-conditions/)
+
 
 ## Potential Locations CSV
 
@@ -191,6 +204,7 @@ The following fields are defined in the `PollingModelConfig` class (see `python/
 | config_name | str | Yes | — | Unique name of this config. Should match the file name (without `.yaml`). |
 | location | str | Yes | — | Geographic location for the model. Must be of the form `<Location>_County_<ST>` or `Contained_in_<Location>_City_of_<ST>` to match census encoding. |
 | census_year | str | Yes | `2020` | The census year that maps and demographic data are pulled from. |
+|census_data_type | str | Yes | `redistricting` or `CVAP` | A string indicating the type of population to use for this model|
 | year | list[str] | Yes | — | Array of years of historical polling data relevant to this model (e.g., `['2020', '2022']`). Must not be empty. |
 | bad_types | list[str] | No | `[]` | Location types to exclude from consideration. Values must match `Location type` entries in the `*_potential_locations.csv` file. |
 | beta | float | Yes | — | Kolm-Pollak inequality aversion parameter. Range: `[-2, 0]`. `0` = indifference (uses mean distance). `-1` is a typical value. More negative values weight equity more heavily. |

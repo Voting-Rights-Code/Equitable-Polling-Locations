@@ -223,6 +223,7 @@ datasets/results/e2e_*_results/
 !docs/README_Image.jpg
 !docs/VRC-Large-PNG.png
 !docs/VRC-Large-PNG.png
+!datasets/census/CVAP/testing/*
 !datasets/census/redistricting/testing/*
 !datasets/census/tiger/testing/*
 !datasets/driving/testing/*

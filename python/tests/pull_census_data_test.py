@@ -24,7 +24,6 @@ from python.utils.pull_census_data import (
     download_file,
 )
 from python.utils.directory_constants import BLOCK_GEO
-from python.utils.utils import build_tiger_location_dir
 
 
 TEST_RDH_URL = 'https://redistrictingdatahub.org/wp-json/download/list'
@@ -122,19 +121,53 @@ def test_pull_state_CVAP_data_raises_when_multiple_datasets_found():
 
 
 def test_pull_state_CVAP_data_filters_by_year():
-    ''' Returns data only for the requested year even when multiple years are in the catalog. '''
+    ''' Selects the most recent year in the census window, excluding years before census_year. '''
     list_bytes = _make_list_response_bytes([
         _block_level_row('2019'),
         _block_level_row('2020'),
         _block_level_row('2021'),
     ])
-    zip_bytes = _make_cvap_zip_bytes('2020')
+    zip_bytes = _make_cvap_zip_bytes('2021')
 
-    with patch('python.utils.pull_census_data.requests.get', side_effect=_mock_get(list_bytes, zip_bytes)):
+    with patch('python.utils.pull_census_data.requests.get', side_effect=_mock_get(list_bytes, zip_bytes)) as mock_get:
         result = pull_state_CVAP_data('Georgia', 'user', 'pass', '2020', rdh_url=TEST_RDH_URL)
 
     assert isinstance(result, pd.DataFrame)
-    assert result.shape[0] == 1
+    download_url = mock_get.call_args_list[1][0][0]
+    assert 'ga_cvap_2021' in download_url
+
+
+def test_pull_state_CVAP_data_selects_most_recent_in_census_window():
+    ''' Selects the most recent CVAP dataset within the census decade when no exact-year match exists. '''
+    list_bytes = _make_list_response_bytes([
+        _block_level_row('2023'),
+        _block_level_row('2025'),
+    ])
+    zip_bytes = _make_cvap_zip_bytes('2025')
+
+    with patch('python.utils.pull_census_data.requests.get', side_effect=_mock_get(list_bytes, zip_bytes)) as mock_get:
+        result = pull_state_CVAP_data('Georgia', 'user', 'pass', '2020', rdh_url=TEST_RDH_URL)
+
+    assert isinstance(result, pd.DataFrame)
+    download_url = mock_get.call_args_list[1][0][0]
+    assert 'ga_cvap_2025' in download_url
+
+
+def test_pull_state_CVAP_data_excludes_next_census_decade():
+    ''' Does not select a dataset from the next census decade (e.g. 2030+) when census_year is 2020. '''
+    list_bytes = _make_list_response_bytes([
+        _block_level_row('2025'),
+        _block_level_row('2030'),
+    ])
+    zip_bytes = _make_cvap_zip_bytes('2025')
+
+    with patch('python.utils.pull_census_data.requests.get', side_effect=_mock_get(list_bytes, zip_bytes)) as mock_get:
+        result = pull_state_CVAP_data('Georgia', 'user', 'pass', '2020', rdh_url=TEST_RDH_URL)
+
+    assert isinstance(result, pd.DataFrame)
+    download_url = mock_get.call_args_list[1][0][0]
+    assert 'ga_cvap_2025' in download_url
+    assert 'ga_cvap_2030' not in download_url
 
 
 def test_pull_state_CVAP_data_ignores_shp_format():
@@ -217,21 +250,38 @@ class TestUnzipFile:
 class TestPullTigerFile:
     """Tests for pull_tiger_file()."""
 
-    def test_uses_absolute_tiger_dir(self):
-        """pull_tiger_file writes into the absolute build_tiger_location_dir, not a CWD-relative path."""
+    def test_skips_download_when_shapefile_already_exists(self, tmp_path):
+        """Does not call download_file when the expected .shp file is already on disk."""
+        (tmp_path / 'tl_2020_48439_tabblock20.shp').touch()
+
+        with patch('python.utils.pull_census_data.build_tiger_location_dir', return_value=str(tmp_path)), \
+             patch('python.utils.pull_census_data.download_file') as mock_download:
+            pull_tiger_file(
+                state='Texas',
+                fips='48',
+                county_st='Tarrant_County_TX',
+                county_code='439',
+                geo=BLOCK_GEO,
+                census_year='2020',
+            )
+
+        mock_download.assert_not_called()
+
+    def test_uses_absolute_tiger_dir(self, tmp_path):
+        """pull_tiger_file writes into the directory returned by build_tiger_location_dir."""
         captured = {}
 
         def fake_download(url, local_dir):
             captured['url'] = url
             captured['local_dir'] = local_dir
-            # Return a fake zip path so unzip_file (also mocked) has something to receive.
             return Path(local_dir) / 'fake.zip'
 
         def fake_unzip(fpath, outdir):
             captured['unzip_fpath'] = fpath
             captured['unzip_outdir'] = outdir
 
-        with patch('python.utils.pull_census_data.download_file', side_effect=fake_download), \
+        with patch('python.utils.pull_census_data.build_tiger_location_dir', return_value=str(tmp_path)), \
+             patch('python.utils.pull_census_data.download_file', side_effect=fake_download), \
              patch('python.utils.pull_census_data.unzip_file', side_effect=fake_unzip):
             pull_tiger_file(
                 state='Texas',
@@ -242,9 +292,8 @@ class TestPullTigerFile:
                 census_year='2020',
             )
 
-        expected = Path(build_tiger_location_dir('Tarrant_County_TX'))
-        assert Path(captured['local_dir']) == expected
-        assert Path(captured['unzip_outdir']) == expected
+        assert Path(captured['local_dir']) == tmp_path
+        assert Path(captured['unzip_outdir']) == tmp_path
 
 
 class TestRequestWithRetries:
