@@ -1,8 +1,8 @@
 """Host-side secret store.
 
-Stores secrets in the OS keystore via `keyring` when available, falling back to
-`authentication_files/credentials.json` when it is not. Stdlib-only (plus an
-optional `keyring` import) so it is importable from the zero-setup host `run.py`
+Stores secrets in `authentication_files/credentials.json` and, when `keyring` is
+available, additionally in the OS keystore as a durable backup. Stdlib-only (plus
+an optional `keyring` import) so it is importable from the zero-setup host `run.py`
 as well as from inside the container.
 """
 
@@ -216,7 +216,7 @@ def _store_keyring(secret: Secret, value: str) -> None:
 
     Raises:
         KeyringError: When the OS keystore backend is present but unusable.
-            The caller (store()) catches this and falls back to the file.
+            The caller (store()) catches this; the credentials file is written regardless.
     """
     keyring.set_password(secret.keyring_service, secret.keyring_username, value)
 
@@ -262,28 +262,31 @@ def resolve(secret: Secret) -> Optional[str]:
     return _read_file(secret)
 
 
-def store(secret: Secret, value: str) -> str:
-    """Store the secret in the best available backend.
+def store(secret: Secret, value: str) -> list[str]:
+    """Store the secret in every available backend.
 
-    Prefers the OS keystore; falls back to the JSON credentials file when
-    keyring is not installed or its backend raises KeyringError.
+    Always writes the JSON credentials file; additionally writes the OS keystore
+    when keyring is installed and its backend is usable. Writing both lets a
+    single host-side ``secret set`` reach host-launched runs (via keyring or
+    file) and the bind-mounted credentials.json that the dev container reads.
 
     Args:
         secret: The Secret to store.
         value: The plaintext secret value to persist.
 
     Returns:
-        ``"keyring"`` if stored in the OS keystore; ``"file"`` if stored in
-        the JSON credentials file.
+        The backends written, e.g. ``["keyring", "file"]`` or ``["file"]``.
     """
+    backends: list[str] = []
     if keyring is not None:
         try:
             _store_keyring(secret, value)
-            return "keyring"
+            backends.append("keyring")
         except KeyringError:
             pass
     _write_file(secret, value)
-    return "file"
+    backends.append("file")
+    return backends
 
 
 def clear(secret: Secret) -> list[str]:
@@ -302,6 +305,36 @@ def clear(secret: Secret) -> list[str]:
     if _clear_file(secret):
         removed.append("file")
     return removed
+
+
+def restore_file(secret: Secret) -> Optional[str]:
+    """Repopulate the JSON credentials file from the durable source.
+
+    Reads the value using the normal precedence (env var > keyring > file) and,
+    when found, writes it to credentials.json. Used by ``run.py secret restore``
+    to recover the file after ``git clean -fdx`` removes it (the keyring copy
+    survives, since it is not in the repo).
+
+    Args:
+        secret: The Secret to restore.
+
+    Returns:
+        The source backend the value came from (``"env"`` / ``"keyring"`` /
+        ``"file"``) for reporting, or None when no value is available anywhere.
+    """
+    env_value = os.environ.get(secret.env_var)
+    keyring_value = _read_keyring(secret)
+    file_value = _read_file(secret)
+    if env_value:
+        value, source = env_value, "env"
+    elif keyring_value:
+        value, source = keyring_value, "keyring"
+    elif file_value:
+        value, source = file_value, "file"
+    else:
+        return None
+    _write_file(secret, value)
+    return source
 
 
 def mask(value: str) -> str:

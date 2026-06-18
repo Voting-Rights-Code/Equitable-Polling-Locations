@@ -25,7 +25,7 @@ If you plan to download census data for counties not already in the repo, you ne
 
 Alternatively, export the `CENSUS_API_KEY` environment variable — it takes precedence over the stored secret, which is useful inside containers and CI.
 
-At model-run time `run.py` resolves the key automatically and forwards it into the container, so no extra steps are needed beyond storing it once.
+On host-launched runs, `run.py` resolves the key automatically and forwards it into the container, so no extra steps are needed beyond storing it once. (Working **inside** the dev container instead? See [Inside the dev container](#inside-the-dev-container) below.)
 
 For CVAP runs, also store your Redistricting Data Hub credentials:
 
@@ -35,9 +35,9 @@ python run.py secret set rdh
 
 #### Optional: keyring backend
 
-By default, `secret set` stores secrets in `authentication_files/credentials.json` (gitignored). That file is wiped by `git clean -fdx`.
+`secret set` always writes the value to `authentication_files/credentials.json` (gitignored), which is wiped by `git clean -fdx`.
 
-Install `keyring` on the host to store secrets in your OS keystore instead, so they survive working-tree wipes. It must be installed for the **same `python3` that runs `run.py`**:
+Install `keyring` on the host to **also** store the value in your OS keystore as a durable backup that survives working-tree wipes (rebuild the file afterward with `python run.py secret restore`). It must be installed for the **same `python3` that runs `run.py`**:
 
 ```bash
 pip install keyring
@@ -67,9 +67,7 @@ python3 -c "import keyring; print(keyring.get_keyring())"
 
 #### Inside the dev container
 
-`keyring` is a host-only OS service, so it is not available inside the dev container. When you run `python run.py secret set census` (or `set rdh`) from a shell **inside** the container, the secret is written to `authentication_files/credentials.json` in the mounted repo, which the solver reads directly — no environment variables required. This is the supported way to make credentials available to scripts run interactively in the container (e.g. `pull_census_data_cli` and CVAP pulls).
-
-Because `credentials.json` is gitignored and removed by `git clean -fdx`, re-run `secret set` after wiping your working tree. Host-launched `run.py` invocations are unaffected — they keep using the keyring path above.
+`keyring` is a host-only OS service, and `run.py` only auto-forwards secrets on host-launched runs. But `secret set` also writes `authentication_files/credentials.json`, which is in the bind-mounted repo — so a single host-side `python run.py secret set census` (or `set rdh`) makes the credentials available **inside** the container too (the solver reads the file directly), including for scripts run interactively in the container such as `pull_census_data_cli` and CVAP pulls. You can equivalently run `secret set` from a shell inside the container — it writes the same mounted file. If `git clean -fdx` removes the file, run `python run.py secret restore` on the host to rewrite it from the keyring.
 
 ### Test the Installation
 To confirm the installation is setup correctly, run pytest with the following command in the root of the project directory:

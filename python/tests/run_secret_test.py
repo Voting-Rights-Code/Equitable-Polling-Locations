@@ -22,8 +22,10 @@ class TestSecretHandlers:
         secret = self._secret(tmp_path)
         monkeypatch.setattr(run.getpass, "getpass", lambda prompt="": "typed-key")
         run.secret_set(secret)
+        out = capsys.readouterr().out
         assert _read_file(secret) == "typed-key"
-        assert "file" in capsys.readouterr().out
+        assert "stored in" in out
+        assert "Note:" in out
 
     def test_set_rejects_empty(self, tmp_path, monkeypatch):
         secret = self._secret(tmp_path)
@@ -60,12 +62,14 @@ class TestSecretHandlers:
         assert "file" in capsys.readouterr().out
         assert _read_file(secret) is None
 
-    def test_set_reports_keyring_storage(self, tmp_path, monkeypatch, capsys):
-        monkeypatch.setattr(secret_store, "store", lambda secret, value: "keyring")
+    def test_set_reports_both_backends(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(secret_store, "store", lambda secret, value: ["keyring", "file"])
         secret = self._secret(tmp_path)
         monkeypatch.setattr(run.getpass, "getpass", lambda prompt="": "typed-key")
         run.secret_set(secret)
-        assert "OS keystore" in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "OS keystore" in out
+        assert str(secret.file_path) in out
 
     def test_handle_command_get_show_reveals(self, monkeypatch, capsys):
         monkeypatch.setattr(secret_store, "keyring", None)
@@ -108,6 +112,22 @@ class TestSecretHandlers:
         out = capsys.readouterr().out
         assert "rdh_username: present" in out
         assert "rdh_password: present" in out
+
+    def test_handle_command_restore_reports_each_secret(self, monkeypatch, capsys):
+        monkeypatch.setattr(secret_store, "restore_file", lambda s: "keyring")
+        run.handle_secret_command(["restore"])
+        out = capsys.readouterr().out
+        assert "census" in out
+        assert "restored" in out
+
+    def test_handle_command_restore_reports_nothing_to_restore(self, monkeypatch, capsys):
+        monkeypatch.setattr(secret_store, "restore_file", lambda s: None)
+        run.handle_secret_command(["restore"])
+        assert "nothing to restore" in capsys.readouterr().out
+
+    def test_set_without_name_errors(self):
+        with pytest.raises(SystemExit):
+            run.handle_secret_command(["set"])
 
 
 class TestSecretInjection:

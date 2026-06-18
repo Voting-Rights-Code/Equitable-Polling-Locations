@@ -20,7 +20,7 @@ See [Installation](to_install.md) for more detail.
 
 `run.py` provides a `secret` command for storing and retrieving named credentials. Two secrets are used: `census` (your Census API key) and `rdh` (your Redistricting Data Hub username and password, required for CVAP data).
 
-At model-run time, `run.py` resolves each secret using this precedence — **env var > OS keyring > credentials file** — and forwards it into the container automatically (the container reads `CENSUS_API_KEY`).
+At model-run time, host-launched `run.py` resolves each secret using this precedence — **env var > OS keyring > credentials file** — and forwards it into the container automatically (the container reads `CENSUS_API_KEY`). Working **inside** the dev container? `keyring` is host-only and nothing is auto-forwarded there, but `secret set` also writes the bind-mounted `authentication_files/credentials.json`, so a single host-side `secret set` makes the value available in the container. If `git clean -fdx` removes that file, run `python run.py secret restore` on the host to rebuild it from the keyring (see [Installation — keyring backend](to_install.md#optional-keyring-backend)).
 
 ### Census API Key
 
@@ -45,6 +45,12 @@ python run.py secret get census --show   # prints the raw value
 python run.py secret clear census
 ```
 
+**Rebuild `credentials.json` from the keyring** (host-side, after `git clean -fdx` wipes the file):
+
+```
+python run.py secret restore
+```
+
 **Alternative — environment variable.** Export `CENSUS_API_KEY` instead — it takes precedence over the stored secret and is useful inside containers and CI:
 
 ```bash
@@ -62,7 +68,7 @@ CVAP-based configurations download block-level CVAP data from the [Redistricting
 python run.py secret set rdh
 ```
 
-This prompts for your RDH username (shown) and password (hidden) and stores them using the same backend as the census key — OS keystore when `keyring` is installed, otherwise `authentication_files/credentials.json` (gitignored).
+This prompts for your RDH username (shown) and password (hidden) and stores them using the same backend as the census key — written to `authentication_files/credentials.json` and, when `keyring` is installed, also to your OS keystore.
 
 **Check whether credentials are set:**
 

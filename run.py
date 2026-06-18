@@ -108,7 +108,7 @@ def get_scripts() -> list[str]:
 
 
 def secret_set(secret: secret_store.Secret) -> None:
-    """Prompt for and store a secret value.
+    """Prompt for and store a secret value in every available backend.
 
     Args:
         secret: The registry entry describing where to store the value.
@@ -121,18 +121,20 @@ def secret_set(secret: secret_store.Secret) -> None:
     if not value:
         print("Error: No value entered.")
         sys.exit(1)
-    where = secret_store.store(secret, value)
-    if where == "keyring":
-        print(f"'{secret.name}' stored in the OS keystore.")
-    else:
-        print(f"'{secret.name}' written to {secret.file_path}.")
-        if not secret_store.keyring_available():
-            print(
-                "Note: 'keyring' is not installed, so this value lives in a "
-                "gitignored file that `git clean -fdx` will delete. Install it "
-                "with `pip install keyring` (Linux may also need a Secret "
-                "Service backend) for storage that survives working-tree wipes."
-            )
+    backends = secret_store.store(secret, value)
+    written = []
+    if "keyring" in backends:
+        written.append("the OS keystore")
+    if "file" in backends:
+        written.append(str(secret.file_path))
+    print(f"'{secret.name}' stored in: {', '.join(written)}.")
+    if "keyring" not in backends:
+        print(
+            "Note: 'keyring' is not installed, so this value lives only in a "
+            "gitignored file that `git clean -fdx` will delete. Install it "
+            "with `pip install keyring` (Linux may also need a Secret "
+            "Service backend) for a durable backup that survives working-tree wipes."
+        )
 
 
 def secret_get(secret: secret_store.Secret, show: bool) -> None:
@@ -181,18 +183,39 @@ def secrets_for_name(name: str) -> list[secret_store.Secret]:
     return [secret_store.get_secret(name)]
 
 
+def secret_restore() -> None:
+    """Regenerate credentials.json from the durable source for every secret.
+
+    Run from the host after ``git clean -fdx`` wipes the file. The keyring copy
+    survives, so this rewrites credentials.json (which the dev container reads
+    via the repo mount) from it.
+    """
+    for secret in secret_store.SECRETS.values():
+        source = secret_store.restore_file(secret)
+        if source is None:
+            print(f"'{secret.name}': nothing to restore (no env var or keyring value).")
+        else:
+            print(f"'{secret.name}' restored to credentials.json (from {source}).")
+
+
 def handle_secret_command(argv: list[str]) -> None:
-    """Parse and dispatch `run.py secret <action> <name> [--show]`.
+    """Parse and dispatch `run.py secret <action> [name] [--show]`.
 
     Args:
         argv: The argument list following the `secret` subcommand.
     """
     parser = argparse.ArgumentParser(prog="python run.py secret")
-    parser.add_argument("action", choices=["set", "get", "clear"])
-    parser.add_argument("name", choices=sorted(set(secret_store.SECRETS) | set(secret_store.GROUPS)))
+    parser.add_argument("action", choices=["set", "get", "clear", "restore"])
+    parser.add_argument("name", nargs="?",
+                        choices=sorted(set(secret_store.SECRETS) | set(secret_store.GROUPS)))
     parser.add_argument("--show", action="store_true",
                         help="Reveal the raw value (get only).")
     args = parser.parse_args(argv)
+    if args.action == "restore":
+        secret_restore()
+        return
+    if args.name is None:
+        parser.error("the 'name' argument is required for set/get/clear")
     for secret in secrets_for_name(args.name):
         if args.action == "set":
             secret_set(secret)
