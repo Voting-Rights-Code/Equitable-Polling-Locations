@@ -281,6 +281,36 @@ def clear(secret: Secret) -> list[str]:
     return removed
 
 
+def restore_file(secret: Secret) -> Optional[str]:
+    """Repopulate the JSON credentials file from the durable source.
+
+    Reads the value using the normal precedence (env var > keyring > file) and,
+    when found, writes it to credentials.json. Used by ``run.py secret restore``
+    to recover the file after ``git clean -fdx`` removes it (the keyring copy
+    survives, since it is not in the repo).
+
+    Args:
+        secret: The Secret to restore.
+
+    Returns:
+        The source backend the value came from (``"env"`` / ``"keyring"`` /
+        ``"file"``) for reporting, or None when no value is available anywhere.
+    """
+    env_value = os.environ.get(secret.env_var)
+    keyring_value = _read_keyring(secret)
+    file_value = _read_file(secret)
+    if env_value:
+        value, source = env_value, "env"
+    elif keyring_value:
+        value, source = keyring_value, "keyring"
+    elif file_value:
+        value, source = file_value, "file"
+    else:
+        return None
+    _write_file(secret, value)
+    return source
+
+
 def mask(value: str) -> str:
     """Return a masked form of the value safe for display in logs.
 

@@ -224,3 +224,42 @@ class TestStoreClearMask:
     def test_mask_short_and_long(self):
         assert secret_store.mask("abcdef") == "****cdef"
         assert secret_store.mask("ab") == "****"
+
+
+class TestRestoreFile:
+    """Tests for restore_file()."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_env(self, monkeypatch):
+        monkeypatch.delenv("CENSUS_API_KEY", raising=False)
+
+    def _secret(self, tmp_path):
+        return Secret(
+            name="census", keyring_service="svc", keyring_username="user",
+            env_var="CENSUS_API_KEY",
+            file_path=tmp_path / "creds.json", file_field="census_key",
+        )
+
+    def test_restores_file_from_keyring(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(secret_store, "keyring", FakeKeyring())
+        secret = self._secret(tmp_path)
+        _store_keyring(secret, "kr-key")
+        assert not secret.file_path.exists()
+        source = secret_store.restore_file(secret)
+        assert source == "keyring"
+        assert _read_file(secret) == "kr-key"
+
+    def test_returns_none_when_nothing_available(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(secret_store, "keyring", None)
+        secret = self._secret(tmp_path)
+        assert secret_store.restore_file(secret) is None
+        assert not secret.file_path.exists()
+
+    def test_env_source_takes_precedence(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(secret_store, "keyring", FakeKeyring())
+        monkeypatch.setenv("CENSUS_API_KEY", "env-key")
+        secret = self._secret(tmp_path)
+        _store_keyring(secret, "kr-key")
+        source = secret_store.restore_file(secret)
+        assert source == "env"
+        assert _read_file(secret) == "env-key"
