@@ -25,7 +25,7 @@ If you plan to download census data for counties not already in the repo, you ne
 
 Alternatively, export the `CENSUS_API_KEY` environment variable — it takes precedence over the stored secret, which is useful inside containers and CI.
 
-At model-run time `run.py` resolves the key automatically and forwards it into the container, so no extra steps are needed beyond storing it once.
+On host-launched runs, `run.py` resolves the key automatically and forwards it into the container, so no extra steps are needed beyond storing it once. (Working **inside** the dev container instead? See [Inside the dev container](#inside-the-dev-container) below.)
 
 #### Optional: keyring backend
 
@@ -58,6 +58,10 @@ Nothing breaks without `keyring` — the file fallback is automatic. Verify the 
 ```bash
 python3 -c "import keyring; print(keyring.get_keyring())"
 ```
+
+#### Inside the dev container
+
+`keyring` is a host-only OS service, so it is not available inside the dev container, and the auto-forwarding above only applies to host-launched `run.py`. When you run `python run.py secret set census` from a shell **inside** the container, the key is written to `authentication_files/credentials.json` (in the mounted repo), which the solver reads directly — no environment variables needed. Re-run `secret set` after a `git clean -fdx`, which deletes that file.
 
 ### Test the Installation
 To confirm the installation is setup correctly, run pytest with the following command in the root of the project directory:

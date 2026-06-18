@@ -20,7 +20,7 @@ See [Installation](to_install.md) for more detail.
 
 `run.py` provides a `secret` command for storing and retrieving named credentials. The only registered secret today is `census` (your Census API key).
 
-At model-run time, `run.py` resolves each secret using this precedence — **env var > OS keyring > credentials file** — and forwards it into the container automatically (the container reads `CENSUS_API_KEY`).
+At model-run time, host-launched `run.py` resolves each secret using this precedence — **env var > OS keyring > credentials file** — and forwards it into the container automatically (the container reads `CENSUS_API_KEY`). Working **inside** the dev container? `keyring` is host-only and nothing is auto-forwarded there — run `python run.py secret set census` in the container to write `authentication_files/credentials.json`, which the solver reads directly (see [Installation — Inside the dev container](to_install.md#inside-the-dev-container)).
 
 ### Census API Key
 
