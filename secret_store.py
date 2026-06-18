@@ -236,28 +236,31 @@ def resolve(secret: Secret) -> Optional[str]:
     return _read_file(secret)
 
 
-def store(secret: Secret, value: str) -> str:
-    """Store the secret in the best available backend.
+def store(secret: Secret, value: str) -> list[str]:
+    """Store the secret in every available backend.
 
-    Prefers the OS keystore; falls back to the JSON credentials file when
-    keyring is not installed or its backend raises KeyringError.
+    Always writes the JSON credentials file; additionally writes the OS keystore
+    when keyring is installed and its backend is usable. Writing both lets a
+    single host-side ``secret set`` reach host-launched runs (via keyring or
+    file) and the bind-mounted credentials.json that the dev container reads.
 
     Args:
         secret: The Secret to store.
         value: The plaintext secret value to persist.
 
     Returns:
-        ``"keyring"`` if stored in the OS keystore; ``"file"`` if stored in
-        the JSON credentials file.
+        The backends written, e.g. ``["keyring", "file"]`` or ``["file"]``.
     """
+    backends: list[str] = []
     if keyring is not None:
         try:
             _store_keyring(secret, value)
-            return "keyring"
+            backends.append("keyring")
         except KeyringError:
             pass
     _write_file(secret, value)
-    return "file"
+    backends.append("file")
+    return backends
 
 
 def clear(secret: Secret) -> list[str]:

@@ -108,7 +108,7 @@ def get_scripts() -> list[str]:
 
 
 def secret_set(secret: secret_store.Secret) -> None:
-    """Prompt for and store a secret value.
+    """Prompt for and store a secret value in every available backend.
 
     Args:
         secret: The registry entry describing where to store the value.
@@ -117,18 +117,20 @@ def secret_set(secret: secret_store.Secret) -> None:
     if not value:
         print("Error: No value entered.")
         sys.exit(1)
-    where = secret_store.store(secret, value)
-    if where == "keyring":
-        print(f"'{secret.name}' stored in the OS keystore.")
-    else:
-        print(f"'{secret.name}' written to {secret.file_path}.")
-        if not secret_store.keyring_available():
-            print(
-                "Note: 'keyring' is not installed, so this value lives in a "
-                "gitignored file that `git clean -fdx` will delete. Install it "
-                "with `pip install keyring` (Linux may also need a Secret "
-                "Service backend) for storage that survives working-tree wipes."
-            )
+    backends = secret_store.store(secret, value)
+    written = []
+    if "keyring" in backends:
+        written.append("the OS keystore")
+    if "file" in backends:
+        written.append(str(secret.file_path))
+    print(f"'{secret.name}' stored in: {', '.join(written)}.")
+    if "keyring" not in backends:
+        print(
+            "Note: 'keyring' is not installed, so this value lives only in a "
+            "gitignored file that `git clean -fdx` will delete. Install it "
+            "with `pip install keyring` (Linux may also need a Secret "
+            "Service backend) for a durable backup that survives working-tree wipes."
+        )
 
 
 def secret_get(secret: secret_store.Secret, show: bool) -> None:

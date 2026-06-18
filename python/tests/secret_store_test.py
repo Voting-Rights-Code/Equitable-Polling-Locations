@@ -181,25 +181,25 @@ class TestStoreClearMask:
             file_path=tmp_path / "creds.json", file_field="census_key",
         )
 
-    def test_store_uses_keyring_when_available(self, tmp_path, monkeypatch):
+    def test_store_writes_both_when_keyring_available(self, tmp_path, monkeypatch):
         fake = FakeKeyring()
         monkeypatch.setattr(secret_store, "keyring", fake)
         secret = self._secret(tmp_path)
-        where = secret_store.store(secret, "k")
-        assert where == "keyring"
-        assert not secret.file_path.exists()
+        backends = secret_store.store(secret, "k")
+        assert backends == ["keyring", "file"]
         assert _read_keyring(secret) == "k"
-
-    def test_store_falls_back_to_file_when_no_keyring(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(secret_store, "keyring", None)
-        secret = self._secret(tmp_path)
-        assert secret_store.store(secret, "k") == "file"
         assert _read_file(secret) == "k"
 
-    def test_store_falls_back_to_file_on_backend_error(self, tmp_path, monkeypatch):
+    def test_store_writes_file_only_without_keyring(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(secret_store, "keyring", None)
+        secret = self._secret(tmp_path)
+        assert secret_store.store(secret, "k") == ["file"]
+        assert _read_file(secret) == "k"
+
+    def test_store_writes_file_only_on_keyring_error(self, tmp_path, monkeypatch):
         monkeypatch.setattr(secret_store, "keyring", FakeKeyring(fail=True))
         secret = self._secret(tmp_path)
-        assert secret_store.store(secret, "k") == "file"
+        assert secret_store.store(secret, "k") == ["file"]
         assert _read_file(secret) == "k"
 
     def test_clear_removes_keyring_and_file(self, tmp_path, monkeypatch):

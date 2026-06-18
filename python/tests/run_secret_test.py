@@ -23,7 +23,7 @@ class TestSecretHandlers:
         monkeypatch.setattr(run.getpass, "getpass", lambda prompt="": "typed-key")
         run.secret_set(secret)
         assert _read_file(secret) == "typed-key"
-        assert "file" in capsys.readouterr().out
+        assert "stored in" in capsys.readouterr().out
 
     def test_set_rejects_empty(self, tmp_path, monkeypatch):
         secret = self._secret(tmp_path)
@@ -60,12 +60,13 @@ class TestSecretHandlers:
         assert "file" in capsys.readouterr().out
         assert _read_file(secret) is None
 
-    def test_set_reports_keyring_storage(self, tmp_path, monkeypatch, capsys):
-        monkeypatch.setattr(secret_store, "store", lambda secret, value: "keyring")
+    def test_set_reports_both_backends(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(secret_store, "store", lambda secret, value: ["keyring", "file"])
         secret = self._secret(tmp_path)
         monkeypatch.setattr(run.getpass, "getpass", lambda prompt="": "typed-key")
         run.secret_set(secret)
-        assert "OS keystore" in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "OS keystore" in out
 
     def test_handle_command_get_show_reveals(self, monkeypatch, capsys):
         monkeypatch.setattr(secret_store, "keyring", None)
