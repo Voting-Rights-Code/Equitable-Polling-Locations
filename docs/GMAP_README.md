@@ -29,11 +29,10 @@ GMAP_distance_report.qmd is written in R using [Quatro](https://quarto.org). It 
    - Install required packages:
       + pandas
       + numpy
-      + python-dotenv
       + requests
 
     ```bash
-    pip install pandas numpy requests python-dotenv
+    pip install pandas numpy requests
     ```
 
    - The following packages are also used but typically are part of the standard library included with Python installations
@@ -126,9 +125,20 @@ GMAP_distance_report.qmd is written in R using [Quatro](https://quarto.org). It 
 
 1. ### Google Map API Key
 
-    The program requires an API key.  A single key (maps platform key) is used for all API calls to enabled maps libraries. The key should be stored in a file called `GMAP_Platform_KEY` which is located `./authentication_files`.  The program will automatically look for this file and privately store the key.  The file should contain a single line with the key words GMAP_Platform_Key followed bu the actual key (with no spaces):
+    The program requires an API key (a single "maps platform key" is used for all API calls to enabled maps libraries).
+
+    To store your GMAP Platform API key (one-time):
+
     ```bash
-        GMAP_Platform_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    python run.py secret set gmap
+    ```
+
+    This prompts for your key and stores it. If the optional `keyring` package is installed on the host it goes into your OS keystore; otherwise it falls back to `authentication_files/credentials.json` (gitignored). Either way, subsequent runs pick it up automatically. See [to_install.md](to_install.md) for the optional `keyring` setup and [to_run.md](to_run.md) for the full `secret` command (`set`/`get`/`clear`).
+
+    Alternatively, set the `GMAP_API_KEY` environment variable — it takes precedence over `credentials.json` and is useful inside containers and CI:
+
+    ```bash
+    export GMAP_API_KEY=your-key-here
     ```
 
     The following Google Map Products must be enabled and authorized to use the API key:
@@ -194,10 +204,11 @@ GMAP_distance_report.qmd is written in R using [Quatro](https://quarto.org). It 
 
 1. ### Google Map API Key
 
-    The program requires an API key.  A single key (maps platform key) is used for all API calls to enabled maps libraries. The key should be stored in a file called `GMAP_Platform_KEY` which is located `./authentication_files`.  The exact path to the program root must be specified in the `#define data files` section of the code.   Once defined the code will automatically look for this file and privately store the key. The file should contain a single line with the key words GMAP_Platform_Key followed bu the actual key (with no spaces):
-    ```bash
-        GMAP_Platform_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    ```
+    The program requires an API key (a single "maps platform key" is used for all API calls to enabled maps libraries). This is the same key used by the Python side (see the "Google Map API Key" section under [Python Code Documentation](#python-code-documentation)) — store it once via `python run.py secret set gmap`.
+
+    That command writes the key to `authentication_files/credentials.json` under the field `gmap_key` (gitignored), and additionally to the OS keystore when the optional `keyring` package is installed.
+
+    **Note:** `GMAP_distance_report.qmd` has not yet been updated to read from this location — at last check it still parses a flat `authentication_files/GMAP_Platform_KEY` file directly (`grep`-ing a `GMAP_Platform_KEY=...` line). Until that script is updated to read the `gmap_key` field from `credentials.json` (e.g. via `jsonlite::fromJSON`, already imported by the script), it will not pick up keys stored via the command above.
 
      The following Google Map Products must be enabled and authorized to use the API key:
 

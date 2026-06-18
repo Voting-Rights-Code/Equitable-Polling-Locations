@@ -56,6 +56,14 @@ SECRETS: dict[str, Secret] = {
         file_path=REPO_ROOT / "authentication_files" / "credentials.json",
         file_field="census_key",
     ),
+    "gmap": Secret(
+        name="gmap",
+        keyring_service="equitable-polling-locations",
+        keyring_username="gmap_api_key",
+        env_var="GMAP_API_KEY",
+        file_path=REPO_ROOT / "authentication_files" / "credentials.json",
+        file_field="gmap_key",
+    ),
 }
 
 

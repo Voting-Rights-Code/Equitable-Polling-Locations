@@ -23,6 +23,15 @@ class TestRegistry:
     def test_census_in_registry(self):
         assert "census" in SECRETS
 
+    def test_gmap_secret_registered(self):
+        secret = get_secret("gmap")
+        assert isinstance(secret, Secret)
+        assert secret.env_var == "GMAP_API_KEY"
+        assert secret.file_field == "gmap_key"
+
+    def test_gmap_in_registry(self):
+        assert "gmap" in SECRETS
+
 
 class TestFileBackend:
     """Tests for the file-based credential read/write/clear helpers."""

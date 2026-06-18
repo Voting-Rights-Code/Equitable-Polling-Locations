@@ -3,7 +3,7 @@
 
 import pandas as pd
 import numpy as np
-import geopandas 
+import geopandas
 import sys
 import os
 import time
@@ -12,9 +12,9 @@ import json
 import tkinter as tk
 from tkinter import filedialog
 from pathlib import Path
-from pathlib import Path
-from dotenv import load_dotenv
 from time import gmtime, strftime
+
+import secret_store
 
 # Total rows in output dataset
 SAMPLE_ROWS = 2000
@@ -22,11 +22,20 @@ SAMPLE_ROWS = 2000
 # Google Maps limits 1,000 elements per minute (1 element =  single origin-destination pair)
 REQUESTS_MINUTE = 1000
 
-# get the API Key
-fn = "GMAP_Platform_KEY"
-env_path=os.path.join("./authentication_files",fn)
-load_dotenv(dotenv_path=env_path)
-GMAP_api_key = os.getenv('GMAP_Platform_KEY')
+
+def _load_gmap_key():
+    """Load the GMAP Platform API key via secret_store.
+
+    Resolves in order: GMAP_API_KEY env var, OS keyring, then
+    authentication_files/credentials.json.
+
+    Returns:
+        The GMAP Platform API key string, or None if not set in any backend.
+    """
+    return secret_store.resolve(secret_store.get_secret("gmap"))
+
+
+GMAP_api_key = _load_gmap_key()
 
 
 def variables_present(required_variables: list, df: pd.DataFrame):
@@ -183,7 +192,7 @@ def distance_api(dest_lat: float, dest_lon: float, orig_lat: float, orig_lon: fl
             print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), f'Unexpected Google Map Distance call error: {e}')
             sys.exit(1)
     else:
-        print(f"{strftime("%Y-%m-%d %H:%M:%S", gmtime())} Google Maps API Error: {response.status_code} - {response.text}")
+        print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), f'Google Maps API Error: {response.status_code} - {response.text}')
         print(strftime("%Y-%m-%d %H:%M:%S", gmtime()), 'Execution Stopping.')
         sys.exit(1)
             
