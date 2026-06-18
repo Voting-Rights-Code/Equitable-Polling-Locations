@@ -29,9 +29,9 @@ On host-launched runs, `run.py` resolves the key automatically and forwards it i
 
 #### Optional: keyring backend
 
-By default, `secret set` stores secrets in `authentication_files/credentials.json` (gitignored). That file is wiped by `git clean -fdx`.
+`secret set` always writes the value to `authentication_files/credentials.json` (gitignored), which is wiped by `git clean -fdx`.
 
-Install `keyring` on the host to store secrets in your OS keystore instead, so they survive working-tree wipes. It must be installed for the **same `python3` that runs `run.py`**:
+Install `keyring` on the host to **also** store the value in your OS keystore as a durable backup that survives working-tree wipes (rebuild the file afterward with `python run.py secret restore`). It must be installed for the **same `python3` that runs `run.py`**:
 
 ```bash
 pip install keyring
@@ -61,7 +61,7 @@ python3 -c "import keyring; print(keyring.get_keyring())"
 
 #### Inside the dev container
 
-`keyring` is a host-only OS service, so it is not available inside the dev container, and the auto-forwarding above only applies to host-launched `run.py`. When you run `python run.py secret set census` from a shell **inside** the container, the key is written to `authentication_files/credentials.json` (in the mounted repo), which the solver reads directly — no environment variables needed. Re-run `secret set` after a `git clean -fdx`, which deletes that file.
+`keyring` is a host-only OS service, and `run.py` only auto-forwards secrets on host-launched runs. But `secret set` also writes `authentication_files/credentials.json`, which is in the bind-mounted repo — so a single host-side `python run.py secret set census` makes the key available **inside** the container too (the solver reads the file directly). If `git clean -fdx` removes the file, run `python run.py secret restore` on the host to rewrite it from the keyring.
 
 ### Test the Installation
 To confirm the installation is setup correctly, run pytest with the following command in the root of the project directory:
