@@ -77,3 +77,29 @@ def query_directions(source, dest, server):
         return parsed['features'][0]['properties']['segments'][0]['distance']
     except (KeyError, IndexError):
         return None
+
+
+def query_route_geometry(source, dest, server):
+    '''Return the route polyline between ``source`` and ``dest``.
+
+    Uses the ORS single-pair directions endpoint.
+
+    Args:
+        source: ``[longitude, latitude]`` for the origin.
+        dest: ``[longitude, latitude]`` for the destination.
+        server: ORS directions endpoint URL.
+
+    Returns:
+        The route geometry as a list of ``[longitude, latitude]`` coordinate
+        pairs, or ``None`` if ORS returned an error (e.g. no route found) or a
+        payload lacking the expected ``features[0].geometry.coordinates`` path.
+    '''
+    url = f'{server}?start={source[0]},{source[1]}&end={dest[0]},{dest[1]}'
+    response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
+    parsed = json.loads(response.text)
+    if 'error' in parsed:
+        return None
+    try:
+        return parsed['features'][0]['geometry']['coordinates']
+    except (KeyError, IndexError):
+        return None
