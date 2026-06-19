@@ -183,6 +183,7 @@ authentication_files/
 # OpenRouteService inputs (Geofabrik .pbf extracts, ORS-generated example data)
 datasets/openrouteservice/*.pbf
 datasets/openrouteservice/*.osm.gz
+datasets/openrouteservice/*-buffer.geojson
 
 # Per-state ORS graph caches — bind-mounted into the container at /home/ors/graphs.
 # The parent dir is tracked via its .gitkeep; everything inside is ORS-generated.
