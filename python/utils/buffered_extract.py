@@ -6,13 +6,14 @@ buffer polygon around the state boundary. Driving distance only.
 '''
 
 import os
+import subprocess
 import urllib.request
 
 import geopandas as gpd
 
 from python.utils.ors_setup import (
     GEOFABRIK_STATE_SLUGS, STATE_CODE_TO_SLUG, ORS_DATA_DIR,
-    buffer_polygon_path, us_source_url, us_source_path,
+    buffer_polygon_path, buffered_pbf_path, us_source_url, us_source_path,
 )
 
 DEFAULT_BOUNDARY_PATH = 'datasets/boundaries/us_states.geojson'
@@ -70,3 +71,37 @@ def ensure_us_source() -> str:
     urllib.request.urlretrieve(us_source_url(), partial)
     os.replace(partial, target)
     return target
+
+
+def build_buffered_pbf(state_slug: str) -> str:
+    '''Clip a <state>-buffered.osm.pbf from the full-US source.
+
+    Idempotent: returns the cached buffered extract if it already exists.
+
+    Args:
+        state_slug: Geofabrik state slug (e.g. 'georgia').
+
+    Returns:
+        The path to the buffered OSM extract.
+
+    Raises:
+        FileNotFoundError: If the osmium binary is not on PATH.
+    '''
+    buffered_path = buffered_pbf_path(state_slug)
+    if os.path.exists(buffered_path):
+        return buffered_path
+
+    source_path = ensure_us_source()
+    polygon_path = build_buffer_polygon(state_slug)
+    try:
+        subprocess.run(
+            ['osmium', 'extract', '--polygon', polygon_path,
+             source_path, '-o', buffered_path],
+            check=True,
+        )
+    except FileNotFoundError as error:
+        raise FileNotFoundError(
+            'osmium not found on PATH. Rebuild the dev image so osmium-tool is '
+            'installed (see .devcontainer/Dockerfile).'
+        ) from error
+    return buffered_path

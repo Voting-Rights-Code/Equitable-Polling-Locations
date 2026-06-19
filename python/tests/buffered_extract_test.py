@@ -1,7 +1,9 @@
+import subprocess
+
 import geopandas as gpd
 import pytest
 
-from python.utils.buffered_extract import build_buffer_polygon, ensure_us_source
+from python.utils.buffered_extract import build_buffer_polygon, build_buffered_pbf, ensure_us_source
 
 
 def test_buffer_polygon_contains_and_grows_state(tmp_path, monkeypatch):
@@ -54,3 +56,35 @@ def test_ensure_us_source_downloads_when_missing(tmp_path, monkeypatch):
     assert result == str(target)
     assert target.read_bytes() == b'downloaded'
     assert not (tmp_path / 'us-latest.osm.pbf.partial').exists()  # atomic cleanup
+
+
+def test_build_buffered_pbf_idempotent(tmp_path, monkeypatch):
+    monkeypatch.setattr('python.utils.buffered_extract.ORS_DATA_DIR', str(tmp_path))
+    existing = tmp_path / 'georgia-buffered.osm.pbf'
+    existing.write_bytes(b'cached')
+    monkeypatch.setattr('python.utils.buffered_extract.buffered_pbf_path',
+                        lambda slug: str(existing))
+    ran = []
+    monkeypatch.setattr('python.utils.buffered_extract.subprocess.run',
+                        lambda *a, **k: ran.append(a))
+    assert build_buffered_pbf('georgia') == str(existing)
+    assert ran == []  # cached -> osmium not invoked
+
+
+def test_build_buffered_pbf_invokes_osmium(tmp_path, monkeypatch):
+    monkeypatch.setattr('python.utils.buffered_extract.ORS_DATA_DIR', str(tmp_path))
+    out = tmp_path / 'georgia-buffered.osm.pbf'
+    monkeypatch.setattr('python.utils.buffered_extract.buffered_pbf_path',
+                        lambda slug: str(out))
+    monkeypatch.setattr('python.utils.buffered_extract.ensure_us_source',
+                        lambda: str(tmp_path / 'us-latest.osm.pbf'))
+    monkeypatch.setattr('python.utils.buffered_extract.build_buffer_polygon',
+                        lambda slug: str(tmp_path / 'georgia-buffer.geojson'))
+    captured = {}
+    monkeypatch.setattr('python.utils.buffered_extract.subprocess.run',
+                        lambda cmd, **k: captured.setdefault('cmd', cmd))
+    result = build_buffered_pbf('georgia')
+    assert result == str(out)
+    assert captured['cmd'][:2] == ['osmium', 'extract']
+    assert '--polygon' in captured['cmd']
+    assert str(out) in captured['cmd']

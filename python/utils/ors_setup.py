@@ -70,6 +70,18 @@ def buffer_polygon_path(slug: str) -> str:
     return os.path.join(ORS_DATA_DIR, f'{slug}-buffer.geojson')
 
 
+def buffered_pbf_path(slug: str) -> str:
+    '''Return the path to the buffered OSM extract for a state slug.
+
+    Args:
+        slug: Geofabrik state slug.
+
+    Returns:
+        Absolute filesystem path under ``ORS_DATA_DIR``.
+    '''
+    return os.path.join(ORS_DATA_DIR, f'{slug}-buffered.osm.pbf')
+
+
 def geofabrik_url(slug: str) -> str:
     '''Return the Geofabrik download URL for a state slug.
 
