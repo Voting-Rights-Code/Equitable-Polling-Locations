@@ -430,7 +430,7 @@ def pull_tiger_file(state, fips, county_st, county_code, geo, census_year, verbo
 
     base_url = (
         f'https://www2.census.gov/geo/tiger/TIGER{census_year}PL'
-        f'/STATE/{fips}_{state.upper()}/{fips}{county_code}'
+        f'/STATE/{fips}_{state.upper().replace(" ", "_")}/{fips}{county_code}'
         f'/tl_{census_year}_{fips}{county_code}_{geo_suffix}.zip'
     )
     output_directory = Path(build_tiger_location_dir(county_st))
