@@ -11,8 +11,9 @@ then `authentication_files/credentials.json`.
 import json
 import os
 from pathlib import Path
-import shutil
+import time
 import zipfile
+from typing import Any, Callable, Optional
 
 import pandas as pd
 import requests
@@ -25,6 +26,72 @@ from python.utils.directory_constants import (
 )
 
 HTTP_TIMEOUT_SECONDS = 300
+HTTP_MAX_RETRIES = 3            # total attempts per request
+HTTP_RETRY_BACKOFF_SECONDS = 2  # base for exponential backoff (~2s, then 4s)
+DOWNLOAD_CHUNK_SIZE = 1024 * 1024  # 1 MiB streaming chunk
+
+_RETRYABLE_REQUEST_ERRORS = (
+    requests.exceptions.ConnectionError,
+    requests.exceptions.ChunkedEncodingError,
+    requests.exceptions.Timeout,
+    requests.exceptions.HTTPError,
+)
+
+
+def _request_with_retries(
+    operation: Callable[[], Any],
+    description: str,
+    sleep: Optional[Callable[[float], None]] = None,
+) -> Any:
+    '''Run an HTTP operation, retrying transient failures with exponential backoff.
+
+    Args:
+        operation: Zero-argument callable that performs the request and returns a result.
+        description: Short label for the operation, used in retry notices.
+        sleep: Callable used to pause between attempts. Defaults to time.sleep;
+            injected in tests so they run instantly.
+
+    Returns:
+        The value returned by operation().
+
+    Raises:
+        requests.exceptions.HTTPError: A non-5xx (e.g. 4xx) error, raised immediately;
+            or the last 5xx error once retries are exhausted.
+        requests.exceptions.RequestException: The last transient connection/timeout
+            error once retries are exhausted.
+    '''
+    if sleep is None:
+        sleep = time.sleep
+    for attempt in range(1, HTTP_MAX_RETRIES + 1):
+        try:
+            return operation()
+        except _RETRYABLE_REQUEST_ERRORS as error:
+            non_retryable_status = (
+                isinstance(error, requests.exceptions.HTTPError)
+                and not _is_retryable_http_error(error)
+            )
+            if non_retryable_status or attempt == HTTP_MAX_RETRIES:
+                raise
+            print(
+                f'Transient error ({description}): {error}; '
+                f'retrying ({attempt + 1}/{HTTP_MAX_RETRIES})...'
+            )
+            sleep(HTTP_RETRY_BACKOFF_SECONDS * 2 ** (attempt - 1))
+    raise AssertionError('retry loop exited without returning or raising')
+
+
+def _is_retryable_http_error(error: requests.exceptions.HTTPError) -> bool:
+    '''Return whether an HTTPError represents a transient (retryable) failure.
+
+    Args:
+        error: The HTTPError raised by response.raise_for_status().
+
+    Returns:
+        True when the attached response has a 5xx status code (e.g. 520);
+        False for 4xx errors or when no response is attached.
+    '''
+    response = error.response
+    return response is not None and 500 <= response.status_code < 600
 
 
 CREDENTIALS_PATH = Path(__file__).resolve().parent.parent.parent / 'authentication_files' / 'credentials.json'
@@ -115,6 +182,27 @@ STATE_LOOKUP = {
     'WY': 'Wyoming'
 }
 
+
+def get_census_json(url: str) -> Any:
+    '''GET a census API URL and return its parsed JSON, retrying transient failures.
+
+    Args:
+        url: Fully-qualified census API URL.
+
+    Returns:
+        The parsed JSON body (a list or dict, depending on the endpoint).
+
+    Raises:
+        requests.exceptions.HTTPError: On a non-retryable status, or once retries
+            are exhausted.
+    '''
+    def operation() -> Any:
+        response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
+        response.raise_for_status()
+        return response.json()
+    return _request_with_retries(operation, f'GET {url}')
+
+
 def get_all_states_fips_codes(census_year, api_key):
     '''Get FIPS codes for all US states from the census API.
 
@@ -132,9 +220,8 @@ def get_all_states_fips_codes(census_year, api_key):
         f'https://api.census.gov/data/{census_year}/dec/pl'
         f'?get=NAME&for=state:*&key={api_key}'
     )
-    response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
-    response.raise_for_status()
-    state_to_fips = pd.Series(dict(response.json()[1:]))
+    data = get_census_json(url)
+    state_to_fips = pd.Series(dict(data[1:]))
     return state_to_fips
 
 
@@ -156,9 +243,7 @@ def get_all_state_county_codes(state_fips, census_year, api_key):
         f'https://api.census.gov/data/{census_year}/dec/pl'
         f'?get=NAME&for=county:*&in=state:{state_fips}&key={api_key}'
     )
-    response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
-    response.raise_for_status()
-    county_codes = pd.DataFrame(response.json())
+    county_codes = pd.DataFrame(get_census_json(url))
     headers = county_codes.iloc[0].values
     county_codes.columns = headers
     county_codes.drop(index=0, axis=0, inplace=True)
@@ -195,9 +280,7 @@ def pull_metadata(url):
     Raises:
         requests.HTTPError: If the census API returns an error status.
     '''
-    response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
-    response.raise_for_status()
-    variables = response.json()['variables']
+    variables = get_census_json(url)['variables']
     labels = {code: spec['label'] for code, spec in variables.items()}
     metadata = pd.DataFrame(pd.Series(labels, name='Label'))
     metadata.index.name = 'Column Name'
@@ -234,9 +317,7 @@ def pull_ptable_data(geography, pnum, state_fips, county_code, census_year, api_
         f'?get=group({pnum})&for={geo}:*'
         f'&in=state:{state_fips}&in=county:{county_code}&in=tract:*&key={api_key}'
     )
-    response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
-    response.raise_for_status()
-    data = pd.DataFrame(response.json())
+    data = pd.DataFrame(get_census_json(url))
     metadata = pull_metadata(f'https://api.census.gov/data/{census_year}/dec/pl/groups/{pnum}?key={api_key}')
 
     # Reformat data to match manual download (for backwards compatibility).
@@ -278,6 +359,10 @@ def save_pdata(df, census_year, county_st, geo, pnum, meta=False):
 def download_file(url, local_dir):
     '''Download a file from `url` into `local_dir`, streaming the body.
 
+    Retries transient failures (5xx, dropped or mid-stream-broken connections,
+    timeouts) with exponential backoff; the destination is rewritten on each
+    attempt so a truncated partial download is overwritten cleanly.
+
     Args:
         url: Fully-qualified URL to download.
         local_dir: Destination directory; created if it does not exist.
@@ -286,16 +371,22 @@ def download_file(url, local_dir):
         Path to the downloaded file on disk.
 
     Raises:
-        requests.HTTPError: If the server returns an error status.
+        requests.HTTPError: If the server returns a non-retryable status, or a
+            5xx status once retries are exhausted.
     '''
     if not os.path.exists(local_dir):
         os.makedirs(local_dir)
     local_filename = Path(local_dir).joinpath(url.split('/')[-1])
-    with requests.get(url, stream=True, timeout=HTTP_TIMEOUT_SECONDS) as response:
-        response.raise_for_status()
-        with open(local_filename, 'wb') as out_file:
-            shutil.copyfileobj(response.raw, out_file)
-    return local_filename
+
+    def operation():
+        with requests.get(url, stream=True, timeout=HTTP_TIMEOUT_SECONDS) as response:
+            response.raise_for_status()
+            with open(local_filename, 'wb') as out_file:
+                for chunk in response.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
+                    out_file.write(chunk)
+        return local_filename
+
+    return _request_with_retries(operation, f'download {url}')
 
 
 def unzip_file(fpath, outdir):

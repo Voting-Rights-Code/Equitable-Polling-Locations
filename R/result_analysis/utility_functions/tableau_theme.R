@@ -50,6 +50,7 @@ theme_tableau <- function(base_size = 11, base_family = "sans") {
                                          hjust = 0, margin = margin(b = 8)),
             axis.title    = element_text(size = base_size, color = "#333333"),
             axis.text     = element_text(size = base_size - 1, color = "#555555"),
+            axis.text.x   = element_text(angle = 90, hjust = 1, vjust = 0.5),
 
             # Legend
             legend.background = element_rect(fill = "white", color = NA),
@@ -101,6 +102,12 @@ MAP_POLL_TYPE_COLORS <- c(
     polling     = "#0072B2",
     potential   = "#009E73",
     bg_centroid = "#BBBBBB"
+)
+
+MAP_POLL_TYPE_SHAPES <- c(
+    polling     = 16,
+    potential   = 17,
+    bg_centroid = 15
 )
 
 # Map variant: suppress all axis/grid elements for clean geographic rendering

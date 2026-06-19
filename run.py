@@ -10,12 +10,14 @@ the command-line interface is identical.
 
 import argparse
 import getpass
-import json
+import os
 import subprocess
 import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+import secret_store
 
 
 # Single source of truth for the project's Docker image. The same compose
@@ -110,26 +112,31 @@ def get_docker_compose_cmd() -> list[str]:
 def run_command(args: list[str]) -> None:
     """Runs a project command in whichever context run.py is executing.
 
-    Inside the dev container, executes ``args`` directly (the conda env is
-    on PATH). On the host, prepends
-    ``docker compose -f .devcontainer/docker-compose.yml run --rm app``.
-    Credentials (gcloud, gh, Claude) live in named docker volumes defined in
-    the compose file, so no host-side credential-path plumbing is needed.
+    Inside the dev container, executes ``args`` directly. On the host, wraps
+    them in ``docker compose run`` and forwards resolved secrets into the
+    container via name-only ``-e`` flags so they never appear on the command
+    line.
 
-    Exit codes and Ctrl-C handling match subprocess.run with ``check=True``.
+    Args:
+        args: The command and arguments to execute.
     """
     if IN_CONTAINER:
         cmd = args
+        env = None
     else:
+        secret_env, secret_flags = build_secret_env_and_flags()
+        env = secret_env
         cmd = (
             get_docker_compose_cmd()
-            + ["-f", COMPOSE_FILE, "run", "--rm", "app"]
+            + ["-f", COMPOSE_FILE, "run", "--rm"]
+            + secret_flags
+            + ["app"]
             + args
         )
     try:
-        subprocess.run(cmd, cwd=REPO_ROOT, check=True)
-    except subprocess.CalledProcessError as e:
-        sys.exit(e.returncode)
+        subprocess.run(cmd, cwd=REPO_ROOT, check=True, env=env)
+    except subprocess.CalledProcessError as error:
+        sys.exit(error.returncode)
     except KeyboardInterrupt:
         print("\n[Terminated by User]")
         sys.exit(130)
@@ -144,22 +151,119 @@ def get_scripts() -> list[str]:
     return sorted([f.stem for f in scripts_dir.glob("*.py")])
 
 
-def write_credentials_json(census_key, output_dir=None):
-    """Write the census API key to the credentials JSON bridge file.
+def secret_set(secret: secret_store.Secret) -> None:
+    """Prompt for and store a secret value in every available backend.
 
     Args:
-        census_key: The census API key string to write.
-        output_dir: Directory to write credentials.json into.
-            Defaults to authentication_files/ at the project root.
+        secret: The registry entry describing where to store the value.
     """
-    if output_dir is None:
-        output_dir = Path(__file__).resolve().parent / "authentication_files"
-    output_dir = Path(output_dir)
-    output_dir.mkdir(exist_ok=True)
-    creds_file = output_dir / "credentials.json"
-    with open(creds_file, "w", encoding="utf-8") as f:
-        json.dump({"census_key": census_key}, f)
-    print(f"Credentials written to {creds_file}")
+    value = getpass.getpass(f"Enter value for '{secret.name}': ").strip()
+    if not value:
+        print("Error: No value entered.")
+        sys.exit(1)
+    backends = secret_store.store(secret, value)
+    written = []
+    if "keyring" in backends:
+        written.append("the OS keystore")
+    if "file" in backends:
+        written.append(str(secret.file_path))
+    print(f"'{secret.name}' stored in: {', '.join(written)}.")
+    if "keyring" not in backends:
+        print(
+            "Note: 'keyring' is not installed, so this value lives only in a "
+            "gitignored file that `git clean -fdx` will delete. Install it "
+            "with `pip install keyring` (Linux may also need a Secret "
+            "Service backend) for a durable backup that survives working-tree wipes."
+        )
+
+
+def secret_get(secret: secret_store.Secret, show: bool) -> None:
+    """Report a secret's presence and (masked or revealed) value.
+
+    Args:
+        secret: The registry entry to resolve.
+        show: When True, print the raw value instead of a masked form.
+    """
+    value = secret_store.resolve(secret)
+    if value is None:
+        print(f"{secret.name}: not set")
+        return
+    shown = value if show else secret_store.mask(value)
+    print(f"{secret.name}: present, value: {shown}")
+
+
+def secret_clear(secret: secret_store.Secret) -> None:
+    """Remove a secret from every backend.
+
+    Args:
+        secret: The registry entry to clear.
+    """
+    removed = secret_store.clear(secret)
+    if removed:
+        print(f"'{secret.name}' removed from: {', '.join(removed)}.")
+    else:
+        print(f"'{secret.name}': nothing to remove.")
+
+
+def secret_restore() -> None:
+    """Regenerate credentials.json from the durable source for every secret.
+
+    Run from the host after ``git clean -fdx`` wipes the file. The keyring copy
+    survives, so this rewrites credentials.json (which the dev container reads
+    via the repo mount) from it.
+    """
+    for secret in secret_store.SECRETS.values():
+        source = secret_store.restore_file(secret)
+        if source is None:
+            print(f"'{secret.name}': nothing to restore (no env var or keyring value).")
+        else:
+            print(f"'{secret.name}' restored to credentials.json (from {source}).")
+
+
+def handle_secret_command(argv: list[str]) -> None:
+    """Parse and dispatch `run.py secret <action> [name] [--show]`.
+
+    Args:
+        argv: The argument list following the `secret` subcommand.
+    """
+    parser = argparse.ArgumentParser(prog="python run.py secret")
+    parser.add_argument("action", choices=["set", "get", "clear", "restore"])
+    parser.add_argument("name", nargs="?", choices=sorted(secret_store.SECRETS))
+    parser.add_argument("--show", action="store_true",
+                        help="Reveal the raw value (get only).")
+    args = parser.parse_args(argv)
+    if args.action == "restore":
+        secret_restore()
+        return
+    if args.name is None:
+        parser.error("the 'name' argument is required for set/get/clear")
+    secret = secret_store.get_secret(args.name)
+    if args.action == "set":
+        secret_set(secret)
+    elif args.action == "get":
+        secret_get(secret, show=args.show)
+    else:
+        secret_clear(secret)
+
+
+def build_secret_env_and_flags() -> tuple[dict[str, str], list[str]]:
+    """Resolve every registered secret for forwarding into the container.
+
+    For each secret that resolves to a value, set it in a copy of the current
+    environment and add a name-only ``-e VAR`` flag so docker forwards the value
+    without exposing it on the command line.
+
+    Returns:
+        A tuple of (environment mapping for the subprocess, list of -e flags).
+    """
+    env = os.environ.copy()
+    flags: list[str] = []
+    for secret in secret_store.SECRETS.values():
+        value = secret_store.resolve(secret)
+        if value:
+            env[secret.env_var] = value
+            flags += ["-e", secret.env_var]
+    return env, flags
 
 
 def _config_path_from_passthrough(passthrough: list[str]) -> str | None:
@@ -223,17 +327,6 @@ def main():
     # R and all project-required R packages load inside the image.
     if len(sys.argv) > 1 and sys.argv[1] == "r_test":
         run_command(["Rscript", "R/tests/r_smoke_test.R"])
-        return
-
-    # Special command: set_census_key stores a census API key in credentials.json.
-    # No external dependencies required — uses only Python stdlib.
-    if len(sys.argv) > 1 and sys.argv[1] == "set_census_key":
-        key = getpass.getpass("Enter your census API key: ")
-        if not key.strip():
-            print("Error: No key entered.")
-            sys.exit(1)
-        write_credentials_json(key.strip())
-        print("Census API key saved to authentication_files/credentials.json")
         return
 
     # Special commands: ORS lifecycle scripts. These must run on the host
@@ -364,6 +457,10 @@ def main():
                     )
         return
 
+    if len(sys.argv) > 1 and sys.argv[1] == "secret":
+        handle_secret_command(sys.argv[2:])
+        return
+
     available_scripts = get_scripts()
 
     script_list = "\n  ".join(available_scripts)
@@ -382,7 +479,7 @@ def main():
             "  e2e_tests       Run end-to-end tests only (e.g. python run.py e2e_tests -m e2e_csv)\n"
             "  lint            Run pylint against python/ (e.g. python run.py lint --errors-only)\n"
             "  r_test          Run the R environment smoke test\n"
-            "  set_census_key  Store your census API key in credentials.json\n"
+            "  secret          Manage secrets (set/get/clear/restore); e.g. python run.py secret set census\n"
             "  ors_up_cli      [HOST-ONLY] Start the sibling ORS container and wait for readiness\n"
             "  ors_down_cli    [HOST-ONLY] Stop the sibling ORS container (--purge-graphs optional)\n"
             "\n"

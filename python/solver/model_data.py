@@ -445,7 +445,7 @@ def build_distance_data(
     # Reformat and write to file (making directory if it doesn't exist)
     #####
 
-    output_dir = os.path.basename(output_path)
+    output_dir = os.path.dirname(output_path)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 

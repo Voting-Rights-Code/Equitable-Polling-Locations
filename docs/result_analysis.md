@@ -17,6 +17,12 @@ For other variations for different purposes, see the scripts in `R/result_analys
     1. See `R\result_analysis\Basic_analysis_configs\Dougherty_County_original_and_log.r` for an example of a config file that compares two config_sets
 1. From terminal, run `Rscript R/result_analysis/Basic_analysis.r name_of_config.r`. Note, name_of_config is only the file name, not the path. E.g `Berkeley_County_original.r`.
 
+### A note on descriptors
+
+Many of the graphs use descriptors to define the independent axis. In order to set these as ordered factors correctly, the `*_DESCRIPTION_DICT`s must have a certain format.
+* The entries must have at least 1 `_`.
+* The suffix (after the last `_`) determines the order.
+    * The suffixes should be all numeric or all alphabetical. Cannot have `change_1, change_2, change_final`
 
 ## General Workflow
 
