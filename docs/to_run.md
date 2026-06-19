@@ -184,6 +184,13 @@ rm -rf datasets/ors_graphs/georgia-buffered
 
 The first driving run for a state downloads a one-time ~13 GB US OpenStreetMap extract and builds a state+50 km buffer graph. Large border states (Texas; the 8-neighbor states) may need `ORS_XMX=16g` (or more) and a matching Docker Desktop memory limit.
 
+Set `ORS_XMX` in your shell **before** the run — the syntax is shell-specific, and on Windows it must be a separate command first:
+- macOS / Linux / WSL (bash/zsh): inline it — `ORS_XMX=16g python3 run.py generate_driving_distances_cli -l ...` — or `export ORS_XMX=16g` once for the session.
+- Windows PowerShell: `$env:ORS_XMX = "16g"`, then run the command on the next line.
+- Windows cmd: `set ORS_XMX=16g`, then run the command on the next line.
+
+(The same per-shell pattern applies to any env var, e.g. `ORS_URL`.)
+
 Once a state's graph is loaded, ORS uses ~3–5 GB of RAM. The dev container also runs solver/Python workloads. **Bump Docker Desktop's memory to ≥ 12 GB if you run both at once** — the default 8 GB is too tight.
 
 ### Where to override the ORS endpoint
