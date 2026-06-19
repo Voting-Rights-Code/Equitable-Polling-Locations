@@ -18,7 +18,7 @@ from python.utils.ors_setup import (
 
 DEFAULT_BOUNDARY_PATH = 'datasets/boundaries/us_states.geojson'
 DEFAULT_BUFFER_KM = 50
-SIMPLIFY_TOLERANCE_M = 1000  # CONFIRM (Decision 2)
+SIMPLIFY_TOLERANCE_M = 1000  # metres; keeps the osmium polygon vertex count low, well inside the 50 km margin
 SLUG_TO_POSTAL = {slug: postal for postal, slug in STATE_CODE_TO_SLUG.items()}
 
 
