@@ -130,7 +130,7 @@ python3 run.py generate_driving_distances_cli --state georgia \
   -l datasets/configs/testing/testing_config_driving.yaml
 ```
 
-First run for a state takes ~5-15 min (downloads the `.pbf` from Geofabrik if missing, then ORS builds its routing graph). Subsequent runs reuse the cached graph (~30s startup). The CLI auto-spawns ORS at the start and tears it down at the end; pass `--keep-ors-running` to leave it up across multiple invocations.
+The first driving run for a state is slow: it downloads a one-time ~13 GB full-US OpenStreetMap extract, clips a state+50 km buffered extract from it (`osmium`), then ORS builds its routing graph (~20-30 min for a large state). Subsequent runs reuse the cached extract and graph (~30s startup). The CLI auto-spawns ORS at the start and tears it down at the end; pass `--keep-ors-running` to leave it up across multiple invocations.
 
 State slugs are full Geofabrik names (`georgia`, `new-york`, `district-of-columbia`); see `python/utils/ors_setup.py` for the full list.
 
@@ -139,32 +139,34 @@ State slugs are full Geofabrik names (`georgia`, `new-york`, `district-of-columb
 If you want ORS up persistently:
 
 ```bash
+python3 run.py build_buffered_extract_cli georgia   # one-time per state: builds georgia-buffered.osm.pbf
 python3 run.py ors_up_cli georgia
 # ... run generate_driving_distances_cli or curl directly ...
 python3 run.py ors_down_cli
 ```
 
-`ors_up_cli` downloads the `.pbf` if missing, spawns the ORS container, waits for the health endpoint, and verifies the loaded routing graph matches the state you asked for.
+`ors_up_cli` boots ORS on the state's **buffered** extract (`<state>-buffered.osm.pbf`). That extract must already exist — `ors_up_cli` exits with an error if it doesn't, so build it first with `python3 run.py build_buffered_extract_cli <state>` (the `generate_driving_distances_cli` orchestrator does this automatically). It then spawns the ORS container and waits for the health endpoint.
 
 ### Switching states
 
-ORS loads one `.pbf` per container. Each state has its own bind-mounted
-graph cache directory under `datasets/ors_graphs/<state>/`, so switching
+ORS loads one extract per container. Each state has its own bind-mounted
+graph cache directory under `datasets/ors_graphs/<state>-buffered/`, so switching
 states is just:
 
 ```bash
 python3 run.py ors_down_cli
-python3 run.py ors_up_cli texas              # downloads texas if missing
+python3 run.py build_buffered_extract_cli texas   # builds texas-buffered.osm.pbf if missing
+python3 run.py ors_up_cli texas
 ```
 
 ORS sees the new state's empty (or pre-built) cache directory and rebuilds
 the graph automatically — no manual purge step.
 
-To force a clean rebuild for a specific state (e.g., after upgrading the
-`.pbf`), delete that state's cache directory manually:
+To force a clean rebuild for a specific state (e.g., after refreshing the
+extract), delete that state's cache directory manually:
 
 ```bash
-rm -rf datasets/ors_graphs/georgia
+rm -rf datasets/ors_graphs/georgia-buffered
 ```
 
 ### Resource budget
