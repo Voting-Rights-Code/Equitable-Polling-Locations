@@ -1,5 +1,4 @@
-import subprocess
-
+'''Tests for python/utils/buffered_extract.py.'''
 import geopandas as gpd
 import pytest
 
@@ -37,7 +36,7 @@ def test_ensure_us_source_skips_when_present(tmp_path, monkeypatch):
                         lambda url, dest: called.append(url))
     result = ensure_us_source()
     assert result == str(target)
-    assert called == []  # already present -> no download
+    assert not called  # already present -> no download
 
 
 def test_ensure_us_source_downloads_when_missing(tmp_path, monkeypatch):
@@ -47,6 +46,7 @@ def test_ensure_us_source_downloads_when_missing(tmp_path, monkeypatch):
                         lambda: str(target))
 
     def fake_retrieve(url, dest):
+        del url
         with open(dest, 'wb') as handle:
             handle.write(b'downloaded')
 
@@ -68,7 +68,7 @@ def test_build_buffered_pbf_idempotent(tmp_path, monkeypatch):
     monkeypatch.setattr('python.utils.buffered_extract.subprocess.run',
                         lambda *a, **k: ran.append(a))
     assert build_buffered_pbf('georgia') == str(existing)
-    assert ran == []  # cached -> osmium not invoked
+    assert not ran  # cached -> osmium not invoked
 
 
 def test_build_buffered_pbf_invokes_osmium(tmp_path, monkeypatch):

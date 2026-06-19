@@ -1,3 +1,4 @@
+'''Tests for python/utils/detour_ratio.py.'''
 import math
 
 import numpy as np

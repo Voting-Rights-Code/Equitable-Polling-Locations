@@ -46,7 +46,7 @@ def test_buffer_prep_runs_before_ors_up(monkeypatch):
     run_module.main()
 
     # Collect the command tuples in call order.
-    labels = [cmd for (_kind, cmd) in calls]
+    labels = [cmd for (_, cmd) in calls]
     buffer_index = next(
         i
         for i, cmd in enumerate(labels)
