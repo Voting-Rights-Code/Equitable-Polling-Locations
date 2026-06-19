@@ -205,6 +205,21 @@ def _assert_ors_reachable(matrix_url: str) -> None:
     sys.exit(1)
 
 
+def _reject_unknown_slug(state: str) -> None:
+    '''Exit with code 2 if state is not a known Geofabrik state slug.
+
+    Args:
+        state: The candidate Geofabrik state slug to validate.
+    '''
+    if state not in GEOFABRIK_STATE_SLUGS:
+        print(
+            f'Unknown state slug: {state!r}. Use the full Geofabrik slug, '
+            f'e.g. "georgia", "new-york", "district-of-columbia". See '
+            f'python/utils/ors_setup.py for the full list.'
+        )
+        sys.exit(2)
+
+
 def main(argv=None):
     '''CLI entry point.
 
@@ -215,6 +230,11 @@ def main(argv=None):
         ``0`` on success. (Exits via ``sys.exit(main())`` from the if __name__ block.)
     '''
     args = build_arg_parser().parse_args(argv)
+
+    # Validate an explicit --state before any ORS or config work, so a typo
+    # fails fast without requiring a running ORS or a readable config file.
+    if args.state is not None:
+        _reject_unknown_slug(args.state)
 
     matrix_url = resolve_ors_url(args.server)
     _assert_ors_reachable(matrix_url)
@@ -234,13 +254,7 @@ def main(argv=None):
                 f'-l {args.location_config}'
             )
             sys.exit(2)
-    if state not in GEOFABRIK_STATE_SLUGS:
-        print(
-            f'Unknown state slug: {state!r}. Use the full Geofabrik slug, '
-            f'e.g. "georgia", "new-york", "district-of-columbia". See '
-            f'python/utils/ors_setup.py for the full list.'
-        )
-        sys.exit(2)
+    _reject_unknown_slug(state)
     log_fh, log_path = _open_log_file(args.logdir, config.config_file_path)
     try:
         _tee(f'[{datetime.now().isoformat(timespec="seconds")}] starting for '
