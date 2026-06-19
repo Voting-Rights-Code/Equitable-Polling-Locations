@@ -1,7 +1,7 @@
 import geopandas as gpd
 import pytest
 
-from python.utils.buffered_extract import build_buffer_polygon
+from python.utils.buffered_extract import build_buffer_polygon, ensure_us_source
 
 
 def test_buffer_polygon_contains_and_grows_state(tmp_path, monkeypatch):
@@ -22,3 +22,35 @@ def test_buffer_polygon_unknown_slug_raises(tmp_path, monkeypatch):
     monkeypatch.setattr('python.utils.buffered_extract.ORS_DATA_DIR', str(tmp_path))
     with pytest.raises(ValueError):
         build_buffer_polygon('atlantis')
+
+
+def test_ensure_us_source_skips_when_present(tmp_path, monkeypatch):
+    monkeypatch.setattr('python.utils.buffered_extract.ORS_DATA_DIR', str(tmp_path))
+    target = tmp_path / 'us-latest.osm.pbf'
+    target.write_bytes(b'existing')
+    monkeypatch.setattr('python.utils.buffered_extract.us_source_path',
+                        lambda: str(target))
+    called = []
+    monkeypatch.setattr('python.utils.buffered_extract.urllib.request.urlretrieve',
+                        lambda url, dest: called.append(url))
+    result = ensure_us_source()
+    assert result == str(target)
+    assert called == []  # already present -> no download
+
+
+def test_ensure_us_source_downloads_when_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr('python.utils.buffered_extract.ORS_DATA_DIR', str(tmp_path))
+    target = tmp_path / 'us-latest.osm.pbf'
+    monkeypatch.setattr('python.utils.buffered_extract.us_source_path',
+                        lambda: str(target))
+
+    def fake_retrieve(url, dest):
+        with open(dest, 'wb') as handle:
+            handle.write(b'downloaded')
+
+    monkeypatch.setattr('python.utils.buffered_extract.urllib.request.urlretrieve',
+                        fake_retrieve)
+    result = ensure_us_source()
+    assert result == str(target)
+    assert target.read_bytes() == b'downloaded'
+    assert not (tmp_path / 'us-latest.osm.pbf.partial').exists()  # atomic cleanup

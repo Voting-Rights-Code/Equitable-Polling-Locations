@@ -6,12 +6,13 @@ buffer polygon around the state boundary. Driving distance only.
 '''
 
 import os
+import urllib.request
 
 import geopandas as gpd
 
 from python.utils.ors_setup import (
     GEOFABRIK_STATE_SLUGS, STATE_CODE_TO_SLUG, ORS_DATA_DIR,
-    buffer_polygon_path,
+    buffer_polygon_path, us_source_url, us_source_path,
 )
 
 DEFAULT_BOUNDARY_PATH = 'datasets/boundaries/us_states.geojson'
@@ -52,3 +53,20 @@ def build_buffer_polygon(
     out_path = buffer_polygon_path(state_slug)
     out.to_file(out_path, driver='GeoJSON')
     return out_path
+
+
+def ensure_us_source() -> str:
+    '''Download the cached full-US extract if absent; return its path.
+
+    Returns:
+        The path to ``us-latest.osm.pbf`` under ORS_DATA_DIR.
+    '''
+    target = us_source_path()
+    if os.path.exists(target):
+        return target
+    os.makedirs(ORS_DATA_DIR, exist_ok=True)
+    partial = f'{target}.partial'
+    print(f'Downloading full-US OSM extract from {us_source_url()} (~13 GB, one time)...')
+    urllib.request.urlretrieve(us_source_url(), partial)
+    os.replace(partial, target)
+    return target
