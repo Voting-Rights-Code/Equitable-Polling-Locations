@@ -58,6 +58,18 @@ ORS_DATA_DIR = os.path.normpath(
 )
 
 
+def buffer_polygon_path(slug: str) -> str:
+    '''Return the path to the buffer-polygon GeoJSON for a state slug.
+
+    Args:
+        slug: Geofabrik state slug.
+
+    Returns:
+        Absolute filesystem path under ``ORS_DATA_DIR``.
+    '''
+    return os.path.join(ORS_DATA_DIR, f'{slug}-buffer.geojson')
+
+
 def geofabrik_url(slug: str) -> str:
     '''Return the Geofabrik download URL for a state slug.
 
