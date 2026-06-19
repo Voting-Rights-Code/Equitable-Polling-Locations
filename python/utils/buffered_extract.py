@@ -7,6 +7,7 @@ buffer polygon around the state boundary. Driving distance only.
 
 import os
 import subprocess
+import sys
 import urllib.request
 
 import geopandas as gpd
@@ -20,6 +21,7 @@ DEFAULT_BOUNDARY_PATH = 'datasets/boundaries/us_states.geojson'
 DEFAULT_BUFFER_KM = 50
 SIMPLIFY_TOLERANCE_M = 1000  # metres; keeps the osmium polygon vertex count low, well inside the 50 km margin
 SLUG_TO_POSTAL = {slug: postal for postal, slug in STATE_CODE_TO_SLUG.items()}
+PROGRESS_STEP_BYTES = 256 * 1024 * 1024  # log download progress at each 256 MB boundary
 
 
 def build_buffer_polygon(
@@ -56,6 +58,31 @@ def build_buffer_polygon(
     return out_path
 
 
+def _download_progress(block_count: int, block_size: int, total_size: int) -> None:
+    '''urlretrieve reporthook: log download progress at PROGRESS_STEP_BYTES boundaries.
+
+    Stateless: prints only when the cumulative byte count crosses a step
+    boundary, so a multi-GB download emits roughly one line per step rather than
+    one per network block.
+
+    Args:
+        block_count: Number of blocks transferred so far.
+        block_size: Size of each transferred block in bytes.
+        total_size: Total download size in bytes, or <= 0 if the server did not
+            report it.
+    '''
+    downloaded = block_count * block_size
+    if downloaded // PROGRESS_STEP_BYTES == (downloaded - block_size) // PROGRESS_STEP_BYTES:
+        return
+    downloaded_gb = downloaded / 1e9
+    if total_size > 0:
+        percent = min(100, int(downloaded * 100 / total_size))
+        print(f'  ...{downloaded_gb:.1f} GB / {total_size / 1e9:.1f} GB ({percent}%)',
+              file=sys.stderr)
+    else:
+        print(f'  ...{downloaded_gb:.1f} GB', file=sys.stderr)
+
+
 def ensure_us_source() -> str:
     '''Download the cached full-US extract if absent; return its path.
 
@@ -68,7 +95,7 @@ def ensure_us_source() -> str:
     os.makedirs(ORS_DATA_DIR, exist_ok=True)
     partial = f'{target}.partial'
     print(f'Downloading full-US OSM extract from {us_source_url()} (~13 GB, one time)...')
-    urllib.request.urlretrieve(us_source_url(), partial)
+    urllib.request.urlretrieve(us_source_url(), partial, _download_progress)
     os.replace(partial, target)
     return target
 

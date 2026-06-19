@@ -2,7 +2,9 @@
 import geopandas as gpd
 import pytest
 
-from python.utils.buffered_extract import build_buffer_polygon, build_buffered_pbf, ensure_us_source
+from python.utils.buffered_extract import (
+    _download_progress, build_buffer_polygon, build_buffered_pbf, ensure_us_source,
+)
 
 
 def test_buffer_polygon_contains_and_grows_state(tmp_path, monkeypatch):
@@ -45,8 +47,8 @@ def test_ensure_us_source_downloads_when_missing(tmp_path, monkeypatch):
     monkeypatch.setattr('python.utils.buffered_extract.us_source_path',
                         lambda: str(target))
 
-    def fake_retrieve(url, dest):
-        del url
+    def fake_retrieve(url, dest, reporthook=None):
+        del url, reporthook
         with open(dest, 'wb') as handle:
             handle.write(b'downloaded')
 
@@ -88,3 +90,24 @@ def test_build_buffered_pbf_invokes_osmium(tmp_path, monkeypatch):
     assert captured['cmd'][:2] == ['osmium', 'extract']
     assert '--polygon' in captured['cmd']
     assert str(out) in captured['cmd']
+
+
+def test_download_progress_prints_at_step_boundary(capsys):
+    step = 256 * 1024 * 1024
+    _download_progress(2, step, 13_000_000_000)
+    captured = capsys.readouterr()
+    assert 'GB' in captured.err
+    assert '%' in captured.err
+
+
+def test_download_progress_silent_within_step(capsys):
+    _download_progress(2, 1024, 13_000_000_000)
+    assert capsys.readouterr().err == ''
+
+
+def test_download_progress_handles_unknown_total(capsys):
+    step = 256 * 1024 * 1024
+    _download_progress(2, step, 0)
+    captured = capsys.readouterr()
+    assert 'GB' in captured.err
+    assert '%' not in captured.err
