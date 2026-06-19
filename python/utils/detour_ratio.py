@@ -6,6 +6,8 @@ is silently inflated by missing cross-border roads. Distance only (distance_m);
 unrelated to the driving-time metric.
 '''
 
+import os
+
 import pandas as pd
 from haversine import haversine_vector, Unit
 
@@ -13,6 +15,8 @@ from python.solver.constants import (
     DISTANCE_DISTANCE_M,
     DISTANCE_ORIG_LAT, DISTANCE_ORIG_LON,
     DISTANCE_DEST_LAT, DISTANCE_DEST_LON,
+    DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_SOURCE,
+    DISTANCE_SOURCE_DRIVING_DISTANCE,
 )
 
 _REQUIRED_RATIO_COLUMNS = (
@@ -88,3 +92,36 @@ def summarize_detour_ratios(
         summary[f'count_over_{threshold}'] = float(over)
         summary[f'frac_over_{threshold}'] = (over / count) if count else float('nan')
     return summary
+
+
+def load_distances_csv(path: str) -> pd.DataFrame:
+    '''Load a combined distances CSV produced by a driving model-data run.
+
+    Args:
+        path: Path to a ``<location>_distances_<year>.csv`` file.
+
+    Returns:
+        The DataFrame with id_orig/id_dest as strings.
+
+    Raises:
+        ValueError: If the file does not exist, or its ``source`` column
+            indicates it is not a driving-distance file (which would make every
+            detour ratio ~1 and the diagnostic meaningless).
+    '''
+    if not os.path.isfile(path):
+        raise ValueError(f'Distance data file {path} does not exist.')
+
+    distances = pd.read_csv(
+        path, index_col=0,
+        dtype={DISTANCE_ID_ORIG: str, DISTANCE_ID_DEST: str},
+    )
+
+    if DISTANCE_SOURCE in distances.columns:
+        sources = distances[DISTANCE_SOURCE].dropna().unique()
+        if not all('driving' in str(source) for source in sources):
+            raise ValueError(
+                f'{path} is not a driving-distance file (source={list(sources)}); '
+                f'the detour-ratio diagnostic needs driving distances. '
+                f'Expected source containing {DISTANCE_SOURCE_DRIVING_DISTANCE!r}.'
+            )
+    return distances

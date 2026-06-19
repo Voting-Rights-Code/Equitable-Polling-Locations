@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from python.utils.detour_ratio import compute_detour_ratios, summarize_detour_ratios
+from python.utils.detour_ratio import compute_detour_ratios, summarize_detour_ratios, load_distances_csv
 
 
 def _coincident_points_frame():
@@ -57,3 +57,29 @@ def test_summary_empty_is_safe():
     assert summary['count'] == 0
     assert np.isnan(summary['median'])
     assert summary['count_over_2.0'] == 0
+
+
+def _write_combined_csv(tmp_path, source='driving distance'):
+    df = _coincident_points_frame()
+    df['source'] = source
+    path = tmp_path / 'county_distances_2020.csv'
+    df.to_csv(path, index=True)  # leading index column, like model_data output
+    return str(path)
+
+
+def test_load_reads_driving_csv(tmp_path):
+    path = _write_combined_csv(tmp_path)
+    loaded = load_distances_csv(path)
+    assert loaded['id_orig'].tolist() == ['A', 'B']
+    assert loaded['distance_m'].tolist() == [1000.0, 5000.0]
+
+
+def test_load_rejects_haversine_source(tmp_path):
+    path = _write_combined_csv(tmp_path, source='haversine distance')
+    with pytest.raises(ValueError):
+        load_distances_csv(path)
+
+
+def test_load_missing_file_raises():
+    with pytest.raises(ValueError):
+        load_distances_csv('/no/such/file.csv')
