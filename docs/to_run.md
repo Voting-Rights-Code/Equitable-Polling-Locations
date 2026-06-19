@@ -147,6 +147,17 @@ python3 run.py ors_down_cli
 
 `ors_up_cli` boots ORS on the state's **buffered** extract (`<state>-buffered.osm.pbf`). That extract must already exist — `ors_up_cli` exits with an error if it doesn't, so build it first with `python3 run.py build_buffered_extract_cli <state>` (the `generate_driving_distances_cli` orchestrator does this automatically). It then spawns the ORS container and waits for the health endpoint.
 
+### Building the matrix inside the container
+
+With ORS already running (started by hand as above), build the driving distances **from inside the dev container** — a VS Code terminal in the container, or `docker compose -f .devcontainer/docker-compose.yml run --rm app bash`:
+
+```bash
+python3 run.py generate_driving_distances_cli \
+  -l datasets/configs/<config_set>/<config>.yaml
+```
+
+`run.py` works inside the container too: it detects it is containerized and runs the matrix step directly, **without** the host-side ORS orchestration — so it won't try to start or stop ORS; it just uses the instance you brought up by hand. No `--server` flag is needed either: the container is preconfigured with `ORS_URL=http://ors:8082/ors/v2/matrix/driving-car` and shares a Docker network with the ORS container, so it reaches ORS by service name. (ORS listens on `8082` internally; the `localhost:8080` default noted below applies on the **host**, where compose publishes `8080 -> 8082`.) This is also why `ors_up_cli` / `ors_down_cli` stay host-only.
+
 ### Switching states
 
 ORS loads one extract per container. Each state has its own bind-mounted
