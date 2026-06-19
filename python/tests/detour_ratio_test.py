@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from python.utils.detour_ratio import compute_detour_ratios
+from python.utils.detour_ratio import compute_detour_ratios, summarize_detour_ratios
 
 
 def _coincident_points_frame():
@@ -39,3 +39,21 @@ def test_missing_column_raises():
     df = _coincident_points_frame().drop(columns=['orig_lat'])
     with pytest.raises(ValueError):
         compute_detour_ratios(df)
+
+
+def test_summary_basic_stats():
+    ratios = pd.Series([1.0, 1.0, 2.0, 4.0, float('nan')])
+    summary = summarize_detour_ratios(ratios, thresholds=(1.5, 3.0))
+    assert summary['count'] == 4
+    assert summary['median'] == 1.5
+    assert summary['max'] == 4.0
+    assert summary['count_over_1.5'] == 2   # 2.0 and 4.0
+    assert summary['count_over_3.0'] == 1   # 4.0
+    assert math.isclose(summary['frac_over_1.5'], 0.5)
+
+
+def test_summary_empty_is_safe():
+    summary = summarize_detour_ratios(pd.Series([float('nan')]), thresholds=(2.0,))
+    assert summary['count'] == 0
+    assert np.isnan(summary['median'])
+    assert summary['count_over_2.0'] == 0

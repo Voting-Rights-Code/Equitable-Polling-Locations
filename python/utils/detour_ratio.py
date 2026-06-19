@@ -55,3 +55,36 @@ def compute_detour_ratios(distances: pd.DataFrame) -> pd.Series:
     ratios = distances[DISTANCE_DISTANCE_M] / haversine_m
     ratios[haversine_m == 0] = float('nan')
     return ratios
+
+
+def summarize_detour_ratios(
+    ratios: pd.Series,
+    thresholds: tuple[float, ...] = (1.5, 2.0, 3.0),
+) -> dict[str, float]:
+    '''Summarize a distribution of detour ratios.
+
+    Args:
+        ratios: Per-pair driving/haversine ratios; NaNs (e.g. coincident
+            points) are ignored.
+        thresholds: Ratio cut points to count exceedances at.
+
+    Returns:
+        A dict with count, median, p90/p95/p99, max, and count_over_<t> /
+        frac_over_<t> for each threshold. Quantile keys are NaN when no
+        finite ratios are present.
+    '''
+    finite = ratios.dropna()
+    count = int(finite.shape[0])
+    summary: dict[str, float] = {
+        'count': float(count),
+        'median': float(finite.median()) if count else float('nan'),
+        'p90': float(finite.quantile(0.90)) if count else float('nan'),
+        'p95': float(finite.quantile(0.95)) if count else float('nan'),
+        'p99': float(finite.quantile(0.99)) if count else float('nan'),
+        'max': float(finite.max()) if count else float('nan'),
+    }
+    for threshold in thresholds:
+        over = int((finite > threshold).sum())
+        summary[f'count_over_{threshold}'] = float(over)
+        summary[f'frac_over_{threshold}'] = (over / count) if count else float('nan')
+    return summary
