@@ -3,13 +3,17 @@
 Workflow for ``python3 run.py ors_up_cli <state>``:
 
 1. Validate the state slug against ``GEOFABRIK_STATE_SLUGS``.
-2. Download ``<state>-latest.osm.pbf`` to ``datasets/openrouteservice/`` if
-   missing (logs a clear message; downloads are hundreds of MB).
-3. Ensure the per-state graph cache dir ``datasets/ors_graphs/<state>/``
-   exists so the bind mount resolves to a host-owned (not root-owned) dir.
+2. Resolve the buffered OSM extract ``<state>-buffered.osm.pbf`` under
+   ``datasets/openrouteservice/``; exit 2 with a clear message if absent
+   (the generate_driving_distances_cli orchestrator creates it via
+   build_buffered_extract_cli before calling this script).
+3. Ensure the per-state buffered graph cache dir
+   ``datasets/ors_graphs/<state>-buffered/`` exists so the bind mount
+   resolves to a host-owned (not root-owned) dir.
 4. Spawn the ORS container via ``docker compose up -d`` with ``ORS_STATE``
    set in the subprocess env so compose substitutes it into both the
-   ``ors.engine.source_file`` path and the per-state graph bind mount.
+   ``ors.engine.source_file`` path and the per-state graph bind mount
+   (compose appends ``-buffered`` to the slug).
 5. Poll ``/ors/v2/health`` until 200 or the 45-minute timeout expires
    (state-sized graphs can take 20-30 min on first boot).
 
@@ -32,7 +36,7 @@ from datetime import datetime
 # only if the user has the project conda env active. Fall back to a
 # file-path import so host-side use without project deps still works.
 try:
-    from python.utils.ors_setup import GEOFABRIK_STATE_SLUGS, download_pbf_if_missing
+    from python.utils.ors_setup import GEOFABRIK_STATE_SLUGS, buffered_pbf_path
 except ImportError:  # pragma: no cover - host-only fallback path
     import importlib.util  # pylint: disable=import-outside-toplevel  # fallback for host invocation without project conda env
     _here = os.path.dirname(os.path.abspath(__file__))
@@ -45,7 +49,7 @@ except ImportError:  # pragma: no cover - host-only fallback path
     _setup_module = importlib.util.module_from_spec(_setup_spec)
     _setup_spec.loader.exec_module(_setup_module)
     GEOFABRIK_STATE_SLUGS = _setup_module.GEOFABRIK_STATE_SLUGS
-    download_pbf_if_missing = _setup_module.download_pbf_if_missing
+    buffered_pbf_path = _setup_module.buffered_pbf_path
 
 
 def _ensure_host_only() -> None:
@@ -200,13 +204,20 @@ def main(argv=None):
         _tee(f'[{datetime.now().isoformat(timespec="seconds")}] starting ORS for {args.state}', log_fh)
         _tee(f'compose file: {COMPOSE_FILE}', log_fh)
 
-        pbf_filesystem_path = download_pbf_if_missing(args.state)
-        _tee(f'pbf: {pbf_filesystem_path}', log_fh)
+        buffered_path = buffered_pbf_path(args.state)
+        if not os.path.exists(buffered_path):
+            print(
+                f'Buffered extract not found: {buffered_path}. '
+                f'Run the buffered-extract build step first '
+                f'(the generate_driving_distances_cli orchestrator does this automatically).'
+            )
+            sys.exit(2)
+        _tee(f'pbf: {buffered_path}', log_fh)
 
-        # Pre-create the per-state graph cache dir so the compose bind mount
-        # resolves to a user-owned directory (Docker would otherwise auto-
-        # create it as root, which then can't be modified without sudo).
-        state_graphs_dir = os.path.join(ORS_GRAPHS_DIR, args.state)
+        # Pre-create the per-state buffered graph cache dir so the compose
+        # bind mount resolves to a user-owned directory (Docker would otherwise
+        # auto-create it as root, which then can't be modified without sudo).
+        state_graphs_dir = os.path.join(ORS_GRAPHS_DIR, f'{args.state}-buffered')
         os.makedirs(state_graphs_dir, exist_ok=True)
         _tee(f'graphs dir: {state_graphs_dir}', log_fh)
 
