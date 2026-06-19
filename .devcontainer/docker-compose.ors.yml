@@ -27,16 +27,16 @@ services:
       # preprocessing). Bump XMX if you swap to a larger state; requires the
       # host's Docker Desktop memory limit to be >= XMX.
       XMS: 2g
-      XMX: 10g
+      XMX: ${ORS_XMX:-10g}
       # Explicit source: without this, ORS auto-detects example-heidelberg.osm.gz
       # that the image writes into /home/ors/files on first boot.
-      ors.engine.source_file: /home/ors/files/${ORS_STATE:?ors_up_cli must set ORS_STATE}-latest.osm.pbf
+      ors.engine.source_file: /home/ors/files/${ORS_STATE:?ors_up_cli must set ORS_STATE}-buffered.osm.pbf
     volumes:
       - ../datasets/openrouteservice:/home/ors/files
       # Per-state graph cache. Each state gets its own host directory; ORS
       # rebuilds when the bind-mounted dir is empty, so switching states
       # automatically forces a clean rebuild with no manual purge step.
-      - ../datasets/ors_graphs/${ORS_STATE:?ors_up_cli must set ORS_STATE}:/home/ors/graphs
+      - ../datasets/ors_graphs/${ORS_STATE:?ors_up_cli must set ORS_STATE}-buffered:/home/ors/graphs
       - ors_elevation:/home/ors/elevation_cache
       - ors_logs:/home/ors/logs
     ports:

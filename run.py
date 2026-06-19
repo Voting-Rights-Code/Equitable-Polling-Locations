@@ -481,7 +481,7 @@ def main():
             "  r_test          Run the R environment smoke test\n"
             "  secret          Manage secrets (set/get/clear/restore); e.g. python run.py secret set census\n"
             "  ors_up_cli      [HOST-ONLY] Start the sibling ORS container and wait for readiness\n"
-            "  ors_down_cli    [HOST-ONLY] Stop the sibling ORS container (--purge-graphs optional)\n"
+            "  ors_down_cli    [HOST-ONLY] Stop the sibling ORS container; graphs persist\n"
             "\n"
             f"Available scripts:\n  {script_list}"
         ),

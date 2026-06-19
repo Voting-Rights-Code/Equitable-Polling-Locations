@@ -1,11 +1,11 @@
 '''CLI: stop the sibling ORS container.
 
-The routing graph for each state lives under ``datasets/ors_graphs/<state>/``
+The routing graph for each state lives under ``datasets/ors_graphs/<state>-buffered/``
 on the host filesystem (bind-mounted into the container). It survives
 ``ors_down_cli`` automatically; to force a fresh rebuild for a given state,
 delete that state's directory manually:
 
-    rm -rf datasets/ors_graphs/<state>
+    rm -rf datasets/ors_graphs/<state>-buffered
 
 Host-only.
 '''
