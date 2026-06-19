@@ -411,6 +411,10 @@ def main():
 
         ors_was_already_up = _ors_is_healthy()
 
+        # Build the buffered extract (in-container: needs geopandas + osmium) before
+        # booting ORS. Idempotent/cached; hidden from the help epilog.
+        run_command(["python", "-m", "python.scripts.build_buffered_extract_cli", state])
+
         # Unified try/finally so an ors_up_cli failure (or matrix failure)
         # still triggers teardown when we were the ones who brought ORS up.
         # The inner try translates ors_up_cli's CalledProcessError into a

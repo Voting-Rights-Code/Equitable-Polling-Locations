@@ -59,8 +59,15 @@ class TestGenerateDrivingDistancesOrchestration:
         ]
         assert len(ors_up_calls) == 1
         assert len(ors_down_calls) == 1
-        assert mock_run_command.call_count == 1
-        matrix_argv = mock_run_command.call_args.args[0]
+        # Two run_command calls expected: buffer-prep then matrix.
+        assert mock_run_command.call_count == 2
+        all_run_command_calls = mock_run_command.call_args_list
+        matrix_calls = [
+            c for c in all_run_command_calls
+            if 'generate_driving_distances_cli' in ' '.join(c.args[0])
+        ]
+        assert len(matrix_calls) == 1
+        matrix_argv = matrix_calls[0].args[0]
         assert matrix_argv[:3] == ['python', '-m',
                                    'python.scripts.generate_driving_distances_cli']
         assert '--state' in matrix_argv, (
@@ -115,7 +122,12 @@ class TestGenerateDrivingDistancesOrchestration:
             self, mock_run_command, mock_subprocess_run, unused_mock_healthy):
         '''A SystemExit from the matrix step must still trigger ors_down cleanup.'''
         del unused_mock_healthy
-        mock_run_command.side_effect = SystemExit(1)
+
+        def fail_on_matrix(cmd, **_kwargs):
+            if 'generate_driving_distances_cli' in ' '.join(cmd):
+                raise SystemExit(1)
+
+        mock_run_command.side_effect = fail_on_matrix
         with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
                                 '--state', 'georgia', '-l', 'cfg.yaml']):
             with pytest.raises(SystemExit):
@@ -195,8 +207,14 @@ class TestGenerateDrivingDistancesOrchestration:
         assert 'georgia' in ors_up_argv, (
             f'Expected derived state "georgia" passed to ors_up_cli; got argv {ors_up_argv}'
         )
-        assert mock_run_command.call_count == 1, 'matrix step should fire exactly once'
-        matrix_argv = mock_run_command.call_args.args[0]
+        # Two run_command calls expected: buffer-prep then matrix.
+        assert mock_run_command.call_count == 2, 'buffer-prep and matrix steps should fire'
+        matrix_calls = [
+            c for c in mock_run_command.call_args_list
+            if 'generate_driving_distances_cli' in ' '.join(c.args[0])
+        ]
+        assert len(matrix_calls) == 1, 'matrix step should fire exactly once'
+        matrix_argv = matrix_calls[0].args[0]
         assert '--state' in matrix_argv and 'georgia' in matrix_argv, (
             f'Expected derived state forwarded to matrix step as --state georgia; '
             f'got argv {matrix_argv}'
