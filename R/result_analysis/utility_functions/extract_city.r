@@ -37,11 +37,11 @@ city_shape <- get_shape_data(
 )
 
 ###### compute intersecting and contained blocks and block groups######
-intersecting_blocks <- get_shapes_for_city(city_shape, county_blocks, TRUE)
-contained_blocks <- get_shapes_for_city(city_shape, county_blocks, FALSE)
+intersecting_blocks <- get_shapes_in_boundary(city_shape, county_blocks, TRUE)
+contained_blocks <- get_shapes_in_boundary(city_shape, county_blocks, FALSE)
 
-intersecting_bgs <- get_shapes_for_city(city_shape, county_bgs, TRUE)
-contained_bgs <- get_shapes_for_city(city_shape, county_bgs, FALSE)
+intersecting_bgs <- get_shapes_in_boundary(city_shape, county_bgs, TRUE)
+contained_bgs <- get_shapes_in_boundary(city_shape, county_bgs, FALSE)
 
 ##### plot, just to see that city blocks is, indeed what one wants #####
 ggplot() +
@@ -63,15 +63,15 @@ ggsave(paste0(TIGER_FOLDER, "/", CONTAINING_COUNTY, "/", CITY_LIMIT_FOLDER, "/",
 #######
 # crop intersecting blocks and assign new interior points
 #######
-cropped_blocks <- crop_to_city_lines(city_shape, intersecting_blocks)
-cropped_bgs <- crop_to_city_lines(city_shape, intersecting_bgs)
+cropped_blocks <- crop_to_boundary(city_shape, intersecting_blocks)
+cropped_bgs <- crop_to_boundary(city_shape, intersecting_bgs)
 # THIS IS A MANUAL CLUDGE TO AVOID A SPECIFIC ERROR.
 cropped_bgs$geometry_type <- st_geometry_type(cropped_bgs$geometry, by_geometry = TRUE)
 cropped_bgs <- cropped_bgs[cropped_bgs$geometry_type != "GEOMETRYCOLLECTION", ]
 cropped_bgs$geometry_type <- NULL
 
-contained_blocks <- crop_to_city_lines(city_shape, contained_blocks)
-contained_bgs <- crop_to_city_lines(city_shape, contained_bgs)
+contained_blocks <- crop_to_boundary(city_shape, contained_blocks)
+contained_bgs <- crop_to_boundary(city_shape, contained_bgs)
 
 ######## write shape data to file #########
 write_to_file(cropped_blocks, LOCATION_SUP, BLOCK_GEOMETRY_FILES)
