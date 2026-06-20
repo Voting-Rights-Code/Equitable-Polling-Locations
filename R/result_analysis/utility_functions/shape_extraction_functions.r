@@ -69,13 +69,13 @@ write_to_file <- function(shape_data, location_folder, file_name) {
   st_write(shape_data, paste0(shape_folder, "/", file_name, ".shp"), append = FALSE)
 }
 
-subset_and_write_demo_data <- function(city_shape_data, demo_type, location, bg_flag) {
+subset_and_write_demo_data <- function(city_shape_data, demo_type, location, bg_flag, containing_county) {
   # read county demo data, skipping first header
   if (bg_flag) {
-    county_demo_folder <- paste0(REDISTRICTING_FOLDER, "/", CONTAINING_COUNTY, "/", DEMO_BG_FOLDER)
+    county_demo_folder <- paste0(REDISTRICTING_FOLDER, "/", containing_county, "/", DEMO_BG_FOLDER)
     city_demo_folder <- paste0(REDISTRICTING_FOLDER, "/", location, "/", DEMO_BG_FOLDER)
   } else {
-    county_demo_folder <- paste0(REDISTRICTING_FOLDER, "/", CONTAINING_COUNTY)
+    county_demo_folder <- paste0(REDISTRICTING_FOLDER, "/", containing_county)
     city_demo_folder <- paste0(REDISTRICTING_FOLDER, "/", location)
   }
   # get header rows. We will append these later

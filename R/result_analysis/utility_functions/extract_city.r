@@ -82,15 +82,15 @@ write_to_file(contained_bgs, LOCATION_SUB, BG_GEOMETRY_FILES)
 
 ######## write demo data to file #########
 # blocks
-subset_and_write_demo_data(cropped_blocks, P3, LOCATION_SUP, FALSE)
-subset_and_write_demo_data(cropped_blocks, P4, LOCATION_SUP, FALSE)
+subset_and_write_demo_data(cropped_blocks, P3, LOCATION_SUP, FALSE, CONTAINING_COUNTY)
+subset_and_write_demo_data(cropped_blocks, P4, LOCATION_SUP, FALSE, CONTAINING_COUNTY)
 
-subset_and_write_demo_data(contained_blocks, P3, LOCATION_SUB, FALSE)
-subset_and_write_demo_data(contained_blocks, P4, LOCATION_SUB, FALSE)
+subset_and_write_demo_data(contained_blocks, P3, LOCATION_SUB, FALSE, CONTAINING_COUNTY)
+subset_and_write_demo_data(contained_blocks, P4, LOCATION_SUB, FALSE, CONTAINING_COUNTY)
 
 # block groups
-subset_and_write_demo_data(cropped_bgs, P3, LOCATION_SUP, TRUE)
-subset_and_write_demo_data(cropped_bgs, P4, LOCATION_SUP, TRUE)
+subset_and_write_demo_data(cropped_bgs, P3, LOCATION_SUP, TRUE, CONTAINING_COUNTY)
+subset_and_write_demo_data(cropped_bgs, P4, LOCATION_SUP, TRUE, CONTAINING_COUNTY)
 
-subset_and_write_demo_data(contained_bgs, P3, LOCATION_SUB, TRUE)
-subset_and_write_demo_data(contained_bgs, P4, LOCATION_SUB, TRUE)
+subset_and_write_demo_data(contained_bgs, P3, LOCATION_SUB, TRUE, CONTAINING_COUNTY)
+subset_and_write_demo_data(contained_bgs, P4, LOCATION_SUB, TRUE, CONTAINING_COUNTY)
