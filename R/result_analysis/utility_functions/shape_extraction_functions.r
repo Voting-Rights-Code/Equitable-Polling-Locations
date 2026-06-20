@@ -16,6 +16,20 @@ get_shape_data <- function(shape_file_path, crs_projection) {
   return(shape_data)
 }
 
+# select a county's precincts from a statewide precinct shapefile,
+# by FIPS code
+extract_county_precincts <- function(precinct_source_file, county_fips,
+                                     crs_projection) {
+  statewide_precincts <- get_shape_data(
+    precinct_source_file,
+    crs_projection
+  )
+  county_precincts <- statewide_precincts[
+    which(statewide_precincts$StCoFIPS == county_fips),
+  ]
+  return(county_precincts)
+}
+
 # select intersecting or contained shape data from a county, given a boundary
 get_shapes_in_boundary <- function(boundary_shape_data, county_shape_data,
                                    intersection_flag) {
