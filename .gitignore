@@ -217,6 +217,9 @@ docs/superpowers/
 
 #datasets to ignore
 datasets/census
+datasets/precincts
+datasets/openrouteservice
+datasets/ors_graphs
 
 # E2E test session outputs (session-namespaced dirs created by
 # python/tests/e2e/conftest.py and the cleanup_results fixtures, retained
