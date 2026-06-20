@@ -13,17 +13,28 @@ CRS_PROJECTION <- 4326
 P3 <- "DECENNIALPL2020.P3-Data.csv"
 P4 <- "DECENNIALPL2020.P4-Data.csv"
 
+#######
+# Read in command line arguments
+# A config file must be given to get the location-specific constants for the
+# extraction to be run: BLOCK_GEOMETRY_FILES, BG_GEOMETRY_FILES,
+# LOCATION_BASE, LOCATION_SUP, LOCATION_SUB, CITY_LIMIT_FOLDER,
+# CONTAINING_COUNTY, CITY_LIMIT_FILE. To extract a new city, add a new
+# config file under R/result_analysis/Extraction_configs/ instead of
+# editing this file.
+#######
 
-# runtime
-BLOCK_GEOMETRY_FILES <- "tl_2020_13051_tabblock20"
-BG_GEOMETRY_FILES <- "tl_2020_13051_bg20"
-LOCATION_BASE <- "Savannah_City_of_GA"
-LOCATION_SUP <- paste("Intersecting", LOCATION_BASE, sep = "_")
-LOCATION_SUB <- paste("Contained_in", LOCATION_BASE, sep = "_")
-CITY_LIMIT_FOLDER <- LOCATION_BASE
-CONTAINING_COUNTY <- "Chatham_County_GA"
-CITY_LIMIT_FILE <- "City_Limit"
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) != 1) {
+  stop("Must enter exactly one config file")
+} else {
+  config_path <- paste0("R/result_analysis/Extraction_configs/", args[1])
+  source(config_path)
+}
 
+###
+# For inline testing only
+###
+# source("R/result_analysis/Extraction_configs/Savannah_City_of_GA.r")
 
 ###### Get shape data#######
 county_blocks <- get_shape_data(
