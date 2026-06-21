@@ -1,11 +1,9 @@
 library(sf)
+library(data.table)
 library(here)
 
 setwd(here())
 source("R/result_analysis/utility_functions/shape_extraction_functions.r")
-
-######## Set constants########
-CRS_PROJECTION <- 4326
 
 #######
 # Read in command line arguments
@@ -29,8 +27,14 @@ if (length(args) != 1) {
 ###
 # source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
 
+########
+# Constants
+########
+CRS_PROJECTION <- 4326
+
+
 ###### Step 1: extract and validate the county's precincts#######
-county_precincts <- extract_county_precincts(PRECINCT_SOURCE_FILE, COUNTY_FIPS, CRS_PROJECTION)
+county_precincts <- extract_county_precincts(PRECINCT_SOURCE_FILE, COUNTY_NAME, CRS_PROJECTION)
 
 stopifnot(
   "Precinct count does not match EXPECTED_PRECINCT_COUNT in the config file" =

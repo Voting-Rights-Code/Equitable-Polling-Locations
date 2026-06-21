@@ -16,16 +16,17 @@ get_shape_data <- function(shape_file_path, crs_projection) {
   return(shape_data)
 }
 
-# select a county's precincts from a statewide precinct shapefile,
-# by FIPS code
-extract_county_precincts <- function(precinct_source_file, county_fips,
+# select a county's precincts from a statewide precinct shapefile, by county
+# name. This is custom built for the WV precinct shapefile and may need
+# generalization.
+extract_county_precincts <- function(precinct_source_file, county_name,
                                      crs_projection) {
   statewide_precincts <- get_shape_data(
     precinct_source_file,
     crs_projection
   )
   county_precincts <- statewide_precincts[
-    which(statewide_precincts$StCoFIPS == county_fips),
+    which(statewide_precincts$County_Nam == county_name),
   ]
   return(county_precincts)
 }
