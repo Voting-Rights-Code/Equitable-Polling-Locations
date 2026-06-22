@@ -50,3 +50,23 @@ county_blocks <- get_shape_data(
 )
 
 cat(sprintf("Read %d census blocks into memory.\n", nrow(county_blocks)))
+
+# assign the blocks intersecting a single precinct, tagged with that
+# precinct's id, for combining across all precincts below
+assign_blocks_to_precinct <- function(precinct_index) {
+  precinct_row <- county_precincts[precinct_index, ]
+
+  intersecting_blocks <- get_shapes_in_boundary(precinct_row, county_blocks, TRUE)
+  cropped_blocks <- crop_to_boundary(precinct_row, intersecting_blocks)
+  cropped_blocks$Precinct_I <- precinct_row$Precinct_I
+  return(cropped_blocks)
+}
+
+num_precincts <- nrow(county_precincts)
+precinct_blocks_list <- mapply(assign_blocks_to_precinct, seq_len(num_precincts), SIMPLIFY = FALSE)
+precinct_blocks <- do.call(rbind, precinct_blocks_list)
+
+cat(sprintf(
+  "Assigned %d blocks across %d precincts.\n",
+  nrow(precinct_blocks), num_precincts
+))
