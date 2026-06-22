@@ -10,3 +10,8 @@ COUNTY_NAME <- sub("\\_.*", "", LOCATION)
 # For testing
 ########
 EXPECTED_PRECINCT_COUNT <- 44
+
+########
+# Block geometry, for Step 2 (issue #267)
+########
+BLOCK_GEOMETRY_FILES <- "tl_2020_54061_tabblock20"

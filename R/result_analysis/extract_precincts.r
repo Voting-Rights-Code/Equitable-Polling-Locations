@@ -42,3 +42,11 @@ stopifnot(
 )
 
 cat(sprintf("Extracted %d precincts into memory.\n", nrow(county_precincts)))
+
+###### Step 2: verify precincts decompose into census blocks (#267) #######
+county_blocks <- get_shape_data(
+  file.path(TIGER_FOLDER, LOCATION, paste0(BLOCK_GEOMETRY_FILES, ".shp")),
+  CRS_PROJECTION
+)
+
+cat(sprintf("Read %d census blocks into memory.\n", nrow(county_blocks)))
