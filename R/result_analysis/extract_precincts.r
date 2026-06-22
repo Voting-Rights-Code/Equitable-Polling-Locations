@@ -70,3 +70,50 @@ cat(sprintf(
   "Assigned %d blocks across %d precincts.\n",
   nrow(precinct_blocks), num_precincts
 ))
+
+# area calculations need a planar CRS in linear units, not EPSG:4326's
+# geographic degrees. Reprojecting (rather than re-enabling sf_use_s2(), the
+# other option) avoids both the missing lwgeom package and S2's stricter
+# validity rules rejecting some of crop_to_boundary()'s GEOS-computed,
+# self-touching block-union geometries as invalid. EPSG:5070 (NAD83 / Conus
+# Albers) is the standard equal-area CRS for US census-derived area work.
+AREA_CRS <- 5070
+county_precincts_proj <- st_transform(county_precincts, AREA_CRS)
+precinct_blocks_proj <- st_transform(precinct_blocks, AREA_CRS)
+
+# compute the symmetric-difference area between a precinct and the union of
+# its assigned blocks, as a ratio of the precinct's own area
+compute_block_sym_diff <- function(precinct_index) {
+  precinct_row <- county_precincts_proj[precinct_index, ]
+  assigned_precinct_id <- precinct_row$Precinct_I
+  assigned_blocks <- precinct_blocks_proj[
+    precinct_blocks_proj$Precinct_I == assigned_precinct_id,
+  ]
+
+  assigned_union <- st_union(assigned_blocks$geometry)
+  sym_diff <- st_sym_difference(assigned_union, precinct_row$geometry)
+
+  precinct_area <- st_area(precinct_row$geometry)
+  sym_diff_area <- st_area(sym_diff)
+
+  data.table(
+    Precinct_I = assigned_precinct_id,
+    precinct_area = precinct_area,
+    sym_diff_area = sym_diff_area,
+    ratio = sym_diff_area / precinct_area
+  )
+}
+
+verification_rows <- mapply(
+  compute_block_sym_diff, seq_len(num_precincts),
+  SIMPLIFY = FALSE
+)
+verification_table <- rbindlist(verification_rows)
+
+verification_path <- "/tmp/precinct_block_verification.csv"
+fwrite(verification_table, verification_path)
+
+cat(sprintf(
+  "Wrote %d-row precinct/block verification table to %s\n",
+  nrow(verification_table), verification_path
+))
