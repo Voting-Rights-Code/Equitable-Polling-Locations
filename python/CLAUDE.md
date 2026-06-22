@@ -48,6 +48,7 @@ When modifying existing code, update the associated tests before or alongside th
 - Two data sources: `csv` (local files) or `db` (BigQuery) — set in `PollingModelConfig`
 - Environment names are defined in `settings.yaml`
 - Git LFS required for large dataset files (distances, shapefiles)
+- `datasets/configs/testing/*.yaml` test configs are committed despite the blanket `*.yaml` gitignore rule — use `git add -f` when adding a new one
 
 ## Contributing
 
