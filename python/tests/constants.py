@@ -20,6 +20,9 @@ TESTING_CONFIG_EXCLUDE = os.path.join(TESTING_CONFIG_DIR, 'testing_config_no_bg_
 TESTING_CONFIG_PENALTY = os.path.join(TESTING_CONFIG_DIR, 'testing_config_penalty.yaml')
 TESTING_CONFIG_PENALTY_UNUSED = os.path.join(TESTING_CONFIG_DIR, 'testing_config_penalty_school.yaml')
 TESTING_CONFIG_DRIVING = os.path.join(TESTING_CONFIG_DIR, 'testing_config_driving.yaml')
+TESTING_CONFIG_FIXED_CAPACITY = os.path.join(
+    TESTING_CONFIG_DIR, 'testing_config_fixed_capacity.yaml'
+)
 
 
 TEST_KP_FACTOR = os.path.join(TESTS_DIR, 'test_kp_factor.csv')
