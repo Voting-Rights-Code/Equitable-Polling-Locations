@@ -2,7 +2,6 @@
 A command line utility to read distances into the database.
 '''
 
-from email import utils
 from typing import List
 
 import argparse
@@ -55,7 +54,7 @@ def import_distance_data(
 def build_and_import_distance_data(
     query: Query,
     census_year: str,
-    census_data_type:str, 
+    census_data_type: str,
     location: str,
     driving: bool,
     maps_source_date: str,
@@ -74,6 +73,7 @@ def build_and_import_distance_data(
     distance_data_set = query.create_db_distance_data_set(
         potential_locations_set_id=build_distance_meta_data.potential_locations_set_id,
         census_year=census_year,
+        census_data_type=census_data_type,
         location=location,
         log_distance=log_distance,
         driving=driving,
@@ -112,6 +112,7 @@ def main(args: argparse.Namespace):
     locations: List[str] = args.locations
     census_year: str = args.census_year[0]
     driving: bool = args.driving
+    census_data_type: str = args.census_data_type
 
     environment = load_env(args.environment)
 
@@ -151,6 +152,7 @@ def main(args: argparse.Namespace):
             result = build_and_import_distance_data(
                 query=query,
                 census_year=census_year,
+                census_data_type=census_data_type,
                 location=location,
                 driving=driving,
                 maps_source_date=map_source_date,
@@ -196,20 +198,25 @@ def main(args: argparse.Namespace):
     if num_failures:
         sys.exit(10)
 
-if __name__ == '__main__':
+def build_arg_parser() -> argparse.ArgumentParser:
+    """Build the argument parser for the distance-data import CLI.
+
+    Returns:
+        The configured argparse.ArgumentParser.
+    """
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description='A command line utility to read in location csv files and import them into the database.',
         # pylint: disable-next=line-too-long
         epilog='''
 Examples:
-    To import linear distance haversine locations for 2020 census year for Contained_in_Madison_City_of_WI and Intersecting_Madison_City_of_WI
+    To import linear distance haversine redistricting locations for 2020 census year for Contained_in_Madison_City_of_WI and Intersecting_Madison_City_of_WI
 :
-        python run.py db_import_locations_cli 2020 Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
+        python run.py db_import_distance_data_cli --census_data_type redistricting 2020 Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
 
-    To import log distance driving locations for 2020 census year for Contained_in_Madison_City_of_WI and Intersecting_Madison_City_of_WI
+    To import log distance driving CVAP locations for 2020 census year for Contained_in_Madison_City_of_WI and Intersecting_Madison_City_of_WI
 :
-        python run.py db_import_locations_cli -t log -d 20250101 2020 Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
+        python run.py db_import_distance_data_cli --census_data_type CVAP -t log -d 2020 Contained_in_Madison_City_of_WI Intersecting_Madison_City_of_WI
 
        '''
     )
@@ -225,13 +232,18 @@ Examples:
     # pylint: disable-next=line-too-long
     parser.add_argument('-t', '--type', default=LINEAR, choices=[LINEAR, LOG], help=f'The type distance to use: {LINEAR} or {LOG}')
     # pylint: disable-next=line-too-long
-    # parser.add_argument('-d', '--driving', default=2025, type=str, help='Use driving distances for the specified date (YYYYMMDD)')
-    # The following is temporarily used instead of the above to not require a map_source_date for
-    # driving distances since this is not fully implemented yet
-    # pylint: disable-next=line-too-long
     parser.add_argument('-d', '--driving', action='store_true', help='Use driving distances for the specified date (YYYYMMDD)')
+    parser.add_argument(
+        '--census_data_type',
+        required=True,
+        choices=['redistricting', 'CVAP'],
+        help='The type of census data the distances are scoped to: redistricting or CVAP.',
+    )
     parser.add_argument('census_year', nargs=1, help='The year of the census data used to generate the distances')
     parser.add_argument('locations', nargs='+', help='One or more locations to import')
+    return parser
 
-    main(parser.parse_args())
+
+if __name__ == '__main__':
+    main(build_arg_parser().parse_args())
 
