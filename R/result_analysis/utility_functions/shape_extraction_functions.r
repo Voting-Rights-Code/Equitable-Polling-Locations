@@ -78,6 +78,66 @@ crop_to_boundary <- function(boundary_shape_data, county_shape_data) {
   return(df)
 }
 
+# given a county's precincts, its TIGER census block shapes, and raw P3
+# (Total Population 18 Years and Over) redistricting data, return one row
+# per block with positive population: its dominant (largest-overlap)
+# precinct, the percent of the block's area outside that precinct, and a
+# flag for blocks whose dominant precinct holds between 50% and 90% of the
+# block (percent_outside_precinct between 0.1 and 0.5).
+#
+# p3_population must have columns GEO_ID (the "1000000US" + 15-digit block
+# id key used by Census redistricting files) and total_population (the
+# P3_001N column).
+verify_block_precinct_decomposition <- function(county_precincts, county_blocks,
+                                                p3_population, area_crs = 5070) {
+  county_precincts <- st_transform(county_precincts, area_crs)
+  county_blocks <- st_transform(county_blocks, area_crs)
+  county_blocks <- county_blocks[, c("GEOID20", "INTPTLAT20", "INTPTLON20")]
+
+  # merge in total population and drop blocks with none
+  p3_population <- data.table(p3_population)[
+    , .(GEOID20 = sub("^1000000US", "", GEO_ID), total_population)
+  ]
+  county_blocks <- merge(county_blocks, p3_population, by = "GEOID20")
+  county_blocks <- county_blocks[county_blocks$total_population > 0, ]
+  county_blocks$block_area <- st_area(county_blocks$geometry)
+
+  # intersect blocks with precincts and compute the percent of each block
+  # outside the precinct it overlaps
+  block_precinct_intersection <- st_intersection(county_blocks, county_precincts)
+  block_precinct_intersection$overlap_area <- st_area(block_precinct_intersection$geometry)
+
+  # drop sliver polygons: GEOS intersecting two polygons that share a long
+  # boundary edge produces a vanishingly thin (but technically nonzero-area)
+  # polygon along that edge, in addition to any real overlap. These are
+  # floating-point noise -- area is consistently under 1 sq m, while real
+  # overlaps start in the hundreds of sq m.
+  block_precinct_intersection <- block_precinct_intersection[
+    as.numeric(block_precinct_intersection$overlap_area) > 1,
+  ]
+  block_precinct_intersection$percent_outside_precinct <- 1 -
+    as.numeric(block_precinct_intersection$overlap_area) /
+    as.numeric(block_precinct_intersection$block_area)
+
+  # keep only each block's dominant (largest-overlap) precinct. A block can
+  # still show a real (non-floating-point) but negligible secondary overlap
+  # with a neighboring precinct it barely touches -- a few sq m of a
+  # million-sq-m block, from the two boundary layers not lining up exactly
+  # -- and that's not a meaningful split. Without this step, a metric like
+  # max(percent_outside_precinct) ends up dominated by whichever such sliver
+  # happens to be largest anywhere in the county.
+  block_precinct_intersection <- as.data.table(block_precinct_intersection)[
+    order(-overlap_area), .SD[1],
+    by = GEOID20
+  ]
+
+  block_precinct_intersection[
+    , flagged := percent_outside_precinct > 0.1 & percent_outside_precinct < 0.5
+  ]
+
+  return(block_precinct_intersection)
+}
+
 write_to_file <- function(shape_data, location_folder, file_name) {
   # check if requisite folder exists, or create it
   shape_folder <- paste0(TIGER_FOLDER, "/", location_folder)
