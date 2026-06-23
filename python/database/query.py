@@ -355,6 +355,7 @@ class Query:
         self,
         potential_locations_set_id: str,
         census_year: str,
+        census_data_type: str,
         location: str,
         log_distance: bool,
         driving: bool,
@@ -363,6 +364,7 @@ class Query:
         result = models.DistanceDataSet(
             potential_locations_set_id=potential_locations_set_id,
             census_year=census_year,
+            census_data_type=census_data_type,
             location=location,
             log_distance=log_distance,
             driving=driving,

@@ -587,6 +587,7 @@ def imported_distance_data_all(
         ds = query.create_db_distance_data_set(
             potential_locations_set_id=pl_set_id,
             census_year=census_year,
+            census_data_type='redistricting',
             location=sid,
             log_distance=log_distance,
             driving=driving,
