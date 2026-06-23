@@ -390,6 +390,23 @@ def e2e_test_data(e2e_session_id, pytestconfig):
         df = pd.read_csv(src)
         df[[c for c in distance_data_import_cols if c in df.columns]].to_csv(dest, index=False)
 
+    # CVAP import-ready CSV. The raw CVAP fixture is not import-shaped: it has an
+    # unnamed index column (not 'V1'), no 'county' column, a different column order,
+    # and blank integer demographic cells (e.g. 'other'). Strip to the model columns
+    # and fill blanks with 0 so the import does not violate the non-null int columns.
+    cvap_distances_import_path = os.path.join(polling_subdir, f'{sid}_CVAP_distances_2020_import.csv')
+    cvap_import_df = pd.read_csv(cvap_distances_path)
+    integer_demographic_columns = [
+        'population', 'hispanic', 'non_hispanic', 'white', 'black', 'native',
+        'asian', 'pacific_islander', 'other', 'multiple_races',
+    ]
+    for column in integer_demographic_columns:
+        if column in cvap_import_df.columns:
+            cvap_import_df[column] = cvap_import_df[column].fillna(0).astype(int)
+    cvap_import_df[[c for c in distance_data_import_cols if c in cvap_import_df.columns]].to_csv(
+        cvap_distances_import_path, index=False,
+    )
+
     # --- Config YAMLs --------------------------------------------------------
 
     with open(_SRC_BASE_CONFIG, 'r', encoding='utf-8') as fh:
@@ -436,6 +453,7 @@ def e2e_test_data(e2e_session_id, pytestconfig):
         'distances_log_import': distances_log_import_path,
         'driving_distances_import_dd': driving_distances_import_dd_path,
         'driving_distances_log_import_dd': driving_distances_log_import_dd_path,
+        'cvap_distances_import': cvap_distances_import_path,
         'configs': config_paths,
         'autogen_template': autogen_template_path,
     }
@@ -608,6 +626,60 @@ def imported_distance_data_all(
             f"Distance data import failed for log_distance={log_distance}, "
             f"driving={driving}: {result.exception}"
         )
+
+
+@pytest.fixture(scope='session')
+# imported_potential_locations is a fixture-ordering dependency (ensures potential
+# locations exist in the DB before this fixture runs); it is intentionally not
+# referenced in the body.
+# pylint: disable-next=unused-argument
+def imported_cvap_distance_data(e2e_test_data, test_environment, imported_potential_locations):
+    """Import a CVAP-tagged distance dataset for the e2e session into the DB.
+
+    Creates a DistanceDataSet with census_data_type='CVAP' for the linear-haversine
+    permutation (log_distance=False, driving=False) — the same key as the redistricting
+    set created by imported_distance_data_all — so a lookup can be shown to resolve the
+    two distinctly by census_data_type.
+
+    Args:
+        e2e_test_data: Session-scoped test data dict from :func:`e2e_test_data`.
+        test_environment: The loaded test environment.
+        imported_potential_locations: Ensures potential locations are already in DB.
+
+    Returns:
+        None
+    """
+    from python.database.query import Query  # pylint: disable=import-outside-toplevel
+    from python.scripts.db_import_distance_data_cli import import_distance_data  # pylint: disable=import-outside-toplevel
+
+    sid = e2e_test_data['sid']
+    census_year = '2020'
+
+    query = Query(test_environment)
+
+    pl_set = query.get_potential_locations_set(sid)
+    assert pl_set is not None, f"PotentialLocationsSet not found for '{sid}'"
+    pl_set_id = pl_set.id
+
+    distance_data_set = query.create_db_distance_data_set(
+        potential_locations_set_id=pl_set_id,
+        census_year=census_year,
+        census_data_type='CVAP',
+        location=sid,
+        log_distance=False,
+        driving=False,
+        driving_distance_set_id=None,
+    )
+    distance_data_set_id = distance_data_set.id
+    query.commit()
+
+    result = import_distance_data(
+        environment=test_environment,
+        location=sid,
+        distance_data_set_id=distance_data_set_id,
+        csv_path=e2e_test_data['cvap_distances_import'],
+    )
+    assert result.success, f'CVAP distance data import failed: {result.exception}'
 
 
 @pytest.fixture(scope='session')

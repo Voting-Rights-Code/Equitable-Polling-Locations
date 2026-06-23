@@ -107,3 +107,41 @@ class TestDbImportDistanceData:
             e2e_test_data, test_environment,
             log_distance=True, driving=True,
         )
+
+
+@pytest.mark.e2e
+@pytest.mark.e2e_db
+@pytest.mark.usefixtures('imported_distance_data_all', 'imported_cvap_distance_data')
+class TestDistanceDataSetCensusType:
+    """A CVAP and a redistricting distance dataset for the same
+    (census_year, location, log_distance, driving) must resolve to distinct sets."""
+
+    def test_cvap_and_redistricting_resolve_distinctly(self, e2e_test_data, test_environment):
+        """get_distance_data_set returns the set matching the requested census_data_type."""
+        from python.database.query import Query  # pylint: disable=import-outside-toplevel
+
+        sid = e2e_test_data['sid']
+        query = Query(test_environment)
+
+        redistricting_set = query.get_distance_data_set(
+            census_year='2020',
+            census_data_type='redistricting',
+            location=sid,
+            log_distance=False,
+            driving=False,
+        )
+        cvap_set = query.get_distance_data_set(
+            census_year='2020',
+            census_data_type='CVAP',
+            location=sid,
+            log_distance=False,
+            driving=False,
+        )
+
+        assert redistricting_set is not None, 'redistricting distance set not found'
+        assert cvap_set is not None, 'CVAP distance set not found'
+        assert redistricting_set.census_data_type == 'redistricting'
+        assert cvap_set.census_data_type == 'CVAP'
+        assert redistricting_set.id != cvap_set.id, (
+            'CVAP and redistricting sets for the same key must be distinct rows'
+        )
