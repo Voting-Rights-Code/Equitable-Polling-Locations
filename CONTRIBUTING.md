@@ -761,7 +761,7 @@ All pull requests require review by a maintainer from Voting Rights Code before 
 
 This is an open source project. Outside contributors treat anything in `main` as gospel — keep the repo authoritative.
 
-- **Finalized decisions** go in `docs/development/decisions/` using ADR format ("Why we chose X over Y")
+- **Finalized decisions** go in `docs/development/decisions/` using ADR format ("Why we chose X over Y") — e.g. `0001-validate-verification-metrics-against-adversarial-examples.md`, on designing diagnostic checks for exploratory analysis work
 - **Specs and plans** go on the originating issue or ticket, not as separate files in the repo
 - **Do NOT commit** rough specs, exploratory plans, or in-progress design docs to the repo
 
