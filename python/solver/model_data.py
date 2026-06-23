@@ -662,8 +662,13 @@ def get_distance_data_db(
         print(f'Loading distance data for {location} from database')
 
     # Load locations from the database
-    # TODO (Abditus): pass census_data_type to get_distance_data_set once the DB schema is updated.
-    distance_data_set = query.get_distance_data_set(census_year, location, log_distance, driving)
+    distance_data_set = query.get_distance_data_set(
+        census_year=census_year,
+        census_data_type=census_data_type,
+        location=location,
+        log_distance=log_distance,
+        driving=driving,
+    )
     if not distance_data_set:
         raise ValueError(
             # pylint: disable-next=line-too-long

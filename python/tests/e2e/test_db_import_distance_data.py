@@ -49,6 +49,7 @@ class TestDbImportDistanceData:
 
         ds = query.get_distance_data_set(
             census_year='2020',
+            census_data_type='redistricting',
             location=sid,
             log_distance=log_distance,
             driving=driving,

@@ -437,6 +437,7 @@ class Query:
     def get_distance_data_set(
         self,
         census_year: str,
+        census_data_type: str,
         location: str,
         log_distance: bool,
         driving: bool,
@@ -450,6 +451,7 @@ class Query:
                 over(
                     partition_by=[
                         models.DistanceDataSet.census_year,
+                        models.DistanceDataSet.census_data_type,
                         models.DistanceDataSet.location,
                         models.DistanceDataSet.log_distance,
                         models.DistanceDataSet.driving,
@@ -460,6 +462,7 @@ class Query:
 
         query = select(subquery).where(
             subquery.c.census_year == census_year,
+            subquery.c.census_data_type == census_data_type,
             subquery.c.location == location,
             subquery.c.log_distance == log_distance,
             subquery.c.driving == driving,
