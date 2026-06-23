@@ -35,6 +35,7 @@ extract_county_precincts <- function(precinct_source_file, county_name,
 get_shapes_in_boundary <- function(boundary_shape_data, county_shape_data,
                                    intersection_flag) {
   # make data planar. Otherwise the following line throws an error
+  #TODO: This is causing issues. Fix before closing issue 267.
   sf_use_s2(FALSE)
 
   # choose intersecting or contained data
