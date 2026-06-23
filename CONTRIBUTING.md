@@ -405,6 +405,8 @@ Database-backed workflows require GCP Application Default Credentials and a conf
     gcloud auth application-default login --no-launch-browser
     ```
     gcloud prints a URL — open it in your host browser, approve the consent, copy the returned verification code, and paste it back in the container. Credentials are saved to the `gcloud-config` docker volume and persist across container rebuilds (re-authenticate only if you `docker volume rm` the volume).
+
+    **Use `application-default login`, not plain `gcloud auth login`.** They are different: `gcloud auth login` authenticates only the `gcloud`/`bq` CLIs, whereas the project's client libraries (BigQuery via SQLAlchemy) read **Application Default Credentials** — the `application_default_credentials.json` file that *only* `application-default login` writes. With just `gcloud auth login`, DB-backed runs and the `e2e_db` tests fail at startup with a `google.auth.default()` "could not automatically determine credentials" error.
 - Use **scratch datasets** for development and testing — never develop directly against production
 - Run `alembic upgrade head` to initialize or update the database schema
 
