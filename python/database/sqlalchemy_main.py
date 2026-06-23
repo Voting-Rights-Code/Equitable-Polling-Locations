@@ -11,7 +11,7 @@ import os
 # from typing import Dict
 from sqlalchemy import create_engine
 from sqlalchemy.engine.base import Engine
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from alembic.operations import Operations, MigrateOperation
 
 from python.utils.environments import Environment

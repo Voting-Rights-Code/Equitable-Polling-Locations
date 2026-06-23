@@ -99,6 +99,14 @@ class DistanceDataSet(ModelBase):
 
     driving: bool = Column(Boolean, nullable=False)
 
+    census_data_type: str = Column(String(256), nullable=True)
+    ''' The type of census data the distances are scoped to: redistricting or CVAP.
+
+    Physically nullable because BigQuery cannot add a REQUIRED column to an existing
+    table; non-null is guaranteed at write time (required params + migration backfill),
+    not by a column constraint. No default/server_default by design — a missing value
+    must fail loudly rather than be silently assumed. '''
+
     # Relations
     potential_locations_set_id = mapped_column(ForeignKey('potential_locations_sets.id'), nullable=False)
     ''' The PotentialLocationsSet id that this DistanceDataSet is generated from. '''
