@@ -132,15 +132,6 @@ assign_block_to_dominant_precinct <- function(county_precincts, county_blocks,
   return(block_precinct_intersection)
 }
 
-#match census block to dominant (largest-overlap) precinct, for populated
-#blocks only. 
-populated_block_to_dominant_precinct <- function(county_precincts, county_blocks,
-                                                p3_population, area_crs = AREA_CRS) {
-  block_precinct_overlap <- compute_block_precinct_overlap(
-    county_precincts, county_blocks, p3_population, area_crs
-  )
-  return(block_precinct_overlap[total_population > 0])
-}
 
 write_to_file <- function(shape_data, location_folder, file_name) {
   # check if requisite folder exists, or create it
