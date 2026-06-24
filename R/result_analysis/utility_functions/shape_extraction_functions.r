@@ -1,34 +1,23 @@
 library(data.table)
 library(sf)
 library(here)
+library(dplyr)
 
 ######## Set constants########
 TIGER_FOLDER <- "datasets/census/tiger"
 REDISTRICTING_FOLDER <- "datasets/census/redistricting"
 DEMO_BG_FOLDER <- "block group demographics"
 
+
+CRS_PROJECTION <- 4326
+AREA_CRS <- 5070
 ###### Functions#######
 
 # read a shapefile from an explicit path and reproject it
-get_shape_data <- function(shape_file_path, crs_projection) {
+get_shape_data <- function(shape_file_path, crs_projection=CRS_PROJECTION) {
   shape_data <- st_read(shape_file_path)
   shape_data <- st_transform(shape_data, crs_projection)
   return(shape_data)
-}
-
-# select a county's precincts from a statewide precinct shapefile, by county
-# name. This is custom built for the WV precinct shapefile and may need
-# generalization.
-extract_county_precincts <- function(precinct_source_file, county_name,
-                                     crs_projection) {
-  statewide_precincts <- get_shape_data(
-    precinct_source_file,
-    crs_projection
-  )
-  county_precincts <- statewide_precincts[
-    which(statewide_precincts$County_Nam == county_name),
-  ]
-  return(county_precincts)
 }
 
 # select intersecting or contained shape data from a county, given a boundary
@@ -79,64 +68,78 @@ crop_to_boundary <- function(boundary_shape_data, county_shape_data) {
   return(df)
 }
 
-# given a county's precincts, its TIGER census block shapes, and raw P3
-# (Total Population 18 Years and Over) redistricting data, return one row
-# per block with positive population: its dominant (largest-overlap)
-# precinct, the percent of the block's area outside that precinct, and a
+# select a county's precincts from a statewide precinct shapefile, by county
+# name. This is custom built for the WV precinct shapefile and may need
+# generalization.
+extract_county_precincts <- function(precinct_source_file, county_name,
+                                     crs_projection = CRS_PROJECTION) {
+  statewide_precincts <- get_shape_data(
+    precinct_source_file,
+    crs_projection
+  )
+  county_precincts <- statewide_precincts[
+    which(statewide_precincts$County_Nam == county_name),
+  ]
+  return(county_precincts)
+}
+
+
+# associate each census block -- populated or not -- with its dominant
+# (largest-overlap) precinct, using the true (unbuffered) boundary.
+# also report the percent of the block's area outside that precinct, and a
 # flag for blocks whose dominant precinct holds between 50% and 90% of the
-# block (percent_outside_precinct between 0.1 and 0.5).
-#
-# p3_population must have columns GEO_ID (the "1000000US" + 15-digit block
-# id key used by Census redistricting files) and total_population (the
-# P3_001N column).
-verify_block_precinct_decomposition <- function(county_precincts, county_blocks,
-                                                p3_population, area_crs = 5070) {
+# block.
+#NOTE: Assumes that each precinct is a union of blocks. Otherwise
+#the dominant precinct logic does not apply.
+assign_block_to_dominant_precinct <- function(county_precincts, county_blocks,
+                                          p3_population, area_crs = AREA_CRS) {
+
+  ####clean precinct and block data ####
+  #transform to an equal-area projection for area calculations.
+  #5070 is NAD83 / Conus Albers.
   county_precincts <- st_transform(county_precincts, area_crs)
   county_blocks <- st_transform(county_blocks, area_crs)
+
+  #select desired columns
   county_blocks <- county_blocks[, c("GEOID20", "INTPTLAT20", "INTPTLON20")]
 
-  # merge in total population and drop blocks with none
+  #merge in population data
   p3_population <- data.table(p3_population)[
     , .(GEOID20 = sub("^1000000US", "", GEO_ID), total_population)
   ]
   county_blocks <- merge(county_blocks, p3_population, by = "GEOID20")
-  county_blocks <- county_blocks[county_blocks$total_population > 0, ]
-  county_blocks$block_area <- st_area(county_blocks$geometry)
 
-  # intersect blocks with precincts and compute the percent of each block
-  # outside the precinct it overlaps
+  #caluculate block area in square meters
+  county_blocks$block_area <- as.numeric(st_area(county_blocks$geometry))
+
+  # intersect blocks with precincts and compute the overlap area and percent overlap
   block_precinct_intersection <- st_intersection(county_blocks, county_precincts)
-  block_precinct_intersection$overlap_area <- st_area(block_precinct_intersection$geometry)
+  block_precinct_intersection$overlap_area <- as.numeric(st_area(block_precinct_intersection$geometry))
 
-  # drop sliver polygons: GEOS intersecting two polygons that share a long
-  # boundary edge produces a vanishingly thin (but technically nonzero-area)
-  # polygon along that edge, in addition to any real overlap. These are
-  # floating-point noise -- area is consistently under 1 sq m, while real
-  # overlaps start in the hundreds of sq m.
-  block_precinct_intersection <- block_precinct_intersection[
-    as.numeric(block_precinct_intersection$overlap_area) > 1,
-  ]
-  block_precinct_intersection$percent_outside_precinct <- 1 -
-    as.numeric(block_precinct_intersection$overlap_area) /
-    as.numeric(block_precinct_intersection$block_area)
+  block_precinct_intersection$percent_outside_precinct <- 1-
+    block_precinct_intersection$overlap_area /
+    block_precinct_intersection$block_area
 
-  # keep only each block's dominant (largest-overlap) precinct. A block can
-  # still show a real (non-floating-point) but negligible secondary overlap
-  # with a neighboring precinct it barely touches -- a few sq m of a
-  # million-sq-m block, from the two boundary layers not lining up exactly
-  # -- and that's not a meaningful split. Without this step, a metric like
-  # max(percent_outside_precinct) ends up dominated by whichever such sliver
-  # happens to be largest anywhere in the county.
-  block_precinct_intersection <- as.data.table(block_precinct_intersection)[
-    order(-overlap_area), .SD[1],
-    by = GEOID20
-  ]
+  # keep only each block's dominant (largest-overlap) precinct.
+  block_precinct_intersection <- block_precinct_intersection %>%
+              group_by(GEOID20) %>%
+              slice_max(overlap_area, n = 1, with_ties = FALSE) %>%
+              ungroup()
 
-  block_precinct_intersection[
-    , flagged := percent_outside_precinct > 0.1 & percent_outside_precinct < 0.5
-  ]
-
+  # flag blocks whose dominant precinct holds between 50% and 90% of the block
+  block_precinct_intersection <- block_precinct_intersection %>%
+    mutate(flagged = percent_outside_precinct > 0.1 & percent_outside_precinct < 0.5)
   return(block_precinct_intersection)
+}
+
+#match census block to dominant (largest-overlap) precinct, for populated
+#blocks only. 
+populated_block_to_dominant_precinct <- function(county_precincts, county_blocks,
+                                                p3_population, area_crs = AREA_CRS) {
+  block_precinct_overlap <- compute_block_precinct_overlap(
+    county_precincts, county_blocks, p3_population, area_crs
+  )
+  return(block_precinct_overlap[total_population > 0])
 }
 
 write_to_file <- function(shape_data, location_folder, file_name) {
