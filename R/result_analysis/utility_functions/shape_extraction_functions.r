@@ -1,16 +1,20 @@
 library(data.table)
 library(sf)
 library(here)
+library(dplyr)
 
 ######## Set constants########
 TIGER_FOLDER <- "datasets/census/tiger"
 REDISTRICTING_FOLDER <- "datasets/census/redistricting"
 DEMO_BG_FOLDER <- "block group demographics"
 
+
+CRS_PROJECTION <- 4326
+AREA_CRS <- 5070
 ###### Functions#######
 
 # read a shapefile from an explicit path and reproject it
-get_shape_data <- function(shape_file_path, crs_projection) {
+get_shape_data <- function(shape_file_path, crs_projection=CRS_PROJECTION) {
   shape_data <- st_read(shape_file_path)
   shape_data <- st_transform(shape_data, crs_projection)
   return(shape_data)
@@ -35,6 +39,7 @@ extract_county_precincts <- function(precinct_source_file, county_name,
 get_shapes_in_boundary <- function(boundary_shape_data, county_shape_data,
                                    intersection_flag) {
   # make data planar. Otherwise the following line throws an error
+  #TODO: This is causing issues. Fix before closing issue 267.
   sf_use_s2(FALSE)
 
   # choose intersecting or contained data
@@ -77,6 +82,71 @@ crop_to_boundary <- function(boundary_shape_data, county_shape_data) {
   df <- df[, !(names(df) %in% extra_columns)]
   return(df)
 }
+
+# select a county's precincts from a statewide precinct shapefile, by county
+# name. This is custom built for the WV precinct shapefile and may need
+# generalization.
+extract_county_precincts <- function(precinct_source_file, county_name,
+                                     crs_projection = CRS_PROJECTION) {
+  statewide_precincts <- get_shape_data(
+    precinct_source_file,
+    crs_projection
+  )
+  county_precincts <- statewide_precincts[
+    which(statewide_precincts$County_Nam == county_name),
+  ]
+  return(county_precincts)
+}
+
+
+# associate each census block -- populated or not -- with its dominant
+# (largest-overlap) precinct, using the true (unbuffered) boundary.
+# also report the percent of the block's area outside that precinct, and a
+# flag for blocks whose dominant precinct holds between 50% and 90% of the
+# block.
+#NOTE: Assumes that each precinct is a union of blocks. Otherwise
+#the dominant precinct logic does not apply.
+assign_block_to_dominant_precinct <- function(county_precincts, county_blocks,
+                                          p3_population, area_crs = AREA_CRS) {
+
+  ####clean precinct and block data ####
+  #transform to an equal-area projection for area calculations.
+  #5070 is NAD83 / Conus Albers.
+  county_precincts <- st_transform(county_precincts, area_crs)
+  county_blocks <- st_transform(county_blocks, area_crs)
+
+  #select desired columns
+  county_blocks <- county_blocks[, c("GEOID20", "INTPTLAT20", "INTPTLON20")]
+
+  #merge in population data
+  p3_population <- data.table(p3_population)[
+    , .(GEOID20 = sub("^1000000US", "", GEO_ID), total_population)
+  ]
+  county_blocks <- merge(county_blocks, p3_population, by = "GEOID20")
+
+  #caluculate block area in square meters
+  county_blocks$block_area <- as.numeric(st_area(county_blocks$geometry))
+
+  # intersect blocks with precincts and compute the overlap area and percent overlap
+  block_precinct_intersection <- st_intersection(county_blocks, county_precincts)
+  block_precinct_intersection$overlap_area <- as.numeric(st_area(block_precinct_intersection$geometry))
+
+  block_precinct_intersection$percent_outside_precinct <- 1-
+    block_precinct_intersection$overlap_area /
+    block_precinct_intersection$block_area
+
+  # keep only each block's dominant (largest-overlap) precinct.
+  block_precinct_intersection <- block_precinct_intersection %>%
+              group_by(GEOID20) %>%
+              slice_max(overlap_area, n = 1, with_ties = FALSE) %>%
+              ungroup()
+
+  # flag blocks whose dominant precinct holds between 50% and 90% of the block
+  block_precinct_intersection <- block_precinct_intersection %>%
+    mutate(flagged = percent_outside_precinct > 0.1 & percent_outside_precinct < 0.5)
+  return(block_precinct_intersection)
+}
+
 
 write_to_file <- function(shape_data, location_folder, file_name) {
   # check if requisite folder exists, or create it
