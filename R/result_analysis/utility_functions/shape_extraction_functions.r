@@ -98,8 +98,8 @@ extract_county_precincts <- function(precinct_source_file, county_name,
   return(county_precincts)
 }
 
-##### #282: reconcile a county-provided precinct/polling-location file
-##### against the state-extracted county_precincts (generalizes #268) #####
+##### reconcile a county-provided precinct/polling-location file
+##### against the state-extracted county_precincts #####
 
 # reshape a county-provided precinct/polling-location table from one row per
 # polling place (with one or more columns listing the precincts it serves) to
@@ -131,7 +131,7 @@ add_precinct_id <- function(precincts_long, county_name) {
 # state shapefile's USER_POLL_ naming. Never guesses at a fix: any name that
 # doesn't match is a stop()ping error, since resolving it requires either
 # editing the county source file or confirming a real disagreement with the
-# county/state (see #268, #281) -- not something this function can decide.
+# county/state  -- not something this function can decide.
 match_location_names <- function(precincts_long, county_precincts, location_name_col) {
   state_names <- unique(county_precincts$USER_POLL_)
   precincts_long[, USER_POLL_ := toupper(get(location_name_col))]
@@ -156,8 +156,8 @@ match_location_names <- function(precincts_long, county_precincts, location_name
 # merge the county-provided precinct data against county_precincts by
 # (location name, Precinct_I), and error -- rather than silently dropping or
 # guessing -- if any precinct fails to match on both sides. A mismatch here
-# means the county and state disagree about which precinct a location serves
-# (e.g. #281's Granville/Morgantown splits); that needs a human-confirmed
+# means the county and state disagree about which precinct a location serves;
+# that needs a human-confirmed
 # resolution, not an automatic merge.
 reconcile_precinct_ids <- function(precincts_long, county_precincts) {
   merged <- merge(
@@ -179,14 +179,18 @@ reconcile_precinct_ids <- function(precincts_long, county_precincts) {
         collapse = "; "
       ),
       ". Investigate with the county/state and encode the resolution ",
-      "(see #281) before re-running."
+      " before re-running."
     )
   }
 
-  return(merged)
+  # once validation confirms a complete (USER_POLL_, Precinct_I) match in
+  # both directions, the resolved precinct data is just county_precincts
+  # itself -- already sf, already shaped to match the COUNTY_PROVIDES_
+  # PRECINCT_DATA == FALSE fallback's output 
+  return(county_precincts)
 }
 
-# top-level #282 entry point: reconcile a county-provided precinct/
+# reconcile a county-provided precinct/
 # polling-location file against county_precincts (state shapefile), erroring
 # rather than guessing at any name or precinct-ID mismatch.
 reconcile_county_provided_precincts <- function(county_provided_data, precinct_columns,

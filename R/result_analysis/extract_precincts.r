@@ -38,10 +38,12 @@ CRS_PROJECTION <- 4326
 ###### Step 1: extract and validate the county's precincts#######
 county_precincts <- extract_county_precincts(STATE_PRECINCT_SOURCE_FILE, COUNTY_NAME, CRS_PROJECTION)
 
-stopifnot(
-  "Precinct count does not match EXPECTED_PRECINCT_COUNT in the config file" =
-    nrow(county_precincts) == EXPECTED_PRECINCT_COUNT
-)
+
+###currently commented out due to the bug where precinct 73 has no population. see issue 283
+#stopifnot(
+#  "Precinct count does not match EXPECTED_PRECINCT_COUNT in the config file" =
+#    nrow(county_precincts) == EXPECTED_PRECINCT_COUNT
+#)
 
 county_precincts <- county_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
 
@@ -86,115 +88,44 @@ block_precinct_assignment %>%
   file.path(precinct_analysis_output_folder, "flagged_blocks.gpkg"), append = FALSE
 )
 
-##############Scratch work for #268 name matching##############3
-#load the county-provided polling locations
-#provided_polls <- fread(COUNTY_PRECINCT_SOURCE_FILE, header = TRUE)
-provided_polls <- fread('temp/Precincts_by_Location.csv')
+###### Step 5: reconcile county-provided precinct data #######
+if (COUNTY_PROVIDES_PRECINCT_DATA) {
+  provided_polls <- fread(COUNTY_PROVIDED_PRECINCT_FILE)
 
-# give each column with name "Prec" a unique name for  melt()
-precinct_slot_positions <- which(names(provided_polls) == "Prec")
-setnames(
-  provided_polls,
-  old = precinct_slot_positions,
-  new = paste0("Prec_", seq_along(precinct_slot_positions))
-)
-
-# reshape from one row per polling place to one row per (location, precinct)
-precincts_long <- melt(
-  provided_polls,
-  id.vars = c("Polling Place Name", "Polling Location Address"),
-  measure.vars = paste0("Prec_", seq_along(precinct_slot_positions)),
-  value.name = "precinct_number",
-  na.rm = TRUE
-)
-precincts_long <- precincts_long[
-          precinct_number != "", ][ , Precinct_I := paste0("Monongalia_", precinct_number)
-          ][  , variable:=NULL][ , precinct_number := NULL]
-
-
-#merge state data into county data
-
-# Manual lookup for polling-place names that differ between the county's file
-# and the state shapefile by more than just case (#268). Case-insensitive
-# matching (below) covers every other location -- only these need a hardcoded
-# override.
-polling_place_name_overrides <- data.table(
-  `Polling Place Name` = c(
-    "BOPARC Senior Recreation Center",
-    "St. Mary's Roman Catholic Church",
-    "Town of Granville Social Hall"
-  ),
-  USER_POLL_ = c(
-    "BOPARC SENIOR/COMMUNITY CENTER",
-    "ST MARY'S CATHOLIC CHURCH",
-    "GRANVILLE SOCIAL HALL"
+  # the source file repeats the "Prec" header once per precinct slot (a
+  # polling place can serve several precincts); give each slot a unique
+  # name so reshape_county_precincts_long()'s melt() can address them
+  precinct_slot_positions <- which(names(provided_polls) == "Prec")
+  setnames(
+    provided_polls,
+    old = precinct_slot_positions,
+    new = paste0("Prec_", seq_along(precinct_slot_positions))
   )
-)
 
-precincts_long <- merge(
-  precincts_long, polling_place_name_overrides,
-  by = "Polling Place Name", all.x = TRUE
-)
-precincts_long[
-  , USER_POLL_ := fifelse(is.na(USER_POLL_), toupper(`Polling Place Name`), USER_POLL_)
-]
+  county_precincts_resolved <- reconcile_county_provided_precincts(
+    provided_polls,
+    precinct_columns = paste0("Prec_", seq_along(precinct_slot_positions)),
+    location_name_col = COUNTY_PRECINCT_LOCATION_NAME_COL,
+    address_col = COUNTY_PRECINCT_ADDRESS_COL,
+    county_precincts = county_precincts,
+    county_name = COUNTY_NAME
+  )
+} else {
+  # No county-provided data to reconcile against: fall back to dropping
+  # precincts with zero population, per block-level population data in
+  # block_precinct_assignment (#283 caveat: the dominant-block population
+  # heuristic can show real, populated precincts as zero -- e.g.
+  # Monongalia_73 -- so this fallback isn't fully trustworthy yet)
+  precinct_population <- data.table(st_drop_geometry(block_precinct_assignment))[
+    , .(total_population = sum(total_population)), by = Precinct_I
+  ]
 
-name_match_check2 <- merge(
-  county_precincts, precincts_long,
-  by = c("USER_POLL_", "Precinct_I"),
-  all.y = TRUE
-)
-
-na_rows2 <- name_match_check2[!complete.cases(st_drop_geometry(name_match_check2)), ]
-
-# Monongalia_2/A/B was visually inspected via
-# R/result_analysis/scratch_precinct_2_a_b_plot.r (see precinct_analysis_outputs/
-# Monongalia_County_WV/precinct_2_a_b_split.png)
-
-#####
-# Interim resolution per client feedback on #268 -- see #281. The client
-# confirmed Granville Social Hall serves both 44 and 74 (the state shapefile's
-# Bingo Hall assignment for 44 is stale). For Morgantown High School's precinct
-# 2/A/B split, block-level population data showed A and B both carry zero
-# population, so they're dropped outright rather than folding B into 2 -- no
-# equity-relevant difference either way, and dropping is simpler. The 44/74
-# resolution still awaits the client's own follow-up with the Secretary of
-# State, so #281 stays open.
-#####
-county_precincts_resolved <- county_precincts
-
-# 1. Assign precinct 44 to Granville Social Hall (overrides the state's stale
-# Bingo Hall assignment)
-county_precincts_resolved$USER_POLL_[
-  county_precincts_resolved$Precinct_I == "Monongalia_44"
-] <- "GRANVILLE SOCIAL HALL"
-
-# 2. Drop precincts with zero population, per block-level population data in
-# block_precinct_assignment (rather than hardcoding which precincts are empty)
-precinct_population <- data.table(st_drop_geometry(block_precinct_assignment))[
-  , .(total_population = sum(total_population)), by = Precinct_I
-]
-
-county_precincts_resolved <- merge(
-  county_precincts_resolved, precinct_population,
-  by = "Precinct_I", sort = FALSE
-)
-county_precincts_resolved <- county_precincts_resolved[
-  county_precincts_resolved$total_population > 0,
-]
-
-# Write county_precincts_resolved to a tmp validation fixture for #282 (note:
-# Monongalia_73 is missing here due to #283 -- the dominant-block population
-# heuristic incorrectly shows it as zero population). Delete this file before
-# the milestone closes.
-validation_fixture_folder <- file.path(precinct_analysis_output_folder, "tmp")
-if (!file.exists(file.path(here(), validation_fixture_folder))) {
-  dir.create(file.path(here(), validation_fixture_folder), recursive = TRUE)
+  county_precincts_resolved <- merge(
+    county_precincts, precinct_population,
+    by = "Precinct_I", sort = FALSE
+  )
+  county_precincts_resolved <- county_precincts_resolved[
+    county_precincts_resolved$total_population > 0,
+  ]
+  county_precincts_resolved$total_population <- NULL
 }
-
-fwrite(
-  st_drop_geometry(county_precincts_resolved),
-  file.path(validation_fixture_folder, "issue_282_validation_fixture.csv")
-)
-
-

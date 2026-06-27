@@ -11,7 +11,7 @@ COUNTY_PRECINCT_SOURCE_FILE <- paste0("datasets/polling/", LOCATION, "/", LOCATI
 ########
 # County-provided precinct/polling-location reconciliation (#282)
 ########
-COUNTY_PROVIDES_PRECINCT_DATA <- TRUE
+COUNTY_PROVIDES_PRECINCT_DATA <- FALSE
 COUNTY_PROVIDED_PRECINCT_FILE <- "temp/Precincts_by_Location.csv"
 COUNTY_PRECINCT_LOCATION_NAME_COL <- "Polling Place Name"
 COUNTY_PRECINCT_ADDRESS_COL <- "Polling Location Address"
