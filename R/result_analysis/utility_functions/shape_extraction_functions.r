@@ -25,7 +25,7 @@ get_shape_data <- function(shape_file_path, crs_projection=CRS_PROJECTION) {
 # Note for future projects: This is custom built for the WV precinct shapefile and may need
 # generalization.
 extract_county_precincts <- function(precinct_source_file, county_name,
-                                     crs_projection) {
+                                     crs_projection = CRS_PROJECTION) {
   statewide_precincts <- get_shape_data(
     precinct_source_file,
     crs_projection
@@ -84,21 +84,6 @@ crop_to_boundary <- function(boundary_shape_data, county_shape_data) {
   return(df)
 }
 
-# select a county's precincts from a statewide precinct shapefile, by county
-# name. 
-# Note for future projects: This is custom built for the WV precinct shapefile and may need
-# generalization.
-extract_county_precincts <- function(precinct_source_file, county_name,
-                                     crs_projection = CRS_PROJECTION) {
-  statewide_precincts <- get_shape_data(
-    precinct_source_file,
-    crs_projection
-  )
-  state_precincts <- statewide_precincts[
-    which(statewide_precincts$County_Nam == county_name),
-  ]
-  return(state_precincts)
-}
 
 ##### reconcile a county-provided precinct/polling-location file
 ##### against the state-extracted state_precincts #####
