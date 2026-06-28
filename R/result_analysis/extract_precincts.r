@@ -12,7 +12,8 @@ source("R/result_analysis/utility_functions/shape_extraction_functions.r")
 # A config file must be given to get the location-specific constants for the
 # extraction to be run. To extract a different county or state, add a new
 # config file under R/result_analysis/Extraction_configs/ instead of editing
-# this file. The config's contents will grow as more steps are added to this
+# this file. 
+# TODO: The config's contents will grow as more steps are added to this
 # script.
 #######
 
@@ -27,6 +28,7 @@ source("R/result_analysis/utility_functions/shape_extraction_functions.r")
 ###
 # For inline testing only
 ###
+#source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
 source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
 
 ########
@@ -36,21 +38,21 @@ CRS_PROJECTION <- 4326
 
 
 ###### Step 1: extract and validate the county's precincts#######
-county_precincts <- extract_county_precincts(STATE_PRECINCT_SOURCE_FILE, COUNTY_NAME, CRS_PROJECTION)
+state_precincts <- extract_county_precincts(STATE_PRECINCT_SOURCE_FILE, COUNTY_NAME, CRS_PROJECTION)
 
 
-###currently commented out due to the bug where precinct 73 has no population. see issue 283
+###TODO: currently commented out due to the bug where precinct 73 has no population. see issue 283
 #stopifnot(
 #  "Precinct count does not match EXPECTED_PRECINCT_COUNT in the config file" =
-#    nrow(county_precincts) == EXPECTED_PRECINCT_COUNT
+#    nrow(state_precincts) == EXPECTED_PRECINCT_COUNT
 #)
 
-county_precincts <- county_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
+state_precincts <- state_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
 
-names(county_precincts)[names(county_precincts) == "geometry"] <- "precinct_geometry"
-st_geometry(county_precincts) <- "precinct_geometry"
+names(state_precincts)[names(state_precincts) == "geometry"] <- "precinct_geometry"
+st_geometry(state_precincts) <- "precinct_geometry"
 
-county_precincts_proj <- st_transform(county_precincts, AREA_CRS)
+state_precincts_proj <- st_transform(state_precincts, AREA_CRS)
 
 ###### Step 2: Extract and validate the county's blocks#######
 #extract county blocks from the TIGER/Line shapefile
@@ -68,7 +70,7 @@ p3_population <- fread(
 ######Step 3: associate blocks with (dominant) precincts #######
 
 block_precinct_assignment <- assign_block_to_dominant_precinct(
-  county_precincts, county_blocks, p3_population, AREA_CRS
+  state_precincts, county_blocks, p3_population, AREA_CRS
 )
 
 names(block_precinct_assignment)[names(block_precinct_assignment) == "geometry"] <- "block_geometry"
@@ -89,25 +91,32 @@ block_precinct_assignment %>%
 )
 
 ###### Step 5: reconcile county-provided precinct data #######
+#If the county provides precinct data, 
+#reconcile it with the state provided precinct data
 if (COUNTY_PROVIDES_PRECINCT_DATA) {
   provided_polls <- fread(COUNTY_PROVIDED_PRECINCT_FILE)
 
-  # the source file repeats the "Prec" header once per precinct slot (a
-  # polling place can serve several precincts); give each slot a unique
-  # name so reshape_county_precincts_long()'s melt() can address them
-  precinct_slot_positions <- which(names(provided_polls) == "Prec")
-  setnames(
-    provided_polls,
-    old = precinct_slot_positions,
-    new = paste0("Prec_", seq_along(precinct_slot_positions))
+  #select column names form county based on config entries
+  precinct_column_numbers <- which(names(provided_polls) %in% COUNTY_PRECINCT_COLUMN_NAMES)
+
+  # Check that the names in the COUNTY_PRECINCT_COLUMN_NAMES config value
+  # are all fields in the county provided data
+  county_column_name_count <- c(table(names(provided_polls)[precinct_column_numbers]))
+  config_column_name_count <- c(table(COUNTY_PRECINCT_COLUMN_NAMES))
+  stopifnot(
+    "The COUNTY_PRECINCT_COLUMN_NAMES count doesn't match the source file's matching column count" =
+      identical(county_column_name_count, config_column_name_count)
   )
+
+  unique_precinct_columns <- make.unique(names(provided_polls)[precinct_column_numbers])
+  setnames(provided_polls, old = precinct_column_numbers, new = unique_precinct_columns)
 
   county_precincts_resolved <- reconcile_county_provided_precincts(
     provided_polls,
-    precinct_columns = paste0("Prec_", seq_along(precinct_slot_positions)),
-    location_name_col = COUNTY_PRECINCT_LOCATION_NAME_COL,
-    address_col = COUNTY_PRECINCT_ADDRESS_COL,
-    county_precincts = county_precincts,
+    precinct_columns = unique_precinct_columns,
+    location_name_col = COUNTY_POLLING_LOCATION_NAME_COL,
+    address_col = COUNTY_POLLING_LOCATION_ADDRESS_COL,
+    state_precincts = state_precincts,
     county_name = COUNTY_NAME
   )
 } else {
@@ -121,7 +130,7 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
   ]
 
   county_precincts_resolved <- merge(
-    county_precincts, precinct_population,
+    state_precincts, precinct_population,
     by = "Precinct_I", sort = FALSE
   )
   county_precincts_resolved <- county_precincts_resolved[

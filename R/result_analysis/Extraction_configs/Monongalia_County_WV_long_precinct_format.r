@@ -10,16 +10,23 @@ COUNTY_PRECINCT_SOURCE_FILE <- paste0("datasets/polling/", LOCATION, "/", LOCATI
 
 ########
 # County-provided precinct/polling-location reconciliation (#282)
+#
+# Same as Monongalia_County_WV.r, except COUNTY_PROVIDED_PRECINCT_FILE points
+# at a long-format file (one row per precinct, via
+# R/result_analysis/scratch_melt_precincts_long.r) instead of the original
+# wide-format file (one row per polling location, with repeated "Prec"
+# columns). Used to test whether the reconciliation pipeline handles a
+# long-format county source file.
 ########
 #Did the county provide precinct <-> polling location data
-COUNTY_PROVIDES_PRECINCT_DATA <- TRUE 
+COUNTY_PROVIDES_PRECINCT_DATA <- TRUE
 #if so, where is it located
 #TODO: what happens if this isn't provided? "null? error handling?"
-COUNTY_PROVIDED_PRECINCT_FILE <- "temp/Precincts_by_Location.csv"
+COUNTY_PROVIDED_PRECINCT_FILE <- "temp/Precincts_by_Location_long.csv"
 #Column name of the polling location
 COUNTY_POLLING_LOCATION_NAME_COL <- "Polling Place Name"
 COUNTY_POLLING_LOCATION_ADDRESS_COL <- "Polling Location Address"
-COUNTY_PRECINCT_COLUMN_NAMES <- c("Prec", "Prec", "Prec", "Prec", "Prec", "Prec")
+COUNTY_PRECINCT_COLUMN_NAMES <- c("Precinct")
 
 ########
 # For testing
