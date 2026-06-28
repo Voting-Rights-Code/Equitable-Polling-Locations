@@ -205,15 +205,14 @@ reconcile_county_provided_precincts <- function(county_provided_data, precinct_c
 }
 
 
-# associate each census block -- populated or not -- with its dominant
-# (largest-overlap) precinct, using the true (unbuffered) boundary.
-# also report the percent of the block's area outside that precinct, and a
-# flag for blocks whose dominant precinct holds between 50% and 90% of the
-# block.
-#NOTE: Assumes that each precinct is a union of blocks. Otherwise
-#the dominant precinct logic does not apply.
-assign_block_to_dominant_precinct <- function(county_precincts, county_blocks,
-                                          p3_population, area_crs = AREA_CRS) {
+# intersect every census block -- populated or not -- against every
+# precinct, using the true (unbuffered) boundary, and report each overlap's
+# area and the percent of the block's area that overlap leaves outside the
+# precinct. One row per (block, precinct) pair that overlaps at all -- a
+# block touching 3 precincts produces 3 rows. Shared by
+# assign_block_to_dominant_precinct() and flag_overlapping_blocks().
+compute_block_precinct_overlaps <- function(county_precincts, county_blocks,
+                                            p3_population, area_crs = AREA_CRS) {
 
   ####clean precinct and block data ####
   #transform to an equal-area projection for area calculations.
@@ -241,6 +240,23 @@ assign_block_to_dominant_precinct <- function(county_precincts, county_blocks,
     block_precinct_intersection$overlap_area /
     block_precinct_intersection$block_area
 
+  return(block_precinct_intersection)
+}
+
+# associate each census block -- populated or not -- with its dominant
+# (largest-overlap) precinct.
+# also report the percent of the block's area outside that precinct, and a
+# flag for blocks whose dominant precinct holds between 50% and 90% of the
+# block.
+#NOTE: Assumes that each precinct is a union of blocks. Otherwise
+#the dominant precinct logic does not apply.
+assign_block_to_dominant_precinct <- function(county_precincts, county_blocks,
+                                          p3_population, area_crs = AREA_CRS) {
+
+  block_precinct_intersection <- compute_block_precinct_overlaps(
+    county_precincts, county_blocks, p3_population, area_crs
+  )
+
   # keep only each block's dominant (largest-overlap) precinct.
   block_precinct_intersection <- block_precinct_intersection %>%
               group_by(GEOID20) %>%
@@ -250,6 +266,27 @@ assign_block_to_dominant_precinct <- function(county_precincts, county_blocks,
   # flag blocks whose dominant precinct holds between 50% and 90% of the block
   block_precinct_intersection <- block_precinct_intersection %>%
     mutate(flagged = percent_outside_precinct > 0.1 & percent_outside_precinct < 0.5)
+  return(block_precinct_intersection)
+}
+
+# unlike assign_block_to_dominant_precinct() (one row per block, its single
+# dominant precinct), this keeps every precinct a block significantly
+# overlaps: one row per (block, precinct) pair where the precinct holds more
+# than min_percent_overlap of the block's area. A block with significant
+# overlap in 3 precincts produces 3 rows. See #283.
+flag_overlapping_blocks <- function(county_precincts, county_blocks, p3_population,
+                                    min_percent_overlap = 0.05, area_crs = AREA_CRS) {
+
+  block_precinct_intersection <- compute_block_precinct_overlaps(
+    county_precincts, county_blocks, p3_population, area_crs
+  )
+
+  block_precinct_intersection$percent_overlap <- 1 -
+    block_precinct_intersection$percent_outside_precinct
+
+  block_precinct_intersection <- block_precinct_intersection %>% 
+    mutate(flagged = percent_outside_precinct > 0.05 & 
+    percent_outside_precinct < .95)
   return(block_precinct_intersection)
 }
 

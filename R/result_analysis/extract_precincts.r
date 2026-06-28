@@ -85,7 +85,19 @@ if (!file.exists(file.path(here(), precinct_analysis_output_folder))) {
 st_write(
 block_precinct_assignment %>%
     filter(flagged == TRUE),
-  file.path(precinct_analysis_output_folder, "flagged_blocks.gpkg"), append = FALSE
+  file.path(precinct_analysis_output_folder, "flagged_assigned_blocks.gpkg"), append = FALSE
+)
+
+# write every (block, precinct) pair with more than 5% overlap -- one row
+# per precinct a block significantly overlaps, unlike the single
+# dominant-precinct assignment above (#283)
+overlapping_blocks <- flag_overlapping_blocks(
+  county_precincts, county_blocks, p3_population, area_crs = AREA_CRS
+)
+
+st_write(
+  overlapping_blocks %>% filter(flagged == TRUE),
+  file.path(precinct_analysis_output_folder, "flagged_overlapping_blocks.gpkg"), append = FALSE
 )
 
 ###### Step 5: reconcile county-provided precinct data #######
