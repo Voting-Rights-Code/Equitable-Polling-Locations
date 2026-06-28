@@ -165,7 +165,8 @@ check_precinct_id_agreement <- function(precincts_long, state_precincts) {
       "shapefile and the county file:\n",
       "Pairs in the state but not county file: ", paste(state_only_pairs, collapse = "; "), "\n",
       "Pairs in the county but not state file: ", paste(county_only_pairs, collapse = "; "), "\n",
-      "Investigate with the county/state and update the state file accordingly."
+      "Check that the COUNTY_PRECINCT_COLUMN_NAMES are correct. Furthermore, 
+      investigate with the county/state and update the state file accordingly."
     )
   }
 
