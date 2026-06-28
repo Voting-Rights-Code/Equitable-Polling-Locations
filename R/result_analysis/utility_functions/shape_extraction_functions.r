@@ -189,6 +189,36 @@ reconcile_county_provided_precincts <- function(county_provided_data, precinct_c
   check_precinct_id_agreement(precincts_long, state_precincts)
 }
 
+# load a county-provided precinct/polling-location CSV, normalize its
+# (possibly repeated) precinct slot column names against precinct_column_names,
+# and return state_precincts once verified to agree with it.
+reconciled_state_precinct_data <- function(precinct_file, precinct_column_names,
+                                           location_name_col, address_col,
+                                           state_precincts, county_name) {
+  provided_polls <- fread(precinct_file)
+
+  precinct_column_numbers <- which(names(provided_polls) %in% precinct_column_names)
+
+  county_column_name_count <- c(table(names(provided_polls)[precinct_column_numbers]))
+  config_column_name_count <- c(table(precinct_column_names))
+  stopifnot(
+    "The COUNTY_PRECINCT_COLUMN_NAMES count doesn't match the source file's matching column count" =
+      identical(county_column_name_count, config_column_name_count)
+  )
+
+  unique_precinct_columns <- make.unique(names(provided_polls)[precinct_column_numbers])
+  setnames(provided_polls, old = precinct_column_numbers, new = unique_precinct_columns)
+
+  reconcile_county_provided_precincts(
+    provided_polls,
+    precinct_columns = unique_precinct_columns,
+    location_name_col = location_name_col,
+    address_col = address_col,
+    state_precincts = state_precincts,
+    county_name = county_name
+  )
+}
+
 
 # associate each census block -- populated or not -- with its dominant
 # (largest-overlap) precinct.
