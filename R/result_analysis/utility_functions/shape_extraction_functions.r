@@ -118,6 +118,7 @@ add_precinct_id <- function(precincts_long, county_name) {
 # state shapefile's USER_POLL_ naming. Name mismatches create a 
 # stop()ping error. Resolving requires either
 # editing the state source file or confirming a data with the county.
+# Treat county provided data as correct and change state to match.
 match_location_names <- function(precincts_long, state_precincts, location_name_col) {
   state_names <- unique(state_precincts$USER_POLL_)
   precincts_long[, USER_POLL_ := toupper(get(location_name_col))]
@@ -143,6 +144,7 @@ match_location_names <- function(precincts_long, state_precincts, location_name_
 # merging along (location name, Precinct_I). Error if any precinct fails to match on 
 # both sides. A mismatch indicates ambiguity about which precinct a location 
 # serves; that needs a human-confirmed resolution.
+# Treat county provided data as correct and change state to match.
 check_precinct_id_agreement <- function(precincts_long, state_precincts) {
   merged <- merge(
     data.table(st_drop_geometry(state_precincts)), precincts_long,

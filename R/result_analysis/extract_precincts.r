@@ -91,6 +91,11 @@ block_precinct_assignment %>%
 )
 
 ###### Step 5: reconcile county-provided precinct data #######
+# In this step, we assume that the county provided precinct data (if it exists)
+# is correct. The reconciliation is to get the state data to match it. 
+# Changes are made to the state file
+
+
 #If the county provides precinct data, 
 #reconcile it with the state provided precinct data
 if (COUNTY_PROVIDES_PRECINCT_DATA) {
@@ -107,12 +112,13 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
 }
 
 # Drop precincts with zero population, per block-level population data in
-# block_precinct_assignment. Temporary limitation: until #283 is fixed, the
+# block_precinct_assignment. TODO: until #283 is fixed, the
 # dominant-block population heuristic can show real, populated precincts as
 # zero (e.g. Monongalia_73), so this can't be fully relied on yet.
 precinct_population <- data.table(st_drop_geometry(block_precinct_assignment))[
   , .(total_population = sum(total_population)), by = Precinct_I
 ]
+
 
 county_precincts_resolved <- merge(
   county_precincts_resolved, precinct_population,
