@@ -24,6 +24,8 @@ REDISTRICTING_FOLDER_NAME = 'redistricting'
 
 CVAP_FOLDER_NAME = 'CVAP'
 
+RDH_POPULATION_FOLDER_NAME = 'RDH_population'
+
 BLOCK_GEO = 'block'
 
 BLOCK_GROUP_GEO = 'block group'

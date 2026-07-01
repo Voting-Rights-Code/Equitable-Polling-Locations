@@ -10,10 +10,10 @@ import uuid
 import numpy as np
 
 from python.utils.directory_constants import (
-  BLOCK_GROUP_FILE_SUFFIX, CENSUS_FOLDER_NAME, CENSUS_TIGER_DIR, 
+  BLOCK_GROUP_FILE_SUFFIX, CENSUS_FOLDER_NAME, CENSUS_TIGER_DIR,
   DATASETS_DIR, REDISTRICTING_FOLDER_NAME,
   DRIVING_DIR, POLLING_DIR, TABBLOCK_FILE_SUFFIX,
-  BLOCK_GROUP_GEO, BLOCK_GEO, CVAP_FOLDER_NAME
+  BLOCK_GROUP_GEO, BLOCK_GEO, CVAP_FOLDER_NAME, RDH_POPULATION_FOLDER_NAME
 )
 
 @dataclass
@@ -200,6 +200,32 @@ def build_CVAP_source_file_path(census_year: str, location: str) -> str:
     CVAP_dir = build_CVAP_dir_path(location)
 
     return os.path.join(CVAP_dir, file_name_cvap)
+
+def build_RDH_population_dir_path(location: str) -> str:
+    """Returns the directory for the RDH population block data.
+
+    Args:
+        location: Location identifier, e.g. 'Gwinnett_County_GA'.
+
+    Returns:
+        Absolute path to the RDH_population directory for this location.
+    """
+    return os.path.join(DATASETS_DIR, CENSUS_FOLDER_NAME, RDH_POPULATION_FOLDER_NAME, location)
+
+def build_RDH_population_source_file_path(census_year: str, location: str) -> str:
+    """Returns the path to the RDH population data CSV for a location and year.
+
+    Args:
+        census_year: Decennial census year string, e.g. '2020'.
+        location: Location identifier, e.g. 'Gwinnett_County_GA'.
+
+    Returns:
+        Absolute path to the RDH_population CSV file.
+    """
+    return os.path.join(
+        build_RDH_population_dir_path(location),
+        f'RDH_population_{census_year}-Data.csv',
+    )
 
 
 def get_block_source_file_path(census_year, location: str) -> str:
