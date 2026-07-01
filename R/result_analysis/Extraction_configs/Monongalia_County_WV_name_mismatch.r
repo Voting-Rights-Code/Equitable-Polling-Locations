@@ -5,14 +5,17 @@
 LOCATION <- "Monongalia_County_WV"
 COUNTY_NAME <- sub("\\_.*", "", LOCATION)
 
-STATE_PRECINCT_SOURCE_FILE <- "datasets/precincts/West_Virginia_20260424_wmA84/VotingPrecincts_20260424_wmA84.shp"
+# Pre-#268 state shapefile: USER_POLL_ names don't yet match the county's
+# naming (e.g. "BOPARC SENIOR/COMMUNITY CENTER" vs the county's "BOPARC Senior
+# Recreation Center"). Used to exercise match_location_names()'s stop() error.
+STATE_PRECINCT_SOURCE_FILE <- "datasets/precincts/West_Virginia_20260424_wmA84_old_names/VotingPrecincts_20260424_wmA84_old_names.shp"
 COUNTY_PRECINCT_SOURCE_FILE <- paste0("datasets/polling/", LOCATION, "/", LOCATION, "_potential_locations.csv")
 
 ########
 # County-provided precinct/polling-location reconciliation (#282)
 ########
 #Did the county provide precinct <-> polling location data
-COUNTY_PROVIDES_PRECINCT_DATA <- TRUE 
+COUNTY_PROVIDES_PRECINCT_DATA <- TRUE
 #if so, where is it located
 #TODO: what happens if this isn't provided? "null? error handling?"
 COUNTY_PROVIDED_PRECINCT_FILE <- "temp/Precincts_by_Location.csv"
