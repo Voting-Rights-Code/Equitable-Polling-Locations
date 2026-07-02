@@ -15,7 +15,7 @@ from python.solver.constants import (
     DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_ADDRESS,
     DISTANCE_DEST_LAT, DISTANCE_DEST_LON, DISTANCE_ORIG_LAT, DISTANCE_ORIG_LON,
     DISTANCE_LOCATION_TYPE, DISTANCE_DEST_TYPE,
-    DISTANCE_OTHER, DEMOGRAPHICS_OUTPUT_COLUMNS, DISTANCE_DEMOGRAPHICS_COLUMNS,
+    DISTANCE_OTHER, DISTANCE_TOTAL_POPULATION, DEMOGRAPHICS_OUTPUT_COLUMNS, DISTANCE_DEMOGRAPHICS_COLUMNS,
     DISTANCE_DISTANCE_M, DISTANCE_SOURCE,
 )
 
@@ -187,6 +187,57 @@ def test_clean_data(testing_config_driving, location_df_with_driving):
             f'Expected at least one cleaned-data row with location_type '
             f'containing {year_str!r}, but found none'
         )
+
+
+class TestGetRDHPopulationDemographics:
+    """Unit tests for model_data.get_RDH_population_demographics using the committed testing fixture."""
+
+    def test_output_columns_are_exactly_right(self):
+        """Returned DataFrame has exactly the shared distance schema columns — no raw RDH names survive."""
+        result = model_data.get_RDH_population_demographics('2020', 'testing', '2026')
+        assert set(result.columns) == DEMOGRAPHICS_OUTPUT_COLUMNS
+
+    def test_geoid_is_string_dtype(self):
+        """GEO_ID must be string so merges on this column do not silently fail due to type mismatch."""
+        result = model_data.get_RDH_population_demographics('2020', 'testing', '2026')
+        assert pd.api.types.is_string_dtype(result[CEN20_GEO_ID])
+
+    def test_missing_file_raises_value_error(self):
+        """A clear ValueError is raised when the directory exists but the census_year file does not."""
+        with pytest.raises(ValueError, match='RDH population data not found'):
+            model_data.get_RDH_population_demographics('2019', 'testing', '2026')
+
+    def test_invalid_projection_year_raises_value_error(self):
+        """A clear ValueError is raised when projection_year has no columns in the file."""
+        with pytest.raises(ValueError, match='projection_year'):
+            model_data.get_RDH_population_demographics('2020', 'testing', '2040')
+
+    def test_missing_directory_triggers_pull_RDH_population_data(self):
+        """pull_RDH_population_data is called when the RDH population directory does not exist."""
+        with patch('python.solver.model_data.os.path.exists', return_value=False), \
+             patch('python.solver.model_data.pull_RDH_population_data') as mock_pull, \
+             pytest.raises(ValueError):
+            model_data.get_RDH_population_demographics('2020', 'Gwinnett_County_GA', '2026')
+        mock_pull.assert_called_once_with('GA', 'Gwinnett County', '2020')
+
+
+def test_build_distance_data_population_census_type(tmp_path):
+    """build_distance_data writes a valid distance CSV when census_data_type is 'population'."""
+    output_path = tmp_path / 'population_distances.csv'
+    model_data.build_distance_data(
+        'csv',
+        census_year='2020',
+        census_data_type='population',
+        location='testing',
+        driving=False,
+        log_distance=False,
+        projection_year='2026',
+        potential_locations_path_override=TESTING_POTENTIAL_LOCATIONS_PATH,
+        output_path_override=str(output_path),
+    )
+    result = model_data.load_distance_data_csv(str(output_path))
+    assert len(result) > 0
+    assert set(result.columns) >= {DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_TOTAL_POPULATION}
 
 
 class TestGetCVAPDemographics:

@@ -201,6 +201,8 @@ def build_CVAP_source_file_path(census_year: str, location: str) -> str:
 
     return os.path.join(CVAP_dir, file_name_cvap)
 
+# RDH and population are established acronyms in this codebase; mixed case is intentional.
+# pylint: disable-next=invalid-name
 def build_RDH_population_dir_path(location: str) -> str:
     """Returns the directory for the RDH population block data.
 
@@ -212,6 +214,7 @@ def build_RDH_population_dir_path(location: str) -> str:
     """
     return os.path.join(DATASETS_DIR, CENSUS_FOLDER_NAME, RDH_POPULATION_FOLDER_NAME, location)
 
+# pylint: disable-next=invalid-name
 def build_RDH_population_source_file_path(census_year: str, location: str) -> str:
     """Returns the path to the RDH population data CSV for a location and year.
 

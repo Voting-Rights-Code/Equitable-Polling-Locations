@@ -22,6 +22,8 @@ from python.utils import (
 #    build_p4_source_file_path,
     build_CVAP_dir_path,
     build_CVAP_source_file_path,
+    build_RDH_population_dir_path,
+    build_RDH_population_source_file_path,
     is_int,
     get_block_source_file_path,
     get_block_group_block_source_file_path,
@@ -32,7 +34,7 @@ BLOCK_GEO, P3_NAME, P4_NAME
 )
 
 from python.utils.pull_census_data import (
-    pull_census_data, pull_CVAP_data
+    pull_census_data, pull_CVAP_data, pull_RDH_population_data
 )
 from .model_config import PollingModelConfig
 
@@ -330,7 +332,86 @@ def get_CVAP_demographics(census_year: str, location: str):
     return(CVAP_df)
 
 
-def get_demographics_block(census_year: str, location: str, census_data_type: str) -> pd.DataFrame:
+# pylint: disable-next=invalid-name
+def get_RDH_population_demographics(census_year: str, location: str, projection_year: str) -> pd.DataFrame:
+    '''Get RDH population projection demographic block data for a specific location,
+    census year, and projection year.
+
+    The source data uses P1/P2-style mutually exclusive race and Hispanic ethnicity
+    categories: the Hispanic bucket covers all Hispanic people regardless of race, and
+    each NotHisp_* column covers only non-Hispanic people of that race (unlike the
+    redistricting P3/P4 approach where race and Hispanic ethnicity are independent axes).
+    Non-Hispanic total is derived as Total - Hispanic.
+
+    Args:
+        census_year: Decennial census year string identifying the source file, e.g. '2020'.
+        location: Location identifier, e.g. 'Gwinnett_County_GA'.
+        projection_year: The population projection year to extract from the file, e.g. '2026'.
+
+    Returns:
+        DataFrame with columns matching DEMOGRAPHICS_OUTPUT_COLUMNS.
+
+    Raises:
+        ValueError: When the data file is not found or projection_year has no columns in the file.
+    '''
+    population_dir = build_RDH_population_dir_path(location)
+    population_source_file = build_RDH_population_source_file_path(census_year, location)
+
+    if not os.path.exists(population_dir):
+        statecode = location[-2:]
+        locality = location[:-3].replace('_', ' ')
+        pull_RDH_population_data(statecode, locality, census_year)
+
+    if not os.path.exists(population_source_file):
+        raise ValueError(
+            f'RDH population data not found. Download using pull_RDH_population_data or '
+            f'manually following download instructions in README. {population_source_file}'
+        )
+
+    population_df = pd.read_csv(population_source_file, low_memory=False)
+
+    total_col = f'Projected_TotalPop_{projection_year}'
+    hispanic_col = f'Projected_HispanicOrLatino_{projection_year}'
+    white_col = f'Projected_NotHisp_WhiteAlone_{projection_year}'
+    black_col = f'Projected_NotHisp_BlackOrAfAmAlone_{projection_year}'
+    native_col = f'Projected_NotHisp_AmIndianOrAKNativeAlone_{projection_year}'
+    asian_col = f'Projected_NotHisp_AsianAlone_{projection_year}'
+    pacific_col = f'Projected_NotHisp_PacificIslanderAlone_{projection_year}'
+    other_col = f'Projected_NotHisp_OtherRaceAlone_{projection_year}'
+    multirace_col = f'Projected_NotHisp_TwoOrMoreRaces_{projection_year}'
+
+    year_cols = [total_col, hispanic_col, white_col, black_col, native_col,
+                 asian_col, pacific_col, other_col, multirace_col]
+    missing_cols = [col for col in year_cols if col not in population_df.columns]
+    if missing_cols:
+        raise ValueError(
+            f'projection_year {projection_year!r} not found in RDH population file for {location}. '
+            f'Missing columns: {missing_cols}'
+        )
+
+    population_df = population_df[['GEOID'] + year_cols].copy()
+    population_df['GEOID'] = population_df['GEOID'].astype(str)
+
+    non_hispanic = population_df[total_col] - population_df[hispanic_col]
+
+    population_df = population_df.rename(columns={
+        'GEOID': CEN20_GEO_ID,
+        total_col: DISTANCE_TOTAL_POPULATION,
+        hispanic_col: DISTANCE_HISPANIC,
+        white_col: DISTANCE_WHITE,
+        black_col: DISTANCE_BLACK,
+        native_col: DISTANCE_NATIVE,
+        asian_col: DISTANCE_ASIAN,
+        pacific_col: DISTANCE_PACIFIC_ISLANDER,
+        other_col: DISTANCE_OTHER,
+        multirace_col: DISTANCE_MULTIPLE_RACES,
+    })
+    population_df[DISTANCE_NON_HISPANIC] = non_hispanic
+
+    return population_df
+
+
+def get_demographics_block(census_year: str, location: str, census_data_type: str, projection_year: str = None) -> pd.DataFrame:
     '''
     Combine the demographic block data a given census_data types for a specific location and
     census year with the corresponding tiger geographic data.
@@ -340,6 +421,8 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
         demographics = get_redistricting_demographics(census_year, location)
     elif census_data_type == 'CVAP':
         demographics = get_CVAP_demographics(census_year, location)
+    elif census_data_type == 'population':
+        demographics = get_RDH_population_demographics(census_year, location, projection_year)
 
     #get block group geographic
     blocks_gdf = get_blocks_gdf(census_year, location)
@@ -390,6 +473,7 @@ def build_distance_data(
     potential_locations_path_override: str=None,
     output_path_override: str=None,
     query: Query=None,
+    projection_year: str=None,
 ) -> BuildDistanceMetaData:
     '''
     Build distance data set from census data and potential locations data
@@ -447,7 +531,7 @@ def build_distance_data(
     #####
     # Cross join polling locations and demographics tables
     #####
-    demographics_block_df = get_demographics_block(census_year, location, census_data_type)
+    demographics_block_df = get_demographics_block(census_year, location, census_data_type, projection_year)
     distance_df = demographics_block_df.merge(all_locations, how=PD_CROSS)
 
     #####

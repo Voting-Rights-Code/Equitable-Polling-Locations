@@ -634,6 +634,26 @@ def pull_CVAP_data(
         pull_tiger_file(state, fipscode2, county_ST, countycode, geo, census_year)
     return "Success"
 
+# RDH and population are established terms in the codebase; mixed case is intentional.
+# pylint: disable-next=invalid-name
+def pull_RDH_population_data(statecode, county, census_year):
+    '''Download block-level RDH population projection data for a county.
+
+    Args:
+        statecode: Two-letter US state code, e.g. 'GA'.
+        county: Full county name with proper capitalization, e.g. 'Gwinnett County'.
+        census_year: Decennial census year string, e.g. '2020'.
+
+    Raises:
+        NotImplementedError: Always — this function is not yet implemented.
+    '''
+    raise NotImplementedError(
+        'pull_RDH_population_data is not yet implemented. '
+        'Download RDH population data manually and place at the expected path.'
+    )
+
+
+
 def pull_census_data(statecode, county, census_year, apikey=None, state_lookup=None, verbose=False):
     '''Pull P3 and P4 census data and TIGER shapefiles for a given county.
 
