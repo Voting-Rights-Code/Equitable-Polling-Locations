@@ -161,7 +161,13 @@ def _pick_coord_extractor(columns):
 
 
 def write_output_csv(df, path: str) -> None:
-    '''Write the canonical 4-column CSV (id_orig, id_dest, distance_m, duration_s).'''
+    '''Write the canonical 4-column CSV (id_orig, id_dest, distance_m, duration_s).
+
+    MERGE RECONCILIATION (#227 vs #226): this branch (feature/driving-time-metric)
+    writes 4 columns, adding ``duration_s``; the driving-distance-tools worktree
+    (#226) writes the legacy 3 columns. When the branches merge, deliberately keep
+    the 4-column form here and confirm the ORS-side writer emits ``duration_s`` too.
+    '''
     df[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S]].to_csv(
         path, index=False,
     )
