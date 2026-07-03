@@ -119,19 +119,22 @@ class TestDirSizeBytes:
 class TestMainOrchestration:
     '''Tests for the ``main`` orchestration function.'''
 
-    @patch('python.scripts.ors_up_cli.os.makedirs')
     @patch('python.scripts.ors_up_cli.poll_health', return_value=True)
     @patch('python.scripts.ors_up_cli.subprocess.run')
     @patch('python.scripts.ors_up_cli._ensure_host_only')
     def test_validates_state_then_resolves_buffered_then_spawns(
-        self, unused_mock_host, mock_run, unused_mock_poll, unused_mock_makedirs, tmp_path,
+        self, unused_mock_host, mock_run, unused_mock_poll, tmp_path,
     ):
         '''main(['georgia']) must resolve the buffered pbf, then docker compose up -d.'''
-        del unused_mock_host, unused_mock_poll, unused_mock_makedirs
+        del unused_mock_host, unused_mock_poll
         buffered = tmp_path / 'georgia-buffered.osm.pbf'
         buffered.touch()
-        with patch('python.scripts.ors_up_cli.buffered_pbf_path', return_value=str(buffered)):
-            main(['georgia', '--logdir', str(tmp_path)])
+        # Don't mock os.makedirs: route the log + graph dirs into tmp_path so the
+        # real dirs are created in isolation (mocking makedirs would silently
+        # neutralize the log-dir creation and make the test depend on ambient ./logs).
+        with patch('python.scripts.ors_up_cli.ORS_GRAPHS_DIR', str(tmp_path)), \
+             patch('python.scripts.ors_up_cli.buffered_pbf_path', return_value=str(buffered)):
+            main(['georgia', '--logdir', str(tmp_path / 'logs')])
         cmd = mock_run.call_args.args[0]
         assert cmd[0] == 'docker'
         assert 'compose' in cmd
@@ -140,19 +143,19 @@ class TestMainOrchestration:
         assert 'up' in cmd
         assert '-d' in cmd
 
-    @patch('python.scripts.ors_up_cli.os.makedirs')
     @patch('python.scripts.ors_up_cli.poll_health', return_value=True)
     @patch('python.scripts.ors_up_cli.subprocess.run')
     @patch('python.scripts.ors_up_cli._ensure_host_only')
     def test_passes_ors_state_env(
-        self, unused_mock_host, mock_run, unused_mock_poll, unused_mock_makedirs, tmp_path,
+        self, unused_mock_host, mock_run, unused_mock_poll, tmp_path,
     ):
         '''docker compose up -d must be invoked with ORS_STATE set in the subprocess env.'''
-        del unused_mock_host, unused_mock_poll, unused_mock_makedirs
+        del unused_mock_host, unused_mock_poll
         buffered = tmp_path / 'georgia-buffered.osm.pbf'
         buffered.touch()
-        with patch('python.scripts.ors_up_cli.buffered_pbf_path', return_value=str(buffered)):
-            main(['georgia', '--logdir', str(tmp_path)])
+        with patch('python.scripts.ors_up_cli.ORS_GRAPHS_DIR', str(tmp_path)), \
+             patch('python.scripts.ors_up_cli.buffered_pbf_path', return_value=str(buffered)):
+            main(['georgia', '--logdir', str(tmp_path / 'logs')])
         env = mock_run.call_args.kwargs.get('env')
         assert env is not None
         assert env.get('ORS_STATE') == 'georgia'
@@ -172,20 +175,20 @@ class TestMainOrchestration:
             main(['georgia', '--logdir', str(tmp_path / 'logs')])
         assert (tmp_path / 'georgia-buffered').is_dir()
 
-    @patch('python.scripts.ors_up_cli.os.makedirs')
     @patch('python.scripts.ors_up_cli.poll_health', return_value=False)
     @patch('python.scripts.ors_up_cli.subprocess.run')
     @patch('python.scripts.ors_up_cli._ensure_host_only')
     def test_exits_nonzero_when_health_times_out(
-        self, unused_mock_host, mock_run, unused_mock_poll, unused_mock_makedirs, tmp_path,
+        self, unused_mock_host, mock_run, unused_mock_poll, tmp_path,
     ):
         '''A health-poll timeout must surface as a non-zero exit code.'''
-        del unused_mock_host, unused_mock_poll, unused_mock_makedirs
+        del unused_mock_host, unused_mock_poll
         buffered = tmp_path / 'georgia-buffered.osm.pbf'
         buffered.touch()
-        with patch('python.scripts.ors_up_cli.buffered_pbf_path', return_value=str(buffered)):
+        with patch('python.scripts.ors_up_cli.ORS_GRAPHS_DIR', str(tmp_path)), \
+             patch('python.scripts.ors_up_cli.buffered_pbf_path', return_value=str(buffered)):
             with pytest.raises(SystemExit) as exc_info:
-                main(['georgia'])
+                main(['georgia', '--logdir', str(tmp_path / 'logs')])
         assert exc_info.value.code != 0
         log_dump_calls = [
             call for call in mock_run.call_args_list
