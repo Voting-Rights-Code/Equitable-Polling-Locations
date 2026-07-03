@@ -12,7 +12,8 @@ source("R/result_analysis/utility_functions/shape_extraction_functions.r")
 # A config file must be given to get the location-specific constants for the
 # extraction to be run. To extract a different county or state, add a new
 # config file under R/result_analysis/Extraction_configs/ instead of editing
-# this file. The config's contents will grow as more steps are added to this
+# this file. 
+# TODO: The config's contents will grow as more steps are added to this
 # script.
 #######
 
@@ -36,21 +37,21 @@ CRS_PROJECTION <- 4326
 
 
 ###### Step 1: extract and validate the county's precincts#######
-county_precincts <- extract_county_precincts(STATE_PRECINCT_SOURCE_FILE, COUNTY_NAME, CRS_PROJECTION)
+state_precincts <- extract_county_precincts(STATE_PRECINCT_SOURCE_FILE, COUNTY_NAME, CRS_PROJECTION)
 
 
-###currently commented out due to the bug where precinct 73 has no population. see issue 283
+###TODO: currently commented out due to the bug where precinct 73 has no population. see issue 283
 #stopifnot(
 #  "Precinct count does not match EXPECTED_PRECINCT_COUNT in the config file" =
-#    nrow(county_precincts) == EXPECTED_PRECINCT_COUNT
+#    nrow(state_precincts) == EXPECTED_PRECINCT_COUNT
 #)
 
-county_precincts <- county_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
+state_precincts <- state_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
 
-names(county_precincts)[names(county_precincts) == "geometry"] <- "precinct_geometry"
-st_geometry(county_precincts) <- "precinct_geometry"
+names(state_precincts)[names(state_precincts) == "geometry"] <- "precinct_geometry"
+st_geometry(state_precincts) <- "precinct_geometry"
 
-county_precincts_proj <- st_transform(county_precincts, AREA_CRS)
+state_precincts_proj <- st_transform(state_precincts, AREA_CRS)
 
 ###### Step 2: Extract and validate the county's blocks#######
 #extract county blocks from the TIGER/Line shapefile
@@ -68,7 +69,7 @@ p3_population <- fread(
 ######Step 3: associate blocks with (dominant) precincts #######
 
 block_precinct_assignment <- assign_block_to_dominant_precinct(
-  county_precincts, county_blocks, p3_population, AREA_CRS
+  state_precincts, county_blocks, p3_population, AREA_CRS
 )
 
 names(block_precinct_assignment)[names(block_precinct_assignment) == "geometry"] <- "block_geometry"
@@ -88,56 +89,41 @@ block_precinct_assignment %>%
   file.path(precinct_analysis_output_folder, "flagged_assigned_blocks.gpkg"), append = FALSE
 )
 
-# write every (block, precinct) pair with more than 5% overlap -- one row
-# per precinct a block significantly overlaps, unlike the single
-# dominant-precinct assignment above (#283)
-overlapping_blocks <- flag_overlapping_blocks(
-  county_precincts, county_blocks, p3_population, area_crs = AREA_CRS
-)
-
-st_write(
-  overlapping_blocks %>% filter(flagged == TRUE),
-  file.path(precinct_analysis_output_folder, "flagged_overlapping_blocks.gpkg"), append = FALSE
-)
-
 ###### Step 5: reconcile county-provided precinct data #######
+# In this step, we assume that the county provided precinct data (if it exists)
+# is correct. The reconciliation is to get the state data to match it. 
+# Changes are made to the state file
+
+
+#If the county provides precinct data, 
+#reconcile it with the state provided precinct data
 if (COUNTY_PROVIDES_PRECINCT_DATA) {
-  provided_polls <- fread(COUNTY_PROVIDED_PRECINCT_FILE)
-
-  # the source file repeats the "Prec" header once per precinct slot (a
-  # polling place can serve several precincts); give each slot a unique
-  # name so reshape_county_precincts_long()'s melt() can address them
-  precinct_slot_positions <- which(names(provided_polls) == "Prec")
-  setnames(
-    provided_polls,
-    old = precinct_slot_positions,
-    new = paste0("Prec_", seq_along(precinct_slot_positions))
-  )
-
-  county_precincts_resolved <- reconcile_county_provided_precincts(
-    provided_polls,
-    precinct_columns = paste0("Prec_", seq_along(precinct_slot_positions)),
-    location_name_col = COUNTY_PRECINCT_LOCATION_NAME_COL,
-    address_col = COUNTY_PRECINCT_ADDRESS_COL,
-    county_precincts = county_precincts,
-    county_name = COUNTY_NAME
+  county_precincts_resolved <- reconciled_state_precinct_data(
+    COUNTY_PROVIDED_PRECINCT_FILE,
+    COUNTY_PRECINCT_COLUMN_NAMES,
+    COUNTY_POLLING_LOCATION_NAME_COL,
+    COUNTY_POLLING_LOCATION_ADDRESS_COL,
+    state_precincts,
+    COUNTY_NAME
   )
 } else {
-  # No county-provided data to reconcile against: fall back to dropping
-  # precincts with zero population, per block-level population data in
-  # block_precinct_assignment (#283 caveat: the dominant-block population
-  # heuristic can show real, populated precincts as zero -- e.g.
-  # Monongalia_73 -- so this fallback isn't fully trustworthy yet)
-  precinct_population <- data.table(st_drop_geometry(block_precinct_assignment))[
-    , .(total_population = sum(total_population)), by = Precinct_I
-  ]
-
-  county_precincts_resolved <- merge(
-    county_precincts, precinct_population,
-    by = "Precinct_I", sort = FALSE
-  )
-  county_precincts_resolved <- county_precincts_resolved[
-    county_precincts_resolved$total_population > 0,
-  ]
-  county_precincts_resolved$total_population <- NULL
+  county_precincts_resolved <- state_precincts
 }
+
+# Drop precincts with zero population, per block-level population data in
+# block_precinct_assignment. TODO: until #283 is fixed, the
+# dominant-block population heuristic can show real, populated precincts as
+# zero (e.g. Monongalia_73), so this can't be fully relied on yet.
+precinct_population <- data.table(st_drop_geometry(block_precinct_assignment))[
+  , .(total_population = sum(total_population)), by = Precinct_I
+]
+
+
+county_precincts_resolved <- merge(
+  county_precincts_resolved, precinct_population,
+  by = "Precinct_I", sort = FALSE
+)
+county_precincts_resolved <- county_precincts_resolved[
+  county_precincts_resolved$total_population > 0,
+]
+county_precincts_resolved$total_population <- NULL
