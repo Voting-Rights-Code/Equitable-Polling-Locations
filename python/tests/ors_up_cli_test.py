@@ -1,5 +1,4 @@
 '''Tests for python/scripts/ors_up_cli.py.'''
-import os
 import urllib.error
 from unittest.mock import MagicMock, patch
 
@@ -120,25 +119,22 @@ class TestDirSizeBytes:
 class TestMainOrchestration:
     '''Tests for the ``main`` orchestration function.'''
 
-    @patch('python.scripts.ors_up_cli.os.makedirs')
     @patch('python.scripts.ors_up_cli.poll_health', return_value=True)
     @patch('python.scripts.ors_up_cli.subprocess.run')
-    @patch('python.scripts.ors_up_cli.download_pbf_if_missing',
-           return_value='/abs/path/datasets/openrouteservice/georgia-latest.osm.pbf')
     @patch('python.scripts.ors_up_cli._ensure_host_only')
-    @pytest.mark.xfail(
-        reason='ORS-infra test isolation, owned by #226 (driving-distance-tools worktree): '
-               'mocked os.makedirs suppresses log-dir creation, so open() fails when ./logs '
-               'is absent in a fresh checkout.',
-        strict=False,
-    )
-    def test_validates_state_then_downloads_then_spawns(
-        self, unused_mock_host, mock_download, mock_run, unused_mock_poll, unused_mock_makedirs,
+    def test_validates_state_then_resolves_buffered_then_spawns(
+        self, unused_mock_host, mock_run, unused_mock_poll, tmp_path,
     ):
-        '''main(['georgia']) must call download, then docker compose up -d.'''
-        del unused_mock_host, unused_mock_poll, unused_mock_makedirs
-        main(['georgia'])
-        mock_download.assert_called_once_with('georgia')
+        '''main(['georgia']) must resolve the buffered pbf, then docker compose up -d.'''
+        del unused_mock_host, unused_mock_poll
+        buffered = tmp_path / 'georgia-buffered.osm.pbf'
+        buffered.touch()
+        # Don't mock os.makedirs: route the log + graph dirs into tmp_path so the
+        # real dirs are created in isolation (mocking makedirs would silently
+        # neutralize the log-dir creation and make the test depend on ambient ./logs).
+        with patch('python.scripts.ors_up_cli.ORS_GRAPHS_DIR', str(tmp_path)), \
+             patch('python.scripts.ors_up_cli.buffered_pbf_path', return_value=str(buffered)):
+            main(['georgia', '--logdir', str(tmp_path / 'logs')])
         cmd = mock_run.call_args.args[0]
         assert cmd[0] == 'docker'
         assert 'compose' in cmd
@@ -147,61 +143,52 @@ class TestMainOrchestration:
         assert 'up' in cmd
         assert '-d' in cmd
 
-    @patch('python.scripts.ors_up_cli.os.makedirs')
     @patch('python.scripts.ors_up_cli.poll_health', return_value=True)
     @patch('python.scripts.ors_up_cli.subprocess.run')
-    @patch('python.scripts.ors_up_cli.download_pbf_if_missing',
-           return_value='/abs/path/datasets/openrouteservice/georgia-latest.osm.pbf')
     @patch('python.scripts.ors_up_cli._ensure_host_only')
-    @pytest.mark.xfail(
-        reason='ORS-infra test isolation, owned by #226 (driving-distance-tools worktree): '
-               'mocked os.makedirs suppresses log-dir creation, so open() fails when ./logs '
-               'is absent in a fresh checkout.',
-        strict=False,
-    )
     def test_passes_ors_state_env(
-        self, unused_mock_host, unused_mock_download, mock_run, unused_mock_poll, unused_mock_makedirs,
+        self, unused_mock_host, mock_run, unused_mock_poll, tmp_path,
     ):
         '''docker compose up -d must be invoked with ORS_STATE set in the subprocess env.'''
-        del unused_mock_host, unused_mock_download, unused_mock_poll, unused_mock_makedirs
-        main(['georgia'])
+        del unused_mock_host, unused_mock_poll
+        buffered = tmp_path / 'georgia-buffered.osm.pbf'
+        buffered.touch()
+        with patch('python.scripts.ors_up_cli.ORS_GRAPHS_DIR', str(tmp_path)), \
+             patch('python.scripts.ors_up_cli.buffered_pbf_path', return_value=str(buffered)):
+            main(['georgia', '--logdir', str(tmp_path / 'logs')])
         env = mock_run.call_args.kwargs.get('env')
         assert env is not None
         assert env.get('ORS_STATE') == 'georgia'
 
     @patch('python.scripts.ors_up_cli.poll_health', return_value=True)
     @patch('python.scripts.ors_up_cli.subprocess.run')
-    @patch('python.scripts.ors_up_cli.download_pbf_if_missing',
-           return_value='/abs/path/datasets/openrouteservice/georgia-latest.osm.pbf')
     @patch('python.scripts.ors_up_cli._ensure_host_only')
-    def test_pre_creates_per_state_graphs_dir(
-        self, unused_mock_host, unused_mock_download, unused_mock_run, unused_mock_poll, tmp_path,
+    def test_pre_creates_per_state_buffered_graphs_dir(
+        self, unused_mock_host, unused_mock_run, unused_mock_poll, tmp_path,
     ):
-        '''main must mkdir the per-state graphs dir before invoking docker compose.'''
-        del unused_mock_host, unused_mock_download, unused_mock_run, unused_mock_poll
-        with patch('python.scripts.ors_up_cli.ORS_GRAPHS_DIR', str(tmp_path)):
+        '''main must mkdir the per-state buffered graphs dir before invoking docker compose.'''
+        del unused_mock_host, unused_mock_run, unused_mock_poll
+        buffered = tmp_path / 'georgia-buffered.osm.pbf'
+        buffered.touch()
+        with patch('python.scripts.ors_up_cli.ORS_GRAPHS_DIR', str(tmp_path)), \
+             patch('python.scripts.ors_up_cli.buffered_pbf_path', return_value=str(buffered)):
             main(['georgia', '--logdir', str(tmp_path / 'logs')])
-        assert (tmp_path / 'georgia').is_dir()
+        assert (tmp_path / 'georgia-buffered').is_dir()
 
-    @patch('python.scripts.ors_up_cli.os.makedirs')
     @patch('python.scripts.ors_up_cli.poll_health', return_value=False)
     @patch('python.scripts.ors_up_cli.subprocess.run')
-    @patch('python.scripts.ors_up_cli.download_pbf_if_missing',
-           return_value='/abs/path/datasets/openrouteservice/georgia-latest.osm.pbf')
     @patch('python.scripts.ors_up_cli._ensure_host_only')
-    @pytest.mark.xfail(
-        reason='ORS-infra test isolation, owned by #226 (driving-distance-tools worktree): '
-               'mocked os.makedirs suppresses log-dir creation, so open() fails when ./logs '
-               'is absent in a fresh checkout.',
-        strict=False,
-    )
     def test_exits_nonzero_when_health_times_out(
-        self, unused_mock_host, unused_mock_download, mock_run, unused_mock_poll, unused_mock_makedirs,
+        self, unused_mock_host, mock_run, unused_mock_poll, tmp_path,
     ):
         '''A health-poll timeout must surface as a non-zero exit code.'''
-        del unused_mock_host, unused_mock_download, unused_mock_poll, unused_mock_makedirs
-        with pytest.raises(SystemExit) as exc_info:
-            main(['georgia'])
+        del unused_mock_host, unused_mock_poll
+        buffered = tmp_path / 'georgia-buffered.osm.pbf'
+        buffered.touch()
+        with patch('python.scripts.ors_up_cli.ORS_GRAPHS_DIR', str(tmp_path)), \
+             patch('python.scripts.ors_up_cli.buffered_pbf_path', return_value=str(buffered)):
+            with pytest.raises(SystemExit) as exc_info:
+                main(['georgia', '--logdir', str(tmp_path / 'logs')])
         assert exc_info.value.code != 0
         log_dump_calls = [
             call for call in mock_run.call_args_list
@@ -229,10 +216,34 @@ class TestMainOrchestration:
     def test_logdir_override_creates_log_file(self, mock_host, tmp_path):
         '''--logdir override should be honored (and produce a log file).'''
         del mock_host
+        buffered = tmp_path / 'georgia-buffered.osm.pbf'
+        buffered.touch()
         with patch('python.scripts.ors_up_cli.subprocess.run'), \
-             patch('python.scripts.ors_up_cli.download_pbf_if_missing',
-                   return_value=os.path.join(str(tmp_path), 'georgia-latest.osm.pbf')), \
+             patch('python.scripts.ors_up_cli.buffered_pbf_path', return_value=str(buffered)), \
              patch('python.scripts.ors_up_cli.poll_health', return_value=True), \
              patch('python.scripts.ors_up_cli.ORS_GRAPHS_DIR', str(tmp_path / 'graphs')):
             main(['georgia', '--logdir', str(tmp_path)])
         assert any(p.name.endswith('_ors_up.log') for p in tmp_path.iterdir())
+
+    def test_up_uses_buffered_graph_dir(self, tmp_path, monkeypatch):
+        '''main must create a <state>-buffered graph dir (not bare <state>).'''
+        monkeypatch.setattr('python.scripts.ors_up_cli.ORS_GRAPHS_DIR', str(tmp_path))
+        buffered = tmp_path / 'georgia-buffered.osm.pbf'
+        buffered.touch()
+        monkeypatch.setattr('python.scripts.ors_up_cli.buffered_pbf_path',
+                            lambda slug: str(buffered))
+        monkeypatch.setattr('python.scripts.ors_up_cli._ensure_host_only', lambda: None)
+        monkeypatch.setattr('python.scripts.ors_up_cli.poll_health', lambda *a, **k: True)
+        monkeypatch.setattr('python.scripts.ors_up_cli.subprocess.run', lambda *a, **k: None)
+        main(['georgia', '--logdir', str(tmp_path)])
+        assert (tmp_path / 'georgia-buffered').is_dir()
+
+    def test_up_errors_when_buffered_pbf_missing(self, tmp_path, monkeypatch):
+        '''main must exit 2 with a clear message when the buffered extract is absent.'''
+        monkeypatch.setattr('python.scripts.ors_up_cli.ORS_GRAPHS_DIR', str(tmp_path))
+        monkeypatch.setattr('python.scripts.ors_up_cli.buffered_pbf_path',
+                            lambda slug: str(tmp_path / 'georgia-buffered.osm.pbf'))
+        monkeypatch.setattr('python.scripts.ors_up_cli._ensure_host_only', lambda: None)
+        with pytest.raises(SystemExit) as exc:
+            main(['georgia', '--logdir', str(tmp_path)])
+        assert exc.value.code == 2

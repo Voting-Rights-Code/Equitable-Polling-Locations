@@ -135,14 +135,15 @@ class TestModelRunCliBasic:
 
     Choice of ``config_*`` variant per test:
 
-    - 3 of 5 tests use ``config_basic`` (the no-overrides baseline) since
+    - 4 of 5 tests use ``config_basic`` (the no-overrides baseline) since
       the assertion doesn't depend on solver behavior.
-    - ``test_multiple_configs`` uses ``config_low_beta`` + ``config_capacity``
+    - ``test_multiple_configs`` uses ``config_low_beta`` + ``config_low_capacity``
       so the multi-config invocation passes two genuinely different configs
-      (rather than the same config twice).
-    - ``test_concurrent_runs`` uses ``config_new_locations`` to give the
-      ``-c 2`` parallel run a non-trivial scenario; the choice is
-      otherwise incidental.
+      (rather than the same config twice). ``config_low_capacity`` was
+      chosen after #208 removed ``config_capacity``; the test's "two
+      different configs" intent is satisfied by any pair, and
+      ``config_low_capacity`` is in the same solver-param family as
+      ``config_low_beta`` — the simplest swap.
 
     The variant choice across tests is therefore intentional but not
     load-bearing — replacing every variant with ``config_basic`` would not
@@ -167,35 +168,35 @@ class TestModelRunCliBasic:
             )
 
     def test_multiple_configs(self, e2e_test_data):
-        """Running config_low_beta and config_capacity in one invocation both succeed.
+        """Running config_low_beta and config_low_capacity in one invocation both succeed.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
         """
         sid = e2e_test_data['sid']
         low_beta_path = e2e_test_data['configs']['config_low_beta']
-        capacity_path = e2e_test_data['configs']['config_capacity']
+        low_capacity_path = e2e_test_data['configs']['config_low_capacity']
 
-        run_cli(MODULE, low_beta_path, capacity_path)
+        run_cli(MODULE, low_beta_path, low_capacity_path)
 
-        for suffix in ('config_low_beta', 'config_capacity'):
+        for suffix in ('config_low_beta', 'config_low_capacity'):
             files = _result_files(sid, suffix)
             assert os.path.isfile(files['results']), (
                 f"Results file missing for {suffix}: {files['results']}"
             )
 
     def test_concurrent_runs(self, e2e_test_data):
-        """config_new_locations runs successfully with -c 2.
+        """config_basic runs successfully with -c 2.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
         """
         sid = e2e_test_data['sid']
-        config_path = e2e_test_data['configs']['config_new_locations']
+        config_path = e2e_test_data['configs']['config_basic']
 
         run_cli(MODULE, config_path, '-c', '2')
 
-        files = _result_files(sid, 'config_new_locations')
+        files = _result_files(sid, 'config_basic')
         assert os.path.isfile(files['results']), (
             f"Results file missing after concurrent run: {files['results']}"
         )
@@ -382,6 +383,58 @@ class TestModelRunCliValueAssertions:
             f'extra_in_result={result_ids - source_ids!r}'
         )
 
+    def test_bad_types_absent_from_results(self, e2e_test_data):
+        """The bad_types config field must filter those types out of the result CSV.
+
+        Closes the CLI pass-through gap: confirms that the bad_types list set
+        in the YAML config flows through model_run_cli, the solver, and the
+        result-writing path, ending up excluded from the output. The unit test
+        at model_data_test.py::test_clean_data covers the same filter at the
+        function level.
+
+        Args:
+            e2e_test_data: Session-scoped test data dict.
+        """
+        _ensure_run(e2e_test_data, 'config_bad_types')
+        sid = e2e_test_data['sid']
+
+        result_df = pd.read_csv(_result_files(sid, 'config_bad_types')['results'])
+        bad_types = ['bg_centroid', 'Elec Day School - Potential']
+        bad_rows = result_df[result_df['location_type'].isin(bad_types)]
+
+        assert len(bad_rows) == 0, (
+            f'Expected no bad_types in result CSV, found {len(bad_rows)} rows '
+            f'with location_type in {bad_types}'
+        )
+
+    def test_year_filter_applied_to_results(self, e2e_test_data):
+        """Every polling-typed result row's location_type contains a configured year.
+
+        Today this is a vacuously-true CLI pass-through check: the test
+        fixture has only one year-encoded location_type (EV_2022_2020), which
+        trivially contains every year value the filter would accept. The
+        assertion shape generalizes — adding year-distinct location_types to
+        the fixture will automatically tighten what this test catches
+        without needing edits here.
+
+        Args:
+            e2e_test_data: Session-scoped test data dict.
+        """
+        _ensure_run(e2e_test_data, 'config_year')
+        sid = e2e_test_data['sid']
+
+        result_df = pd.read_csv(_result_files(sid, 'config_year')['results'])
+        polling_rows = result_df[result_df['dest_type'] == 'polling']
+        bad_year_rows = polling_rows[
+            ~polling_rows['location_type'].str.contains('2020', regex=False)
+        ]
+
+        assert len(bad_year_rows) == 0, (
+            f"Expected every polling row's location_type to contain '2020' "
+            f'(the configured year), but {len(bad_year_rows)} did not: '
+            f'{bad_year_rows["location_type"].unique().tolist()}'
+        )
+
     def test_distinct_open_destinations_matches_config(self, e2e_test_data):
         """Number of distinct chosen polling sites equals ``precincts_open`` from the config.
 
@@ -552,58 +605,6 @@ class TestModelRunCliValueAssertions:
             f'got {len(df)}'
         )
 
-    def test_capacity_constraint(self, e2e_test_data):
-        """With capacity=3, no precinct exceeds ~3× the average assignment count.
-
-        The config_capacity variant sets capacity=3, which caps how many residences
-        can be assigned to each open polling location relative to the average.
-
-        Args:
-            e2e_test_data: Session-scoped test data dict.
-        """
-        _ensure_run(e2e_test_data, 'config_capacity')
-        sid = e2e_test_data['sid']
-        results_path = _result_files(sid, 'config_capacity')['results']
-
-        df = pd.read_csv(results_path)
-        assignments_per_precinct = df.groupby('id_dest').size()
-        avg_assignments = assignments_per_precinct.mean()
-        max_assignments = assignments_per_precinct.max()
-
-        # Capacity=3 means max should not exceed 3× average
-        assert max_assignments <= avg_assignments * 3, (
-            f"Max assignments ({max_assignments}) exceeds 3× average "
-            f"({avg_assignments * 3:.1f}) — capacity constraint may not be enforced"
-        )
-
-    def test_penalty_config_produces_valid_results(self, e2e_test_data):
-        """The penalty config produces complete, non-empty result files.
-
-        Penalised sites are discouraged by the KP scoring algorithm but are not
-        hard-excluded, so they may still appear in the output.  This test
-        verifies that the penalty pipeline runs end-to-end and writes valid CSV
-        output rather than asserting that penalised sites are absent.
-
-        Args:
-            e2e_test_data: Session-scoped test data dict.
-        """
-        _ensure_run(e2e_test_data, 'config_penalty')
-        sid = e2e_test_data['sid']
-        files = _result_files(sid, 'config_penalty')
-
-        results_df = pd.read_csv(files['results'])
-        edes_df = pd.read_csv(files['edes'])
-        baseline_df = pd.read_csv(BASELINE_RESULT_CSV)
-
-        assert len(results_df) > 0, 'Penalty config results must have at least one row'
-        assert len(edes_df) > 0, 'Penalty config EDE output must have at least one row'
-
-        assert set(results_df.columns) == set(baseline_df.columns), (
-            f'Penalty result-CSV column set mismatch vs baseline {BASELINE_RESULT_CSV}: '
-            f'missing_from_actual={set(baseline_df.columns) - set(results_df.columns)}, '
-            f'extra_in_actual={set(results_df.columns) - set(baseline_df.columns)}'
-        )
-
     def test_low_beta_differs_from_basic(self, e2e_test_data):
         """Different beta values should produce different EDE values.
 
@@ -624,6 +625,35 @@ class TestModelRunCliValueAssertions:
         # At least one y_EDE value must differ between the two configs
         assert not basic_sorted.equals(low_beta_sorted), (
             'Expected different EDE values for beta=-1 vs beta=-2, but they are identical'
+        )
+
+    def test_fixed_capacity_changes_assignment_vs_low_capacity(self, e2e_test_data):
+        """Setting fixed_capacity_site_number must change per-precinct populations.
+
+        Both variants share capacity=2.5 and precincts_open=4; only
+        ``fixed_capacity_site_number`` differs (unset vs 3). The flag substitutes
+        the per-site cap in ``model_factory.py`` and should drive a measurably
+        different residence-to-precinct assignment in ``precinct_distances``.
+
+        Args:
+            e2e_test_data: Session-scoped test data dict.
+        """
+        _ensure_run(e2e_test_data, 'config_low_capacity')
+        _ensure_run(e2e_test_data, 'config_fixed_capacity')
+        sid = e2e_test_data['sid']
+
+        low_capacity_pops = (
+            pd.read_csv(_result_files(sid, 'config_low_capacity')['precinct_distances'])
+            .groupby('id_dest')['demo_pop'].sum().to_dict()
+        )
+        fixed_capacity_pops = (
+            pd.read_csv(_result_files(sid, 'config_fixed_capacity')['precinct_distances'])
+            .groupby('id_dest')['demo_pop'].sum().to_dict()
+        )
+
+        assert low_capacity_pops != fixed_capacity_pops, (
+            'Expected fixed_capacity_site_number=3 to change per-precinct '
+            'populations vs the unconstrained variant, but they are identical'
         )
 
     def test_driving_differs_from_basic(self, e2e_test_data):

@@ -115,7 +115,8 @@ create_descriptor_field <- function(config_dt, field_of_interest){
 	varying_field<- names(varying_dt)[names(varying_dt) != 'config_name']
 	#paste the name of the varying field with its value
 	varying_dt <- varying_dt[, descriptor_pre:= varying_field
-						   ][, descriptor := do.call(paste, c(.SD, sep = '_')), .SDcols = c('descriptor_pre', varying_field)][ , descriptor_pre:= NULL]
+						   ][, descriptor := do.call(paste, c(.SD, sep = '_')), .SDcols = c('descriptor_pre', varying_field)
+						   ][ , descriptor_pre:= NULL]
 	return(varying_dt)
 }
 
@@ -152,6 +153,39 @@ change_descriptors <- function(df, descriptor_dict){
 	df_renamed[ , descriptor := NULL]
 	setnames(df_renamed, c('new_descriptor'), c('descriptor'))
 return(df_renamed)
+}
+
+order_descriptors <- function(df) {
+	#set descriptors to ordered factors for graphs
+
+	#pull out unique descriptors
+    descriptors <- unique(df$descriptor)
+
+	#all descriptors must contain a underscore:
+	if (any(!grepl('_', descriptors))) {
+    bad <- descriptors[!grepl('_', descriptors)]
+    stop(paste('Descriptor values must contain at least one underscore. Missing in:',
+               paste(bad, collapse = ', ')))
+	}	
+	
+	#extract suffixes
+    suffixes <- sub('.*_', '', descriptors)
+    suffixes_numeric <- suppressWarnings(as.numeric(suffixes))
+	is_numeric <- !is.na(suffixes_numeric)
+		
+	#if they are all numeric, use the suffix to order, if they are all alphabetic use the full descriptor
+	#if they are mixed, throw an error
+    if (all(is_numeric)) {
+        ordered_levels <- descriptors[order(suffixes_numeric)]
+    } else if (!any(is_numeric)){
+        ordered_levels <- sort(descriptors)
+    } else {
+		stop(paste('Descriptor suffixes must be all numeric or all non-numeric. Mixed suffixes found:',
+               paste(suffixes, collapse = ', ')))
+	}
+	#impose the order
+    df[, descriptor := factor(descriptor, levels = ordered_levels)]
+    return(df)
 }
 
 ######
@@ -250,6 +284,9 @@ assign_descriptor_to_result<- function(config_dt, result_type, field_of_interest
 
 	#change to custom descriptors if desired
 	complete_dt <- change_descriptors(complete_dt, descriptor_dict)
+
+	#order the descriptor fields as factors
+	complete_dt <- order_descriptors(complete_dt)
 
 	#fix data types (only needed for csv)
 	if ('id_dest' %in% names(complete_dt)){
@@ -359,15 +396,13 @@ plot_poll_edes<-function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLA
 	title_str = paste0('Equity weighted', flag_strs$driving_str, 'distance to poll by demographic')
 	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
 
-	graph = ggplot(ede_df, aes(x = num_polls, y = y_EDE,
+	graph = ggplot(ede_df, aes(x = descriptor, y = y_EDE,
 		group = demographic, color = demographic, shape = demographic)) +
 		geom_line()+ geom_point()+
-		labs(x = 'Number of polls', y = y_str, title = title_str, color = 'Demographic', shape = 'Demographic')+
+		labs(x = 'Optimization Run', y = y_str, title = title_str, color = 'Demographic', shape = 'Demographic')+
 		scale_color_tableau(labels = demographic_legend_dict) +
 		scale_shape(labels = demographic_legend_dict) +
 		theme_tableau()
-	#TODO: make this work
-	#if(log_flag){graph = graph + scale_y_continuous(trans="log2")
 
 	graph_file_path = 'demographic_edes.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -383,9 +418,9 @@ plot_population_edes <- function(ede_df, driving_flag = DRIVING_FLAG, log_flag =
 	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
 
 
-	graph = ggplot(ede_df[demographic == 'population', ], aes(x =  num_polls, y = y_EDE))+
+	graph = ggplot(ede_df[demographic == 'population', ], aes(x = descriptor, y = y_EDE))+
 		geom_line(color = TABLEAU_COLORS[1])+ geom_point(color = TABLEAU_COLORS[1])+
-		labs(x = 'Number of polls', y = y_str, title = title_str) +
+		labs(x = 'Optimization Run', y = y_str, title = title_str) +
 		theme_tableau()
 
 	graph_file_path = 'population_edes.png'
@@ -500,9 +535,9 @@ plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_f
 #also makes a panel of graphs showing which demographics are assigned to each poll
 plot_precinct_persistence <- function(precinct_df){
 	ggplot(precinct_df[demographic == 'population',
-		], aes(x = num_polls, y = id_dest)) +
+		], aes(x = descriptor, y = id_dest)) +
 		geom_point(aes(size = demo_pop), color = TABLEAU_COLORS[1], alpha = 0.7) +
-		labs(x = 'Number of polls', y = 'EV location', size = paste(demographic_legend_dict['population'], 'population')) +
+		labs(x = 'Optimization Run', y = 'EV location', size = paste(demographic_legend_dict['population'], 'population')) +
 		theme_tableau()
 
 	graph_file_path = 'precinct_persistence.png'
@@ -510,9 +545,9 @@ plot_precinct_persistence <- function(precinct_df){
 	ggsave(graph_file_path)
 
 	ggplot(precinct_df[demographic != 'population',
-		], aes(x = num_polls, y = id_dest)) +
+		], aes(x = descriptor, y = id_dest)) +
 		geom_point(aes(size = demo_pop), color = TABLEAU_COLORS[1], alpha = 0.7) +
-		labs(x = 'Number of polls', y = 'EV location', size = 'Population') + facet_wrap(~ demographic) +
+		labs(x = 'Optimization Run', y = 'EV location', size = 'Population') + facet_wrap(~ demographic) +
 		theme_tableau() +
 		theme(legend.position = c(0.9, 0.2))
 

@@ -58,6 +58,30 @@ ORS_DATA_DIR = os.path.normpath(
 )
 
 
+def buffer_polygon_path(slug: str) -> str:
+    '''Return the path to the buffer-polygon GeoJSON for a state slug.
+
+    Args:
+        slug: Geofabrik state slug.
+
+    Returns:
+        Absolute filesystem path under ``ORS_DATA_DIR``.
+    '''
+    return os.path.join(ORS_DATA_DIR, f'{slug}-buffer.geojson')
+
+
+def buffered_pbf_path(slug: str) -> str:
+    '''Return the path to the buffered OSM extract for a state slug.
+
+    Args:
+        slug: Geofabrik state slug.
+
+    Returns:
+        Absolute filesystem path under ``ORS_DATA_DIR``.
+    '''
+    return os.path.join(ORS_DATA_DIR, f'{slug}-buffered.osm.pbf')
+
+
 def geofabrik_url(slug: str) -> str:
     '''Return the Geofabrik download URL for a state slug.
 
@@ -197,3 +221,21 @@ def location_from_config_file(config_path: str) -> str:
             value = value[1:-1]
         return value
     raise ValueError(f'no top-level location: line in {config_path!r}')
+
+
+def us_source_url() -> str:
+    '''Return the Geofabrik download URL for the full-US extract.
+
+    Returns:
+        The HTTPS URL for the full-US ``-latest.osm.pbf`` on Geofabrik.
+    '''
+    return f'{GEOFABRIK_BASE_URL}-latest.osm.pbf'
+
+
+def us_source_path() -> str:
+    '''Return the on-disk path to the cached full-US extract.
+
+    Returns:
+        Absolute filesystem path under ``ORS_DATA_DIR``.
+    '''
+    return os.path.join(ORS_DATA_DIR, 'us-latest.osm.pbf')

@@ -7,6 +7,7 @@ from python.utils.ors_client import (
     OrsMatrixError,
     query_directions,
     query_matrix,
+    query_route_geometry,
 )
 
 MATRIX_URL = 'http://ors:8080/ors/v2/matrix/driving-car'
@@ -96,3 +97,27 @@ class TestQueryDirections:
     def test_returns_none_on_malformed_success_payload(self, mock_get):
         mock_get.return_value = MagicMock(text='{"features": []}')
         assert query_directions([-84.0, 33.9], [-84.1, 34.0], DIRECTIONS_URL) is None
+
+
+class TestQueryRouteGeometry:
+    '''Single-pair directions GET returning the route polyline.'''
+
+    @patch('python.utils.ors_client.requests.get')
+    def test_returns_coordinate_list(self, mock_get):
+        mock_get.return_value = MagicMock(
+            text='{"features": [{"geometry": {"coordinates": [[-79.9, 39.7], [-79.95, 39.76]]}}]}'
+        )
+        result = query_route_geometry([-79.9, 39.7], [-79.95, 39.76], DIRECTIONS_URL)
+        assert result == [[-79.9, 39.7], [-79.95, 39.76]]
+
+    @patch('python.utils.ors_client.requests.get')
+    def test_returns_none_on_ors_error(self, mock_get):
+        mock_get.return_value = MagicMock(
+            text='{"error": {"code": 2099, "message": "Unable to find a route"}}'
+        )
+        assert query_route_geometry([-79.9, 39.7], [-79.95, 39.76], DIRECTIONS_URL) is None
+
+    @patch('python.utils.ors_client.requests.get')
+    def test_returns_none_on_malformed_payload(self, mock_get):
+        mock_get.return_value = MagicMock(text='{"features": []}')
+        assert query_route_geometry([-79.9, 39.7], [-79.95, 39.76], DIRECTIONS_URL) is None

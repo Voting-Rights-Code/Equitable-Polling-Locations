@@ -166,6 +166,21 @@ def test_clean_data(testing_config_driving, location_df_with_driving):
     cleaned_data_with_alpha_dest_types = cleaned_data_with_alpha_df['dest_type'].unique().tolist()
     assert cleaned_data_with_alpha_dest_types == ['polling']
 
+    # Year filter: every requested year must appear as a substring in at least
+    # one cleaned-data row's location_type (positive assertion — the filter
+    # retains the right rows, not just removes wrong ones).  The current test
+    # fixture only encodes years in the EV_YYYY_YYYY polling type, which
+    # contains both 2020 and 2022; the assertion shape generalizes if the
+    # fixture later gains year-distinct location_types.
+    for year_str in testing_config_driving.year:
+        matching = cleaned_data_df[
+            cleaned_data_df['location_type'].str.contains(year_str, regex=False)
+        ]
+        assert len(matching) > 0, (
+            f'Expected at least one cleaned-data row with location_type '
+            f'containing {year_str!r}, but found none'
+        )
+
 
 def test_filter_distance_data_raises_and_names_origin_on_negative(
         testing_config_driving, location_df_with_driving, capsys):

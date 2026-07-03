@@ -78,7 +78,7 @@ class TestE2eTestDataFiles:
         assert os.path.isfile(e2e_test_data['driving_distances_import'])
 
     def test_all_config_variants_exist(self, e2e_test_data):
-        """Each of the 9 CONFIG_VARIANTS must have a corresponding YAML file on disk."""
+        """Each of the 11 CONFIG_VARIANTS must have a corresponding YAML file on disk."""
         for suffix in CONFIG_VARIANTS:
             assert suffix in e2e_test_data['configs'], (
                 f"Missing key '{suffix}' in e2e_test_data['configs']"
@@ -92,8 +92,8 @@ class TestE2eTestDataFiles:
         assert os.path.isfile(e2e_test_data['autogen_template'])
 
     def test_config_variant_count(self, e2e_test_data):
-        """Exactly 9 config variants must be created."""
-        assert len(e2e_test_data['configs']) == 9
+        """Exactly 11 config variants must be created."""
+        assert len(e2e_test_data['configs']) == 11
 
 
 @pytest.mark.e2e
@@ -123,6 +123,29 @@ class TestE2eTestDataContent:
         src_df = pd.read_csv(e2e_test_data['distances'])
         log_df = pd.read_csv(e2e_test_data['distances_log'])
         assert (src_df['distance_m'] != log_df['distance_m']).all()
+
+    def test_driving_distances_differ_from_haversine(self, e2e_test_data):
+        """Driving distances must differ from haversine for every matched pair.
+
+        Both fixture CSVs carry the same set of (id_orig, id_dest) pairs but
+        in different row orders, so a positional compare would pass for the
+        wrong reason. Merge on the pair keys first, then assert inequality on
+        the aligned frame.
+        """
+        haversine_df = pd.read_csv(e2e_test_data['distances'])
+        driving_df = pd.read_csv(e2e_test_data['driving_distances'])
+        merged = haversine_df[['id_orig', 'id_dest', 'distance_m']].merge(
+            driving_df[['id_orig', 'id_dest', 'distance_m']],
+            on=['id_orig', 'id_dest'],
+            suffixes=('_haversine', '_driving'),
+        )
+        assert len(merged) > 0, (
+            'No matched (id_orig, id_dest) pairs between haversine and driving CSVs'
+        )
+        assert (merged['distance_m_haversine'] != merged['distance_m_driving']).all(), (
+            'Expected every matched pair to have different haversine vs driving '
+            'distance_m, but at least one pair matched'
+        )
 
     def test_distance_m_values_are_positive(self, e2e_test_data):
         """The linear distances CSV's distance_m column has no zero or negative values."""
