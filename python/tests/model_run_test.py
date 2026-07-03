@@ -178,3 +178,41 @@ def test_ede_df(testing_config_base):
     file_edes_data['avg_dist'] = file_edes_data['avg_dist'].round(9)
 
     pd.testing.assert_frame_equal(left=test_edes_data, right=file_edes_data, check_exact=True)
+
+
+def test_fixed_capacity(
+    fixed_capacity_polling_model,
+    clean_distances_df,
+    total_population,
+    testing_config_fixed_capacity,
+):
+    """Per-site population must respect the fixed-capacity cap.
+
+    When ``fixed_capacity_site_number`` is set, ``model_factory.py:257-261``
+    substitutes ``config.capacity`` with
+    ``config.capacity * precincts_open / fixed_capacity_site_number`` before
+    the standard ``capacity * total_population / precincts_open`` per-site
+    cap formula runs.  The net per-site cap is therefore
+    ``capacity * total_population / fixed_capacity_site_number``, independent
+    of ``precincts_open`` -- see design doc at
+    docs/superpowers/specs/2026-05-14-fixed-capacity-tests-design.md for the
+    full derivation.
+    """
+    matching_list = [
+        (key[0], key[1], fixed_capacity_polling_model.matching[key].value)
+        for key in fixed_capacity_polling_model.matching
+        if fixed_capacity_polling_model.matching[key].value == 1
+    ]
+    matching_df = pd.DataFrame(
+        matching_list, columns=['id_orig', 'id_dest', 'matching'],
+    )
+    result_df = pd.merge(
+        clean_distances_df, matching_df, on=['id_orig', 'id_dest'],
+    )
+    dest_pop_df = result_df[['id_dest', 'population']].groupby('id_dest').agg('sum')
+    per_site_cap = (
+        testing_config_fixed_capacity.capacity
+        * total_population
+        / testing_config_fixed_capacity.fixed_capacity_site_number
+    )
+    assert all(dest_pop_df.population <= per_site_cap)
