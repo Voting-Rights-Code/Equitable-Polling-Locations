@@ -13,6 +13,7 @@ from python.utils.driving_distance_matrix import (
     _LEVEL_VV,
     _coerce_negative_metrics_to_null,
     _emit,
+    _seconds_to_minutes,
     build_distance_matrix,
     estimate_origin,
     get_missing_origins,
@@ -20,6 +21,20 @@ from python.utils.driving_distance_matrix import (
     resume_from_partial_output,
 )
 from python.utils.ors_client import OrsMatrixError
+
+
+class TestSecondsToMinutes:
+    '''ORS seconds are converted to minutes; NaN and sign pass through.'''
+
+    def test_converts_seconds_to_minutes(self):
+        assert _seconds_to_minutes(120.0) == 2.0
+        assert _seconds_to_minutes(90.0) == 1.5
+
+    def test_preserves_nan(self):
+        assert np.isnan(_seconds_to_minutes(float('nan')))
+
+    def test_preserves_sign(self):
+        assert _seconds_to_minutes(-60.0) == -1.0
 
 
 class TestGetMissingOrigins:
@@ -52,7 +67,7 @@ class TestMatrixResponseToLongDf:
             distances=[[0.0, 100.0], [200.0, 0.0]],
             durations=[[0.0, 9.0], [18.0, 0.0]],
         )
-        assert set(df.columns) == {'id_orig', 'id_dest', 'distance_m', 'duration_s'}
+        assert set(df.columns) == {'id_orig', 'id_dest', 'distance_m', 'duration_min'}
 
     def test_row_count_is_sources_times_dests(self):
         df = matrix_response_to_long_df(
@@ -94,7 +109,7 @@ class TestEstimateOrigin:
             'id_orig': ['good1', 'good1', 'good2', 'good2'],
             'id_dest': ['dest1', 'dest2', 'dest1', 'dest2'],
             'distance_m': [100.0, 200.0, 9999.0, 9998.0],
-            'duration_s': [10.0, 20.0, 999.0, 998.0],
+            'duration_min': [10.0, 20.0, 999.0, 998.0],
         })
         result = estimate_origin('bad', known_df, locations)
         assert set(result.columns) >= {'id_orig', 'id_dest', 'distance_m'}
@@ -109,7 +124,7 @@ class TestEstimateOrigin:
             'far_only': [-83.000, 34.5000],   # ~80 km away
         }
         known_df = pd.DataFrame({
-            'id_orig': ['far_only'], 'id_dest': ['dest1'], 'distance_m': [5000.0], 'duration_s': [500.0],
+            'id_orig': ['far_only'], 'id_dest': ['dest1'], 'distance_m': [5000.0], 'duration_min': [500.0],
         })
         result = estimate_origin('bad', known_df, locations)
         assert len(result) == 0
@@ -130,7 +145,7 @@ class TestBuildDistanceMatrix:
             log_fh=io.StringIO(),
             verbosity=0,
         )
-        assert set(result.columns) == {'id_orig', 'id_dest', 'distance_m', 'duration_s'}
+        assert set(result.columns) == {'id_orig', 'id_dest', 'distance_m', 'duration_min'}
         # Only the 'a' -> 'b' pair is asked for; the helper requests only that pair.
         assert len(result) == 1
 
@@ -349,22 +364,22 @@ class TestVerbosityGating:
 
 
 class TestCoerceNegativeMetricsToNull:
-    '''Negative distance_m OR duration_s is mapped to NaN; 0 and positives kept.'''
+    '''Negative distance_m OR duration_min is mapped to NaN; 0 and positives kept.'''
 
     def test_negative_distance_and_duration_become_nan(self):
         df = pd.DataFrame({
             'id_orig': ['a', 'b', 'c'],
             'id_dest': ['x', 'x', 'x'],
             'distance_m': [-1.0, 0.0, 50.0],
-            'duration_s': [12.0, -2.0, 30.0],
+            'duration_min': [12.0, -2.0, 30.0],
         })
         result = _coerce_negative_metrics_to_null(df)
         assert pd.isnull(result.loc[0, 'distance_m'])   # -1 distance -> NaN
         assert result.loc[1, 'distance_m'] == 0.0       # 0 kept
         assert result.loc[2, 'distance_m'] == 50.0      # positive kept
-        assert result.loc[0, 'duration_s'] == 12.0      # positive kept
-        assert pd.isnull(result.loc[1, 'duration_s'])   # -2 duration -> NaN
-        assert result.loc[2, 'duration_s'] == 30.0      # positive kept
+        assert result.loc[0, 'duration_min'] == 12.0      # positive kept
+        assert pd.isnull(result.loc[1, 'duration_min'])   # -2 duration -> NaN
+        assert result.loc[2, 'duration_min'] == 30.0      # positive kept
 
 
 class TestBuildMatrixNegativeHandling:
@@ -391,7 +406,7 @@ class TestBuildMatrixNegativeHandling:
 
 
 class TestMatrixResponseCarriesDuration:
-    '''Reshape includes a duration_s column alongside distance_m.'''
+    '''Reshape includes a duration_min column alongside distance_m.'''
 
     def test_long_df_has_both_metric_columns(self):
         df = matrix_response_to_long_df(
@@ -400,14 +415,14 @@ class TestMatrixResponseCarriesDuration:
             distances=[[0.0, 100.0], [200.0, 0.0]],
             durations=[[0.0, 9.0], [18.0, 0.0]],
         )
-        assert set(df.columns) == {'id_orig', 'id_dest', 'distance_m', 'duration_s'}
+        assert set(df.columns) == {'id_orig', 'id_dest', 'distance_m', 'duration_min'}
         row = df[(df['id_orig'] == 'a') & (df['id_dest'] == 'y')].iloc[0]
         assert row['distance_m'] == 100.0
-        assert row['duration_s'] == 9.0
+        assert np.isclose(row['duration_min'], 9.0 / 60)
 
 
 class TestBuildMatrixHappyPathDuration:
-    '''build_distance_matrix surfaces duration_s on the normal matrix path.'''
+    '''build_distance_matrix surfaces duration_min on the normal matrix path.'''
 
     @patch('python.utils.driving_distance_matrix.query_matrix')
     def test_duration_column_present_and_correct(self, mock_query):
@@ -419,8 +434,8 @@ class TestBuildMatrixHappyPathDuration:
             matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
             log_fh=log_fh, verbosity=0,
         )
-        assert 'duration_s' in df.columns
-        assert df.iloc[0]['duration_s'] == 12.0
+        assert 'duration_min' in df.columns
+        assert np.isclose(df.iloc[0]['duration_min'], 12.0 / 60)
 
 
 class TestResumeEmptyFrameHasDuration:
@@ -430,19 +445,19 @@ class TestResumeEmptyFrameHasDuration:
         existing_df, remaining = resume_from_partial_output(
             str(tmp_path / 'nope.csv'), source_ids=['a'], dest_ids=['x'],
         )
-        assert list(existing_df.columns) == ['id_orig', 'id_dest', 'distance_m', 'duration_s']
+        assert list(existing_df.columns) == ['id_orig', 'id_dest', 'distance_m', 'duration_min']
         assert remaining == [('a', 'x')]
 
 
 class TestEstimateOriginCarriesDuration:
-    '''Snapped origins inherit the chosen neighbor's duration_s.'''
+    '''Snapped origins inherit the chosen neighbor's duration_min.'''
 
     def test_snapped_origin_has_duration(self):
         df = pd.DataFrame({
             'id_orig': ['s0'],
             'id_dest': ['d'],
             'distance_m': [100.0],
-            'duration_s': [12.0],
+            'duration_min': [12.0],
         })
         locations = {
             's0': [-84.0000, 33.9500],
@@ -450,7 +465,7 @@ class TestEstimateOriginCarriesDuration:
             'd':  [-84.1000, 34.0000],
         }
         result = estimate_origin('s1', df, locations)
-        assert set(result.columns) == {'id_orig', 'id_dest', 'distance_m', 'duration_s'}
+        assert set(result.columns) == {'id_orig', 'id_dest', 'distance_m', 'duration_min'}
         row = result.iloc[0]
-        assert row['duration_s'] == 12.0          # neighbor's duration carried as-is
+        assert row['duration_min'] == 12.0          # neighbor's duration carried as-is
         assert row['distance_m'] > 100.0          # distance gets the haversine offset

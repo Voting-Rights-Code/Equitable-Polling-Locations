@@ -184,7 +184,7 @@ class ModelRun():
         distance_data_set_id = distance_data.distance_data_set_id
         distance_df = distance_data.distance_df
 
-        # Select the configured metric (driving_time aliases duration_s into
+        # Select the configured metric (driving_time aliases duration_min into
         # distance_m) so the solver, penalties and results stay metric-agnostic.
         distance_df = apply_metric(self._config, distance_df)
 

@@ -320,21 +320,21 @@ class BuildDistanceMetaData:
 def _log_transform_metric_columns(distance_df: pd.DataFrame) -> pd.DataFrame:
     '''Replace each driving-metric column with its natural log, in place.
 
-    Both distance_m and (when present) duration_s are log-transformed so a
+    Both distance_m and (when present) duration_min are log-transformed so a
     log_distance run can later select either metric and find it already logged.
     Zero values are floored to 0.001 first, matching the historical distance
     behavior, since log(0) is undefined.
 
     Args:
-        distance_df: Frame holding distance_m and optionally duration_s.
+        distance_df: Frame holding distance_m and optionally duration_min.
 
     Returns:
         The same DataFrame object, mutated in place, returned for call-site
         convenience.
     '''
     metric_columns = [DISTANCE_DISTANCE_M]
-    if DISTANCE_DURATION_S in distance_df.columns:
-        metric_columns.append(DISTANCE_DURATION_S)
+    if DISTANCE_DURATION_MIN in distance_df.columns:
+        metric_columns.append(DISTANCE_DURATION_MIN)
     for column in metric_columns:
         distance_df[column].mask(distance_df[column] == 0.0, 0.001, inplace=True)
         distance_df[column] = np.log(distance_df[column])
@@ -720,11 +720,12 @@ def apply_metric(config: PollingModelConfig, distance_df: pd.DataFrame) -> pd.Da
     '''Alias the configured metric into the working distance_m column.
 
     Only driving_time changes anything: the optimizer minimizes travel time by
-    reading the duration_s column through the existing distance_m column, so the
-    Kolm-Pollak math, penalties and results stay metric-agnostic. haversine and
-    driving_distance already live in distance_m and are returned unchanged. The
-    cached distance file is never mutated on disk (it holds meters in distance_m
-    and seconds in duration_s), so switching metric never invalidates the cache.
+    reading the duration_min column through the existing distance_m column, so
+    the Kolm-Pollak math, penalties and results stay metric-agnostic. haversine
+    and driving_distance already live in distance_m and are returned unchanged.
+    The cached distance file is never mutated on disk (it holds meters in
+    distance_m and minutes in duration_min), so switching metric never
+    invalidates the cache.
 
     Args:
         config: Model configuration providing the metric.
@@ -735,20 +736,20 @@ def apply_metric(config: PollingModelConfig, distance_df: pd.DataFrame) -> pd.Da
         unchanged (same object) for haversine and driving_distance.
 
     Raises:
-        ValueError: When driving_time is requested but duration_s is absent (e.g.
-            a legacy distance file, or the not-yet-supported database path; DB
-            duration support lands in Phase 3 / #230).
+        ValueError: When driving_time is requested but duration_min is absent
+            (e.g. a legacy distance file, or the not-yet-supported database
+            path; DB duration support lands in Phase 3 / #230).
     '''
     if config.metric != METRIC_DRIVING_TIME:
         return distance_df
-    if DISTANCE_DURATION_S not in distance_df.columns:
+    if DISTANCE_DURATION_MIN not in distance_df.columns:
         raise ValueError(
             f'metric is {METRIC_DRIVING_TIME!r} but the distance data has no '
-            f'{DISTANCE_DURATION_S} column. Regenerate driving distances with duration, '
+            f'{DISTANCE_DURATION_MIN} column. Regenerate driving distances with duration, '
             f'or choose a distance metric. (DB duration support lands in Phase 3.)'
         )
     result_df = distance_df.copy(deep=True)
-    result_df[DISTANCE_DISTANCE_M] = result_df[DISTANCE_DURATION_S]
+    result_df[DISTANCE_DISTANCE_M] = result_df[DISTANCE_DURATION_MIN]
     return result_df
 
 

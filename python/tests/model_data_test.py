@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from python.solver import model_data
-from python.solver.constants import DISTANCE_DISTANCE_M, DISTANCE_DURATION_S, DISTANCE_ID_ORIG, DISTANCE_ID_DEST
+from python.solver.constants import DISTANCE_DISTANCE_M, DISTANCE_DURATION_MIN, DISTANCE_ID_ORIG, DISTANCE_ID_DEST
 from python.solver.model_config import PollingModelConfig
 from python.solver.model_data import _log_transform_metric_columns, apply_metric
 
@@ -221,40 +221,40 @@ def test_load_driving_distances_csv_tolerates_duration_column(tmp_path):
     ''' The solver CSV loader must read the new 4-column schema without error. '''
     path = tmp_path / 'd.csv'
     path.write_text(
-        'id_orig,id_dest,distance_m,duration_s\n'
+        'id_orig,id_dest,distance_m,duration_min\n'
         '1,A,100.0,12.0\n'
         '2,A,200.0,24.0\n'
     )
     df = model_data.load_driving_distances_csv(str(path))
-    assert 'duration_s' in df.columns
+    assert 'duration_min' in df.columns
     assert df['distance_m'].tolist() == [100.0, 200.0]
 
 
 def test_load_driving_distances_csv_still_reads_legacy_three_column(tmp_path):
-    ''' Older CSVs without duration_s still load (default distance metric). '''
+    ''' Older CSVs without duration_min still load (default distance metric). '''
     path = tmp_path / 'legacy.csv'
     path.write_text('id_orig,id_dest,distance_m\n1,A,100.0\n')
     df = model_data.load_driving_distances_csv(str(path))
     assert df['distance_m'].tolist() == [100.0]
-    assert 'duration_s' not in df.columns
+    assert 'duration_min' not in df.columns
 
 
 def test_log_transform_applies_to_duration_when_present():
     df = pd.DataFrame({
         DISTANCE_DISTANCE_M: [0.0, 100.0],
-        DISTANCE_DURATION_S: [0.0, 50.0],
+        DISTANCE_DURATION_MIN: [0.0, 50.0],
     })
     result = _log_transform_metric_columns(df.copy(deep=True))
 
     assert result[DISTANCE_DISTANCE_M].tolist() == [np.log(0.001), np.log(100.0)]
-    assert result[DISTANCE_DURATION_S].tolist() == [np.log(0.001), np.log(50.0)]
+    assert result[DISTANCE_DURATION_MIN].tolist() == [np.log(0.001), np.log(50.0)]
 
 
 def test_log_transform_skips_duration_when_absent():
     df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0]})
     result = _log_transform_metric_columns(df.copy(deep=True))
 
-    assert DISTANCE_DURATION_S not in result.columns
+    assert DISTANCE_DURATION_MIN not in result.columns
     assert result[DISTANCE_DISTANCE_M].tolist() == [np.log(100.0)]
 
 
@@ -269,7 +269,7 @@ def test_apply_metric_aliases_duration_for_driving_time():
     config = _driving_config('driving_time')
     df = pd.DataFrame({
         DISTANCE_ID_ORIG: ['a'], DISTANCE_ID_DEST: ['b'],
-        DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_S: [42.0],
+        DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_MIN: [42.0],
     })
 
     result = apply_metric(config, df)
@@ -279,7 +279,7 @@ def test_apply_metric_aliases_duration_for_driving_time():
 
 def test_apply_metric_noop_for_driving_distance():
     config = _driving_config('driving_distance')
-    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_S: [42.0]})
+    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_MIN: [42.0]})
 
     result = apply_metric(config, df)
 
@@ -299,16 +299,16 @@ def test_apply_metric_raises_when_duration_missing():
     config = _driving_config('driving_time')
     df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0]})
 
-    with pytest.raises(ValueError, match='duration_s'):
+    with pytest.raises(ValueError, match='duration_min'):
         apply_metric(config, df)
 
 
 def test_driving_time_aliases_log_transformed_duration():
-    # With log_distance on, the build log-transforms duration_s; a driving_time run
+    # With log_distance on, the build log-transforms duration_min; a driving_time run
     # must then optimize on log(duration), not raw seconds. This locks the
     # composition of the build transform and the solve-time alias.
     config = _driving_config('driving_time')
-    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_S: [50.0]})
+    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_MIN: [50.0]})
 
     logged_df = _log_transform_metric_columns(df.copy(deep=True))
     result = apply_metric(config, logged_df)
