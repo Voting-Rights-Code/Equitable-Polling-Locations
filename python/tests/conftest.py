@@ -127,6 +127,7 @@ def location_df_with_driving(
         map_source_date=MAP_SOURCE_DATE,
         potential_locations_path_override=TESTING_POTENTIAL_LOCATIONS_PATH,
         output_path_override=tmp_path,
+        projection_year=testing_config_driving.projection_year,
     )
 
     location_df_driving = model_data.load_distance_data_csv(tmp_path)
