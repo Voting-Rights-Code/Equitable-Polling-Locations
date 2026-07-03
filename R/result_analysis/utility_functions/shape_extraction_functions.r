@@ -311,6 +311,70 @@ get_block_demographics <- function(p3_file_path, p4_file_path) {
   return(block_demographics)
 }
 
+# join each populated census block to its assigned polling location's
+# driving distance, extend with demographic data, and flag blocks whose
+# distance exceeds distance_threshold_m. Granularity is the census block,
+# matching the native granularity of the driving-distances file.
+flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
+                                driving_distances_file, potential_locations_file,
+                                distance_threshold_m) {
+  populated_blocks <- data.table(st_drop_geometry(block_precinct_assignment))
+  # TODO: revisit once #283 (precinct 73's zero-population bug) is
+  # resolved -- some genuinely-populated blocks may currently show
+  # total_population == 0 due to that bug, and would be dropped here
+  # incorrectly.
+  populated_blocks <- populated_blocks[total_population > 0]
+
+  potential_locations <- fread(potential_locations_file)
+  potential_locations[, USER_POLL_ := toupper(Location)]
+
+  # Step 5 of extract_precincts.r (reconciled_state_precinct_data(), via
+  # match_location_names()) already errors on any USER_POLL_ that doesn't
+  # case-insensitively match the county-provided file. If the stopifnot
+  # below ever fires, Step 5's reconciliation and potential_locations.csv
+  # have gone out of sync with each other -- that's an unexpected state
+  # worth investigating directly, not a case to silently drop or guess at.
+  resolved_blocks <- merge(
+    populated_blocks, potential_locations[, .(USER_POLL_, Location)],
+    by = "USER_POLL_"
+  )
+  stopifnot(
+    "Some populated blocks' USER_POLL_ did not match any potential_locations.csv Location" =
+      nrow(resolved_blocks) == nrow(populated_blocks)
+  )
+
+  driving_distances <- fread(driving_distances_file)
+  driving_distances[, id_orig := as.character(id_orig)]
+
+  distance_blocks <- merge(
+    resolved_blocks, driving_distances,
+    by.x = c("GEOID20", "Location"), by.y = c("id_orig", "id_dest")
+  )
+
+  # drop block_demographics' total_population before merging -- it's the
+  # same figure already carried on distance_blocks (both trace back to the
+  # same P3 total-population column), keeping it on both sides would
+  # produce ambiguous total_population.x/total_population.y columns.
+  demographic_columns <- setdiff(names(block_demographics), c("GEOID20", "total_population"))
+  demographic_blocks <- merge(
+    distance_blocks, block_demographics[, c("GEOID20", demographic_columns), with = FALSE],
+    by = "GEOID20"
+  )
+
+  demographic_blocks[, Weighted_dist := total_population * distance_m]
+  demographic_blocks[, flagged_distance := distance_m > distance_threshold_m]
+
+  setnames(demographic_blocks, c("GEOID20", "Location"), c("id_orig", "id_dest"))
+  output_columns <- c(
+    "id_orig", "id_dest", "distance_m", "Precinct_I", "total_population",
+    "white", "black", "native", "asian", "pacific_islander", "other",
+    "multiple_races", "hispanic", "non_hispanic", "Weighted_dist", "flagged_distance"
+  )
+  demographic_blocks <- demographic_blocks[, ..output_columns]
+
+  return(demographic_blocks)
+}
+
 write_to_file <- function(shape_data, location_folder, file_name) {
   # check if requisite folder exists, or create it
   shape_folder <- paste0(TIGER_FOLDER, "/", location_folder)
