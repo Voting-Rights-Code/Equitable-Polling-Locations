@@ -7,6 +7,10 @@ library(dplyr)
 TIGER_FOLDER <- "datasets/census/tiger"
 REDISTRICTING_FOLDER <- "datasets/census/redistricting"
 DEMO_BG_FOLDER <- "block group demographics"
+POLLING_FOLDER <- "datasets/polling"
+POTENTIAL_LOCATIONS_SUFFIX <- "_potential_locations.csv"
+DRIVING_FOLDER <- "datasets/driving"
+DRIVING_DISTANCE_SUFFIX <- "_driving_distances.csv"
 
 
 CRS_PROJECTION <- 4326
@@ -18,6 +22,25 @@ get_shape_data <- function(shape_file_path, crs_projection=CRS_PROJECTION) {
   shape_data <- st_read(shape_file_path)
   shape_data <- st_transform(shape_data, crs_projection)
   return(shape_data)
+}
+
+# path to a location's potential-locations CSV (the file the solver reads
+# polling locations from, and the source generate_driving_distances_cli.py
+# geocodes into the driving-distances matrix). Mirrors
+# python/utils/utils.py's build_potential_locations_file_path().
+build_potential_locations_file_path <- function(location, polling_folder = POLLING_FOLDER,
+                                                potential_locations_suffix = POTENTIAL_LOCATIONS_SUFFIX) {
+  return(file.path(
+    polling_folder, location, paste0(location, potential_locations_suffix)
+  ))
+}
+
+# path to a location's driving-distances CSV.
+build_driving_distances_file_path <- function(location, driving_folder = DRIVING_FOLDER,
+                                              driving_distance_suffix = DRIVING_DISTANCE_SUFFIX) {
+  return(file.path(
+    driving_folder, location, paste0(location, driving_distance_suffix)
+  ))
 }
 
 # select a county's precincts from a statewide precinct shapefile, by county
@@ -280,22 +303,26 @@ assign_block_to_dominant_precinct <- function(county_precincts, county_blocks,
 # wired up for R-calls-Python anywhere in this project and the python
 # function is pandas/solver-specific.
 get_block_demographics <- function(p3_file_path, p4_file_path) {
-  p3_demographics <- fread(
-    p3_file_path,
-    header = FALSE, skip = 2,
-    select = c(1, 3, 5, 6, 7, 8, 9, 10, 11),
-    col.names = c(
-      "GEO_ID", "total_population", "white", "black", "native", "asian",
-      "pacific_islander", "other", "multiple_races"
-    )
-  )
+  # row 1 holds the real census column codes (GEO_ID, NAME, P3_001N, ...);
+  # row 2 holds long descriptive labels; data starts at row 3. Read row 1
+  # as the header, then re-read the data with those names attached, so
+  # columns below are selected by their actual census code (matching
+  # python/solver/constants.py's CEN20_P3_*/CEN20_P4_*) rather than by
+  # position.
+  p3_header <- names(fread(p3_file_path, nrows = 0))
+  p3_raw <- fread(p3_file_path, header = FALSE, skip = 2, col.names = p3_header)
+  p3_demographics <- p3_raw[, .(
+    GEO_ID, total_population = P3_001N, white = P3_003N, black = P3_004N,
+    native = P3_005N, asian = P3_006N, pacific_islander = P3_007N,
+    other = P3_008N, multiple_races = P3_009N
+  )]
 
-  p4_demographics <- fread(
-    p4_file_path,
-    header = FALSE, skip = 2,
-    select = c(1, 3, 4, 5),
-    col.names = c("GEO_ID", "total_population_p4", "hispanic", "non_hispanic")
-  )
+  p4_header <- names(fread(p4_file_path, nrows = 0))
+  p4_raw <- fread(p4_file_path, header = FALSE, skip = 2, col.names = p4_header)
+  p4_demographics <- p4_raw[, .(
+    GEO_ID, total_population_p4 = P4_001N, hispanic = P4_002N,
+    non_hispanic = P4_003N
+  )]
 
   block_demographics <- merge(p3_demographics, p4_demographics, by = "GEO_ID")
 

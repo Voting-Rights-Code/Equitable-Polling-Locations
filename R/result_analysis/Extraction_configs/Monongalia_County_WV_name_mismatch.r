@@ -9,7 +9,6 @@ COUNTY_NAME <- sub("\\_.*", "", LOCATION)
 # naming (e.g. "BOPARC SENIOR/COMMUNITY CENTER" vs the county's "BOPARC Senior
 # Recreation Center"). Used to exercise match_location_names()'s stop() error.
 STATE_PRECINCT_SOURCE_FILE <- "datasets/precincts/West_Virginia_20260424_wmA84_old_names/VotingPrecincts_20260424_wmA84_old_names.shp"
-COUNTY_PRECINCT_SOURCE_FILE <- paste0("datasets/polling/", LOCATION, "/", LOCATION, "_potential_locations.csv")
 
 ########
 # County-provided precinct/polling-location reconciliation (#282)

@@ -6,7 +6,6 @@ LOCATION <- "Monongalia_County_WV"
 COUNTY_NAME <- sub("\\_.*", "", LOCATION)
 
 STATE_PRECINCT_SOURCE_FILE <- "datasets/precincts/West_Virginia_20260424_wmA84/VotingPrecincts_20260424_wmA84.shp"
-COUNTY_PRECINCT_SOURCE_FILE <- paste0("datasets/polling/", LOCATION, "/", LOCATION, "_potential_locations.csv")
 
 ########
 # County-provided precinct/polling-location reconciliation (#282)

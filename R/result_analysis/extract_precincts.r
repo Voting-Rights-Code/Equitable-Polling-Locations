@@ -142,7 +142,9 @@ block_demographics <- get_block_demographics(p3_file_path, p4_file_path)
 
 distance_flagged_blocks <- flag_distant_blocks(
   block_precinct_assignment, block_demographics,
-  DRIVING_DISTANCES_FILE, COUNTY_PRECINCT_SOURCE_FILE, DISTANCE_FLAG_THRESHOLD_M
+  build_driving_distances_file_path(LOCATION),
+  build_potential_locations_file_path(LOCATION),
+  DISTANCE_FLAG_THRESHOLD_M
 )
 
 distance_flagged_blocks_path <- file.path(precinct_analysis_output_folder, "distance_flagged_blocks.csv")

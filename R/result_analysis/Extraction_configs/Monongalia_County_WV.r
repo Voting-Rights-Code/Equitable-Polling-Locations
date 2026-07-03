@@ -5,8 +5,10 @@
 LOCATION <- "Monongalia_County_WV"
 COUNTY_NAME <- sub("\\_.*", "", LOCATION)
 
+######
+#data set locations
+######
 STATE_PRECINCT_SOURCE_FILE <- "datasets/precincts/West_Virginia_20260424_wmA84/VotingPrecincts_20260424_wmA84.shp"
-COUNTY_PRECINCT_SOURCE_FILE <- paste0("datasets/polling/", LOCATION, "/", LOCATION, "_potential_locations.csv")
 
 ########
 # County-provided precinct/polling-location reconciliation (#282)
@@ -30,11 +32,3 @@ COUNTY_PRECINCT_COLUMN_NAMES <- c("Prec", "Prec", "Prec", "Prec", "Prec", "Prec"
 # Block geometry, for Step 2 (issue #267)
 ########
 BLOCK_GEOMETRY_FILES <- "tl_2020_54061_tabblock20"
-
-########
-# Driving distances, for Step 6 (issue #269)
-########
-DRIVING_DISTANCE_SUFFIX <- "_driving_distances.csv"
-DRIVING_DISTANCES_FILE <- paste0(
-  "datasets/driving/", LOCATION, "/", LOCATION, DRIVING_DISTANCE_SUFFIX
-)

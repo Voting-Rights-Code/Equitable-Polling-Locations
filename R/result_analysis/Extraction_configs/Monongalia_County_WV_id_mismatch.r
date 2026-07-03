@@ -10,7 +10,6 @@ COUNTY_NAME <- sub("\\_.*", "", LOCATION)
 # Monongalia_2A/2B split). Used to exercise check_precinct_id_agreement()'s
 # stop() error.
 STATE_PRECINCT_SOURCE_FILE <- "datasets/precincts/West_Virginia_20260424_wmA84_old_precinct_ids/VotingPrecincts_20260424_wmA84_old_precinct_ids.shp"
-COUNTY_PRECINCT_SOURCE_FILE <- paste0("datasets/polling/", LOCATION, "/", LOCATION, "_potential_locations.csv")
 
 ########
 # County-provided precinct/polling-location reconciliation (#282)
