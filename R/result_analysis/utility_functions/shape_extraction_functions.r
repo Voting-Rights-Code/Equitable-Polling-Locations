@@ -271,6 +271,46 @@ assign_block_to_dominant_precinct <- function(county_precincts, county_blocks,
 }
 
 
+# read block-level P3 (race) and P4 (hispanic) redistricting tables and
+# combine them into one row-per-block demographic breakdown. Column
+# selections mirror python/solver/constants.py's CEN20_P3_*/CEN20_P4_*
+# (see python/solver/model_data.py's get_demographics_block for the
+# equivalent python-side computation) -- kept as a separate R
+# implementation rather than a reticulate bridge, since reticulate isn't
+# wired up for R-calls-Python anywhere in this project and the python
+# function is pandas/solver-specific.
+get_block_demographics <- function(p3_file_path, p4_file_path) {
+  p3_demographics <- fread(
+    p3_file_path,
+    header = FALSE, skip = 2,
+    select = c(1, 3, 5, 6, 7, 8, 9, 10, 11),
+    col.names = c(
+      "GEO_ID", "total_population", "white", "black", "native", "asian",
+      "pacific_islander", "other", "multiple_races"
+    )
+  )
+
+  p4_demographics <- fread(
+    p4_file_path,
+    header = FALSE, skip = 2,
+    select = c(1, 3, 4, 5),
+    col.names = c("GEO_ID", "total_population_p4", "hispanic", "non_hispanic")
+  )
+
+  block_demographics <- merge(p3_demographics, p4_demographics, by = "GEO_ID")
+
+  stopifnot(
+    "P3 and P4 total population disagree for at least one block" =
+      all(block_demographics$total_population == block_demographics$total_population_p4)
+  )
+
+  block_demographics[, total_population_p4 := NULL]
+  block_demographics[, GEOID20 := gsub("^1000000US", "", GEO_ID)]
+  block_demographics[, GEO_ID := NULL]
+
+  return(block_demographics)
+}
+
 write_to_file <- function(shape_data, location_folder, file_name) {
   # check if requisite folder exists, or create it
   shape_folder <- paste0(TIGER_FOLDER, "/", location_folder)
