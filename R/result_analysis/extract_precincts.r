@@ -128,3 +128,27 @@ county_precincts_resolved <- county_precincts_resolved[
   county_precincts_resolved$total_population > 0,
 ]
 county_precincts_resolved$total_population <- NULL
+
+###### Step 6: flag blocks far from their assigned polling location (#269) #######
+
+# 5 miles in meters. Explicit stand-in for "more than a 15-minute drive"
+# until real drive-time data exists.
+# TODO(#271): replace with a time-based threshold once driving *time* (not
+# just distance) is available.
+DISTANCE_FLAG_THRESHOLD_M <- 8046.72
+
+p4_file_path <- file.path(REDISTRICTING_FOLDER, LOCATION, "DECENNIALPL2020.P4-Data.csv")
+block_demographics <- get_block_demographics(p3_file_path, p4_file_path)
+
+distance_flagged_blocks <- flag_distant_blocks(
+  block_precinct_assignment, block_demographics,
+  DRIVING_DISTANCES_FILE, COUNTY_PRECINCT_SOURCE_FILE, DISTANCE_FLAG_THRESHOLD_M
+)
+
+distance_flagged_blocks_path <- file.path(precinct_analysis_output_folder, "distance_flagged_blocks.csv")
+fwrite(distance_flagged_blocks, distance_flagged_blocks_path)
+
+cat(sprintf(
+  "Wrote %d-row distance-flagged block table to %s\n",
+  nrow(distance_flagged_blocks), distance_flagged_blocks_path
+))
