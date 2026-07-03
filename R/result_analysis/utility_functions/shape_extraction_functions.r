@@ -328,18 +328,21 @@ flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
   potential_locations <- fread(potential_locations_file)
   potential_locations[, USER_POLL_ := toupper(Location)]
 
-  # Step 5 of extract_precincts.r (reconciled_state_precinct_data(), via
-  # match_location_names()) already errors on any USER_POLL_ that doesn't
-  # case-insensitively match the county-provided file. If the stopifnot
-  # below ever fires, Step 5's reconciliation and potential_locations.csv
-  # have gone out of sync with each other -- that's an unexpected state
-  # worth investigating directly, not a case to silently drop or guess at.
+  # Agreement between USER_POLL_ and potential_locations.csv's Location
+  # column was established out-of-band by a one-off manual correction
+  # (scratch_correct_state_precinct_names.r) -- Step 5's
+  # match_location_names() only validates the county-provided precinct file
+  # against the state shapefile, it never checks potential_locations.csv.
+  # The stopifnot below is this pairing's real, active runtime guard: if it
+  # ever fires, potential_locations.csv and USER_POLL_ have gone out of
+  # sync -- an unexpected state worth investigating directly, not a case to
+  # silently drop or guess at.
   resolved_blocks <- merge(
     populated_blocks, potential_locations[, .(USER_POLL_, Location)],
     by = "USER_POLL_"
   )
   stopifnot(
-    "Some populated blocks' USER_POLL_ did not match any potential_locations.csv Location" =
+    "Populated blocks' USER_POLL_ and potential_locations.csv's Location did not match one-to-one -- either some USER_POLL_ values are missing from potential_locations.csv (rows dropped), or potential_locations.csv has duplicate Location values (rows multiplied)" =
       nrow(resolved_blocks) == nrow(populated_blocks)
   )
 
@@ -350,6 +353,10 @@ flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
     resolved_blocks, driving_distances,
     by.x = c("GEOID20", "Location"), by.y = c("id_orig", "id_dest")
   )
+  stopifnot(
+    "Some resolved blocks' (GEOID20, Location) pair had no matching row in driving_distances_file -- driving_distances_file may be incomplete or out of sync with potential_locations.csv, or vice versa" =
+      nrow(distance_blocks) == nrow(resolved_blocks)
+  )
 
   # drop block_demographics' total_population before merging -- it's the
   # same figure already carried on distance_blocks (both trace back to the
@@ -359,6 +366,10 @@ flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
   demographic_blocks <- merge(
     distance_blocks, block_demographics[, c("GEOID20", demographic_columns), with = FALSE],
     by = "GEOID20"
+  )
+  stopifnot(
+    "Some distance-joined blocks' GEOID20 had no matching row in block_demographics -- block_demographics may be incomplete or out of sync with the block/precinct assignment, or vice versa" =
+      nrow(demographic_blocks) == nrow(distance_blocks)
   )
 
   demographic_blocks[, Weighted_dist := total_population * distance_m]
