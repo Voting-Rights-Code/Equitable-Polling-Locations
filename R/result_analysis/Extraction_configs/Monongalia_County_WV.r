@@ -30,3 +30,9 @@ COUNTY_PRECINCT_COLUMN_NAMES <- c("Prec", "Prec", "Prec", "Prec", "Prec", "Prec"
 # Block geometry, for Step 2 (issue #267)
 ########
 BLOCK_GEOMETRY_FILES <- "tl_2020_54061_tabblock20"
+
+########
+# Driving distances, for Step 6 (issue #269)
+########
+DRIVING_DISTANCE_SUFFIX <- "_driving_distances.csv"
+DRIVING_DISTANCES_FILE <- paste0("datasets/driving/", LOCATION, "/", LOCATION, DRIVING_DISTANCE_SUFFIX)
