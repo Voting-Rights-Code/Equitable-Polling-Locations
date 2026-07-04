@@ -154,3 +154,15 @@ cat(sprintf(
   "Wrote %d-row distance-flagged block table to %s\n",
   nrow(distance_flagged_blocks), distance_flagged_blocks_path
 ))
+
+###### Step 7: plot county-level distance heat map #######
+
+distance_heat_map <- plot_distance_heat_map(
+  block_precinct_assignment, distance_flagged_blocks,
+  county_precincts_resolved, DISTANCE_FLAG_THRESHOLD_M
+)
+
+distance_heat_map_path <- file.path(precinct_analysis_output_folder, "distance_heat_map.png")
+ggsave(distance_heat_map_path, distance_heat_map, width = 10, height = 8)
+
+cat(sprintf("Wrote distance heat map to %s\n", distance_heat_map_path))

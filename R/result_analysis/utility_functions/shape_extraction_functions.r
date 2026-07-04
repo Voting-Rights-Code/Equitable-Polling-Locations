@@ -2,6 +2,7 @@ library(data.table)
 library(sf)
 library(here)
 library(dplyr)
+library(ggplot2)
 
 ######## Set constants########
 TIGER_FOLDER <- "datasets/census/tiger"
@@ -407,6 +408,60 @@ flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
   demographic_blocks <- demographic_blocks[, ..output_columns]
 
   return(demographic_blocks)
+}
+
+# build a county-level choropleth of census blocks by distance to their
+# assigned polling location, with precinct boundaries drawn on top for
+# context.
+# - blocks under distance_threshold_m: neutral gray.
+# - blocks at or over distance_threshold_m: red, graduated by distance_m
+#   (farther = darker red).
+# - blocks with no computed distance (unpopulated, or otherwise excluded
+#   upstream from flag_distant_blocks -- see #283) get a distinct "no data"
+#   fill, so they read as missing rather than as confirmed-close.
+plot_distance_heat_map <- function(block_shapes, distance_flagged_blocks,
+                                   precinct_shapes, distance_threshold_m) {
+  distance_columns <- c("id_orig", "distance_m", "flagged_distance")
+  block_distances <- merge(
+    block_shapes[, c("GEOID20", "block_geometry")],
+    distance_flagged_blocks[, distance_columns, with = FALSE],
+    by.x = "GEOID20", by.y = "id_orig", all.x = TRUE
+  )
+
+  is_flagged <- block_distances$flagged_distance
+  no_data_blocks <- block_distances[is.na(block_distances$distance_m), ]
+  under_threshold_blocks <- block_distances[!is.na(is_flagged) & !is_flagged, ]
+  over_threshold_blocks <- block_distances[!is.na(is_flagged) & is_flagged, ]
+
+  distance_threshold_mi <- round(distance_threshold_m / 1609.34, 1)
+
+  heat_map <- ggplot() +
+    geom_sf(
+      data = no_data_blocks, fill = "white", color = "grey60", linewidth = 0.1
+    ) +
+    geom_sf(
+      data = under_threshold_blocks, fill = "grey75", color = "grey60",
+      linewidth = 0.1
+    ) +
+    geom_sf(
+      data = over_threshold_blocks, aes(fill = distance_m),
+      color = "grey60", linewidth = 0.1
+    ) +
+    scale_fill_gradient(
+      low = "#fcbba1", high = "#67000d", name = "Distance (m)"
+    ) +
+    geom_sf(
+      data = precinct_shapes, fill = NA, color = "black", linewidth = 0.4
+    ) +
+    labs(
+      title = "Census blocks by distance to assigned polling location",
+      caption = paste0(
+        "Gray = under ", distance_threshold_mi, " mi threshold; White = no data"
+      )
+    ) +
+    theme_minimal()
+
+  return(heat_map)
 }
 
 write_to_file <- function(shape_data, location_folder, file_name) {
