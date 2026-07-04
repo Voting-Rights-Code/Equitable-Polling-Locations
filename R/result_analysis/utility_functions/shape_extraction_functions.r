@@ -295,20 +295,15 @@ assign_block_to_dominant_precinct <- function(county_precincts, county_blocks,
 
 
 # read block-level P3 (race) and P4 (hispanic) redistricting tables and
-# combine them into one row-per-block demographic breakdown. Column
-# selections mirror python/solver/constants.py's CEN20_P3_*/CEN20_P4_*
-# (see python/solver/model_data.py's get_demographics_block for the
-# equivalent python-side computation) -- kept as a separate R
-# implementation rather than a reticulate bridge, since reticulate isn't
-# wired up for R-calls-Python anywhere in this project and the python
-# function is pandas/solver-specific.
+# combine them into one row-per-block demographic breakdown. Output to 
+# mirror the demographic information represented in the *_results.csv 
+# solver outputs.
 get_block_demographics <- function(p3_file_path, p4_file_path) {
-  # row 1 holds the real census column codes (GEO_ID, NAME, P3_001N, ...);
-  # row 2 holds long descriptive labels; data starts at row 3. Read row 1
-  # as the header, then re-read the data with those names attached, so
-  # columns below are selected by their actual census code (matching
-  # python/solver/constants.py's CEN20_P3_*/CEN20_P4_*) rather than by
-  # position.
+  
+  ###Read P3 and P4 data #####
+  # row 1 holds the real census column codes (GEO_ID, NAME, P3_001N, ...) <- keep;
+  # row 2 holds long descriptive labels <- drop; 
+  # data starts at row 3. 
   p3_header <- names(fread(p3_file_path, nrows = 0))
   p3_raw <- fread(p3_file_path, header = FALSE, skip = 2, col.names = p3_header)
   p3_demographics <- p3_raw[, .(
@@ -324,27 +319,31 @@ get_block_demographics <- function(p3_file_path, p4_file_path) {
     non_hispanic = P4_003N
   )]
 
+  #### Merge by block to get all desired demographics
   block_demographics <- merge(p3_demographics, p4_demographics, by = "GEO_ID")
 
+  ### Check that the populations match (i.e. that the tables are both pulled for the same data)
   stopifnot(
     "P3 and P4 total population disagree for at least one block" =
       all(block_demographics$total_population == block_demographics$total_population_p4)
   )
 
-  block_demographics[, total_population_p4 := NULL]
-  block_demographics[, GEOID20 := gsub("^1000000US", "", GEO_ID)]
-  block_demographics[, GEO_ID := NULL]
+  #clean columns
+  block_demographics[, total_population_p4 := NULL
+                ][, GEOID20 := gsub("^1000000US", "", GEO_ID)
+                ][, GEO_ID := NULL]
 
   return(block_demographics)
 }
 
 # join each populated census block to its assigned polling location's
 # driving distance, extend with demographic data, and flag blocks whose
-# distance exceeds distance_threshold_m. Granularity is the census block,
-# matching the native granularity of the driving-distances file.
+# distance exceeds distance_threshold_m. 
 flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
                                 driving_distances_file, potential_locations_file,
                                 distance_threshold_m) {
+  #drop geometry. Make a data.table 
+  #Recall, block_precinct_assignment is based off (potentially modified) state data
   populated_blocks <- data.table(st_drop_geometry(block_precinct_assignment))
   # TODO: revisit once #283 (precinct 73's zero-population bug) is
   # resolved -- some genuinely-populated blocks may currently show
@@ -352,61 +351,58 @@ flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
   # incorrectly.
   populated_blocks <- populated_blocks[total_population > 0]
 
+  # data with polling location coordinates
+  # clean to match block precinct assignment
   potential_locations <- fread(potential_locations_file)
   potential_locations[, USER_POLL_ := toupper(Location)]
 
-  # Agreement between USER_POLL_ and potential_locations.csv's Location
-  # column was established out-of-band by a one-off manual correction
-  # (scratch_correct_state_precinct_names.r) -- Step 5's
-  # match_location_names() only validates the county-provided precinct file
-  # against the state shapefile, it never checks potential_locations.csv.
-  # The stopifnot below is this pairing's real, active runtime guard: if it
-  # ever fires, potential_locations.csv and USER_POLL_ have gone out of
-  # sync -- an unexpected state worth investigating directly, not a case to
-  # silently drop or guess at.
+  # At this point USER_POLL_ in block assignment and potential_locations.csv's 
+  # Location columns should match (Step 5)
+  # If they don't error message flahs that they are out of sync.
   resolved_blocks <- merge(
     populated_blocks, potential_locations[, .(USER_POLL_, Location)],
     by = "USER_POLL_"
   )
   stopifnot(
-    "Populated blocks' USER_POLL_ and potential_locations.csv's Location did not match one-to-one -- either some USER_POLL_ values are missing from potential_locations.csv (rows dropped), or potential_locations.csv has duplicate Location values (rows multiplied)" =
+    "Populated blocks' USER_POLL_ and potential_locations.csv's Location did not match one-to-one 
+    check if the state provided file still matches data from potential_locations files" =
       nrow(resolved_blocks) == nrow(populated_blocks)
   )
 
   driving_distances <- fread(driving_distances_file)
   driving_distances[, id_orig := as.character(id_orig)]
 
+  #merge in driving distances
   distance_blocks <- merge(
     resolved_blocks, driving_distances,
     by.x = c("GEOID20", "Location"), by.y = c("id_orig", "id_dest")
   )
   stopifnot(
-    "Some resolved blocks' (GEOID20, Location) pair had no matching row in driving_distances_file -- driving_distances_file may be incomplete or out of sync with potential_locations.csv, or vice versa" =
+    "Some resolved blocks' (GEOID20, Location) pair had no matching row in driving_distances_file 
+    -- driving_distances_file may be incomplete or out of sync with potential_locations.csv, or vice versa" =
       nrow(distance_blocks) == nrow(resolved_blocks)
   )
 
-  # drop block_demographics' total_population before merging -- it's the
-  # same figure already carried on distance_blocks (both trace back to the
-  # same P3 total-population column), keeping it on both sides would
-  # produce ambiguous total_population.x/total_population.y columns.
+  # drop block_demographics' total_population (duplicate) before merging 
   demographic_columns <- setdiff(names(block_demographics), c("GEOID20", "total_population"))
   demographic_blocks <- merge(
     distance_blocks, block_demographics[, c("GEOID20", demographic_columns), with = FALSE],
     by = "GEOID20"
   )
   stopifnot(
-    "Some distance-joined blocks' GEOID20 had no matching row in block_demographics -- block_demographics may be incomplete or out of sync with the block/precinct assignment, or vice versa" =
+    "Some distance-joined blocks' GEOID20 had no matching row in block_demographics 
+    -- block_demographics may be incomplete or out of sync with the block/precinct assignment, or vice versa" =
       nrow(demographic_blocks) == nrow(distance_blocks)
   )
 
-  demographic_blocks[, Weighted_dist := total_population * distance_m]
+  demographic_blocks[, weighted_dist := total_population * distance_m]
   demographic_blocks[, flagged_distance := distance_m > distance_threshold_m]
 
   setnames(demographic_blocks, c("GEOID20", "Location"), c("id_orig", "id_dest"))
   output_columns <- c(
     "id_orig", "id_dest", "distance_m", "Precinct_I", "total_population",
     "white", "black", "native", "asian", "pacific_islander", "other",
-    "multiple_races", "hispanic", "non_hispanic", "Weighted_dist", "flagged_distance"
+    "multiple_races", "hispanic", "non_hispanic", "weighted_dist", "flagged_distance"
   )
   demographic_blocks <- demographic_blocks[, ..output_columns]
 

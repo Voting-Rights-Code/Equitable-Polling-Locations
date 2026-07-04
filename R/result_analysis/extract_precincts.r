@@ -129,7 +129,7 @@ county_precincts_resolved <- county_precincts_resolved[
 ]
 county_precincts_resolved$total_population <- NULL
 
-###### Step 6: flag blocks far from their assigned polling location (#269) #######
+###### Step 6: flag blocks far from their assigned polling location #######
 
 # 5 miles in meters. Explicit stand-in for "more than a 15-minute drive"
 # until real drive-time data exists.
