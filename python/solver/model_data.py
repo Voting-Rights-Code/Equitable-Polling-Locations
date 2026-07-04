@@ -732,8 +732,10 @@ def apply_metric(config: PollingModelConfig, distance_df: pd.DataFrame) -> pd.Da
         distance_df: Loaded distance data.
 
     Returns:
-        The distance data with distance_m holding the selected metric. Returned
-        unchanged (same object) for haversine and driving_distance.
+        The same DataFrame object with distance_m holding the selected metric.
+        driving_time aliases duration_min into distance_m in place; haversine and
+        driving_distance are returned unchanged. The frame is never copied, so
+        callers must not rely on the input's distance_m staying meters afterward.
 
     Raises:
         ValueError: When driving_time is requested but duration_min is absent
@@ -748,9 +750,12 @@ def apply_metric(config: PollingModelConfig, distance_df: pd.DataFrame) -> pd.Da
             f'{DISTANCE_DURATION_MIN} column. Regenerate driving distances with duration, '
             f'or choose a distance metric. (DB duration support lands in Phase 3.)'
         )
-    result_df = distance_df.copy(deep=True)
-    result_df[DISTANCE_DISTANCE_M] = result_df[DISTANCE_DURATION_MIN]
-    return result_df
+    # Alias in place rather than copying: the county-scale distance frame can be
+    # several GB, and a deep copy here stacks that memory on top of the solver
+    # subprocess, OOM-killing large driving_time runs. Only distance_m is rewritten;
+    # the on-disk cache is untouched (nothing is written back).
+    distance_df[DISTANCE_DISTANCE_M] = distance_df[DISTANCE_DURATION_MIN]
+    return distance_df
 
 
 # pylint: disable-next=unused-argument

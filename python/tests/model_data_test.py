@@ -292,6 +292,23 @@ def test_apply_metric_aliases_duration_for_driving_time():
     assert result[DISTANCE_DISTANCE_M].tolist() == [42.0]
 
 
+def test_apply_metric_driving_time_aliases_in_place_without_copying():
+    # Regression: apply_metric must not deep-copy the (county-scale, multi-GB) distance
+    # frame just to alias one column. It aliases in place and returns the same object,
+    # matching the haversine/driving_distance branches. A full copy here stacked ~7 GB on
+    # top of the solver subprocess and OOM-killed county-scale driving_time runs.
+    config = _driving_config('driving_time')
+    df = pd.DataFrame({
+        DISTANCE_ID_ORIG: ['a'], DISTANCE_ID_DEST: ['b'],
+        DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_MIN: [42.0],
+    })
+
+    result = apply_metric(config, df)
+
+    assert result is df
+    assert df[DISTANCE_DISTANCE_M].tolist() == [42.0]
+
+
 def test_apply_metric_noop_for_driving_distance():
     config = _driving_config('driving_distance')
     df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_MIN: [42.0]})
