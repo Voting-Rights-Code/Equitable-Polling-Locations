@@ -186,6 +186,9 @@ class ModelRun():
 
         # Select the configured metric (driving_time aliases duration_min into
         # distance_m) so the solver, penalties and results stay metric-agnostic.
+        # apply_metric aliases in place and returns the same object, so
+        # distance_data's frame is now the aliased one -- do not reuse it expecting
+        # the original (pre-metric) distances.
         distance_df = apply_metric(self._config, distance_df)
 
         # get main data frame
