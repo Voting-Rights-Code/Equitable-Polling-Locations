@@ -10,7 +10,7 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from python.database import imports, models
 from python.database.imports import build_model_column_types
-from python.database.models import ModelConfig
+from python.database.models import ModelConfig, DrivingDistance, DistanceData
 
 _TestBase = declarative_base()
 
@@ -163,3 +163,21 @@ def test_build_model_column_types_includes_metric():
 def test_model_config_metric_column_is_nullable():
     ''' The metric column on ModelConfig is nullable. '''
     assert ModelConfig.__table__.columns['metric'].nullable is True
+
+
+def test_build_model_column_types_includes_duration_min_on_driving_distance():
+    ''' The duration_min column is typed as np.float64 in build_model_column_types. '''
+    column_types = build_model_column_types(DrivingDistance)
+    assert column_types['duration_min'] == np.float64
+
+
+def test_build_model_column_types_includes_duration_min_on_distance_data():
+    ''' The duration_min column is typed as np.float64 in build_model_column_types. '''
+    column_types = build_model_column_types(DistanceData)
+    assert column_types['duration_min'] == np.float64
+
+
+def test_duration_min_columns_are_nullable():
+    ''' The duration_min columns on DrivingDistance and DistanceData are nullable. '''
+    assert DrivingDistance.__table__.columns['duration_min'].nullable is True
+    assert DistanceData.__table__.columns['duration_min'].nullable is True

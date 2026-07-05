@@ -110,7 +110,8 @@ class DistanceDataSet(ModelBase):
     ''' The DrivingDistancesSet id that this PollingLocationSet is generated from. Null if driving is set to False. '''
 
     driving_distance_set: Mapped['DrivingDistancesSet'] = relationship()
-    ''' The DrivingDistancesSet instance that this PollingLocationSet is generated from. Null if driving is set to False. '''
+    ''' The DrivingDistancesSet instance that this PollingLocationSet is generated from.
+    Null if driving is set to False. '''
 
     distance_data: Mapped[List['DistanceData']] = relationship(back_populates='distance_data_set')
     ''' The polling locations in this PollingLocationSet '''
@@ -137,6 +138,8 @@ class DistanceData(ModelBase):
     id_orig: str = Column(String(256), nullable=False)
     id_dest: str = Column(String(256), nullable=False)
     distance_m: float = Column(Float, nullable=True)
+    duration_min: float = Column(Float, nullable=True)
+    ''' Driving duration in minutes. Nullable: haversine/legacy rows have none. '''
     address: str = Column(String(256), nullable=False)
     dest_lat: float = Column(Float, nullable=False)
     dest_lon: float = Column(Float, nullable=False)
