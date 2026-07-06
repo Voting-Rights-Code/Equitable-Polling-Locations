@@ -9,6 +9,7 @@ environment is configured in settings.yaml.
 import yaml
 import pytest
 
+from python.solver.constants import METRIC_DRIVING_TIME
 from python.tests.e2e.conftest import CONFIG_VARIANTS
 
 
@@ -112,6 +113,6 @@ class TestDbImportConfig:
         assert db_config is not None, (
             f"No ModelConfig found for config_set='{sid}', config_name='{config_name}'"
         )
-        assert db_config.metric == 'driving_time', (
-            f"Expected metric='driving_time', got {db_config.metric!r}"
+        assert db_config.metric == METRIC_DRIVING_TIME, (
+            f"Expected metric={METRIC_DRIVING_TIME!r}, got {db_config.metric!r}"
         )
