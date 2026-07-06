@@ -261,8 +261,24 @@ def test_log_transform_applies_to_duration_when_present():
     })
     result = _log_transform_metric_columns(df.copy(deep=True))
 
-    assert result[DISTANCE_DISTANCE_M].tolist() == [np.log(0.001), np.log(100.0)]
-    assert result[DISTANCE_DURATION_S].tolist() == [np.log(0.001), np.log(50.0)]
+    assert result[DISTANCE_DISTANCE_M].tolist() == [0.0, np.log(100.0)]
+    assert result[DISTANCE_DURATION_S].tolist() == [0.0, np.log(50.0)]
+
+
+def test_log_transform_floors_values_below_one_to_zero_log():
+    # Values < 1 (including 0 and sub-1-second / sub-1-metre) floor to 1.0, so
+    # the log is non-negative (log(1) == 0). filter_distance_data rejects any
+    # negative distance, so the old log(0.001) == -6.9 floor crashed a
+    # log_distance run on degenerate coincident pairs. Provisional per #294
+    # pending Susama's modeling decision on how to treat those pairs.
+    df = pd.DataFrame({
+        DISTANCE_DISTANCE_M: [0.0, 0.5, 1.0, 100.0],
+        DISTANCE_DURATION_S: [0.0, 0.25, 1.0, 50.0],
+    })
+    result = _log_transform_metric_columns(df.copy(deep=True))
+
+    assert result[DISTANCE_DISTANCE_M].tolist() == [0.0, 0.0, 0.0, np.log(100.0)]
+    assert result[DISTANCE_DURATION_S].tolist() == [0.0, 0.0, 0.0, np.log(50.0)]
 
 
 def test_log_transform_skips_duration_when_absent():

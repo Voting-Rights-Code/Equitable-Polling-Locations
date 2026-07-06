@@ -322,8 +322,12 @@ def _log_transform_metric_columns(distance_df: pd.DataFrame) -> pd.DataFrame:
 
     Both distance_m and (when present) duration_s are log-transformed so a
     log_distance run can later select either metric and find it already logged.
-    Zero values are floored to 0.001 first, matching the historical distance
-    behavior, since log(0) is undefined.
+    Values below 1 are floored to 1.0 first, so the log is non-negative
+    (log(1) == 0): log(0) is undefined, and filter_distance_data rejects any
+    negative distance, so a sub-1 value -- a degenerate coincident block/site
+    pair (distance < 1 m or duration < 1 s) -- would otherwise crash a
+    log_distance run. (Provisional per #294; pending Susama's modeling call on
+    how to treat such pairs.)
 
     Args:
         distance_df: Frame holding distance_m and optionally duration_s.
@@ -336,7 +340,7 @@ def _log_transform_metric_columns(distance_df: pd.DataFrame) -> pd.DataFrame:
     if DISTANCE_DURATION_S in distance_df.columns:
         metric_columns.append(DISTANCE_DURATION_S)
     for column in metric_columns:
-        distance_df[column].mask(distance_df[column] == 0.0, 0.001, inplace=True)
+        distance_df[column].mask(distance_df[column] < 1.0, 1.0, inplace=True)
         distance_df[column] = np.log(distance_df[column])
     return distance_df
 
