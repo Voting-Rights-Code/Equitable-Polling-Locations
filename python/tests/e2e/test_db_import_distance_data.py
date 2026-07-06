@@ -79,6 +79,21 @@ class TestDbImportDistanceData:
             f"{db_df[db_df['distance_m'] <= 0][['id_orig', 'id_dest', 'distance_m']].head()!r}"
         )
 
+        if driving:
+            assert db_df['duration_min'].notna().all(), (
+                f'duration_min must be populated for driving={driving}, '
+                f'log_distance={log_distance}'
+            )
+            assert (db_df['duration_min'] > 0).all(), (
+                f'duration_min values must be positive for driving={driving}, '
+                f'log_distance={log_distance}'
+            )
+        else:
+            assert db_df['duration_min'].isna().all(), (
+                f'duration_min must be NULL for haversine (driving={driving}, '
+                f'log_distance={log_distance})'
+            )
+
     def test_linear_haversine(self, e2e_test_data, test_environment):
         """Linear haversine: log_distance=False, driving=False."""
         self._verify_imported_set(

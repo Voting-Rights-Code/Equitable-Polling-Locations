@@ -93,3 +93,25 @@ class TestDbImportConfig:
         assert db_config.capacity == yaml_data['capacity'], (
             f"Expected capacity={yaml_data['capacity']}, got {db_config.capacity}"
         )
+
+    def test_config_metric_round_trips(self, e2e_test_data, imported_configs, test_environment):
+        """The driving_time config's metric persists to and loads from the DB.
+
+        Args:
+            e2e_test_data: Session-scoped test data dict.
+            imported_configs: Ensures the import has run.
+            test_environment: The loaded test environment.
+        """
+        from python.database.query import Query  # pylint: disable=import-outside-toplevel
+
+        sid = e2e_test_data['sid']
+        config_name = f'{sid}_config_driving_duration'
+        query = Query(test_environment)
+        db_config = query.find_model_configs_by_config_set_and_config_name(sid, config_name)
+
+        assert db_config is not None, (
+            f"No ModelConfig found for config_set='{sid}', config_name='{config_name}'"
+        )
+        assert db_config.metric == 'driving_time', (
+            f"Expected metric='driving_time', got {db_config.metric!r}"
+        )
