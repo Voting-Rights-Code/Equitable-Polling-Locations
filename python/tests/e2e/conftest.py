@@ -362,7 +362,10 @@ def e2e_test_data(e2e_session_id, pytestconfig):
     )
 
     _apply_log_transform(_SRC_DISTANCES, distances_log_path)
-    _apply_log_transform(_SRC_DRIVING_DISTANCES, driving_distances_log_path)
+    # Log-transform the synthesized driving CSV (not the raw source) so the
+    # log-driving distance data keeps the duration_min column. _apply_log_transform
+    # only logs distance_m; duration_min stays as the raw synthetic value (positive).
+    _apply_log_transform(driving_distances_path, driving_distances_log_path)
 
     # --- DB-import-ready distance CSVs (stripped of 'county' column) ----------
     # The db_import_distance_data_cli import function ignores 'id' and 'V1'
