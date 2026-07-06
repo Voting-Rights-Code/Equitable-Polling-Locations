@@ -177,6 +177,7 @@ def test_clean_data(testing_config_driving, location_df_with_driving):
             f'containing {year_str!r}, but found none'
         )
 
+<<<<<<< HEAD
 
 def test_filter_distance_data_raises_and_names_origin_on_negative(
         testing_config_driving, location_df_with_driving, capsys):
@@ -227,3 +228,5 @@ def test_filter_distance_data_allows_zero_distance(
     # Should not raise.
     model_data.filter_distance_data(testing_config_driving, df, False, False)
 
+=======
+>>>>>>> dev
