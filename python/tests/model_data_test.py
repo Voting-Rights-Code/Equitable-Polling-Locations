@@ -331,8 +331,11 @@ def test_apply_metric_raises_when_duration_missing():
     config = _driving_config('driving_time')
     df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0]})
 
-    with pytest.raises(ValueError, match='duration_min'):
+    with pytest.raises(ValueError, match='duration_min') as excinfo:
         apply_metric(config, df)
+
+    # DB duration is supported now; the guard must not claim otherwise.
+    assert 'Phase 3' not in str(excinfo.value)
 
 
 def test_driving_time_aliases_log_transformed_duration():

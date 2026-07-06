@@ -739,8 +739,7 @@ def apply_metric(config: PollingModelConfig, distance_df: pd.DataFrame) -> pd.Da
 
     Raises:
         ValueError: When driving_time is requested but duration_min is absent
-            (e.g. a legacy distance file, or the not-yet-supported database
-            path; DB duration support lands in Phase 3 / #230).
+            (e.g. a legacy distance file generated before duration existed).
     '''
     if config.metric != METRIC_DRIVING_TIME:
         return distance_df
@@ -748,7 +747,7 @@ def apply_metric(config: PollingModelConfig, distance_df: pd.DataFrame) -> pd.Da
         raise ValueError(
             f'metric is {METRIC_DRIVING_TIME!r} but the distance data has no '
             f'{DISTANCE_DURATION_MIN} column. Regenerate driving distances with duration, '
-            f'or choose a distance metric. (DB duration support lands in Phase 3.)'
+            f'or choose a distance metric.'
         )
     # Alias in place rather than copying: the county-scale distance frame can be
     # several GB, and a deep copy here stacks that memory on top of the solver
