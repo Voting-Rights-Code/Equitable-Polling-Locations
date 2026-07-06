@@ -55,11 +55,12 @@ def import_distance_data(
 def build_and_import_distance_data(
     query: Query,
     census_year: str,
-    census_data_type:str, 
+    census_data_type: str,
     location: str,
     driving: bool,
     maps_source_date: str,
     log_distance: bool,
+    projection_year: str = None,
 ) -> ImportResult:
     build_distance_meta_data = build_distance_data(
         data_source=DATA_SOURCE_DB,
@@ -70,6 +71,7 @@ def build_and_import_distance_data(
         log_distance=log_distance,
         map_source_date=maps_source_date,
         query=query,
+        projection_year=projection_year,
     )
     distance_data_set = query.create_db_distance_data_set(
         potential_locations_set_id=build_distance_meta_data.potential_locations_set_id,

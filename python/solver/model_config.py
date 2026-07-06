@@ -125,7 +125,7 @@ class PollingModelConfig:
     ''' The date (YYYYMMDD) of the maps source to use if driving distances are used. '''
 
     projection_year: str = None
-    ''' The population projection year to extract when census_data_type is "population" (e.g. "2026"). '''
+    ''' The population projection year to extract when census_data_type is "predicted_vap" (e.g. "2026"). '''
 
     environment: Environment = None
     ''' Environment configs, specifically on which bigquery project and dataset

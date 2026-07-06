@@ -420,30 +420,6 @@ def test_pull_CVAP_data_raises_when_rdh_credentials_missing(monkeypatch):
         pcd.pull_CVAP_data('GA', 'Gwinnett County', '2020', census_apikey='fake-key')
 
 
-class TestBuildRDHPopulationPaths:
-    """Tests for build_RDH_population_dir_path() and build_RDH_population_source_file_path()."""
-
-    def test_dir_path_contains_folder_name_and_location(self):
-        """Directory path places the location under an RDH_population/ subdirectory."""
-        import os
-        from python.utils.utils import build_RDH_population_dir_path
-        result = build_RDH_population_dir_path('Gwinnett_County_GA')
-        assert result.endswith(os.path.join('RDH_population', 'Gwinnett_County_GA'))
-
-    def test_source_file_path_encodes_year(self):
-        """Source file path contains the census year in its filename."""
-        from python.utils.utils import build_RDH_population_source_file_path
-        result = build_RDH_population_source_file_path('2020', 'Gwinnett_County_GA')
-        assert result.endswith('RDH_population_2020-Data.csv')
-
-    def test_source_file_path_is_under_dir_path(self):
-        """Source file path is nested inside the directory path for the same location."""
-        from python.utils.utils import build_RDH_population_dir_path, build_RDH_population_source_file_path
-        dir_path = build_RDH_population_dir_path('Gwinnett_County_GA')
-        file_path = build_RDH_population_source_file_path('2020', 'Gwinnett_County_GA')
-        assert file_path.startswith(dir_path)
-
-
 class TestGetCensusJson:
     """Tests for get_census_json()."""
 

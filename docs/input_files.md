@@ -7,8 +7,8 @@ When setting up a **new location** for the first time, the following inputs are 
 1. A *manually generated* dataset of past and potential polling locations, consistent with local laws
 1. A config file that contains the parameters for a given optimization
 1. Optionally, a dataset of driving distances if driving distance analysis is desired
-1. Optionally, if you are using CVAP data, a [Redistricting Data Hub](https://redistrictingdatahub.org/) username and password.
-  1. Note, if you are using any data from Redistricting Data Hub or data products derived from their data, you must comply with their [Terms and Conditions] (https://redistrictingdatahub.org/terms-and-conditions/)
+1. Optionally, if you are using CVAP or RDH predicted VAP data, a [Redistricting Data Hub](https://redistrictingdatahub.org/) username and password.
+  1. Note, if you are using any data from Redistricting Data Hub or data products derived from their data, you must comply with their [Terms and Conditions](https://redistrictingdatahub.org/terms-and-conditions/)
 
 ## Census Data (demographics and shapefiles)
 
@@ -101,11 +101,56 @@ Both files can be downloaded from the [TIGER/Line FTP Archive](https://www.censu
 
 Stored in `datasets/census/CVAP/<County_ST>/`
 
-CVAP stands for citizen voting age population. This is collected by the census ACS at the block group level. [Redistricting Data Hub](https://redistrictingdatahub.org/) disaggregates it to the block level. 
+CVAP stands for citizen voting age population. This is collected by the census ACS at the block group level. [Redistricting Data Hub](https://redistrictingdatahub.org/) disaggregates it to the block level.
 
 For documentation of their disaggregation process and their fields, see their [CVAP documentation](https://redistrictingdatahub.org/data/about-our-data/american-community-survey/#cvap) page.
 
-Note, any use of data or data products built on data from Redistricting Data Hub must comply with their [Terms and Condtions](https://redistrictingdatahub.org/terms-and-conditions/)
+Note, any use of data or data products built on data from Redistricting Data Hub must comply with their [Terms and Conditions](https://redistrictingdatahub.org/terms-and-conditions/).
+
+### RDH predicted VAP data
+
+Stored in `datasets/census/RDH_predicted_vap/<County_ST>/`
+
+RDH predicted VAP data provides block-level population projections for the Voting Age Population (VAP) sourced from the [Redistricting Data Hub](https://redistrictingdatahub.org/). These projections are based on the 2020 census (P3/P4 tables) and cover multiple future years in a single file (e.g., 2026–2035). The `projection_year` config field selects which year's columns are used at model-run time.
+
+**Prerequisites:** downloading this data requires RDH credentials. Store them once with:
+
+```bash
+python run.py secret set rdh
+```
+
+See [to_run.md — RDH Credentials](to_run.md#rdh-credentials) for full credential management commands and environment variable alternatives.
+
+**Automatic download:** when `census_data_type: predicted_vap` is set in a config, the model attempts to download the data automatically on first run if the directory does not yet exist.
+
+**Manual download:** to download data for a county without running the full model:
+
+```bash
+python run.py pull_rdh_vap_cli <STATE_CODE> "<County Name>" <census_year>
+# Example:
+python run.py pull_rdh_vap_cli GA "Gwinnett County" 2020
+```
+
+The downloaded file is a state-wide CSV filtered to the specified county. RDH block-level files are identified by a `_b` suffix in the filename (e.g., `ga_vap_proj_2026_2035_b.csv`); county-level summary files use `_cnty` and are not used by this model.
+
+**Columns used** (one set per projection year; `YYYY` = the `projection_year` config value):
+
+| RDH Column | Maps to | Description |
+|------------|---------|-------------|
+| `GEOID` | `GEO_ID` | Census block identifier |
+| `Projected_TotalPop_VAP_YYYY` | `population` | Total projected voting-age population |
+| `Projected_HispanicOrLatino_VAP_YYYY` | `hispanic` | Hispanic or Latino |
+| `Projected_NotHisp_WhiteAlone_VAP_YYYY` | `white` | Not Hispanic, White alone |
+| `Projected_NotHisp_BlackOrAfAmAlone_VAP_YYYY` | `black` | Not Hispanic, Black or African American alone |
+| `Projected_NotHisp_AmIndianOrAKNativeAlone_VAP_YYYY` | `native` | Not Hispanic, American Indian or Alaska Native alone |
+| `Projected_NotHisp_AsianAlone_VAP_YYYY` | `asian` | Not Hispanic, Asian alone |
+| `Projected_NotHisp_PacificIslanderAlone_VAP_YYYY` | `pacific_islander` | Not Hispanic, Native Hawaiian and Other Pacific Islander alone |
+| `Projected_NotHisp_OtherRaceAlone_VAP_YYYY` | `other` | Not Hispanic, Some Other Race alone |
+| `Projected_NotHisp_TwoOrMoreRaces_VAP_YYYY` | `multiple_races` | Not Hispanic, Two or More Races |
+
+`non_hispanic` is derived as `Projected_TotalPop_VAP_YYYY - Projected_HispanicOrLatino_VAP_YYYY` (the file does not include it directly, following the same P4 structure as the redistricting data).
+
+Note, any use of data or data products built on data from Redistricting Data Hub must comply with their [Terms and Conditions](https://redistrictingdatahub.org/terms-and-conditions/).
 
 
 ## Potential Locations CSV
@@ -204,7 +249,8 @@ The following fields are defined in the `PollingModelConfig` class (see `python/
 | config_name | str | Yes | — | Unique name of this config. Should match the file name (without `.yaml`). |
 | location | str | Yes | — | Geographic location for the model. Must be of the form `<Location>_County_<ST>` or `Contained_in_<Location>_City_of_<ST>` to match census encoding. |
 | census_year | str | Yes | `2020` | The census year that maps and demographic data are pulled from. |
-|census_data_type | str | Yes | `redistricting` or `CVAP` | A string indicating the type of population to use for this model|
+| census_data_type | str | Yes | — | Population data to use. One of: `redistricting` (2020 decennial P3/P4), `CVAP` (citizen VAP, block-level ACS via RDH), or `predicted_vap` (RDH projected VAP; also requires `projection_year`). |
+| projection_year | str | No | — | Required when `census_data_type` is `predicted_vap`. Selects which year's columns to extract from the RDH projection file (e.g., `"2026"`). |
 | year | list[str] | Yes | — | Array of years of historical polling data relevant to this model (e.g., `['2020', '2022']`). Must not be empty. |
 | bad_types | list[str] | No | `[]` | Location types to exclude from consideration. Values must match `Location type` entries in the `*_potential_locations.csv` file. |
 | beta | float | Yes | — | Kolm-Pollak inequality aversion parameter. Range: `[-2, 0]`. `0` = indifference (uses mean distance). `-1` is a typical value. More negative values weight equity more heavily. |
