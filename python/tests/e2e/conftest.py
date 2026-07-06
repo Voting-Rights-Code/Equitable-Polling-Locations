@@ -341,30 +341,30 @@ def e2e_test_data(e2e_session_id, pytestconfig):
 
     shutil.copy(_SRC_POTENTIAL_LOCATIONS, potential_locations_path)
     shutil.copy(_SRC_DISTANCES, distances_path)
-    # Stage driving distances with a synthesized duration_min column so the
-    # driving_time metric path has data. duration_min is derived from distance_m
+    # Stage driving distances with a synthesized duration_s column so the
+    # driving_time metric path has data. duration_s is derived from distance_m
     # (synthetic; magnitude is irrelevant to the pipeline under test).
     staged_driving_df = pd.read_csv(_SRC_DRIVING_DISTANCES)
-    if 'duration_min' not in staged_driving_df.columns:
-        staged_driving_df['duration_min'] = staged_driving_df['distance_m'] / 10.0
+    if 'duration_s' not in staged_driving_df.columns:
+        staged_driving_df['duration_s'] = staged_driving_df['distance_m'] / 10.0
     staged_driving_df.to_csv(driving_distances_path, index=False)
     # The db_import_driving_distances_cli expects columns matching the
-    # DrivingDistance model (id_orig, id_dest, distance_m, duration_min) plus V1
+    # DrivingDistance model (id_orig, id_dest, distance_m, duration_s) plus V1
     # (ignored). The source CSV has extra columns (county, demographics, etc.)
     # that would cause a BigQuery schema mismatch, so strip to the model columns.
-    # duration_min is synthesized (the source has none) so the driving_time
+    # duration_s is synthesized (the source has none) so the driving_time
     # metric round-trips through the DB.
     _driving_df = pd.read_csv(_SRC_DRIVING_DISTANCES)
-    if 'duration_min' not in _driving_df.columns:
-        _driving_df['duration_min'] = _driving_df['distance_m'] / 10.0
-    _driving_df[['id_orig', 'id_dest', 'distance_m', 'duration_min']].to_csv(
+    if 'duration_s' not in _driving_df.columns:
+        _driving_df['duration_s'] = _driving_df['distance_m'] / 10.0
+    _driving_df[['id_orig', 'id_dest', 'distance_m', 'duration_s']].to_csv(
         driving_distances_import_path, index=False,
     )
 
     _apply_log_transform(_SRC_DISTANCES, distances_log_path)
     # Log-transform the synthesized driving CSV (not the raw source) so the
-    # log-driving distance data keeps the duration_min column. _apply_log_transform
-    # only logs distance_m; duration_min stays as the raw synthetic value (positive).
+    # log-driving distance data keeps the duration_s column. _apply_log_transform
+    # only logs distance_m; duration_s stays as the raw synthetic value (positive).
     _apply_log_transform(driving_distances_path, driving_distances_log_path)
 
     # --- DB-import-ready distance CSVs (stripped of 'county' column) ----------
@@ -372,7 +372,7 @@ def e2e_test_data(e2e_session_id, pytestconfig):
     # but 'county' is not in the DistanceData model and would cause a schema
     # mismatch.  Create import-ready copies with 'county' removed.
     distance_data_import_cols = [
-        'id_orig', 'id_dest', 'distance_m', 'duration_min', 'address', 'dest_lat',
+        'id_orig', 'id_dest', 'distance_m', 'duration_s', 'address', 'dest_lat',
         'dest_lon', 'orig_lat', 'orig_lon', 'location_type', 'dest_type',
         'population', 'hispanic', 'non_hispanic', 'white', 'black', 'native',
         'asian', 'pacific_islander', 'other', 'multiple_races', 'source',

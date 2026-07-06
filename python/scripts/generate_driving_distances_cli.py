@@ -2,7 +2,7 @@
 
 Reads census block centroids and the potential-locations CSV the solver
 consumes, calls OpenRouteService to build a driving-distance matrix, and
-writes the canonical three-column long-form CSV to
+writes the canonical four-column long-form CSV to
 ``datasets/driving/<location>/<location>_driving_distances.csv``.
 '''
 import argparse
@@ -16,7 +16,7 @@ import pandas as pd
 
 from python.solver.constants import (
     DISTANCE_DISTANCE_M,
-    DISTANCE_DURATION_MIN,
+    DISTANCE_DURATION_S,
     DISTANCE_ID_DEST,
     DISTANCE_ID_ORIG,
     TIGER20_GEOID20,
@@ -161,15 +161,15 @@ def _pick_coord_extractor(columns):
 
 
 def write_output_csv(df, path: str) -> None:
-    '''Write the canonical 4-column CSV (id_orig, id_dest, distance_m, duration_min).
+    '''Write the canonical 4-column CSV (id_orig, id_dest, distance_m, duration_s).
 
     MERGE RECONCILIATION (#227 vs #226): this branch (feature/driving-time-metric)
-    writes 4 columns, adding ``duration_min`` (minutes; ORS seconds / 60); the
+    writes 4 columns, adding ``duration_s`` (raw ORS seconds); the
     driving-distance-tools worktree (#226) writes the legacy 3 columns. When the
     branches merge, keep the 4-column form here and confirm the ORS-side writer
-    emits ``duration_min`` in minutes too. See issue #288.
+    emits ``duration_s`` in raw seconds too. See issue #288.
     '''
-    df[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_MIN]].to_csv(
+    df[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S]].to_csv(
         path, index=False,
     )
 

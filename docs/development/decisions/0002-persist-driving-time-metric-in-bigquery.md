@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Epic #227 adds `driving_time` as an alternate travel metric alongside `haversine` and `driving_distance`. Phases 1–2 made it work on the CSV path: Open Route Service emits both distance and duration, and the solver selects the configured metric by aliasing `duration_min` into the working `distance_m` column based on a `metric` config field. Phase 3 (#230) extends this to the BigQuery/DB path.
+Epic #227 adds `driving_time` as an alternate travel metric alongside `haversine` and `driving_distance`. Phases 1–2 made it work on the CSV path: Open Route Service emits both distance and duration, and the solver selects the configured metric by aliasing `duration_s` into the working `distance_m` column based on a `metric` config field. Phase 3 (#230) extends this to the BigQuery/DB path.
 
 Two facts about the DB path shaped the design:
 
@@ -15,7 +15,7 @@ Two facts about the DB path shaped the design:
 
 ## Decision
 
-1. Persist duration as a nullable **`duration_min`** (minutes) column on both `driving_distances` and `distance_data`. The name is `duration_min`, matching the CSV column and the `DISTANCE_DURATION_MIN` constant — **not** the `duration_s` in #230's title, which predates the seconds→minutes rename (commit `57df3201`). The import layer maps CSV↔DB columns *by name*, so the DB column must match the CSV column exactly or the value is silently dropped.
+1. Persist duration as a nullable **`duration_s`** (raw ORS seconds) column on both `driving_distances` and `distance_data`. The name is `duration_s`, matching the CSV column, the `DISTANCE_DURATION_S` constant, and #230's title. Per the project lead's decision on #294, durations are stored in **seconds**, not minutes: seconds keeps every real duration >= 1, so `log_distance: true` on the `driving_time` metric never produces a negative log, and it matches the sibling `distance_m` unit convention (raw units, no scaling). This supersedes an earlier version of this ADR that chose `duration_min` (minutes) for CSV-column-name symmetry; that earlier choice is what produced the negative-log bug. The import layer maps CSV↔DB columns *by name*, so the DB column must still match the CSV column exactly or the value is silently dropped.
 2. Persist the metric as a nullable **`metric`** (String) column on `model_configs`, completing the config-field persistence that Phase 2 (#229) implemented only on the CSV/solver side. Without it, `driving_time` cannot survive the config DB round-trip.
 3. **All three columns are nullable** for back-compat: existing rows and every `haversine`/`driving_distance` row stay valid with NULL. `metric = None` makes `apply_metric` a no-op, and `distance_m` already holds the correct value for those runs.
 4. **No CLI/build logic changes.** The import/build/read pipeline is model-driven (it keys off the ORM columns), so declaring the columns is sufficient for the values to flow import → build → read → `apply_metric`. Verified by unit tests and an `e2e_db` round-trip plus a real `driving_time` DB solve.
@@ -28,6 +28,6 @@ Two facts about the DB path shaped the design:
 
 ## Alternatives considered
 
-- **Name the column `duration_s`** (per #230's title): rejected — it mismatches the CSV column, so the model-driven importer would not map it.
+- **Name the column `duration_min` (minutes)**: this was this ADR's original decision, chosen for CSV-column-name symmetry; superseded per the project lead's call on #294 — minutes produces negative values under `log(duration)` for sub-minute cells when `log_distance: true`, which broke the `driving_time` metric.
 - **Add duration only to `driving_distances`**: rejected — the DB run reads `distance_data`, so a `driving_time` DB run would not see the duration.
 - **Split the `metric`-on-config work into a separate ticket**: considered, but folded in here because #230's own acceptance criterion ("a duration-metric DB run solves") is untestable without it.

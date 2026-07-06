@@ -165,19 +165,19 @@ def test_model_config_metric_column_is_nullable():
     assert ModelConfig.__table__.columns['metric'].nullable is True
 
 
-def test_build_model_column_types_includes_duration_min_on_driving_distance():
-    ''' The duration_min column is typed as np.float64 in build_model_column_types. '''
+def test_build_model_column_types_includes_duration_s_on_driving_distance():
+    ''' The duration_s column is typed as np.float64 in build_model_column_types. '''
     column_types = build_model_column_types(DrivingDistance)
-    assert column_types['duration_min'] == np.float64
+    assert column_types['duration_s'] == np.float64
 
 
-def test_build_model_column_types_includes_duration_min_on_distance_data():
-    ''' The duration_min column is typed as np.float64 in build_model_column_types. '''
+def test_build_model_column_types_includes_duration_s_on_distance_data():
+    ''' The duration_s column is typed as np.float64 in build_model_column_types. '''
     column_types = build_model_column_types(DistanceData)
-    assert column_types['duration_min'] == np.float64
+    assert column_types['duration_s'] == np.float64
 
 
-def test_duration_min_columns_are_nullable():
-    ''' The duration_min columns on DrivingDistance and DistanceData are nullable. '''
-    assert DrivingDistance.__table__.columns['duration_min'].nullable is True
-    assert DistanceData.__table__.columns['duration_min'].nullable is True
+def test_duration_s_columns_are_nullable():
+    ''' The duration_s columns on DrivingDistance and DistanceData are nullable. '''
+    assert DrivingDistance.__table__.columns['duration_s'].nullable is True
+    assert DistanceData.__table__.columns['duration_s'].nullable is True

@@ -80,17 +80,17 @@ class TestDbImportDistanceData:
         )
 
         if driving:
-            assert db_df['duration_min'].notna().all(), (
-                f'duration_min must be populated for driving={driving}, '
+            assert db_df['duration_s'].notna().all(), (
+                f'duration_s must be populated for driving={driving}, '
                 f'log_distance={log_distance}'
             )
-            assert (db_df['duration_min'] > 0).all(), (
-                f'duration_min values must be positive for driving={driving}, '
+            assert (db_df['duration_s'] > 0).all(), (
+                f'duration_s values must be positive for driving={driving}, '
                 f'log_distance={log_distance}'
             )
         else:
-            assert db_df['duration_min'].isna().all(), (
-                f'duration_min must be NULL for haversine (driving={driving}, '
+            assert db_df['duration_s'].isna().all(), (
+                f'duration_s must be NULL for haversine (driving={driving}, '
                 f'log_distance={log_distance})'
             )
 

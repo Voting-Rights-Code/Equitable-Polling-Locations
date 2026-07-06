@@ -138,8 +138,8 @@ class DistanceData(ModelBase):
     id_orig: str = Column(String(256), nullable=False)
     id_dest: str = Column(String(256), nullable=False)
     distance_m: float = Column(Float, nullable=True)
-    duration_min: float = Column(Float, nullable=True)
-    ''' Driving duration in minutes. Nullable: haversine/legacy rows have none. '''
+    duration_s: float = Column(Float, nullable=True)
+    ''' Driving duration in seconds. Nullable: haversine/legacy rows have none. '''
     address: str = Column(String(256), nullable=False)
     dest_lat: float = Column(Float, nullable=False)
     dest_lon: float = Column(Float, nullable=False)

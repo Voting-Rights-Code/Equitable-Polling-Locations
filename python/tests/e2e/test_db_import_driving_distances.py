@@ -86,8 +86,8 @@ class TestDbImportDrivingDistances:
             f"{db_df[db_df['distance_m'] <= 0][['distance_m']].head()}"
         )
 
-    def test_duration_min_round_trips(self, e2e_test_data, imported_driving_distances, test_environment):
-        """duration_min imports into the DrivingDistance table with positive values.
+    def test_duration_s_round_trips(self, e2e_test_data, imported_driving_distances, test_environment):
+        """duration_s imports into the DrivingDistance table with positive values.
 
         Args:
             e2e_test_data: Session-scoped test data dict.
@@ -104,6 +104,6 @@ class TestDbImportDrivingDistances:
         assert distance_set is not None, f"No DrivingDistancesSet found for location '{sid}'"
 
         db_df = query.get_driving_distances(distance_set.id)
-        assert 'duration_min' in db_df.columns, 'duration_min column missing from DrivingDistance table'
-        assert db_df['duration_min'].notna().all(), 'duration_min has unexpected nulls'
-        assert (db_df['duration_min'] > 0).all(), 'duration_min values must be positive'
+        assert 'duration_s' in db_df.columns, 'duration_s column missing from DrivingDistance table'
+        assert db_df['duration_s'].notna().all(), 'duration_s has unexpected nulls'
+        assert (db_df['duration_s'] > 0).all(), 'duration_s values must be positive'
