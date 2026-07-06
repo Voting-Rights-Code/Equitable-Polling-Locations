@@ -11,7 +11,7 @@ import pytest
 from python.solver import model_data
 from python.solver.constants import DISTANCE_DISTANCE_M, DISTANCE_DURATION_MIN, DISTANCE_ID_ORIG, DISTANCE_ID_DEST
 from python.solver.model_config import PollingModelConfig
-from python.solver.model_data import _log_transform_metric_columns, apply_metric
+from python.solver.model_data import _log_transform_metric_columns, apply_metric, insert_driving_distances
 
 from .constants import TESTING_POTENTIAL_LOCATIONS_PATH, TESTING_DRIVING_DISTANCES_PATH, TEST_LOCATION, MAP_SOURCE_DATE, TESTING_CONFIG_DRIVING
 
@@ -346,4 +346,19 @@ def test_driving_time_aliases_log_transformed_duration():
     result = apply_metric(config, logged_df)
 
     assert result[DISTANCE_DISTANCE_M].tolist() == [np.log(50.0)]
+
+
+def test_insert_driving_distances_carries_duration_min():
+    base_df = pd.DataFrame({
+        DISTANCE_ID_ORIG: ['a', 'b'], DISTANCE_ID_DEST: ['x', 'y'],
+    })
+    driving_df = pd.DataFrame({
+        DISTANCE_ID_ORIG: ['a', 'b'], DISTANCE_ID_DEST: ['x', 'y'],
+        DISTANCE_DISTANCE_M: [100.0, 200.0], DISTANCE_DURATION_MIN: [10.0, 20.0],
+    })
+
+    combined = insert_driving_distances(base_df, driving_df)
+
+    assert combined[DISTANCE_DISTANCE_M].tolist() == [100.0, 200.0]
+    assert combined[DISTANCE_DURATION_MIN].tolist() == [10.0, 20.0]
 
