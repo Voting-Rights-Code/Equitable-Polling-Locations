@@ -37,11 +37,6 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
 }
 
 ########
-# For testing
-########
-#EXPECTED_PRECINCT_COUNT <- 44
-
-########
 # Block geometry, for Step 2  
 ########
 BLOCK_GEOMETRY_FILES <- "tl_2020_54061_tabblock20"

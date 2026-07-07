@@ -39,13 +39,6 @@ CRS_PROJECTION <- 4326
 ###### Step 1: extract and validate the county's precincts#######
 state_precincts <- extract_county_precincts(STATE_PRECINCT_SOURCE_FILE, COUNTY_NAME, CRS_PROJECTION)
 
-
-###TODO: currently commented out due to the bug where precinct 73 has no population. see issue 283
-#stopifnot(
-#  "Precinct count does not match EXPECTED_PRECINCT_COUNT in the config file" =
-#    nrow(state_precincts) == EXPECTED_PRECINCT_COUNT
-#)
-
 state_precincts <- state_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
 
 names(state_precincts)[names(state_precincts) == "geometry"] <- "precinct_geometry"
@@ -66,7 +59,12 @@ p3_population <- fread(
   select = c(1, 3), col.names = c("GEO_ID", "total_population")
 )
 
-######Step 3: associate blocks with (dominant) precincts #######
+######
+#Step 3: associate blocks with (dominant) precincts 
+#flag if 
+#######
+
+
 
 block_precinct_assignment <- assign_block_to_dominant_precinct(
   state_precincts, county_blocks, p3_population, AREA_CRS
@@ -87,6 +85,18 @@ st_write(
 block_precinct_assignment %>%
     filter(flagged == TRUE),
   file.path(precinct_analysis_output_folder, "flagged_assigned_blocks.gpkg"), append = FALSE
+)
+
+# write every (block, precinct) pair with more than 5% overlap -- one row
+# per precinct a block significantly overlaps, unlike the single
+# dominant-precinct assignment above (#283)
+overlapping_blocks <- flag_overlapping_blocks(
+  state_precincts, county_blocks, p3_population, area_crs = AREA_CRS
+)
+
+st_write(
+  overlapping_blocks %>% filter(flagged == TRUE),
+  file.path(precinct_analysis_output_folder, "flagged_overlapping_blocks.gpkg"), append = FALSE
 )
 
 ###### Step 5: reconcile county-provided precinct data #######
