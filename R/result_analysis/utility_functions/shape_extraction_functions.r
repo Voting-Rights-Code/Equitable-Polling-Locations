@@ -43,6 +43,13 @@ build_driving_distances_file_path <- function(location, driving_folder = DRIVING
   ))
 }
 
+#output folder name
+precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
+if (!file.exists(file.path(here(), precinct_analysis_output_folder))) {
+  dir.create(file.path(here(), precinct_analysis_output_folder), recursive = TRUE)
+}
+
+
 # select a county's precincts from a statewide precinct shapefile, by county
 # name. 
 # Note for future projects: This is custom built for the WV precinct shapefile and may need

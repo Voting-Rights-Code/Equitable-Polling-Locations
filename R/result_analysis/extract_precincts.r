@@ -47,6 +47,7 @@ st_geometry(state_precincts) <- "precinct_geometry"
 state_precincts_proj <- st_transform(state_precincts, AREA_CRS)
 
 ###### Step 2: Extract and validate the county's blocks#######
+
 #extract county blocks from the TIGER/Line shapefile
 tiger_file_path <-  file.path(TIGER_FOLDER, LOCATION, paste0(BLOCK_GEOMETRY_FILES, ".shp"))
 county_blocks <- get_shape_data( tiger_file_path)
@@ -61,10 +62,10 @@ p3_population <- fread(
 
 ######
 #Step 3: associate blocks with (dominant) precincts 
-#flag if 
+#flag if a flag has 50-90% of its area outside a precints
+#and write to file
+#flagged_assigned_blocks
 #######
-
-
 
 block_precinct_assignment <- assign_block_to_dominant_precinct(
   state_precincts, county_blocks, p3_population, AREA_CRS
@@ -73,23 +74,19 @@ block_precinct_assignment <- assign_block_to_dominant_precinct(
 names(block_precinct_assignment)[names(block_precinct_assignment) == "geometry"] <- "block_geometry"
 st_geometry(block_precinct_assignment) <- "block_geometry"
 
-######Step 4: write assignment to file #######
-
-# write every flagged block -- populated or not -- file
-precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
-if (!file.exists(file.path(here(), precinct_analysis_output_folder))) {
-  dir.create(file.path(here(), precinct_analysis_output_folder), recursive = TRUE)
-}
-
+# write every asignment flagged block -- populated or not -- file
 st_write(
 block_precinct_assignment %>%
     filter(flagged == TRUE),
   file.path(precinct_analysis_output_folder, "flagged_assigned_blocks.gpkg"), append = FALSE
 )
 
+######
+# Step 4: For further validation, of state precinct maps
 # write every (block, precinct) pair with more than 5% overlap -- one row
-# per precinct a block significantly overlaps, unlike the single
-# dominant-precinct assignment above (#283)
+# per precinct a block significantly overlaps
+# flagged_overlapping_blockss
+#######
 overlapping_blocks <- flag_overlapping_blocks(
   state_precincts, county_blocks, p3_population, area_crs = AREA_CRS
 )
@@ -99,11 +96,12 @@ st_write(
   file.path(precinct_analysis_output_folder, "flagged_overlapping_blocks.gpkg"), append = FALSE
 )
 
-###### Step 5: reconcile county-provided precinct data #######
-# In this step, we assume that the county provided precinct data (if it exists)
+###### 
+# Step 5: reconcile county-provided precinct data 
+# Assume that the county provided precinct data (if it exists)
 # is correct. The reconciliation is to get the state data to match it. 
 # Changes are made to the state file
-
+#######
 
 #If the county provides precinct data, 
 #reconcile it with the state provided precinct data
@@ -120,14 +118,11 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
   county_precincts_resolved <- state_precincts
 }
 
-# Drop precincts with zero population, per block-level population data in
-# block_precinct_assignment. TODO: until #283 is fixed, the
-# dominant-block population heuristic can show real, populated precincts as
-# zero (e.g. Monongalia_73), so this can't be fully relied on yet.
+# Drop precincts with zero population, per block_precinct_assignment.
+# if possible, verify these precincts with a human 
 precinct_population <- data.table(st_drop_geometry(block_precinct_assignment))[
   , .(total_population = sum(total_population)), by = Precinct_I
 ]
-
 
 county_precincts_resolved <- merge(
   county_precincts_resolved, precinct_population,
@@ -159,7 +154,3 @@ distance_flagged_blocks <- flag_distant_blocks(
 distance_flagged_blocks_path <- file.path(precinct_analysis_output_folder, "distance_flagged_blocks.csv")
 fwrite(distance_flagged_blocks, distance_flagged_blocks_path)
 
-cat(sprintf(
-  "Wrote %d-row distance-flagged block table to %s\n",
-  nrow(distance_flagged_blocks), distance_flagged_blocks_path
-))
