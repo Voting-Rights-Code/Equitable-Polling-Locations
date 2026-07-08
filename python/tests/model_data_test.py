@@ -11,7 +11,12 @@ import pytest
 from python.solver import model_data
 from python.solver.constants import DISTANCE_DISTANCE_M, DISTANCE_DURATION_S, DISTANCE_ID_ORIG, DISTANCE_ID_DEST
 from python.solver.model_config import PollingModelConfig
-from python.solver.model_data import _log_transform_metric_columns, apply_metric, insert_driving_distances
+from python.solver.model_data import (
+    _log_transform_metric_columns,
+    _reject_negative_metric_values,
+    apply_metric,
+    insert_driving_distances,
+)
 
 from .constants import TESTING_POTENTIAL_LOCATIONS_PATH, TESTING_DRIVING_DISTANCES_PATH, TEST_LOCATION, MAP_SOURCE_DATE, TESTING_CONFIG_DRIVING
 
@@ -182,38 +187,25 @@ def test_clean_data(testing_config_driving, location_df_with_driving):
         )
 
 
-def test_filter_distance_data_raises_and_names_origin_on_negative(
-        testing_config_driving, location_df_with_driving, capsys):
-    ''' A negative distance_m on a surviving row is rejected like a missing one. '''
-    # Choose an origin that survives filtering, so the negative reaches the gate.
-    surviving = model_data.filter_distance_data(
-        testing_config_driving, location_df_with_driving, False, False)
-    bad_origin = surviving.iloc[0]['id_orig']
-
-    poisoned = location_df_with_driving.copy(deep=True)
-    # Poison every row for that origin so it has no valid distance left and is
-    # named in the diagnostic (matches the existing set-difference reporting).
-    poisoned.loc[poisoned['id_orig'] == bad_origin, 'distance_m'] = -1.0
-
-    with pytest.raises(ValueError):
-        model_data.filter_distance_data(testing_config_driving, poisoned, False, False)
-    assert str(bad_origin) in capsys.readouterr().out
-
-
-def test_filter_distance_data_raises_on_single_negative_cell(
+def test_filter_distance_data_allows_negative_distance(
         testing_config_driving, location_df_with_driving):
-    ''' Even one negative cell on a surviving row triggers the gate. '''
+    ''' A negative distance_m is a valid log value; filter must not reject it.
+
+    Non-negativity is enforced on RAW values at ingestion
+    (_reject_negative_metric_values); filter runs downstream of the log transform,
+    where a negative is log(sub-1), not invalid data. See issue #295.
+    '''
     surviving = model_data.filter_distance_data(
         testing_config_driving, location_df_with_driving, False, False)
-    orig = surviving.iloc[0]['id_orig']
-    dest = surviving.iloc[0]['id_dest']
+    orig = surviving.iloc[0][DISTANCE_ID_ORIG]
+    dest = surviving.iloc[0][DISTANCE_ID_DEST]
 
     poisoned = location_df_with_driving.copy(deep=True)
-    cell = (poisoned['id_orig'] == orig) & (poisoned['id_dest'] == dest)
-    poisoned.loc[cell, 'distance_m'] = -0.5
+    cell = (poisoned[DISTANCE_ID_ORIG] == orig) & (poisoned[DISTANCE_ID_DEST] == dest)
+    poisoned.loc[cell, DISTANCE_DISTANCE_M] = -0.5
 
-    with pytest.raises(ValueError):
-        model_data.filter_distance_data(testing_config_driving, poisoned, False, False)
+    # Should not raise: a negative log-distance is legitimate.
+    model_data.filter_distance_data(testing_config_driving, poisoned, False, False)
 
 
 def test_filter_distance_data_allows_zero_distance(
@@ -261,24 +253,23 @@ def test_log_transform_applies_to_duration_when_present():
     })
     result = _log_transform_metric_columns(df.copy(deep=True))
 
-    assert result[DISTANCE_DISTANCE_M].tolist() == [0.0, np.log(100.0)]
-    assert result[DISTANCE_DURATION_S].tolist() == [0.0, np.log(50.0)]
+    # Exactly-0 is floored per metric (0.001 m, 0.5 s) only to avoid log(0).
+    assert result[DISTANCE_DISTANCE_M].tolist() == [np.log(0.001), np.log(100.0)]
+    assert result[DISTANCE_DURATION_S].tolist() == [np.log(0.5), np.log(50.0)]
 
 
-def test_log_transform_floors_values_below_one_to_zero_log():
-    # Values < 1 (including 0 and sub-1-second / sub-1-metre) floor to 1.0, so
-    # the log is non-negative (log(1) == 0). filter_distance_data rejects any
-    # negative distance, so the old log(0.001) == -6.9 floor crashed a
-    # log_distance run on degenerate coincident pairs. Provisional per #294
-    # pending Susama's modeling decision on how to treat those pairs.
+def test_log_transform_floors_only_exact_zero_per_metric():
+    # Only exactly-0 is floored (0.001 m / 0.5 s), purely to avoid log(0).
+    # Legitimately small sub-1 values keep their negative logs -- non-negativity
+    # of the raw values is validated separately, before the log (issue #295).
     df = pd.DataFrame({
-        DISTANCE_DISTANCE_M: [0.0, 0.5, 1.0, 100.0],
-        DISTANCE_DURATION_S: [0.0, 0.25, 1.0, 50.0],
+        DISTANCE_DISTANCE_M: [0.0, 0.5, 100.0],
+        DISTANCE_DURATION_S: [0.0, 0.25, 50.0],
     })
     result = _log_transform_metric_columns(df.copy(deep=True))
 
-    assert result[DISTANCE_DISTANCE_M].tolist() == [0.0, 0.0, 0.0, np.log(100.0)]
-    assert result[DISTANCE_DURATION_S].tolist() == [0.0, 0.0, 0.0, np.log(50.0)]
+    assert result[DISTANCE_DISTANCE_M].tolist() == [np.log(0.001), np.log(0.5), np.log(100.0)]
+    assert result[DISTANCE_DURATION_S].tolist() == [np.log(0.5), np.log(0.25), np.log(50.0)]
 
 
 def test_log_transform_skips_duration_when_absent():
@@ -287,6 +278,33 @@ def test_log_transform_skips_duration_when_absent():
 
     assert DISTANCE_DURATION_S not in result.columns
     assert result[DISTANCE_DISTANCE_M].tolist() == [np.log(100.0)]
+
+
+def test_reject_negative_metric_values_raises_on_negative_distance():
+    df = pd.DataFrame({DISTANCE_DISTANCE_M: [-1.0, 100.0]})
+    with pytest.raises(ValueError, match='distance_m'):
+        _reject_negative_metric_values(df)
+
+
+def test_reject_negative_metric_values_raises_on_negative_duration():
+    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_S: [-1.0]})
+    with pytest.raises(ValueError, match='duration_s'):
+        _reject_negative_metric_values(df)
+
+
+def test_reject_negative_metric_values_allows_zero_and_positive():
+    df = pd.DataFrame({
+        DISTANCE_DISTANCE_M: [0.0, 100.0],
+        DISTANCE_DURATION_S: [0.0, 50.0],
+    })
+    # Should not raise: 0 and positive are valid raw values.
+    _reject_negative_metric_values(df)
+
+
+def test_reject_negative_metric_values_skips_duration_when_absent():
+    df = pd.DataFrame({DISTANCE_DISTANCE_M: [0.0, 100.0]})
+    # No duration column: only distance_m is checked; should not raise.
+    _reject_negative_metric_values(df)
 
 
 def _driving_config(metric):
