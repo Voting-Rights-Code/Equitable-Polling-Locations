@@ -13,7 +13,7 @@ from python.utils.directory_constants import (
   BLOCK_GROUP_FILE_SUFFIX, CENSUS_FOLDER_NAME, CENSUS_TIGER_DIR,
   DATASETS_DIR, REDISTRICTING_FOLDER_NAME,
   DRIVING_DIR, POLLING_DIR, TABBLOCK_FILE_SUFFIX,
-  BLOCK_GROUP_GEO, BLOCK_GEO, CVAP_FOLDER_NAME, RDH_PREDICTED_WHOLE_POPULATION_FOLDER_NAME
+  BLOCK_GROUP_GEO, BLOCK_GEO, CVAP_FOLDER_NAME, RDH_PREDICTED_VAP_FOLDER_NAME
 )
 
 @dataclass
@@ -199,41 +199,37 @@ def build_CVAP_source_file_path(census_year: str, location: str) -> str:
 
     return os.path.join(CVAP_dir, file_name_cvap)
 
-# RDH and population are established acronyms in this codebase; mixed case is intentional.
 # pylint: disable-next=invalid-name
-def build_RDH_predicted_whole_population_dir_path(location: str) -> str:
-    """Returns the directory for the RDH predicted whole population block data.
+def build_RDH_predicted_vap_dir_path(location: str) -> str:
+    """Returns the directory for the RDH predicted VAP (Voting Age Population) block data.
 
     Args:
         location: Location identifier, e.g. 'Gwinnett_County_GA'.
 
     Returns:
-        Absolute path to the RDH_predicted_whole_population directory for this location.
+        Absolute path to the RDH_predicted_vap directory for this location.
     """
-    return os.path.join(DATASETS_DIR, CENSUS_FOLDER_NAME, RDH_PREDICTED_WHOLE_POPULATION_FOLDER_NAME, location)
+    return os.path.join(DATASETS_DIR, CENSUS_FOLDER_NAME, RDH_PREDICTED_VAP_FOLDER_NAME, location)
 
 # pylint: disable-next=invalid-name
-def build_RDH_predicted_whole_population_source_file_path(location: str, projection_year: str) -> str:
-    """Returns the path to the RDH predicted whole population data CSV for a location.
-
-    Scans the location directory for a CSV file, since RDH filenames include the state
-    abbreviation and year range (e.g. 'ga_pop_proj_2026_2035_b.csv') and are not
-    predictable from the location string alone. projection_year is used only in the
-    fallback path returned when no CSV is found, to produce a meaningful error message.
+def build_RDH_predicted_vap_source_file_path(location: str, projection_year: str) -> str:
+    """Returns the path to the RDH predicted VAP data CSV for a location.
 
     Args:
         location: Location identifier, e.g. 'Gwinnett_County_GA'.
-        projection_year: The population projection year to extract, e.g. '2026'.
+        projection_year: The VAP projection year to extract, e.g. '2026'.
 
     Returns:
         Absolute path to the first CSV found in the directory, or a fallback path if none exists.
     """
-    directory = build_RDH_predicted_whole_population_dir_path(location)
+    directory = build_RDH_predicted_vap_dir_path(location)
     if os.path.isdir(directory):
+        # RDH filenames encode state + year range, so we discover rather than construct the name.
         csv_files = sorted(f for f in os.listdir(directory) if f.endswith('.csv'))
         if csv_files:
             return os.path.join(directory, csv_files[0])
-    return os.path.join(directory, f'pop_proj_{projection_year}_b.csv')
+    # No CSV found yet; return a representative path so callers can surface a clear error.
+    return os.path.join(directory, f'vap_proj_{projection_year}_b.csv')
 
 
 def get_block_source_file_path(census_year, location: str) -> str:

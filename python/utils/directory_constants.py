@@ -24,7 +24,7 @@ REDISTRICTING_FOLDER_NAME = 'redistricting'
 
 CVAP_FOLDER_NAME = 'CVAP'
 
-RDH_PREDICTED_WHOLE_POPULATION_FOLDER_NAME = 'RDH_predicted_whole_population'
+RDH_PREDICTED_VAP_FOLDER_NAME = 'RDH_predicted_vap'
 
 BLOCK_GEO = 'block'
 

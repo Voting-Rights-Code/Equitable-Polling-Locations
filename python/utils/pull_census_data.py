@@ -23,7 +23,7 @@ from python.utils import (
     build_redistricting_dir_path, build_redistricting_file_paths,
     build_CVAP_dir_path, build_CVAP_source_file_path,
     build_tiger_location_dir,
-    build_RDH_predicted_whole_population_dir_path,
+    build_RDH_predicted_vap_dir_path,
 )
 from python.utils.directory_constants import (
     TABBLOCK_FILE_SUFFIX, BLOCK_GROUP_FILE_SUFFIX,
@@ -216,6 +216,23 @@ STATE_LOOKUP = {
 }
 
 RDH_LIST_URL = 'https://redistrictingdatahub.org/wp-json/download/list'
+RDH_DOWNLOAD_URL = 'https://redistrictingdatahub.org/download/'
+
+# RDH dataset IDs for block-level VAP projection files (2026-2035), one per state.
+# These files are not indexed in the RDH catalog API and must be accessed directly
+# via RDH_DOWNLOAD_URL. CT has no block-level projection (only county-level).
+VAP_PROJ_BLOCK_DATASET_IDS = {
+    'AL': 54431, 'AK': 54429, 'AR': 54433, 'AZ': 54435, 'CA': 54437,
+    'CO': 54439, 'DE': 54441, 'FL': 54443, 'GA': 54445, 'HI': 54447,
+    'IA': 54449, 'ID': 54451, 'IL': 54453, 'IN': 54455, 'KS': 54457,
+    'KY': 54459, 'LA': 54461, 'MA': 54463, 'MD': 54465, 'ME': 54467,
+    'MI': 54469, 'MN': 54471, 'MO': 54473, 'MS': 54475, 'MT': 54477,
+    'NC': 54479, 'ND': 54481, 'NE': 54483, 'NH': 54485, 'NJ': 54487,
+    'NM': 54489, 'NV': 54491, 'NY': 54587, 'OH': 54493, 'OK': 54495,
+    'OR': 54497, 'PA': 54499, 'RI': 54501, 'SC': 54503, 'SD': 54505,
+    'TN': 54507, 'TX': 54509, 'UT': 54511, 'VA': 54513, 'VT': 54515,
+    'WA': 54517, 'WI': 54519, 'WV': 54521, 'WY': 54523,
+}
 
 
 def get_census_json(url: str) -> Any:
@@ -636,43 +653,46 @@ def pull_CVAP_data(
     return "Success"
 
 # pylint: disable-next=invalid-name
-def save_RDH_predicted_whole_population_data(df, location, filename):
-    '''Write county-filtered population projection data to its canonical directory.
+def save_RDH_predicted_vap_data(df, location, filename):
+    '''Write county-filtered VAP projection data to its canonical directory.
 
     Args:
         df: DataFrame to save.
         location: Location identifier, e.g. 'Gwinnett_County_GA'.
         filename: Filename to save under, preserving the RDH naming convention
-            (e.g. 'ga_pop_proj_2026_2035_b.csv').
+            (e.g. 'ga_vap_proj_2026_2035_b.csv').
 
     Returns:
         Path to the written CSV.
     '''
-    dirname = build_RDH_predicted_whole_population_dir_path(location)
+    dirname = build_RDH_predicted_vap_dir_path(location)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
+    # os.path.basename strips any directory prefix from the RDH zip entry name,
+    # ensuring we only use the bare filename when writing locally.
     fpath = os.path.join(dirname, os.path.basename(filename))
     df.to_csv(fpath, index=False)
     return fpath
 
 
-def locality_predicted_whole_population_only(state_pop_df, fipscode5):
-    '''Filter a block-level population projection DataFrame to a single county.
+def locality_predicted_vap_only(state_vap_df, fipscode5):
+    '''Filter a state-wide block-level VAP projection DataFrame to a single county.
 
     Args:
-        state_pop_df: Block-level population projection DataFrame with a GEOID column.
+        state_vap_df: Block-level VAP projection DataFrame with a GEOID column.
         fipscode5: 5-digit FIPS code (state + county) used as a GEOID prefix filter.
 
     Returns:
         Filtered DataFrame containing only rows for the specified county.
     '''
-    state_pop_df = state_pop_df.copy()
-    state_pop_df['GEOID'] = state_pop_df['GEOID'].astype(str)
-    return state_pop_df[state_pop_df['GEOID'].str.startswith(fipscode5)]
+    state_vap_df = state_vap_df.copy()
+    # GEOID may be read as int from the CSV; cast to str so startswith works correctly.
+    state_vap_df['GEOID'] = state_vap_df['GEOID'].astype(str)
+    return state_vap_df[state_vap_df['GEOID'].str.startswith(fipscode5)]
 
 
 # pylint: disable-next=invalid-name
-def pull_RDH_predicted_whole_population_data(
+def pull_RDH_predicted_vap_data(
     statecode,
     county,
     census_year,
@@ -680,18 +700,15 @@ def pull_RDH_predicted_whole_population_data(
     rdh_username=None,
     rdh_password=None,
     state_lookup=None,
-    rdh_url=RDH_LIST_URL,
 ):
-    '''Download block-level RDH predicted whole population projection data for a county.
+    '''Download block-level RDH predicted VAP (Voting Age Population) projection data for a county.
 
-    Downloads the state block projection file from the RDH API (one file per state,
-    one row per block), filters it to the specified county using the 5-digit FIPS code,
-    and saves the result to the canonical on-disk location
-    (datasets/census/RDH_predicted_whole_population/<location>/).
+    Downloads the state block projection file from RDH (one file per state, one row per
+    block), filters it to the specified county using the 5-digit FIPS code, and saves the
+    result to datasets/census/RDH_predicted_vap/<location>/.
 
-    Block-level projection files are identified by a ``_b`` suffix immediately before
-    the file extension in the URL (e.g. ``ga_pop_proj_2026_2035_b.csv``). County-level
-    projections use ``_cnty`` and are excluded.
+    These files are not indexed in the RDH catalog API; dataset IDs are looked up from
+    VAP_PROJ_BLOCK_DATASET_IDS. CT has no block-level projection and will raise ValueError.
 
     Args:
         statecode: Two-letter US state code, e.g. 'GA'.
@@ -703,15 +720,17 @@ def pull_RDH_predicted_whole_population_data(
         rdh_username: RDH API username. If None, resolved from env vars or credentials.json.
         rdh_password: RDH API password. If None, resolved from env vars or credentials.json.
         state_lookup: Mapping of state codes to full state names. Defaults to STATE_LOOKUP.
-        rdh_url: RDH list endpoint. Defaults to RDH_LIST_URL.
 
     Returns:
         The string 'Success' on completion.
 
     Raises:
-        ValueError: If credentials are missing, the county is not found in the state data,
-            or no block-level projection file exists in the RDH catalog.
+        ValueError: If credentials are missing, the state has no block-level projection
+            (CT), or the county is not found in the state data.
     '''
+    # --- Credential resolution ---
+    # Each credential falls back to environment variables, then credentials.json,
+    # so callers don't need to pass secrets explicitly in normal usage.
     if state_lookup is None:
         state_lookup = STATE_LOOKUP
     if census_apikey is None:
@@ -731,51 +750,47 @@ def pull_RDH_predicted_whole_population_data(
             'No RDH credentials available. Run `python run.py secret set rdh`. See README.'
         )
 
+    # --- FIPS code lookup ---
+    # We need the 2-digit state code and 3-digit county code to build the 5-digit FIPS
+    # prefix used to filter the state-wide block file down to the target county.
     state = state_lookup.get(statecode)
     states_fips = get_all_states_fips_codes(census_year, census_apikey)
     fipscode2 = states_fips[state]
 
     counties_codes = get_all_state_county_codes(fipscode2, census_year, census_apikey)
     countycode = get_county_code(county, counties_codes)
+    # county_st is the location key used for the on-disk directory (e.g. 'Gwinnett_County_GA').
     county_st = county.replace(' ', '_') + '_' + statecode
 
-    list_params = {
-        'username': rdh_username,
-        'password': rdh_password,
-        'format': 'csv',
-        'states': state,
-        'keywords': 'pop_proj',
-    }
-    list_response = requests.get(rdh_url, params=list_params, timeout=60)
-    catalog = pd.read_csv(io.StringIO(list_response.content.decode('utf-8')))
-
-    # Block projections have '_b' before the extension; county projections use '_cnty'.
-    candidates = catalog[
-        catalog['URL'].str.contains(r'_b\.', na=False, regex=True)
-        & (catalog['Format'] == 'CSV')
-    ].copy()
-
-    if candidates.shape[0] == 0:
+    # --- Download ---
+    # VAP projection files are not indexed in the RDH catalog API, so we use a direct
+    # download URL with a state-specific dataset ID looked up from VAP_PROJ_BLOCK_DATASET_IDS.
+    if statecode not in VAP_PROJ_BLOCK_DATASET_IDS:
         raise ValueError(
-            f'No block-level population projection CSV found for {state} in the RDH catalog.'
+            f'No block-level VAP projection dataset available for {statecode}. '
+            f'CT is the only state without block-level projections.'
         )
-    if candidates.shape[0] > 1:
-        raise ValueError(
-            f'Multiple block-level population projection files found for {state}: '
-            f'{list(candidates["Title"])}'
-        )
+    dataset_id = VAP_PROJ_BLOCK_DATASET_IDS[statecode]
+    document = f'/web_ready_stage/projections/2026_2035/{statecode.lower()}_vap_proj_2026_2035_b.zip'
 
-    listing_url = candidates.iloc[0]['URL']
-    file_path = listing_url.split('/file/')[1].split('?')[0]
-    dataset_id = listing_url.split('datasetid=')[1]
-    download_url = f'https://redistrictingdatahub.org/wp-json/download/file/{file_path}'
-    download_params = {'username': rdh_username, 'password': rdh_password, 'datasetid': dataset_id}
-
-    download_response = requests.get(
-        download_url, params=download_params, allow_redirects=True, timeout=120,
+    # The /download/ endpoint requires session-based auth (browser cookies), not query-param
+    # auth like the wp-json API. Log in first to get the WordPress session cookies.
+    # RDH's /download/ endpoint requires a browser session cookie (wp-login.php is
+    # blocked for programmatic access). These files must be downloaded manually.
+    # Visit the URL below in a browser while logged in to redistrictingdatahub.org,
+    # then save the CSV from the zip to:
+    #   datasets/census/RDH_predicted_vap/{county_st}/
+    raise NotImplementedError(
+        f'Automated download of VAP projection data is not supported: the RDH download '
+        f'endpoint requires a browser login session.\n'
+        f'Please download the file manually:\n'
+        f'  URL: {RDH_DOWNLOAD_URL}?datasetid={dataset_id}&document={document}\n'
+        f'Extract the CSV from the zip and place it in:\n'
+        f'  datasets/census/RDH_predicted_vap/{county_st}/'
     )
-    download_response.raise_for_status()
 
+    # --- Extract CSV from zip ---
+    # RDH delivers each dataset as a single-file zip; we validate that assumption here.
     with zipfile.ZipFile(io.BytesIO(download_response.content)) as zf:
         csv_files = [name for name in zf.namelist() if name.endswith('.csv')]
         if len(csv_files) != 1:
@@ -784,13 +799,14 @@ def pull_RDH_predicted_whole_population_data(
         with zf.open(filename) as csv_file:
             block_df = pd.read_csv(csv_file, low_memory=False)
 
+    # --- Filter to county and save ---
     fipscode5 = fipscode2 + countycode
-    locality_pop_df = locality_predicted_whole_population_only(block_df, fipscode5)
+    locality_vap_df = locality_predicted_vap_only(block_df, fipscode5)
 
-    if locality_pop_df.shape[0] == 0:
-        raise ValueError(f'{county} data not in {state} population projection data')
+    if locality_vap_df.shape[0] == 0:
+        raise ValueError(f'{county} data not in {state} VAP projection data')
 
-    save_RDH_predicted_whole_population_data(locality_pop_df, county_st, filename)
+    save_RDH_predicted_vap_data(locality_vap_df, county_st, filename)
 
     return 'Success'
 
