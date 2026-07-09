@@ -112,6 +112,23 @@ crop_to_boundary <- function(boundary_shape_data, county_shape_data) {
 ##### reconcile a county-provided precinct/polling-location file
 ##### against the state-extracted state_precincts #####
 
+# compute the folder-name prefix for the NEXT state-file correction step
+# by finding the highest existing v<N> sibling folder under the
+# state precinct file's parent directory (if any) and returning v<N+1> 
+next_correction_step_prefix <- function(state_precinct_source_file, location) {
+  state_folder <- dirname(state_precinct_source_file)
+  state_folder_basename <- basename(state_folder)
+  precincts_root <- dirname(state_folder)
+
+  version_pattern <- paste0("^", state_folder_basename, "_", location, "_v([0-9]+)_.*$")
+  sibling_folders <- list.dirs(precincts_root, full.names = FALSE, recursive = FALSE)
+  matching_folders <- sibling_folders[grepl(version_pattern, sibling_folders)]
+  existing_versions <- as.integer(sub(version_pattern, "\\1", matching_folders))
+
+  next_version <- ifelse(length(existing_versions) == 0, 1, max(existing_versions) + 1)
+  return(paste0(state_folder_basename, "_", location, "_v", next_version))
+}
+
 # reshape a county-provided precinct/polling-location table from one row per
 # polling place (with one or more columns listing the precincts it serves) to
 # one row per (location, precinct) pair. Precinct_columns of length 1 works
@@ -143,23 +160,43 @@ add_precinct_id <- function(precincts_long, county_name) {
 # stop()ping error. Resolving requires either
 # editing the state source file or confirming a data with the county.
 # Treat county provided data as correct and change state to match.
-match_location_names <- function(precincts_long, state_precincts, location_name_col) {
+match_location_names <- function(precincts_long, state_precincts, location_name_col,
+                                 state_precinct_source_file, location) {
   state_names <- unique(state_precincts$USER_POLL_)
   precincts_long[, USER_POLL_ := toupper(get(location_name_col))]
 
   unmatched_rows <- unique(precincts_long[!(USER_POLL_ %in% state_names)])
 
   if (nrow(unmatched_rows) > 0) {
+    # Join in what the state file currently has for each flagged precinct --
+    # without it, resolving a mismatch requires a separate manual shapefile
+    # lookup per Precinct_I. NA in state_USER_POLL_ means the precinct isn't
+    # in the state file at all, not just under a different name.
+    state_current_names <- data.table(st_drop_geometry(state_precincts))[
+      , .(Precinct_I, state_USER_POLL_ = USER_POLL_)
+    ]
+    unmatched_rows <- merge(
+      unmatched_rows, state_current_names,
+      by = "Precinct_I", all.x = TRUE, sort = FALSE
+    )
+
     unmatched_names_path <- file.path(precinct_analysis_output_folder, "location_mismatches.csv")
     fwrite(unmatched_rows, unmatched_names_path)
 
+    next_step_prefix <- next_correction_step_prefix(state_precinct_source_file, location)
+
     stop(
       "Found ", nrow(unmatched_rows), " polling location name(s) from the ",
-      "county-provided file that do not match (case-insensitively) any ",
+      "county-provided file that do not match any ",
       "polling location name in the state precinct shapefile. Full list ",
-      "written to ", unmatched_names_path, ".\n",
-      "Edit these names directly in the state provided source file so ",
-      "they match the county's naming, in all caps then re-run."
+      "written to ", unmatched_names_path, " -- USER_POLL_ is the county's ",
+      "asserted name, state_USER_POLL_ is what the state file currently has ",
+      "for that Precinct_I (NA means that precinct isn't in the state file ",
+      "at all).\n",
+      "Edit ", unmatched_names_path, " directly to record the reviewed ",
+      "correction for each row (state_USER_POLL_ -> USER_POLL_). Document ",
+      "the rationale in a new script under R/result_analysis/WV_state_file_corrections/ ",
+      "named ", next_step_prefix, "fix_names_.r, run it, then re-run extract_precincts.r."
     )
   }
 
@@ -169,7 +206,8 @@ match_location_names <- function(precincts_long, state_precincts, location_name_
 # The actual check that county-provided (polling location, precinct) data agrees with
 # state data. Error if any (polling location, precinct) pair appears only on one side.
 # Treat county provided data as correct and change state to match.
-check_poll_precinct_agreement <- function(county_precincts_long, state_precincts) {
+check_poll_precinct_agreement <- function(county_precincts_long, state_precincts,
+                                          state_precinct_source_file, location) {
 
   #outer join state and county data by polling location and precinct
   comparison_data <- merge(
@@ -190,15 +228,19 @@ check_poll_precinct_agreement <- function(county_precincts_long, state_precincts
     mismatches_path <- file.path(precinct_analysis_output_folder, "location_precinct_mismatches.csv")
     fwrite(mismatched_rows, mismatches_path)
 
+    next_step_prefix <- next_correction_step_prefix(state_precinct_source_file, location)
+
     stop(
       "Found ", nrow(mismatched_rows), " Precinct / Location pair(s) that disagree ",
       "between the state shapefile and the county file. Full list written to ",
       mismatches_path, " (see its mismatch_source column: 'state_only' means the ",
       "pair is in the state shapefile but not the county file; 'county_only' is ",
       "the reverse).\n",
-      "Check that the COUNTY_PRECINCT_COLUMN_NAMES are correct. Furthermore,
-      investigate with the county/state and update the state file accordingly.
-      DO NOT remove rows."
+      "Check that the COUNTY_PRECINCT_COLUMN_NAMES are correct. Furthermore, ",
+      "investigate with the county/state, then document the decision in a new ",
+      "script under R/result_analysis/WV_state_file_corrections/ named ",
+      next_step_prefix, "_fix_precinct_ids.r, run it, then re-run extract_precincts.r. ",
+      "DO NOT remove rows."
     )
   }
 
@@ -213,7 +255,8 @@ check_poll_precinct_agreement <- function(county_precincts_long, state_precincts
 # and return state_precincts once verified to agree with it.
 reconcile_state_precinct_data <- function(precinct_file, precinct_column_names,
                                            location_name_col, address_col,
-                                           state_precincts, county_name) {
+                                           state_precincts, county_name,
+                                           state_precinct_source_file, location) {
   #read in county provided data
   provided_polls <- fread(precinct_file)
 
@@ -238,12 +281,17 @@ reconcile_state_precinct_data <- function(precinct_file, precinct_column_names,
   precincts_long <- add_precinct_id(precincts_long, county_name)
 
   #check if polling location names match. Flag for manual review. County names correct
-  precincts_long <- match_location_names(precincts_long, state_precincts, location_name_col)
+  precincts_long <- match_location_names(
+    precincts_long, state_precincts, location_name_col,
+    state_precinct_source_file, location
+  )
 
   #check if polling location, precinct assignmentsmatch. Flag for manual review.
   #County assignments correct. State precinct list correct.
   #If county does not assign a precinct, use state assignment.
-  corrected_state_data <-check_poll_precinct_agreement(precincts_long, state_precincts)
+  corrected_state_data <- check_poll_precinct_agreement(
+    precincts_long, state_precincts, state_precinct_source_file, location
+  )
   stopifnot("Corrected state data has a different number of precincts than the original data.
               DO NOT change the state's precinct" = nrow(state_precincts) == nrow(corrected_state_data))
 
