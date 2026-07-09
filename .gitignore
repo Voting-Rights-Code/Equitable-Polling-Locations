@@ -217,7 +217,6 @@ docs/superpowers/
 
 #datasets to ignore
 datasets/census
-datasets/precincts
 datasets/openrouteservice
 datasets/ors_graphs
 
@@ -240,8 +239,10 @@ datasets/results/e2e_*_results/
 !docs/VRC-Large-PNG.png
 !datasets/census/redistricting/testing/*
 !datasets/census/tiger/testing/*
+!datasets/precincts/**/*
 !datasets/driving/testing/*
 !datasets/polling/testing/*
+!precinct_analysis_outputs/**/*
 !datasets/results/testing_results/*
 !python/tests/test_kp_factor.csv
 !python/tests/test_results.csv
