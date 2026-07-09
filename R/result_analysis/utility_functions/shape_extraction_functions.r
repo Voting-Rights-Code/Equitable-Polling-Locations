@@ -273,12 +273,11 @@ reconcile_state_precinct_data <- function(precinct_file, precinct_column_names,
 return(corrected_state_data)
 }
 
-# intersect every census block -- populated or not -- against every
-# precinct, using the true (unbuffered) boundary, and report each overlap's
+# intersect every census block against every
+# precinct, and report each overlap's
 # area and the percent of the block's area that overlap leaves outside the
 # precinct. One row per (block, precinct) pair that overlaps at all -- a
-# block touching 3 precincts produces 3 rows. Shared by
-# assign_block_to_dominant_precinct() and flag_overlapping_blocks().
+# block touching 3 precincts produces 3 rows. 
 compute_block_precinct_overlaps <- function(county_precincts, county_blocks,
                                             p3_population, area_crs = AREA_CRS) {
 
@@ -311,19 +310,12 @@ compute_block_precinct_overlaps <- function(county_precincts, county_blocks,
   return(block_precinct_intersection)
 }
 
-# associate each census block -- populated or not -- with its dominant
+# associate each census block with its dominant
 # (largest-overlap) precinct.
 # also report the percent of the block's area outside that precinct, and a
 # flag for blocks whose dominant precinct holds between 50% and 90% of the
 # block.
-#NOTE: Assumes that each precinct is a union of blocks. Otherwise
-#the dominant precinct logic does not apply.
-assign_block_to_dominant_precinct <- function(county_precincts, county_blocks,
-                                          p3_population, area_crs = AREA_CRS) {
-
-  block_precinct_intersection <- compute_block_precinct_overlaps(
-    county_precincts, county_blocks, p3_population, area_crs
-  )
+assign_block_to_dominant_precinct <- function(block_precinct_intersection) {
 
   # keep only each block's dominant (largest-overlap) precinct.
   block_precinct_intersection <- block_precinct_intersection %>%
@@ -337,17 +329,11 @@ assign_block_to_dominant_precinct <- function(county_precincts, county_blocks,
   return(block_precinct_intersection)
 }
 
-# unlike assign_block_to_dominant_precinct() (one row per block, its single
-# dominant precinct), this keeps every precinct a block significantly
+# Flag every precinct a block and precinct that significantly 
 # overlaps: one row per (block, precinct) pair where the precinct holds more
 # than min_percent_overlap of the block's area. A block with significant
-# overlap in 3 precincts produces 3 rows. See #283.
-flag_overlapping_blocks <- function(county_precincts, county_blocks, p3_population,
-                                    min_percent_overlap = 0.05, area_crs = AREA_CRS) {
-
-  block_precinct_intersection <- compute_block_precinct_overlaps(
-    county_precincts, county_blocks, p3_population, area_crs
-  )
+# overlap in 3 precincts produces 3 rows. 
+flag_overlapping_blocks <- function(block_precinct_intersection, min_percent_overlap = 0.05) {
 
   block_precinct_intersection$percent_overlap <- 1 -
     block_precinct_intersection$percent_outside_precinct
@@ -410,10 +396,6 @@ flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
   #drop geometry. Make a data.table 
   #Recall, block_precinct_assignment is based off (potentially modified) state data
   populated_blocks <- data.table(st_drop_geometry(block_precinct_assignment))
-  # TODO: revisit once #283 (precinct 73's zero-population bug) is
-  # resolved -- some genuinely-populated blocks may currently show
-  # total_population == 0 due to that bug, and would be dropped here
-  # incorrectly.
   populated_blocks <- populated_blocks[total_population > 0]
 
   # data with polling location coordinates
@@ -421,9 +403,9 @@ flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
   potential_locations <- fread(potential_locations_file)
   potential_locations[, USER_POLL_ := toupper(Location)]
 
-  # At this point USER_POLL_ in block assignment and potential_locations.csv's 
-  # Location columns should match (Step 5)
-  # If they don't error message flahs that they are out of sync.
+  # potential_locations file may depend on county data
+  # this should already be resolved. If not halt and force resolution
+  # This data cleaning can only happen by hand.
   resolved_blocks <- merge(
     populated_blocks, potential_locations[, .(USER_POLL_, Location)],
     by = "USER_POLL_"

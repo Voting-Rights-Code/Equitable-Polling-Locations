@@ -52,6 +52,28 @@ st_geometry(state_precincts) <- "precinct_geometry"
 
 state_precincts_proj <- st_transform(state_precincts, AREA_CRS)
 
+###### 
+# Step 5: reconcile county-provided precinct data 
+# Assume that the county provided precinct data (if it exists)
+# is correct. The reconciliation is to get the state data to match it. 
+# Changes are made to the state file
+#######
+
+#If the county provides precinct data, 
+#reconcile it with the state provided precinct data
+if (COUNTY_PROVIDES_PRECINCT_DATA) {
+  precincts_resolved <- reconcile_state_precinct_data(
+    COUNTY_PROVIDED_PRECINCT_FILE,
+    COUNTY_PRECINCT_COLUMN_NAMES,
+    COUNTY_POLLING_LOCATION_NAME_COL,
+    COUNTY_POLLING_LOCATION_ADDRESS_COL,
+    state_precincts,
+    COUNTY_NAME
+  )
+} else {
+  precincts_resolved <- state_precincts
+}
+
 ###### Step 2: Extract and validate the county's blocks#######
 
 #extract county blocks from the TIGER/Line shapefile
@@ -73,9 +95,11 @@ p3_population <- fread(
 #flagged_assigned_blocks
 #######
 
-block_precinct_assignment <- assign_block_to_dominant_precinct(
-  state_precincts, county_blocks, p3_population, AREA_CRS
+block_precinct_intersection <- compute_block_precinct_overlaps(
+  precincts_resolved, county_blocks, p3_population, AREA_CRS
 )
+
+block_precinct_assignment <- assign_block_to_dominant_precinct(block_precinct_intersection)
 
 names(block_precinct_assignment)[names(block_precinct_assignment) == "geometry"] <- "block_geometry"
 st_geometry(block_precinct_assignment) <- "block_geometry"
@@ -93,54 +117,35 @@ block_precinct_assignment %>%
 # per precinct a block significantly overlaps
 # flagged_overlapping_blockss
 #######
-overlapping_blocks <- flag_overlapping_blocks(
-  state_precincts, county_blocks, p3_population, area_crs = AREA_CRS
-)
+overlapping_blocks <- flag_overlapping_blocks(block_precinct_intersection)
 
 st_write(
   overlapping_blocks %>% filter(flagged == TRUE),
   file.path(precinct_analysis_output_folder, "flagged_overlapping_blocks.gpkg"), append = FALSE
 )
 
-###### 
-# Step 5: reconcile county-provided precinct data 
-# Assume that the county provided precinct data (if it exists)
-# is correct. The reconciliation is to get the state data to match it. 
-# Changes are made to the state file
+######
+# Step 4.5: flag precincts with zero population, either because all
+# assigned block have no population, or because there are no assigned
+# blocks.
 #######
-
-#If the county provides precinct data, 
-#reconcile it with the state provided precinct data
-if (COUNTY_PROVIDES_PRECINCT_DATA) {
-  county_precincts_resolved <- reconcile_state_precinct_data(
-    COUNTY_PROVIDED_PRECINCT_FILE,
-    COUNTY_PRECINCT_COLUMN_NAMES,
-    COUNTY_POLLING_LOCATION_NAME_COL,
-    COUNTY_POLLING_LOCATION_ADDRESS_COL,
-    state_precincts,
-    COUNTY_NAME
-  )
-} else {
-  county_precincts_resolved <- state_precincts
-}
-
-# Drop precincts with zero population, per block_precinct_assignment.
-# if possible, verify these precincts with a human 
 precinct_population <- data.table(st_drop_geometry(block_precinct_assignment))[
-  , .(total_population = sum(total_population)), by = Precinct_I
+  , .(total_population = sum(total_population), assigned_blocks = .N), by = Precinct_I
 ]
 
-county_precincts_resolved <- merge(
-  county_precincts_resolved, precinct_population,
-  by = "Precinct_I", sort = FALSE
+precincts_resolved_with_population <- merge(
+  precincts_resolved, precinct_population,
+  by = "Precinct_I", all.x = TRUE, sort = FALSE
 )
-county_precincts_resolved <- county_precincts_resolved[
-  county_precincts_resolved$total_population > 0,
-]
-county_precincts_resolved$total_population <- NULL
+precincts_resolved_with_population <- precincts_with_population %>%
+  mutate(unpopulated_precinct = is.na(total_population) | total_population == 0)
+
+st_write(
+  precincts_resolved_with_population %>% filter(unpopulated_precinct == TRUE),
+  file.path(precinct_analysis_output_folder, "flagged_unpopulated_precincts.gpkg"), append = FALSE
+)
 
 ###### Step 6: flag blocks far from their assigned polling location #######
-
 # 5 miles in meters. Explicit stand-in for "more than a 15-minute drive"
 # until real drive-time data exists.
 # TODO(#271): replace with a time-based threshold once driving *time* (not
