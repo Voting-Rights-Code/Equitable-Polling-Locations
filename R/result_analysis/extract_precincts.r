@@ -50,10 +50,9 @@ state_precincts <- state_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")
 names(state_precincts)[names(state_precincts) == "geometry"] <- "precinct_geometry"
 st_geometry(state_precincts) <- "precinct_geometry"
 
-state_precincts_proj <- st_transform(state_precincts, AREA_CRS)
 
 ###### 
-# Step 5: reconcile county-provided precinct data 
+# Step 2: reconcile county-provided precinct data 
 # Assume that the county provided precinct data (if it exists)
 # is correct. The reconciliation is to get the state data to match it. 
 # Changes are made to the state file
@@ -74,7 +73,7 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
   precincts_resolved <- state_precincts
 }
 
-###### Step 2: Extract and validate the county's blocks#######
+###### Step 3: Extract and validate the county's blocks#######
 
 #extract county blocks from the TIGER/Line shapefile
 tiger_file_path <-  file.path(TIGER_FOLDER, LOCATION, paste0(BLOCK_GEOMETRY_FILES, ".shp"))
@@ -89,7 +88,7 @@ p3_population <- fread(
 )
 
 ######
-#Step 3: associate blocks with (dominant) precincts 
+#Step 4: associate blocks with (dominant) precincts 
 #flag if a flag has 50-90% of its area outside a precints
 #and write to file
 #flagged_assigned_blocks
@@ -112,10 +111,10 @@ block_precinct_assignment %>%
 )
 
 ######
-# Step 4: For further validation, of state precinct maps
+# Step 5: For further validation, of state precinct maps
 # write every (block, precinct) pair with more than 5% overlap -- one row
 # per precinct a block significantly overlaps
-# flagged_overlapping_blockss
+# flagged_overlapping_blocks
 #######
 overlapping_blocks <- flag_overlapping_blocks(block_precinct_intersection)
 
@@ -125,7 +124,7 @@ st_write(
 )
 
 ######
-# Step 4.5: flag precincts with zero population, either because all
+# Step 6: flag precincts with zero population, either because all
 # assigned block have no population, or because there are no assigned
 # blocks.
 #######
@@ -145,7 +144,7 @@ st_write(
   file.path(precinct_analysis_output_folder, "flagged_unpopulated_precincts.gpkg"), append = FALSE
 )
 
-###### Step 6: flag blocks far from their assigned polling location #######
+###### Step 7: flag blocks far from their assigned polling location #######
 # 5 miles in meters. Explicit stand-in for "more than a 15-minute drive"
 # until real drive-time data exists.
 # TODO(#271): replace with a time-based threshold once driving *time* (not

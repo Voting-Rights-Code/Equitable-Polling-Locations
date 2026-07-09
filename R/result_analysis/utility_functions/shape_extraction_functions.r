@@ -207,25 +207,6 @@ check_poll_precinct_agreement <- function(county_precincts_long, state_precincts
   return(state_precincts)
 }
 
-# reconcile county-provided (polling location, precinct) data with state data.
-# Error if any (polling location, precinct) pair appears only on one side.
-# A mismatch indicates ambiguity about which precinct a location
-# serves; that needs a human-confirmed resolution.
-# Treat county provided assignment as correct and change state to match.
-# Keep all state precincts.
-reconcile_location_precinct_pairs <- function(county_provided_data, precinct_columns,
-                                                location_name_col, address_col,
-                                                state_precincts, county_name) {
-  precincts_long <- reshape_county_precincts_long(
-    county_provided_data, precinct_columns, location_name_col, address_col
-  )
-  precincts_long <- add_precinct_id(precincts_long, county_name)
-  precincts_long <- match_location_names(precincts_long, state_precincts, location_name_col)
-  corrected_state_data <-check_poll_precinct_agreement(precincts_long, state_precincts)
-  stopifnot("Corected state data has a different number of precincts than the original data.
-              DO NOT change the state's precinct" = nrow(state_precincts) == nrow(corrected_state_data))
-  return(corrected_state_data)
-}
 
 # load a county-provided precinct/polling-location CSV, normalize its
 # (possibly repeated) precinct slot column names against precinct_column_names,
@@ -263,17 +244,9 @@ reconcile_state_precinct_data <- function(precinct_file, precinct_column_names,
   #County assignments correct. State precinct list correct.
   #If county does not assign a precinct, use state assignment.
   corrected_state_data <-check_poll_precinct_agreement(precincts_long, state_precincts)
-  stopifnot("Corected state data has a different number of precincts than the original data.
+  stopifnot("Corrected state data has a different number of precincts than the original data.
               DO NOT change the state's precinct" = nrow(state_precincts) == nrow(corrected_state_data))
 
-  #reconcile_location_precinct_pairs(
-  #  provided_polls,
-  #  precinct_columns = unique_precinct_columns,
-  #  location_name_col = location_name_col,
-  #  address_col = address_col,
-  #  state_precincts = state_precincts,
-  #  county_name = county_name
-  #)
 return(corrected_state_data)
 }
 
@@ -333,7 +306,7 @@ assign_block_to_dominant_precinct <- function(block_precinct_intersection) {
   return(block_precinct_intersection)
 }
 
-# Flag every precinct a block and precinct that significantly 
+# Flag every block and precinct that significantly 
 # overlaps: one row per (block, precinct) pair where the precinct holds more
 # than min_percent_overlap of the block's area. A block with significant
 # overlap in 3 precincts produces 3 rows. 
@@ -343,8 +316,8 @@ flag_overlapping_blocks <- function(block_precinct_intersection, min_percent_ove
     block_precinct_intersection$percent_outside_precinct
 
   block_precinct_intersection <- block_precinct_intersection %>% 
-    mutate(flagged = percent_outside_precinct > 0.05 & 
-    percent_outside_precinct < .95)
+    mutate(flagged = percent_outside_precinct > min_percent_overlap & 
+    percent_outside_precinct < 1-min_percent_overlap)
   return(block_precinct_intersection)
 }
 
