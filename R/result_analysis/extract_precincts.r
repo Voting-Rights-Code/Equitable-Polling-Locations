@@ -35,6 +35,12 @@ source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
 ########
 CRS_PROJECTION <- 4326
 
+#output folder name
+precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
+if (!file.exists(file.path(here(), precinct_analysis_output_folder))) {
+  dir.create(file.path(here(), precinct_analysis_output_folder), recursive = TRUE)
+}
+
 
 ###### Step 1: extract and validate the county's precincts#######
 state_precincts <- extract_county_precincts(STATE_PRECINCT_SOURCE_FILE, COUNTY_NAME, CRS_PROJECTION)
@@ -106,7 +112,7 @@ st_write(
 #If the county provides precinct data, 
 #reconcile it with the state provided precinct data
 if (COUNTY_PROVIDES_PRECINCT_DATA) {
-  county_precincts_resolved <- reconciled_state_precinct_data(
+  county_precincts_resolved <- reconcile_state_precinct_data(
     COUNTY_PROVIDED_PRECINCT_FILE,
     COUNTY_PRECINCT_COLUMN_NAMES,
     COUNTY_POLLING_LOCATION_NAME_COL,
