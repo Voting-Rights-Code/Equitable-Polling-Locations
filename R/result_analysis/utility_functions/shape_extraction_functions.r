@@ -147,16 +147,18 @@ match_location_names <- function(precincts_long, state_precincts, location_name_
   state_names <- unique(state_precincts$USER_POLL_)
   precincts_long[, USER_POLL_ := toupper(get(location_name_col))]
 
-  unmatched_names <- unique(
-    precincts_long[[location_name_col]][!(precincts_long$USER_POLL_ %in% state_names)]
-  )
+  unmatched_rows <- unique(precincts_long[!(USER_POLL_ %in% state_names)])
 
-  if (length(unmatched_names) > 0) {
+  if (nrow(unmatched_rows) > 0) {
+    unmatched_names_path <- file.path(precinct_analysis_output_folder, "location_mismatches.csv")
+    fwrite(unmatched_rows, unmatched_names_path)
+
     stop(
-      "The following polling location name(s) from the county-provided file ",
-      "do not match (case-insensitively) any polling location name in the ",
-      "state precinct shapefile: ", paste(unmatched_names, collapse = ", "),
-      ". Edit these names directly in the state provided source file so ",
+      "Found ", nrow(unmatched_rows), " polling location name(s) from the ",
+      "county-provided file that do not match (case-insensitively) any ",
+      "polling location name in the state precinct shapefile. Full list ",
+      "written to ", unmatched_names_path, ".\n",
+      "Edit these names directly in the state provided source file so ",
       "they match the county's naming, in all caps then re-run."
     )
   }
@@ -181,17 +183,19 @@ check_poll_precinct_agreement <- function(county_precincts_long, state_precincts
   if (nrow(mismatched_rows) > 0) {
     # County_Nam only comes from state_precincts, so its absence marks a pair
     # the county reported that's missing from the state shapefile, and vice versa
-    pair_label <- sprintf(
-      "Precinct_I=%s, USER_POLL_=%s",
-      mismatched_rows$Precinct_I, mismatched_rows$USER_POLL_
-    )
-    state_only_pairs <- pair_label[!is.na(mismatched_rows$County_Nam)]
-    county_only_pairs <- pair_label[is.na(mismatched_rows$County_Nam)]
+    mismatched_rows[
+      , mismatch_source := ifelse(is.na(County_Nam), "county_only", "state_only")
+    ]
+
+    mismatches_path <- file.path(precinct_analysis_output_folder, "location_precinct_mismatches.csv")
+    fwrite(mismatched_rows, mismatches_path)
+
     stop(
-      "The following Precinct / Location pairs disagree between the state ",
-      "shapefile and the county file:\n",
-      "Pairs in the state but not county file: ", paste(state_only_pairs, collapse = "; "), "\n",
-      "Pairs in the county but not state file: ", paste(county_only_pairs, collapse = "; "), "\n",
+      "Found ", nrow(mismatched_rows), " Precinct / Location pair(s) that disagree ",
+      "between the state shapefile and the county file. Full list written to ",
+      mismatches_path, " (see its mismatch_source column: 'state_only' means the ",
+      "pair is in the state shapefile but not the county file; 'county_only' is ",
+      "the reverse).\n",
       "Check that the COUNTY_PRECINCT_COLUMN_NAMES are correct. Furthermore,
       investigate with the county/state and update the state file accordingly.
       DO NOT remove rows."

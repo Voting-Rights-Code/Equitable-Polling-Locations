@@ -137,7 +137,7 @@ precincts_resolved_with_population <- merge(
   precincts_resolved, precinct_population,
   by = "Precinct_I", all.x = TRUE, sort = FALSE
 )
-precincts_resolved_with_population <- precincts_with_population %>%
+precincts_resolved_with_population <- precincts_resolved_with_population %>%
   mutate(unpopulated_precinct = is.na(total_population) | total_population == 0)
 
 st_write(
