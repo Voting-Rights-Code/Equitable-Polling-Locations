@@ -3,6 +3,7 @@ library(data.table)
 library(here)
 
 setwd(here())
+source("R/result_analysis/utility_functions/shape_extraction_functions.r")
 source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
 
 ########
@@ -74,51 +75,13 @@ state_precincts <- st_read(STATE_PRECINCT_SOURCE_FILE)
 corrections <- fread(RECONCILIATION_CSV)
 
 ########
-# Simple renames: same precinct, corrected name (state_USER_POLL_ -> USER_POLL_)
+# Apply corrections
 ########
 
-name_corrections <- corrections[mismatch_source == "name_mismatch"]
-rows <- match(name_corrections$Precinct_I, state_precincts$Precinct_I)
-stopifnot("Every name_mismatch Precinct_I must exist in the state file" = all(!is.na(rows)))
-stopifnot(
-  "State file's current USER_POLL_ no longer matches location_precinct_mismatches.csv's state_USER_POLL_ -- something changed since this file was reviewed; re-review before applying" =
-    identical(state_precincts$USER_POLL_[rows], name_corrections$state_USER_POLL_)
+result <- apply_corrections(
+  state_precincts, RECONCILIATION_CSV, existing_crosswalk_path = NULL
 )
-state_precincts$USER_POLL_[rows] <- name_corrections$USER_POLL_
-
-########
-# Monongalia_2 -> Monongalia_2A / Monongalia_2B: county-level administrative
-# relabeling of a single state precinct, not two real distinct areas. Both
-# new rows inherit Monongalia_2's geometry; Monongalia_2 itself is dropped,
-# since the county never reports a plain "2".
-########
-
-precinct_2_row <- state_precincts[state_precincts$Precinct_I == "Monongalia_2", ]
-stopifnot("Expected exactly one Monongalia_2 row before the 2A/2B split" = nrow(precinct_2_row) == 1)
-
-split_targets <- corrections[Precinct_I %in% c("Monongalia_2A", "Monongalia_2B")]
-stopifnot(
-  "Expected exactly Monongalia_2A and Monongalia_2B as the 2-split targets" =
-    identical(sort(split_targets$Precinct_I), c("Monongalia_2A", "Monongalia_2B"))
-)
-
-precinct_2a_row <- precinct_2_row
-precinct_2a_row$Precinct_I <- "Monongalia_2A"
-precinct_2a_row$USER_POLL_ <- split_targets[Precinct_I == "Monongalia_2A", USER_POLL_]
-
-precinct_2b_row <- precinct_2_row
-precinct_2b_row$Precinct_I <- "Monongalia_2B"
-precinct_2b_row$USER_POLL_ <- split_targets[Precinct_I == "Monongalia_2B", USER_POLL_]
-
-########
-# Monongalia_A / Monongalia_B: non-populated, never assigned a location by
-# the state, and not referenced by the county at all -- dropped entirely.
-########
-
-state_precincts <- state_precincts[
-  !(state_precincts$Precinct_I %in% c("Monongalia_2", "Monongalia_A", "Monongalia_B")),
-]
-state_precincts <- rbind(state_precincts, precinct_2a_row, precinct_2b_row)
+state_precincts <- result$state_precincts
 
 ########
 # Write the reconciled output, then mirror it to the stable path
@@ -131,5 +94,9 @@ st_write(
   file.path(RECONCILIATION_OUTPUT_FOLDER, basename(STATE_PRECINCT_SOURCE_FILE)),
   append = FALSE
 )
-
 copy_shapefile_folder(RECONCILIATION_OUTPUT_FOLDER, state_precincts_folder)
+
+crosswalk_path <- file.path(
+  precinct_analysis_output_folder, "precinct_polling_location_crosswalk.csv"
+)
+fwrite(result$crosswalk, crosswalk_path)
