@@ -193,6 +193,13 @@ check_poll_precinct_agreement <- function(county_precincts_long, state_precincts
       )
     ]
 
+    mismatched_rows[
+      , `:=`(
+        resolution_type = NA_character_,
+        geometry_source_precinct_I = NA_character_
+      )
+    ]
+
     mismatches_path <- file.path(precinct_analysis_output_folder, "location_precinct_mismatches.csv")
     fwrite(mismatched_rows, mismatches_path)
 
@@ -206,11 +213,22 @@ check_poll_precinct_agreement <- function(county_precincts_long, state_precincts
       "'county_only' is the reverse; 'name_mismatch' means the precinct is in ",
       "both but state_USER_POLL_ and USER_POLL_ disagree.\n",
       "Check that the COUNTY_PRECINCT_COLUMN_NAMES are correct. Furthermore, ",
-      "investigate with the county/state. Update the USER_POLL_ column in ", mismatches_path,
-      ". Document the decision in a new ",
-      "script under R/result_analysis/WV_state_file_corrections/ named ",
-      next_step_prefix, "_fix_precinct_ids.r run it, then re-run extract_precincts.r. ",
-      "DO NOT remove rows."
+      "investigate with the county/state. For each row, fill in:\n",
+      "  - USER_POLL_: the correct polling place name.\n",
+      "  - resolution_type: one of 'rename' (same precinct, name only), ",
+      "'split' (this county precinct is an administrative division of ",
+      "an existing state precinct), or 'drop' (this precinct is not ",
+      "recognized by the county).\n",
+      "  - geometry_source_precinct_I: for 'split' rows only, the ",
+      "state provided ",
+      "Precinct_I whose geometry this row should reuse. Blank for 'rename' ",
+      "and 'drop'.\n",
+      "DO NOT remove rows -- a 'drop' decision belongs in resolution_type, ",
+      "not in deleting the row.\n",
+      "Document the decision in a new script under ",
+      "R/result_analysis/WV_state_file_corrections/ named ",
+      next_step_prefix, "_fix_precinct_ids.r that calls apply_corrections(), ",
+      "then re-run extract_precincts.r."
     )
   }
 
