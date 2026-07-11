@@ -25,13 +25,13 @@ county_provided_data_names <- list(COUNTY_PROVIDED_PRECINCT_FILE, COUNTY_POLLING
                                     COUNTY_POLLING_LOCATION_ADDRESS_COL, COUNTY_PRECINCT_COLUMN_NAMES)
 if (COUNTY_PROVIDES_PRECINCT_DATA) {
   if (any(sapply(county_provided_data_names, is.null))) {
-    stop("COUNTY_PROVIDED_ file, precinct location name column, or precinct address column cannot be null
-        if COUNTY_PROVIDES_PRECINCT_DATA is TRUE")
+    stop("None of COUNTY_PROVIDED_ file, precinct location name column, precinct address column or the columns indicating 
+          assinged precincts can be null if COUNTY_PROVIDES_PRECINCT_DATA is TRUE")
   }
 } else { #COUNTY_PROVIDES_PRECINCT_DATA is FALSE
   if (any(!sapply(county_provided_data_names, is.null))) {
-    stop("COUNTY_PROVIDED_ file, precinct location name column, or precinct address columns must be null
-        if COUNTY_PROVIDES_PRECINCT_DATA is FALSE")
+    stop("All of COUNTY_PROVIDED_ file, precinct location name column, precinct address column and the columns indicating 
+            assinged precincts must be null if COUNTY_PROVIDES_PRECINCT_DATA is FALSE")
   }
 }
 

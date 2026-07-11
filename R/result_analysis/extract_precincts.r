@@ -31,11 +31,6 @@ source("R/result_analysis/utility_functions/shape_extraction_functions.r")
 #source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
 source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
 
-########
-# Constants
-########
-CRS_PROJECTION <- 4326
-
 
 ###### Step 1: extract and validate the county's precincts#######
 state_precincts <- extract_county_precincts(STATE_PRECINCT_SOURCE_FILE, COUNTY_NAME, CRS_PROJECTION)
@@ -150,7 +145,22 @@ distance_flagged_blocks <- flag_distant_blocks(
 distance_flagged_blocks_path <- file.path(precinct_analysis_output_folder, "distance_flagged_blocks.csv")
 fwrite(distance_flagged_blocks, distance_flagged_blocks_path)
 
-cat(sprintf(
-  "Wrote %d-row distance-flagged block table to %s\n",
-  nrow(distance_flagged_blocks), distance_flagged_blocks_path
-))
+
+###### Step 7: plot county-level distance heat map #######
+
+# choropleth mode
+make_demo_distance_heat_map(
+  block_precinct_assignment, distance_flagged_blocks,
+  county_precincts_resolved, demo_pop = NULL
+)
+
+# dot mode: one map per demographic of interest
+make_demo_distance_heat_map(
+  block_precinct_assignment, distance_flagged_blocks,
+  county_precincts_resolved, demo_pop = "total_population"
+)
+
+make_demo_distance_heat_map(
+  block_precinct_assignment, distance_flagged_blocks,
+  county_precincts_resolved, demo_pop = "black"
+)
