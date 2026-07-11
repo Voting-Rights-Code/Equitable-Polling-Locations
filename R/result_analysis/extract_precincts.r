@@ -164,3 +164,21 @@ distance_flagged_blocks <- flag_distant_blocks(
 distance_flagged_blocks_path <- file.path(precinct_analysis_output_folder, "distance_flagged_blocks.csv")
 fwrite(distance_flagged_blocks, distance_flagged_blocks_path)
 
+###### Step 8: plot county-level distance heat map #######
+
+# choropleth mode
+make_demo_distance_heat_map(
+  block_precinct_assignment, distance_flagged_blocks,
+  precincts_resolved, demo_pop = NULL
+)
+
+# dot mode: one map per demographic of interest
+make_demo_distance_heat_map(
+  block_precinct_assignment, distance_flagged_blocks,
+  precincts_resolved, demo_pop = "total_population"
+)
+
+make_demo_distance_heat_map(
+  block_precinct_assignment, distance_flagged_blocks,
+  precincts_resolved, demo_pop = "black"
+)
