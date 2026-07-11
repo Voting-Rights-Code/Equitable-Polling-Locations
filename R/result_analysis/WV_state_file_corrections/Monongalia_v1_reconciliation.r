@@ -72,7 +72,6 @@ copy_shapefile_folder <- function(source_folder, destination_folder) {
 ########
 
 state_precincts <- st_read(STATE_PRECINCT_SOURCE_FILE)
-corrections <- fread(RECONCILIATION_CSV)
 
 ########
 # Apply corrections

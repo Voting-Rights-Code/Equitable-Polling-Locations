@@ -296,7 +296,10 @@ return(corrected_state_data)
 build_precinct_crosswalk <- function(reviewed_corrections) {
   rename_rows <- reviewed_corrections[
     resolution_type == "rename",
-    .(Precinct_I = Precinct_I, resolved_polling_location = USER_POLL_)
+    .(Precinct_I = Precinct_I,
+      resolved_polling_location = fifelse(
+        is.na(USER_POLL_) | USER_POLL_ == "", NA_character_, USER_POLL_
+      ))
   ]
 
   # a "drop" row's own USER_POLL_ is the single source of truth for its
@@ -384,7 +387,11 @@ apply_corrections <- function(state_precincts, mismatches_csv_path,
   has_existing_crosswalk <- !is.null(existing_crosswalk_path) &&
     file.exists(existing_crosswalk_path)
   if (has_existing_crosswalk) {
-    prior_crosswalk <- fread(existing_crosswalk_path)
+    # na.strings = "" restores the NA contract across the fwrite/fread
+    # round-trip: fwrite() serializes NA_character_ as "", and fread()'s
+    # default would read that back as "" (not NA), silently misclassifying
+    # a prior step's genuinely-unresolvable rows as resolved.
+    prior_crosswalk <- fread(existing_crosswalk_path, na.strings = "")
     crosswalk <- rbind(prior_crosswalk, new_crosswalk)
   } else {
     crosswalk <- new_crosswalk
