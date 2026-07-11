@@ -44,6 +44,7 @@ build_driving_distances_file_path <- function(location, driving_folder = DRIVING
   ))
 }
 
+
 # select a county's precincts from a statewide precinct shapefile, by county
 # name. 
 # Note for future projects: This is custom built for the WV precinct shapefile and may need
@@ -147,16 +148,18 @@ match_location_names <- function(precincts_long, state_precincts, location_name_
   state_names <- unique(state_precincts$USER_POLL_)
   precincts_long[, USER_POLL_ := toupper(get(location_name_col))]
 
-  unmatched_names <- unique(
-    precincts_long[[location_name_col]][!(precincts_long$USER_POLL_ %in% state_names)]
-  )
+  unmatched_rows <- unique(precincts_long[!(USER_POLL_ %in% state_names)])
 
-  if (length(unmatched_names) > 0) {
+  if (nrow(unmatched_rows) > 0) {
+    unmatched_names_path <- file.path(precinct_analysis_output_folder, "location_mismatches.csv")
+    fwrite(unmatched_rows, unmatched_names_path)
+
     stop(
-      "The following polling location name(s) from the county-provided file ",
-      "do not match (case-insensitively) any polling location name in the ",
-      "state precinct shapefile: ", paste(unmatched_names, collapse = ", "),
-      ". Edit these names directly in the state provided source file so ",
+      "Found ", nrow(unmatched_rows), " polling location name(s) from the ",
+      "county-provided file that do not match (case-insensitively) any ",
+      "polling location name in the state precinct shapefile. Full list ",
+      "written to ", unmatched_names_path, ".\n",
+      "Edit these names directly in the state provided source file so ",
       "they match the county's naming, in all caps then re-run."
     )
   }
@@ -164,65 +167,58 @@ match_location_names <- function(precincts_long, state_precincts, location_name_
   return(precincts_long)
 }
 
-# check that county-provided precinct data agrees with state_precincts data by
-# merging along (location name, Precinct_I). Error if any precinct fails to match on 
-# both sides. A mismatch indicates ambiguity about which precinct a location 
-# serves; that needs a human-confirmed resolution.
+# The actual check that county-provided (polling location, precinct) data agrees with
+# state data. Error if any (polling location, precinct) pair appears only on one side.
 # Treat county provided data as correct and change state to match.
-check_precinct_id_agreement <- function(precincts_long, state_precincts) {
-  merged <- merge(
-    data.table(st_drop_geometry(state_precincts)), precincts_long,
+check_poll_precinct_agreement <- function(county_precincts_long, state_precincts) {
+
+  #outer join state and county data by polling location and precinct
+  comparison_data <- merge(
+    data.table(st_drop_geometry(state_precincts)), county_precincts_long,
     by = c("USER_POLL_", "Precinct_I"), all = TRUE
   )
 
-  mismatched_rows <- merged[!complete.cases(merged)]
+  #identify mismatched rows
+  mismatched_rows <- comparison_data[!complete.cases(comparison_data)]
 
   if (nrow(mismatched_rows) > 0) {
     # County_Nam only comes from state_precincts, so its absence marks a pair
     # the county reported that's missing from the state shapefile, and vice versa
-    pair_label <- sprintf(
-      "Precinct_I=%s, USER_POLL_=%s",
-      mismatched_rows$Precinct_I, mismatched_rows$USER_POLL_
-    )
-    state_only_pairs <- pair_label[!is.na(mismatched_rows$County_Nam)]
-    county_only_pairs <- pair_label[is.na(mismatched_rows$County_Nam)]
+    mismatched_rows[
+      , mismatch_source := ifelse(is.na(County_Nam), "county_only", "state_only")
+    ]
+
+    mismatches_path <- file.path(precinct_analysis_output_folder, "location_precinct_mismatches.csv")
+    fwrite(mismatched_rows, mismatches_path)
+
     stop(
-      "The following Precinct / Location pairs disagree between the state ",
-      "shapefile and the county file:\n",
-      "Pairs in the state but not county file: ", paste(state_only_pairs, collapse = "; "), "\n",
-      "Pairs in the county but not state file: ", paste(county_only_pairs, collapse = "; "), "\n",
-      "Check that the COUNTY_PRECINCT_COLUMN_NAMES are correct. Furthermore, 
-      investigate with the county/state and update the state file accordingly."
+      "Found ", nrow(mismatched_rows), " Precinct / Location pair(s) that disagree ",
+      "between the state shapefile and the county file. Full list written to ",
+      mismatches_path, " (see its mismatch_source column: 'state_only' means the ",
+      "pair is in the state shapefile but not the county file; 'county_only' is ",
+      "the reverse).\n",
+      "Check that the COUNTY_PRECINCT_COLUMN_NAMES are correct. Furthermore,
+      investigate with the county/state and update the state file accordingly.
+      DO NOT remove rows."
     )
   }
 
-  # if (USER_POLL_, Precinct_I) match in both directions, 
+  # if (USER_POLL_, Precinct_I) match in both directions,
   # return the correct state precinct data
   return(state_precincts)
 }
 
-# reconcile a county-provided precinct/
-# polling-location file against state_precincts (state shapefile), erroring
-# rather than guessing at any name or precinct-ID mismatch.
-reconcile_county_provided_precincts <- function(county_provided_data, precinct_columns,
-                                                location_name_col, address_col,
-                                                state_precincts, county_name) {
-  precincts_long <- reshape_county_precincts_long(
-    county_provided_data, precinct_columns, location_name_col, address_col
-  )
-  precincts_long <- add_precinct_id(precincts_long, county_name)
-  precincts_long <- match_location_names(precincts_long, state_precincts, location_name_col)
-  check_precinct_id_agreement(precincts_long, state_precincts)
-}
 
 # load a county-provided precinct/polling-location CSV, normalize its
 # (possibly repeated) precinct slot column names against precinct_column_names,
 # and return state_precincts once verified to agree with it.
-reconciled_state_precinct_data <- function(precinct_file, precinct_column_names,
+reconcile_state_precinct_data <- function(precinct_file, precinct_column_names,
                                            location_name_col, address_col,
                                            state_precincts, county_name) {
+  #read in county provided data
   provided_polls <- fread(precinct_file)
 
+  #validate the columns indicated in the config against columns in provided data
   precinct_column_numbers <- which(names(provided_polls) %in% precinct_column_names)
 
   county_column_name_count <- c(table(names(provided_polls)[precinct_column_numbers]))
@@ -232,29 +228,36 @@ reconciled_state_precinct_data <- function(precinct_file, precinct_column_names,
       identical(county_column_name_count, config_column_name_count)
   )
 
+  #make the columns names unique and reshape
   unique_precinct_columns <- make.unique(names(provided_polls)[precinct_column_numbers])
   setnames(provided_polls, old = precinct_column_numbers, new = unique_precinct_columns)
 
-  reconcile_county_provided_precincts(
-    provided_polls,
-    precinct_columns = unique_precinct_columns,
-    location_name_col = location_name_col,
-    address_col = address_col,
-    state_precincts = state_precincts,
-    county_name = county_name
+  precincts_long <- reshape_county_precincts_long(
+    provided_polls, unique_precinct_columns, location_name_col, address_col
   )
+  #clean to match state precinct format
+  precincts_long <- add_precinct_id(precincts_long, county_name)
+
+  #check if polling location names match. Flag for manual review. County names correct
+  precincts_long <- match_location_names(precincts_long, state_precincts, location_name_col)
+
+  #check if polling location, precinct assignmentsmatch. Flag for manual review.
+  #County assignments correct. State precinct list correct.
+  #If county does not assign a precinct, use state assignment.
+  corrected_state_data <-check_poll_precinct_agreement(precincts_long, state_precincts)
+  stopifnot("Corrected state data has a different number of precincts than the original data.
+              DO NOT change the state's precinct" = nrow(state_precincts) == nrow(corrected_state_data))
+
+return(corrected_state_data)
 }
 
-
-# associate each census block -- populated or not -- with its dominant
-# (largest-overlap) precinct.
-# also report the percent of the block's area outside that precinct, and a
-# flag for blocks whose dominant precinct holds between 50% and 90% of the
-# block.
-#NOTE: Assumes that each precinct is a union of blocks. Otherwise
-#the dominant precinct logic does not apply.
-assign_block_to_dominant_precinct <- function(county_precincts, county_blocks,
-                                          p3_population, area_crs = AREA_CRS) {
+# intersect every census block against every
+# precinct, and report each overlap's
+# area and the percent of the block's area that overlap leaves outside the
+# precinct. One row per (block, precinct) pair that overlaps at all -- a
+# block touching 3 precincts produces 3 rows. 
+compute_block_precinct_overlaps <- function(county_precincts, county_blocks,
+                                            p3_population, area_crs = AREA_CRS) {
 
   ####clean precinct and block data ####
   #transform to an equal-area projection for area calculations.
@@ -282,6 +285,16 @@ assign_block_to_dominant_precinct <- function(county_precincts, county_blocks,
     block_precinct_intersection$overlap_area /
     block_precinct_intersection$block_area
 
+  return(block_precinct_intersection)
+}
+
+# associate each census block with its dominant
+# (largest-overlap) precinct.
+# also report the percent of the block's area outside that precinct, and a
+# flag for blocks whose dominant precinct holds between 50% and 90% of the
+# block.
+assign_block_to_dominant_precinct <- function(block_precinct_intersection) {
+
   # keep only each block's dominant (largest-overlap) precinct.
   block_precinct_intersection <- block_precinct_intersection %>%
               group_by(GEOID20) %>%
@@ -291,6 +304,21 @@ assign_block_to_dominant_precinct <- function(county_precincts, county_blocks,
   # flag blocks whose dominant precinct holds between 50% and 90% of the block
   block_precinct_intersection <- block_precinct_intersection %>%
     mutate(flagged = percent_outside_precinct > 0.1 & percent_outside_precinct < 0.5)
+  return(block_precinct_intersection)
+}
+
+# Flag every block and precinct that significantly 
+# overlaps: one row per (block, precinct) pair where the precinct holds more
+# than min_percent_overlap of the block's area. A block with significant
+# overlap in 3 precincts produces 3 rows. 
+flag_overlapping_blocks <- function(block_precinct_intersection, min_percent_overlap = 0.05) {
+
+  block_precinct_intersection$percent_overlap <- 1 -
+    block_precinct_intersection$percent_outside_precinct
+
+  block_precinct_intersection <- block_precinct_intersection %>% 
+    mutate(flagged = percent_outside_precinct > min_percent_overlap & 
+    percent_outside_precinct < 1-min_percent_overlap)
   return(block_precinct_intersection)
 }
 
@@ -346,10 +374,6 @@ flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
   #drop geometry. Make a data.table 
   #Recall, block_precinct_assignment is based off (potentially modified) state data
   populated_blocks <- data.table(st_drop_geometry(block_precinct_assignment))
-  # TODO: revisit once #283 (precinct 73's zero-population bug) is
-  # resolved -- some genuinely-populated blocks may currently show
-  # total_population == 0 due to that bug, and would be dropped here
-  # incorrectly.
   populated_blocks <- populated_blocks[total_population > 0]
 
   # data with polling location coordinates
@@ -357,9 +381,9 @@ flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
   potential_locations <- fread(potential_locations_file)
   potential_locations[, USER_POLL_ := toupper(Location)]
 
-  # At this point USER_POLL_ in block assignment and potential_locations.csv's 
-  # Location columns should match (Step 5)
-  # If they don't error message flahs that they are out of sync.
+  # potential_locations file may depend on county data
+  # this should already be resolved. If not halt and force resolution
+  # This data cleaning can only happen by hand.
   resolved_blocks <- merge(
     populated_blocks, potential_locations[, .(USER_POLL_, Location)],
     by = "USER_POLL_"

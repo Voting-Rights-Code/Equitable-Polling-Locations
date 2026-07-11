@@ -13,6 +13,7 @@ STATE_PRECINCT_SOURCE_FILE <- "datasets/precincts/West_Virginia_20260424_wmA84/V
 ########
 # County-provided precinct/polling-location reconciliation
 ########
+#Did the county provide precinct <-> polling location data
 COUNTY_PROVIDES_PRECINCT_DATA <- FALSE
 COUNTY_PROVIDED_PRECINCT_FILE <- NULL #cannnot be null if COUNTY_PROVIDES_PRECINCT_DATA is TRUE
 #details specific to the file

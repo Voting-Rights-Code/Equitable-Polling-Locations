@@ -28,28 +28,53 @@ source("R/result_analysis/utility_functions/shape_extraction_functions.r")
 ###
 # For inline testing only
 ###
-#source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
 source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
+
+########
+# Constants
+########
+CRS_PROJECTION <- 4326
+
+#output folder name
+precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
+if (!file.exists(file.path(here(), precinct_analysis_output_folder))) {
+  dir.create(file.path(here(), precinct_analysis_output_folder), recursive = TRUE)
+}
 
 
 ###### Step 1: extract and validate the county's precincts#######
 state_precincts <- extract_county_precincts(STATE_PRECINCT_SOURCE_FILE, COUNTY_NAME, CRS_PROJECTION)
-
-
-###TODO: currently commented out due to the bug where precinct 73 has no population. see issue 283
-#stopifnot(
-#  "Precinct count does not match EXPECTED_PRECINCT_COUNT in the config file" =
-#    nrow(state_precincts) == EXPECTED_PRECINCT_COUNT
-#)
 
 state_precincts <- state_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
 
 names(state_precincts)[names(state_precincts) == "geometry"] <- "precinct_geometry"
 st_geometry(state_precincts) <- "precinct_geometry"
 
-state_precincts_proj <- st_transform(state_precincts, AREA_CRS)
 
-###### Step 2: Extract and validate the county's blocks#######
+###### 
+# Step 2: reconcile county-provided precinct data 
+# Assume that the county provided precinct data (if it exists)
+# is correct. The reconciliation is to get the state data to match it. 
+# Changes are made to the state file
+#######
+
+#If the county provides precinct data, 
+#reconcile it with the state provided precinct data
+if (COUNTY_PROVIDES_PRECINCT_DATA) {
+  precincts_resolved <- reconcile_state_precinct_data(
+    COUNTY_PROVIDED_PRECINCT_FILE,
+    COUNTY_PRECINCT_COLUMN_NAMES,
+    COUNTY_POLLING_LOCATION_NAME_COL,
+    COUNTY_POLLING_LOCATION_ADDRESS_COL,
+    state_precincts,
+    COUNTY_NAME
+  )
+} else {
+  precincts_resolved <- state_precincts
+}
+
+###### Step 3: Extract and validate the county's blocks#######
+
 #extract county blocks from the TIGER/Line shapefile
 tiger_file_path <-  file.path(TIGER_FOLDER, LOCATION, paste0(BLOCK_GEOMETRY_FILES, ".shp"))
 county_blocks <- get_shape_data( tiger_file_path)
@@ -62,70 +87,64 @@ p3_population <- fread(
   select = c(1, 3), col.names = c("GEO_ID", "total_population")
 )
 
-######Step 3: associate blocks with (dominant) precincts #######
+######
+#Step 4: associate blocks with (dominant) precincts 
+#flag if a flag has 50-90% of its area outside a precints
+#and write to file
+#flagged_assigned_blocks
+#######
 
-block_precinct_assignment <- assign_block_to_dominant_precinct(
-  state_precincts, county_blocks, p3_population, AREA_CRS
+block_precinct_intersection <- compute_block_precinct_overlaps(
+  precincts_resolved, county_blocks, p3_population, AREA_CRS
 )
+
+block_precinct_assignment <- assign_block_to_dominant_precinct(block_precinct_intersection)
 
 names(block_precinct_assignment)[names(block_precinct_assignment) == "geometry"] <- "block_geometry"
 st_geometry(block_precinct_assignment) <- "block_geometry"
 
-######Step 4: write assignment to file #######
-
-# write every flagged block -- populated or not -- file
-precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
-if (!file.exists(file.path(here(), precinct_analysis_output_folder))) {
-  dir.create(file.path(here(), precinct_analysis_output_folder), recursive = TRUE)
-}
-
+# write every asignment flagged block -- populated or not -- file
 st_write(
 block_precinct_assignment %>%
     filter(flagged == TRUE),
-  file.path(precinct_analysis_output_folder, "flagged_blocks.gpkg"), append = FALSE
+  file.path(precinct_analysis_output_folder, "flagged_assigned_blocks.gpkg"), append = FALSE
 )
 
-###### Step 5: reconcile county-provided precinct data #######
-# In this step, we assume that the county provided precinct data (if it exists)
-# is correct. The reconciliation is to get the state data to match it. 
-# Changes are made to the state file
+######
+# Step 5: For further validation, of state precinct maps
+# write every (block, precinct) pair with more than 5% overlap -- one row
+# per precinct a block significantly overlaps
+# flagged_overlapping_blocks
+#######
+overlapping_blocks <- flag_overlapping_blocks(block_precinct_intersection)
 
+st_write(
+  overlapping_blocks %>% filter(flagged == TRUE),
+  file.path(precinct_analysis_output_folder, "flagged_overlapping_blocks.gpkg"), append = FALSE
+)
 
-#If the county provides precinct data, 
-#reconcile it with the state provided precinct data
-if (COUNTY_PROVIDES_PRECINCT_DATA) {
-  county_precincts_resolved <- reconciled_state_precinct_data(
-    COUNTY_PROVIDED_PRECINCT_FILE,
-    COUNTY_PRECINCT_COLUMN_NAMES,
-    COUNTY_POLLING_LOCATION_NAME_COL,
-    COUNTY_POLLING_LOCATION_ADDRESS_COL,
-    state_precincts,
-    COUNTY_NAME
-  )
-} else {
-  county_precincts_resolved <- state_precincts
-}
-
-# Drop precincts with zero population, per block-level population data in
-# block_precinct_assignment. TODO: until #283 is fixed, the
-# dominant-block population heuristic can show real, populated precincts as
-# zero (e.g. Monongalia_73), so this can't be fully relied on yet.
+######
+# Step 6: flag precincts with zero population, either because all
+# assigned block have no population, or because there are no assigned
+# blocks.
+#######
 precinct_population <- data.table(st_drop_geometry(block_precinct_assignment))[
-  , .(total_population = sum(total_population)), by = Precinct_I
+  , .(total_population = sum(total_population), assigned_blocks = .N), by = Precinct_I
 ]
 
-
-county_precincts_resolved <- merge(
-  county_precincts_resolved, precinct_population,
-  by = "Precinct_I", sort = FALSE
+precincts_resolved_with_population <- merge(
+  precincts_resolved, precinct_population,
+  by = "Precinct_I", all.x = TRUE, sort = FALSE
 )
-county_precincts_resolved <- county_precincts_resolved[
-  county_precincts_resolved$total_population > 0,
-]
-county_precincts_resolved$total_population <- NULL
+precincts_resolved_with_population <- precincts_resolved_with_population %>%
+  mutate(unpopulated_precinct = is.na(total_population) | total_population == 0)
 
-###### Step 6: flag blocks far from their assigned polling location #######
+st_write(
+  precincts_resolved_with_population %>% filter(unpopulated_precinct == TRUE),
+  file.path(precinct_analysis_output_folder, "flagged_unpopulated_precincts.gpkg"), append = FALSE
+)
 
+###### Step 7: flag blocks far from their assigned polling location #######
 # 5 miles in meters. Explicit stand-in for "more than a 15-minute drive"
 # until real drive-time data exists.
 # TODO(#271): replace with a time-based threshold once driving *time* (not
@@ -145,22 +164,21 @@ distance_flagged_blocks <- flag_distant_blocks(
 distance_flagged_blocks_path <- file.path(precinct_analysis_output_folder, "distance_flagged_blocks.csv")
 fwrite(distance_flagged_blocks, distance_flagged_blocks_path)
 
-
-###### Step 7: plot county-level distance heat map #######
+###### Step 8: plot county-level distance heat map #######
 
 # choropleth mode
 make_demo_distance_heat_map(
   block_precinct_assignment, distance_flagged_blocks,
-  county_precincts_resolved, demo_pop = NULL
+  precincts_resolved, demo_pop = NULL
 )
 
 # dot mode: one map per demographic of interest
 make_demo_distance_heat_map(
   block_precinct_assignment, distance_flagged_blocks,
-  county_precincts_resolved, demo_pop = "total_population"
+  precincts_resolved, demo_pop = "total_population"
 )
 
 make_demo_distance_heat_map(
   block_precinct_assignment, distance_flagged_blocks,
-  county_precincts_resolved, demo_pop = "black"
+  precincts_resolved, demo_pop = "black"
 )
