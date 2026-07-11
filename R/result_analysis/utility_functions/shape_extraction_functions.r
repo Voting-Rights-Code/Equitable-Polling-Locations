@@ -227,7 +227,7 @@ check_poll_precinct_agreement <- function(county_precincts_long, state_precincts
       "not in deleting the row.\n",
       "Document the decision in a new script under ",
       "R/result_analysis/WV_state_file_corrections/ named ",
-      next_step_prefix, "_fix_precinct_ids.r that calls apply_corrections(), ",
+      next_step_prefix, "_reconciliation.r that calls apply_corrections(), ",
       "then re-run extract_precincts.r."
     )
   }
@@ -280,82 +280,52 @@ return(corrected_state_data)
 }
 
 # build a (Precinct_I, resolved_polling_location) crosswalk from a reviewed
-# mismatches table. One row per as-provided Precinct_I that needed a
+# mismatches table. One row per state provided Precinct_I that needed a
 # correction; resolved_polling_location is NA where no real destination
-# exists. Does not include untouched precincts -- their as-provided
-# USER_POLL_ is already correct, so callers should treat "no crosswalk row"
-# as "use the as-provided value unchanged."
-#
-# Splits never contribute their own crosswalk rows. A split's new IDs (e.g.
-# a precinct divided into two) are never looked up going forward -- nothing
-# points backward at them -- so only the *source* precinct being retired
-# needs a crosswalk entry, and that's already exactly what its own "drop"
-# row is for. Treating split as a second, independent producer of that same
-# entry is what let it silently disagree with the drop row for the same
-# Precinct_I; here it only validates, it never emits.
-build_precinct_crosswalk <- function(reviewed_corrections) {
-  rename_rows <- reviewed_corrections[
-    resolution_type == "rename",
-    .(Precinct_I = Precinct_I,
-      resolved_polling_location = fifelse(
-        is.na(USER_POLL_) | USER_POLL_ == "", NA_character_, USER_POLL_
-      ))
-  ]
-
-  # a "drop" row's own USER_POLL_ is the single source of truth for its
-  # crosswalk destination -- blank/NA means genuinely unresolvable (no real
-  # destination exists), a filled-in value means the ID is retired but its
-  # voters have a known destination (e.g. via a split, validated below).
-  drop_rows <- reviewed_corrections[
-    resolution_type == "drop",
-    .(Precinct_I = Precinct_I,
-      resolved_polling_location = fifelse(
-        is.na(USER_POLL_) | USER_POLL_ == "", NA_character_, USER_POLL_
-      ))
-  ]
-
+# exists. 
+# This is used to add dropped rows back into block precinct_assignments
+build_precinct_crosswalk <- function(reviewed_corrections) {  
+  #check that resolution type has correct entries.
   unsupported <- reviewed_corrections[
-    !(resolution_type %in% c("rename", "split", "drop"))
-  ]
-  stopifnot(
-    "Found a resolution_type this function doesn't support yet (e.g. \
-    'merge'). Not implemented -- extend build_precinct_crosswalk() before \
-    using it." =
-      nrow(unsupported) == 0
-  )
+    !(resolution_type %in% c("rename", "split", "drop"))]
 
-  crosswalk <- rbind(rename_rows, drop_rows)
+  if(nrow(unsupported) != 0){
+      stop(paste0(unique(unsupported$resolution_type), 
+      " is not a supported resolution type"))
+  }
 
+  # pull out dropped  or renamed rows 
+  # use the name from the (user corrected) USER_POLL_ column
+  # non-entries are kept as NAs
+  crosswalk <- reviewed_corrections[resolution_type %in% c("rename" , "drop"),
+    .(Precinct_I = Precinct_I, resolved_polling_location = fifelse(
+        is.na(USER_POLL_) | USER_POLL_ == "", NA_character_, USER_POLL_ ))]
+
+  # verify that the rows labeled "split" have the correct data
   split_rows <- reviewed_corrections[resolution_type == "split"]
   if (nrow(split_rows) > 0) {
-    # every split row targeting the same source precinct must resolve to the
-    # same polling location -- a genuine geographic split (different
-    # destinations per new ID) needs new geometry this function can't
-    # produce, and is out of scope until a real case forces the question.
+    # every split row targeting the same source precinct must have the
+    # same polling location
     destination_counts <- split_rows[
       , .(distinct_destinations = uniqueN(USER_POLL_)),
       by = geometry_source_precinct_I
     ]
     stopifnot(
-      "A split's target rows resolve to more than one polling location -- \
-      this requires new precinct geometry, which apply_corrections() cannot \
-      derive from a duplicate. Needs a human decision, not an automatic \
-      split." =
+      "A split's target rows resolve to more than one polling location." =
         all(destination_counts$distinct_destinations == 1)
     )
-
+    
+    # every split row points to a valid Precinct_I 
     split_sources <- unique(split_rows[
       , .(Precinct_I = geometry_source_precinct_I,
           split_destination = USER_POLL_)
     ])
     stopifnot(
-      "A split's geometry_source_precinct_I has no row of its own in the \
-      reviewed corrections -- every split source needs an explicit \
-      resolution_type recording where it resolves to, same as any other \
-      retired precinct." =
+      "A split's geometry_source_precinct_I is not a valid precinct_id." =
         all(split_sources$Precinct_I %in% crosswalk$Precinct_I)
     )
 
+    # every split row's destination matches it's assigned Precinct destination 
     matched <- crosswalk[split_sources, on = "Precinct_I"]
     stopifnot(
       "A split source's own recorded destination disagrees with where its \
@@ -364,16 +334,14 @@ build_precinct_crosswalk <- function(reviewed_corrections) {
         all(matched$resolved_polling_location == matched$split_destination)
     )
   }
-
-  crosswalk
+  return(crosswalk)
 }
 
 # read a human-reviewed location_precinct_mismatches.csv and mechanically
-# apply every row's resolution_type to state_precincts. Returns the
-# corrected precinct geometry and the crosswalk Step 7 needs -- no
-# per-county code required for rename/split/drop.
-apply_corrections <- function(state_precincts, mismatches_csv_path,
-                              existing_crosswalk_path = NULL) {
+# apply every row's resolution_type to state_precincts. 
+apply_corrections <- function(state_precincts, mismatches_csv_path) {
+  #read in mismatch data
+  #error if resolution types aren't filled in.
   reviewed_corrections <- fread(mismatches_csv_path)
   stopifnot(
     "location_precinct_mismatches.csv has unfilled resolution_type rows -- \
@@ -381,70 +349,50 @@ apply_corrections <- function(state_precincts, mismatches_csv_path,
     can run" =
       all(!is.na(reviewed_corrections$resolution_type))
   )
-
-  new_crosswalk <- build_precinct_crosswalk(reviewed_corrections)
-
-  has_existing_crosswalk <- !is.null(existing_crosswalk_path) &&
-    file.exists(existing_crosswalk_path)
-  if (has_existing_crosswalk) {
-    # na.strings = "" restores the NA contract across the fwrite/fread
-    # round-trip: fwrite() serializes NA_character_ as "", and fread()'s
-    # default would read that back as "" (not NA), silently misclassifying
-    # a prior step's genuinely-unresolvable rows as resolved.
-    prior_crosswalk <- fread(existing_crosswalk_path, na.strings = "")
-    crosswalk <- rbind(prior_crosswalk, new_crosswalk)
-  } else {
-    crosswalk <- new_crosswalk
-  }
-
+  
   # renames: relabel in place, geometry untouched
-  rename_targets <- reviewed_corrections[resolution_type == "rename"]
-  rename_rows <- match(rename_targets$Precinct_I, state_precincts$Precinct_I)
-  stopifnot(
-    "Every rename's Precinct_I must exist in state_precincts" =
-      all(!is.na(rename_rows))
-  )
-  state_precincts$USER_POLL_[rename_rows] <- rename_targets$USER_POLL_
+  rename_targets <- reviewed_corrections[ resolution_type == "rename", 
+            .(Precinct_I, USER_POLL_)]
+  state_precincts <- state_precincts %>% rows_update(rename_targets, 
+                                    by = "Precinct_I", unmatched = "error")
 
   # splits: duplicate the source row once per target, drop the source
-  split_targets <- reviewed_corrections[resolution_type == "split"]
-  if (nrow(split_targets) > 0) {
-    split_source_ids <- unique(split_targets$geometry_source_precinct_I)
-    new_rows_list <- lapply(seq_len(nrow(split_targets)), function(i) {
-      source_precinct_id <- split_targets$geometry_source_precinct_I[i]
-      source_row <- state_precincts[
-        state_precincts$Precinct_I == source_precinct_id,
-      ]
-      stopifnot(
-        "A split's geometry_source_precinct_I must exist in state_precincts" =
-          nrow(source_row) == 1
-      )
-      source_row$Precinct_I <- split_targets$Precinct_I[i]
-      source_row$USER_POLL_ <- split_targets$USER_POLL_[i]
-      source_row
-    })
-    state_precincts <- state_precincts[
-      !(state_precincts$Precinct_I %in% split_source_ids),
-    ]
-    state_precincts <- rbind(state_precincts, do.call(rbind, new_rows_list))
-  }
+  split_targets <- reviewed_corrections[resolution_type == "split", 
+              .(Precinct_I, geometry_source_precinct_I, USER_POLL_)]
 
+  if (nrow(split_targets) > 0) {
+    stopifnot(
+      "A split's geometry_source_precinct_I must exist in state_precincts" =
+        all(split_targets$geometry_source_precinct_I %in% 
+        state_precincts$Precinct_I))
+    
+
+    split_sources <- state_precincts %>% select(-USER_POLL_) %>%
+            rename(geometry_source_precinct_I = Precinct_I)
+    split_rows <- split_sources %>%
+            inner_join(split_targets, by = "geometry_source_precinct_I") %>%
+      select(-geometry_source_precinct_I)
+
+    state_precincts <- state_precincts %>%
+      filter(!Precinct_I %in% split_targets$geometry_source_precinct_I) %>%
+      bind_rows(split_rows)
+  }
+  
   # drops: remove entirely
   drop_targets <- reviewed_corrections[resolution_type == "drop"]
   state_precincts <- state_precincts[
     !(state_precincts$Precinct_I %in% drop_targets$Precinct_I),
   ]
 
-  list(state_precincts = state_precincts, crosswalk = crosswalk)
+  return(state_precincts)
 }
 
-# intersect every census block against every
-# precinct, and report each overlap's
+# intersect every census block against every precinct. Report each overlap
 # area and the percent of the block's area that overlap leaves outside the
 # precinct. One row per (block, precinct) pair that overlaps at all -- a
 # block touching 3 precincts produces 3 rows. 
-compute_block_precinct_overlaps <- function(county_precincts, county_blocks,
-                                            p3_population, area_crs = AREA_CRS) {
+compute_block_precinct_overlaps <- function(county_precincts, 
+                county_blocks, p3_population, area_crs = AREA_CRS) {
 
   ####clean precinct and block data ####
   #transform to an equal-area projection for area calculations.

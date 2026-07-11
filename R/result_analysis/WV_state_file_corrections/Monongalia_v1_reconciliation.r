@@ -56,13 +56,14 @@ RECONCILIATION_OUTPUT_FOLDER <- "datasets/precincts/West_Virginia_20260424_wmA84
 precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
 RECONCILIATION_CSV <- file.path(precinct_analysis_output_folder, "location_precinct_mismatches.csv")
 
-# copy every file sharing the state shapefile's basename from source_folder
-# into destination_folder (shapefile sidecars: .shp, .shx, .dbf, .prj, .cpg,
-# .sbn, .sbx, .shp.xml), creating destination_folder if needed.
+# copy everything from the source folder to destination folder, creating 
+# if need be. 
 copy_shapefile_folder <- function(source_folder, destination_folder) {
+  #create destination folder if it doesn't exist
   if (!file.exists(file.path(here(), destination_folder))) {
     dir.create(file.path(here(), destination_folder), recursive = TRUE)
   }
+  #pull files from source and copy. 
   source_files <- list.files(source_folder, full.names = TRUE)
   file.copy(source_files, destination_folder, overwrite = TRUE)
 }
@@ -74,28 +75,36 @@ copy_shapefile_folder <- function(source_folder, destination_folder) {
 state_precincts <- st_read(STATE_PRECINCT_SOURCE_FILE)
 
 ########
-# Apply corrections
+# Apply corrections from the mismatches.cvs and create crosswalk data
 ########
 
-result <- apply_corrections(
-  state_precincts, RECONCILIATION_CSV, existing_crosswalk_path = NULL
+updated_state_precincts <- apply_corrections(
+  state_precincts, RECONCILIATION_CSV
 )
-state_precincts <- result$state_precincts
+
+reconciliation_data <- fread(RECONCILIATION_CSV)
+crosswalk <- build_precinct_crosswalk(reconciliation_data)
+
+#Write crosswalk to file.
+crosswalk_path <- file.path(
+  precinct_analysis_output_folder, "precinct_polling_location_crosswalk.csv"
+)
+fwrite(crosswalk, crosswalk_path)
+
+
 
 ########
 # Write the reconciled output, then mirror it to the stable path
 ########
-
+#get the stable path for the state file.
 state_precincts_folder <- dirname(STATE_PRECINCT_SOURCE_FILE)
+#first copy contents of the stable path into the output file
 copy_shapefile_folder(state_precincts_folder, RECONCILIATION_OUTPUT_FOLDER)
+#write updated state data to output folder
 st_write(
-  state_precincts,
+  updated_state_precincts,
   file.path(RECONCILIATION_OUTPUT_FOLDER, basename(STATE_PRECINCT_SOURCE_FILE)),
   append = FALSE
 )
+#make the new stable path match the update data
 copy_shapefile_folder(RECONCILIATION_OUTPUT_FOLDER, state_precincts_folder)
-
-crosswalk_path <- file.path(
-  precinct_analysis_output_folder, "precinct_polling_location_crosswalk.csv"
-)
-fwrite(result$crosswalk, crosswalk_path)
