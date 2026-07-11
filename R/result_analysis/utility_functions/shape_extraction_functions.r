@@ -2,6 +2,7 @@ library(data.table)
 library(sf)
 library(here)
 library(dplyr)
+library(ggplot2)
 
 ######## Set constants########
 TIGER_FOLDER <- "datasets/census/tiger"
@@ -444,6 +445,148 @@ flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
   demographic_blocks <- demographic_blocks[, ..output_columns]
 
   return(demographic_blocks)
+}
+
+# human-readable labels for flag_distant_blocks()'s demographic columns, for
+# consistent map/legend naming. Mirrors graph_functions.R's
+# demographic_legend_dict, extended to this pipeline's column names (e.g.
+# total_population instead of population, plus pacific_islander,
+# multiple_races, non_hispanic, which that dict doesn't cover).
+demo_pop_legend_dict <- c(
+  total_population = "Total",
+  white = "White",
+  black = "African American",
+  native = "First Nations",
+  asian = "Asian (not PI)",
+  pacific_islander = "Pacific Islander",
+  other = "Other",
+  multiple_races = "Multiple Races",
+  hispanic = "Latine",
+  non_hispanic = "Non-Latine"
+)
+
+# build a county-level map of census blocks by distance to their assigned
+# polling location, with precinct boundaries drawn on top for context.
+# Two modes, chosen by demo_pop:
+# - demo_pop = NULL: choropleth. Blocks under distance_threshold_m are
+#   neutral gray; blocks at or over it are red, graduated by distance_m.
+# - demo_pop = a demographic column name (e.g. "total_population", "white"):
+#   dot mode, mirroring make_demo_dist_map() in map_functions.R. Only
+#   flagged (over-threshold) blocks get a dot, centered on the block's
+#   centroid, sized by that demographic's population and colored by
+#   distance_m.
+# In both modes, blocks with no computed distance (unpopulated, or
+# otherwise excluded upstream from flag_distant_blocks -- see #283) get a
+# distinct "no data" fill.
+make_demo_distance_heat_map <- function(
+    block_shapes, distance_flagged_blocks, precinct_shapes, demo_pop,
+    distance_threshold_m = DISTANCE_FLAG_THRESHOLD_M, location = LOCATION,
+    crs_projection = CRS_PROJECTION) {
+  # reproject to a plain lat/lon CRS so the graticule comes out
+  # horizontal/vertical
+  block_shapes <- st_transform(block_shapes, crs_projection)
+  precinct_shapes <- st_transform(precinct_shapes, crs_projection)
+
+  #select relevant columns
+  distance_columns <- c("id_orig", "distance_m", "flagged_distance", demo_pop)
+  block_distances <- merge(
+    block_shapes[, c("GEOID20", "INTPTLAT20", "INTPTLON20", "block_geometry")],
+    distance_flagged_blocks[, distance_columns, with = FALSE],
+    by.x = "GEOID20", by.y = "id_orig", all.x = TRUE
+  )
+
+  #select different subgroups for map
+  is_flagged <- block_distances$flagged_distance
+  no_population_blocks <- block_distances[is.na(block_distances$distance_m), ]
+  under_threshold_blocks <- block_distances[!is.na(is_flagged) & !is_flagged, ]
+  over_threshold_blocks <- block_distances[!is.na(is_flagged) & is_flagged, ]
+
+  distance_threshold <- round(distance_threshold_m / 1609.34, 1)
+  demo_pop_label <- if (is.null(demo_pop)) {
+    NULL
+  } else {
+    demo_pop_legend_dict[[demo_pop]]
+  }
+  title_str <- gsub(
+    "_", " ",
+    paste(
+      location, "driving distance to assigned polling location", demo_pop_label
+    )
+  )
+  # gray indicates no population block
+  caption_str <- if (is.null(demo_pop)) {
+    paste0(
+      "White = under ", distance_threshold,
+      " mi threshold; Gray = no population"
+    )
+  } else {
+    "White = populated block; Gray = no population"
+  }
+
+  # base layers shared by both modes: no-data/under-threshold context and
+  # precinct boundaries.
+  heat_map <- ggplot() +
+    geom_sf(
+      data = no_population_blocks, fill = "grey75", color = "grey60",
+      linewidth = 0.1
+    ) +
+    geom_sf(
+      data = under_threshold_blocks, fill = "white", color = "grey60",
+      linewidth = 0.1
+    )
+
+  if (is.null(demo_pop)) {
+    heat_map <- heat_map +
+      geom_sf(
+        data = over_threshold_blocks, aes(fill = distance_m),
+        color = "grey60", linewidth = 0.1
+      ) +
+      scale_fill_gradient(
+        low = "#fcbba1", high = "#67000d", name = "Distance (m)"
+      )
+  } else {
+    # dot mode: draw flagged blocks as plain context polygons, then place a
+    # dot at each flagged block's centroid, sized by demo_pop's population
+    # and colored by distance_m -- mirrors make_demo_dist_map() in
+    # map_functions.R.
+    over_threshold_blocks$INTPTLON20 <-
+      as.numeric(over_threshold_blocks$INTPTLON20)
+    over_threshold_blocks$INTPTLAT20 <-
+      as.numeric(over_threshold_blocks$INTPTLAT20)
+
+    heat_map <- heat_map +
+      geom_sf(
+        data = over_threshold_blocks, fill = "white", color = "grey60",
+        linewidth = 0.1
+      ) +
+      geom_point(
+        data = over_threshold_blocks,
+        aes(
+          x = INTPTLON20, y = INTPTLAT20,
+          size = .data[[demo_pop]], color = distance_m
+        )
+      ) +
+      scale_color_gradient(
+        low = "#fcbba1", high = "#67000d", name = "Distance (m)"
+      ) +
+      labs(size = paste(demo_pop_label, 'population'))
+  }
+
+  heat_map <- heat_map +
+    geom_sf(
+      data = precinct_shapes, fill = NA, color = "black", linewidth = 0.4
+    ) +
+    labs(title = title_str, caption = caption_str) +
+    xlab("") + ylab("") +
+    theme_minimal()
+
+  file_name <- paste(c(demo_pop, "distance_heat_map.png"), collapse = "_")
+  distance_heat_map_path <- file.path(
+    precinct_analysis_output_folder, file_name
+  )
+  ggsave(distance_heat_map_path, heat_map, width = 10, height = 8)
+
+  return()
 }
 
 write_to_file <- function(shape_data, location_folder, file_name) {
