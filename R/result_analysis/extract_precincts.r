@@ -46,8 +46,6 @@ if (!file.exists(file.path(here(), precinct_analysis_output_folder))) {
 state_precincts <- extract_county_precincts(STATE_PRECINCT_STABLE_FILE, COUNTY_NAME, CRS_PROJECTION)
 
 state_precincts <- state_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
-
-names(state_precincts)[names(state_precincts) == "geometry"] <- "precinct_geometry"
 st_geometry(state_precincts) <- "precinct_geometry"
 
 
@@ -84,8 +82,10 @@ DISTANCE_FLAG_THRESHOLD_M <- 8046.72
 
 #read in block assignment and manual corrections.
 block_precinct_assignment <- st_read(
-  file.path(precinct_analysis_output_folder, "block_precinct_assignment.gpkg")
-)
+  file.path(precinct_analysis_output_folder, "block_precinct_assignment.gpkg"))
+names(block_precinct_assignment)[names(block_precinct_assignment) == "geometry"] <- "block_geometry"
+st_geometry(block_precinct_assignment) <- "block_geometry"
+
 
 crosswalk_path <- file.path(precinct_analysis_output_folder, "precinct_polling_location_crosswalk.csv")
 state_county_crosswalk <- if (file.exists(crosswalk_path)) {
