@@ -351,10 +351,16 @@ apply_corrections <- function(state_precincts, mismatches_csv_path) {
   )
   
   # renames: relabel in place, geometry untouched
-  rename_targets <- reviewed_corrections[ resolution_type == "rename", 
-            .(Precinct_I, USER_POLL_)]
-  state_precincts <- state_precincts %>% rows_update(rename_targets, 
-                                    by = "Precinct_I", unmatched = "error")
+  rename_targets <- reviewed_corrections[resolution_type == "rename", 
+                        .(Precinct_I, USER_POLL_)]
+  stopifnot(
+    "Every rename's Precinct_I must exist in state_precincts" =
+      all(rename_targets$Precinct_I %in% state_precincts$Precinct_I)
+  )
+  state_precincts <- state_precincts %>%
+    left_join(rename_targets, by = "Precinct_I", suffix = c("", ".new")) %>%
+    mutate(USER_POLL_ = coalesce(USER_POLL_.new, USER_POLL_)) %>%
+    select(-USER_POLL_.new)
 
   # splits: duplicate the source row once per target, drop the source
   split_targets <- reviewed_corrections[resolution_type == "split", 
@@ -377,7 +383,7 @@ apply_corrections <- function(state_precincts, mismatches_csv_path) {
       filter(!Precinct_I %in% split_targets$geometry_source_precinct_I) %>%
       bind_rows(split_rows)
   }
-  
+
   # drops: remove entirely
   drop_targets <- reviewed_corrections[resolution_type == "drop"]
   state_precincts <- state_precincts[
