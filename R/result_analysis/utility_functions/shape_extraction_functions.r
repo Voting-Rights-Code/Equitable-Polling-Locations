@@ -509,50 +509,46 @@ get_block_demographics <- function(p3_file_path, p4_file_path) {
   return(block_demographics)
 }
 
-# join each populated census block to its assigned polling location's
+# resolve every block's final polling-place destination by joining the
+# block precinct assignment with the cross walk of maually edited inconsistencies.
+resolve_block_destinations <- function(block_precinct_assignment, state_county_crosswalk) {
+  #get block precinct assignment, drop geometry
+  all_blocks <- data.table(st_drop_geometry(block_precinct_assignment))
+
+  # merge wtih cross walk for correct precinct names: if its as-provided
+  # Precinct_I has a crosswalk entry, use that
+  # entry as-is (including a real NA). Only fall back to the
+  # as-provided USER_POLL_ when the precinct never appears in the crosswalk at
+  # all, meaning no correction was ever needed.
+  resolved <- merge(all_blocks, state_county_crosswalk, by = "Precinct_I", all.x = TRUE, sort = FALSE)
+  resolved[, resolved_destination := fifelse(Precinct_I %in% state_county_crosswalk$Precinct_I, 
+                          resolved_polling_location, USER_POLL_)]
+  resolved[, resolved_polling_location := NULL]
+  return(resolved)
+}
+
+# join each populated census block to its resolved polling location's
 # driving distance, extend with demographic data, and flag blocks whose
 # distance exceeds distance_threshold_m. 
-flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
-                                driving_distances_file, potential_locations_file,
-                                distance_threshold_m) {
-  #drop geometry. Make a data.table 
-  #Recall, block_precinct_assignment is based off (potentially modified) state data
-  populated_blocks <- data.table(st_drop_geometry(block_precinct_assignment))
-  populated_blocks <- populated_blocks[total_population > 0]
+flag_distant_blocks <- function(block_precinct_assignment, state_county_crosswalk, block_demographics,
+                                driving_distances_file, distance_threshold_m) {
+  #get resolved blocks precinct assignments
+  resolved_blocks <- resolve_block_destinations(block_precinct_assignment, 
+            state_county_crosswalk)
 
-  # data with polling location coordinates
-  # clean to match block precinct assignment
-  potential_locations <- fread(potential_locations_file)
-  potential_locations[, USER_POLL_ := toupper(Location)]
 
-  # potential_locations file may depend on county data
-  # this should already be resolved. If not halt and force resolution
-  # This data cleaning can only happen by hand.
-  resolved_blocks <- merge(
-    populated_blocks, potential_locations[, .(USER_POLL_, Location)],
-    by = "USER_POLL_"
-  )
-  stopifnot(
-    "Populated blocks' USER_POLL_ and potential_locations.csv's Location did not match one-to-one 
-    check if the state provided file still matches data from potential_locations files" =
-      nrow(resolved_blocks) == nrow(populated_blocks)
-  )
-
+  #get driving distances
   driving_distances <- fread(driving_distances_file)
   driving_distances[, id_orig := as.character(id_orig)]
+  driving_distances[, id_dest_upper := toupper(id_dest)]
 
   #merge in driving distances
   distance_blocks <- merge(
-    resolved_blocks, driving_distances,
-    by.x = c("GEOID20", "Location"), by.y = c("id_orig", "id_dest")
-  )
-  stopifnot(
-    "Some resolved blocks' (GEOID20, Location) pair had no matching row in driving_distances_file 
-    -- driving_distances_file may be incomplete or out of sync with potential_locations.csv, or vice versa" =
-      nrow(distance_blocks) == nrow(resolved_blocks)
-  )
+    resolved_blocks, driving_distances, by.x = c("GEOID20", "resolved_destination"), 
+    by.y = c("id_orig", "id_dest_upper"), all.x = TRUE)
+  distance_blocks[is.na(distance_m), distance_m := 0]
 
-  # drop block_demographics' total_population (duplicate) before merging 
+  # drop block_demographics' total_population (duplicate) before merging
   demographic_columns <- setdiff(names(block_demographics), c("GEOID20", "total_population"))
   demographic_blocks <- merge(
     distance_blocks, block_demographics[, c("GEOID20", demographic_columns), with = FALSE],
@@ -567,7 +563,7 @@ flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
   demographic_blocks[, weighted_dist := total_population * distance_m]
   demographic_blocks[, flagged_distance := distance_m > distance_threshold_m]
 
-  setnames(demographic_blocks, c("GEOID20", "Location"), c("id_orig", "id_dest"))
+  setnames(demographic_blocks, "GEOID20", "id_orig")
   output_columns <- c(
     "id_orig", "id_dest", "distance_m", "Precinct_I", "total_population",
     "white", "black", "native", "asian", "pacific_islander", "other",
