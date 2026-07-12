@@ -602,9 +602,11 @@ demo_pop_legend_dict <- c(
 #   flagged (over-threshold) blocks get a dot, centered on the block's
 #   centroid, sized by that demographic's population and colored by
 #   distance_m.
-# In both modes, blocks with no computed distance (unpopulated, or
-# otherwise excluded upstream from flag_distant_blocks -- see #283) get a
-# distinct "no data" fill.
+# In both modes, zero-population blocks get a distinct gray fill, and
+# blocks with no assigned polling location (a dropped precinct) get a
+# dashed blue outline drawn over whatever fill they'd otherwise have --
+# population status and assignment status aren't mutually exclusive, so a
+# block can be both (e.g. Monongalia_A/B).
 make_demo_distance_heat_map <- function(
     block_shapes, distance_flagged_blocks, precinct_shapes, demo_pop,
     distance_threshold_m = DISTANCE_FLAG_THRESHOLD_M, location = LOCATION,
@@ -614,19 +616,22 @@ make_demo_distance_heat_map <- function(
   block_shapes <- st_transform(block_shapes, crs_projection)
   precinct_shapes <- st_transform(precinct_shapes, crs_projection)
 
-  #select relevant columns
-  distance_columns <- c("id_orig", "distance_m", "flagged_distance", demo_pop)
+  #select relevant columns. 
+  distance_columns <- setdiff(
+    c("id_orig", "id_dest", "distance_m", "flagged_distance", demo_pop), "total_population"
+  )
   block_distances <- merge(
-    block_shapes[, c("GEOID20", "INTPTLAT20", "INTPTLON20", "block_geometry")],
+    block_shapes[, c("GEOID20", "total_population", "INTPTLAT20", "INTPTLON20", "block_geometry")],
     distance_flagged_blocks[, distance_columns, with = FALSE],
     by.x = "GEOID20", by.y = "id_orig", all.x = TRUE
   )
 
   #select different subgroups for map
   is_flagged <- block_distances$flagged_distance
-  no_population_blocks <- block_distances[is.na(block_distances$distance_m), ]
-  under_threshold_blocks <- block_distances[!is.na(is_flagged) & !is_flagged, ]
-  over_threshold_blocks <- block_distances[!is.na(is_flagged) & is_flagged, ]
+  no_population_blocks <- block_distances[block_distances$total_population == 0, ]
+  under_threshold_blocks <- block_distances[!is_flagged, ]
+  over_threshold_blocks <- block_distances[is_flagged, ]
+  not_assigned <- block_distances[is.na(block_distances$id_dest), ]
 
   distance_threshold <- round(distance_threshold_m / 1609.34, 1)
   demo_pop_label <- if (is.null(demo_pop)) {
@@ -640,14 +645,20 @@ make_demo_distance_heat_map <- function(
       location, "driving distance to assigned polling location", demo_pop_label
     )
   )
-  # gray indicates no population block
+  # gray indicates no population block; dashed blue outline indicates no
+  # assigned polling location (a dropped precinct) -- the two aren't
+  # mutually exclusive.
   caption_str <- if (is.null(demo_pop)) {
     paste0(
       "White = under ", distance_threshold,
-      " mi threshold; Gray = no population"
+      " mi threshold; Gray = no population;\n",
+      "Dashed blue outline = no assigned polling location"
     )
   } else {
-    "White = populated block; Gray = no population"
+    paste0(
+      "White = populated block; Gray = no population;\n",
+      "Dashed blue outline = no assigned polling location"
+    )
   }
 
   # base layers shared by both modes: no-data/under-threshold context and
@@ -698,6 +709,14 @@ make_demo_distance_heat_map <- function(
       ) +
       labs(size = paste(demo_pop_label, 'population'))
   }
+
+  # drawn last among the fill layers so the dashed outline is visible while
+  # leaving the fill showing through
+  heat_map <- heat_map +
+    geom_sf(
+      data = not_assigned, fill = NA, color = "blue", linewidth = 2,
+      linetype = "dashed"
+    )
 
   heat_map <- heat_map +
     geom_sf(

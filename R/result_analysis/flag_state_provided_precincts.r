@@ -62,9 +62,6 @@ block_precinct_intersection <- compute_block_precinct_overlaps(
 
 block_precinct_assignment <- assign_block_to_dominant_precinct(block_precinct_intersection)
 
-names(block_precinct_assignment)[names(block_precinct_assignment) == "geometry"] <- "block_geometry"
-st_geometry(block_precinct_assignment) <- "block_geometry"
-
 st_write(
   block_precinct_assignment,
   file.path(precinct_analysis_output_folder, "block_precinct_assignment.gpkg"), append = FALSE
