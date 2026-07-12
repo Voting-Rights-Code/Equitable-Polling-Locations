@@ -67,7 +67,9 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
     COUNTY_POLLING_LOCATION_NAME_COL,
     COUNTY_POLLING_LOCATION_ADDRESS_COL,
     state_precincts,
-    COUNTY_NAME
+    COUNTY_NAME,
+    STATE_PRECINCT_SOURCE_FILE,
+    LOCATION
   )
 } else {
   precincts_resolved <- state_precincts
