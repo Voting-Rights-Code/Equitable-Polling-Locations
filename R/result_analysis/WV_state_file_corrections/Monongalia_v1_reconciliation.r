@@ -43,13 +43,13 @@ source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
 ########
 
 ########
-# Input:  West_Virginia_20260424_wmA84 (STATE_PRECINCT_SOURCE_FILE)
+# Input:  West_Virginia_20260424_wmA84 (STATE_PRECINCT_STABLE_FILE)
 # Output: West_Virginia_20260424_wmA84_Monongalia_County_WV_v1_reconciliation
 #         (this step's own fixed identity, not derived -- see
 #         next_correction_step_prefix() in shape_extraction_functions.r for
 #         how a *future* step's name gets suggested), mirrored back to the
 #         stable West_Virginia_20260424_wmA84 path that
-#         STATE_PRECINCT_SOURCE_FILE always points to.
+#         STATE_PRECINCT_STABLE_FILE always points to.
 ########
 
 RECONCILIATION_OUTPUT_FOLDER <- "datasets/precincts/West_Virginia_20260424_wmA84_Monongalia_County_WV_v1_reconciliation"
@@ -72,7 +72,7 @@ copy_shapefile_folder <- function(source_folder, destination_folder) {
 # Read
 ########
 
-state_precincts <- st_read(STATE_PRECINCT_SOURCE_FILE)
+state_precincts <- st_read(STATE_PRECINCT_STABLE_FILE)
 
 ########
 # Apply corrections from the mismatches.cvs and create crosswalk data
@@ -97,13 +97,13 @@ fwrite(crosswalk, crosswalk_path)
 # Write the reconciled output, then mirror it to the stable path
 ########
 #get the stable path for the state file.
-state_precincts_folder <- dirname(STATE_PRECINCT_SOURCE_FILE)
+state_precincts_folder <- dirname(STATE_PRECINCT_STABLE_FILE)
 #first copy contents of the stable path into the output file
 copy_shapefile_folder(state_precincts_folder, RECONCILIATION_OUTPUT_FOLDER)
 #write updated state data to output folder
 st_write(
   updated_state_precincts,
-  file.path(RECONCILIATION_OUTPUT_FOLDER, basename(STATE_PRECINCT_SOURCE_FILE)),
+  file.path(RECONCILIATION_OUTPUT_FOLDER, basename(STATE_PRECINCT_STABLE_FILE)),
   append = FALSE
 )
 #make the new stable path match the update data

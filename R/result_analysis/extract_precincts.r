@@ -43,7 +43,7 @@ if (!file.exists(file.path(here(), precinct_analysis_output_folder))) {
 
 
 ###### Step 1: extract and validate the county's precincts#######
-state_precincts <- extract_county_precincts(STATE_PRECINCT_SOURCE_FILE, COUNTY_NAME, CRS_PROJECTION)
+state_precincts <- extract_county_precincts(STATE_PRECINCT_STABLE_FILE, COUNTY_NAME, CRS_PROJECTION)
 
 state_precincts <- state_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
 
@@ -68,7 +68,7 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
     COUNTY_POLLING_LOCATION_ADDRESS_COL,
     state_precincts,
     COUNTY_NAME,
-    STATE_PRECINCT_SOURCE_FILE,
+    STATE_PRECINCT_STABLE_FILE,
     LOCATION
   )
 } else {

@@ -43,7 +43,7 @@ file.rename(
   )
 )
 
-state_precincts <- get_shape_data(STATE_PRECINCT_SOURCE_FILE)
+state_precincts <- get_shape_data(STATE_PRECINCT_STABLE_FILE)
 
 # 1. Reassign precinct 44
 state_precincts$USER_POLL_[state_precincts$Precinct_I == "Monongalia_44"] <-
@@ -64,4 +64,4 @@ precinct_2b_row$Precinct_I <- "Monongalia_2B"
 state_precincts <- state_precincts[state_precincts$Precinct_I != "Monongalia_2", ]
 state_precincts <- rbind(state_precincts, precinct_2a_row, precinct_2b_row)
 
-st_write(state_precincts, STATE_PRECINCT_SOURCE_FILE, append = FALSE)
+st_write(state_precincts, STATE_PRECINCT_STABLE_FILE, append = FALSE)
