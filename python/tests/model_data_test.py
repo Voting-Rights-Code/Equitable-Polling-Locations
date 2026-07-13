@@ -11,12 +11,7 @@ import pytest
 from python.solver import model_data
 from python.solver.constants import DISTANCE_DISTANCE_M, DISTANCE_DURATION_S, DISTANCE_ID_ORIG, DISTANCE_ID_DEST
 from python.solver.model_config import PollingModelConfig
-from python.solver.model_data import (
-    _log_transform_metric_columns,
-    _reject_negative_metric_values,
-    apply_metric,
-    insert_driving_distances,
-)
+from python.solver.model_data import _log_transform_metric_columns, apply_metric, insert_driving_distances
 
 from .constants import TESTING_POTENTIAL_LOCATIONS_PATH, TESTING_DRIVING_DISTANCES_PATH, TEST_LOCATION, MAP_SOURCE_DATE, TESTING_CONFIG_DRIVING
 
@@ -278,33 +273,6 @@ def test_log_transform_skips_duration_when_absent():
 
     assert DISTANCE_DURATION_S not in result.columns
     assert result[DISTANCE_DISTANCE_M].tolist() == [np.log(100.0)]
-
-
-def test_reject_negative_metric_values_raises_on_negative_distance():
-    df = pd.DataFrame({DISTANCE_DISTANCE_M: [-1.0, 100.0]})
-    with pytest.raises(ValueError, match='distance_m'):
-        _reject_negative_metric_values(df)
-
-
-def test_reject_negative_metric_values_raises_on_negative_duration():
-    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_S: [-1.0]})
-    with pytest.raises(ValueError, match='duration_s'):
-        _reject_negative_metric_values(df)
-
-
-def test_reject_negative_metric_values_allows_zero_and_positive():
-    df = pd.DataFrame({
-        DISTANCE_DISTANCE_M: [0.0, 100.0],
-        DISTANCE_DURATION_S: [0.0, 50.0],
-    })
-    # Should not raise: 0 and positive are valid raw values.
-    _reject_negative_metric_values(df)
-
-
-def test_reject_negative_metric_values_skips_duration_when_absent():
-    df = pd.DataFrame({DISTANCE_DISTANCE_M: [0.0, 100.0]})
-    # No duration column: only distance_m is checked; should not raise.
-    _reject_negative_metric_values(df)
 
 
 def _driving_config(metric):

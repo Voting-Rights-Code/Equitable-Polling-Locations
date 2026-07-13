@@ -321,8 +321,9 @@ class BuildDistanceMetaData:
 # log, purely to avoid log(0) = -inf. Per-metric because a meter and a second are
 # different units; a coincident pair (a block centroid on its own site) is
 # essentially zero travel, so these keep the log finite and strongly negative.
-# Non-negativity of the RAW values is validated separately, before the log, by
-# _reject_negative_metric_values in build_distance_data.
+# Non-negativity of the RAW values is guaranteed upstream, when the driving matrix
+# is built (_coerce_negative_metrics_to_null in driving_distance_matrix), so this
+# floor only handles legitimate exactly-zero (coincident) pairs.
 LOG_ZERO_DISTANCE_FLOOR_M = 0.001
 LOG_ZERO_DURATION_FLOOR_S = 0.5
 
@@ -351,33 +352,6 @@ def _log_transform_metric_columns(distance_df: pd.DataFrame) -> pd.DataFrame:
         distance_df[column].mask(distance_df[column] == 0.0, zero_floor, inplace=True)
         distance_df[column] = np.log(distance_df[column])
     return distance_df
-
-
-def _reject_negative_metric_values(distance_df: pd.DataFrame) -> None:
-    '''Raise if any raw distance or duration is negative (before any log transform).
-
-    A negative meter or second is never a real-world value, and because the KP
-    objective minimizes distance the solver would treat such a pair as more
-    attractive than a genuine zero-distance pair. Validity is enforced here, on
-    the RAW values, rather than in filter_distance_data: that gate runs downstream
-    of the log transform, where a negative distance_m is log(sub-1) -- a
-    legitimately small distance, not invalid data. See issue #295.
-
-    Args:
-        distance_df: Frame holding raw distance_m and optionally duration_s.
-
-    Raises:
-        ValueError: If distance_m or duration_s contains a negative value.
-    '''
-    metric_columns = [DISTANCE_DISTANCE_M]
-    if DISTANCE_DURATION_S in distance_df.columns:
-        metric_columns.append(DISTANCE_DURATION_S)
-    for column in metric_columns:
-        if (distance_df[column] < 0).any():
-            raise ValueError(
-                f'{column} contains negative values, which are never valid raw '
-                f'distances or durations; check the distance/duration source data.'
-            )
 
 
 # Old Build source function
@@ -492,11 +466,6 @@ def build_distance_data(
         ) * 1000
 
         distance_df[DISTANCE_SOURCE] = DISTANCE_SOURCE_HAVERSINE_DISTANCE
-
-    # Reject negative raw distances/times before any log transform: a negative
-    # meter or second is never real, whereas a negative log (of a legitimately
-    # small sub-1 value) is valid. See issue #295.
-    _reject_negative_metric_values(distance_df)
 
     # if log distance, modify the source and distance columns
     if log_distance:
