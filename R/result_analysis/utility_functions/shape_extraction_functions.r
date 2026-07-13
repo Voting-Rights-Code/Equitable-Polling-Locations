@@ -297,9 +297,11 @@ build_precinct_crosswalk <- function(reviewed_corrections) {
   # pull out dropped  or renamed rows 
   # use the name from the (user corrected) USER_POLL_ column
   # non-entries are kept as NAs
-  crosswalk <- reviewed_corrections[resolution_type %in% c("rename" , "drop"),
-    .(Precinct_I = Precinct_I, resolved_polling_location = fifelse(
-        is.na(USER_POLL_) | USER_POLL_ == "", NA_character_, USER_POLL_ ))]
+  crosswalk <- reviewed_corrections[ , resolved_polling_location := USER_POLL_
+                ][is.na(USER_POLL_) | USER_POLL_ == "", 
+                resolved_polling_location := NA_character_
+                ][resolution_type == "rename" | resolution_type ==  "drop" , 
+                .(Precinct_I, resolved_polling_location) ]
 
   # verify that the rows labeled "split" have the correct data
   split_rows <- reviewed_corrections[resolution_type == "split"]
@@ -523,6 +525,9 @@ resolve_block_destinations <- function(block_precinct_assignment, state_county_c
   resolved <- merge(all_blocks, state_county_crosswalk, by = "Precinct_I", all.x = TRUE, sort = FALSE)
   resolved[, resolved_destination := fifelse(Precinct_I %in% state_county_crosswalk$Precinct_I, 
                           resolved_polling_location, USER_POLL_)]
+  resolved[ , resolved_destination := USER_POLL_][Precinct_I %in% state_county_crosswalk$Precinct_I, 
+                          resolved_destination := resolved_polling_location ]
+  
   resolved[, resolved_polling_location := NULL]
   return(resolved)
 }
