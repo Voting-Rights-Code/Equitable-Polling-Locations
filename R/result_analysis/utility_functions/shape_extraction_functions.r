@@ -531,12 +531,13 @@ resolve_block_destinations <- function(block_precinct_assignment, state_county_c
 }
 
 # join each populated census block to its resolved polling location's
-# driving distance, extend with demographic data, and flag blocks whose
-# distance exceeds distance_threshold_m. 
+# driving distance/duration, extend with demographic data, and flag blocks
+# whose drive time exceeds duration_threshold_min. Writes the result to
+# precinct_analysis_output_folder as distance_flagged_blocks_<N>min.csv.
 flag_distant_blocks <- function(block_precinct_assignment, state_county_crosswalk, block_demographics,
-                                driving_distances_file, distance_threshold_m) {
+                                driving_distances_file, duration_threshold_min) {
   #get resolved blocks precinct assignments
-  resolved_blocks <- resolve_block_destinations(block_precinct_assignment, 
+  resolved_blocks <- resolve_block_destinations(block_precinct_assignment,
             state_county_crosswalk)
 
 
@@ -547,9 +548,11 @@ flag_distant_blocks <- function(block_precinct_assignment, state_county_crosswal
 
   #merge in driving distances
   distance_blocks <- merge(
-    resolved_blocks, driving_distances, by.x = c("GEOID20", "resolved_destination"), 
+    resolved_blocks, driving_distances, by.x = c("GEOID20", "resolved_destination"),
     by.y = c("id_orig", "id_dest_upper"), all.x = TRUE)
   distance_blocks[is.na(distance_m), distance_m := 0]
+  distance_blocks[is.na(duration_s), duration_s := 0]
+  distance_blocks[, duration_min := duration_s / 60]
 
   # drop block_demographics' total_population (duplicate) before merging
   demographic_columns <- setdiff(names(block_demographics), c("GEOID20", "total_population"))
@@ -558,30 +561,33 @@ flag_distant_blocks <- function(block_precinct_assignment, state_county_crosswal
     by = "GEOID20"
   )
   stopifnot(
-    "Some distance-joined blocks' GEOID20 had no matching row in block_demographics 
+    "Some distance-joined blocks' GEOID20 had no matching row in block_demographics
     -- block_demographics may be incomplete or out of sync with the block/precinct assignment, or vice versa" =
       nrow(demographic_blocks) == nrow(distance_blocks)
   )
 
   demographic_blocks[, weighted_dist := total_population * distance_m]
-  demographic_blocks[, flagged_distance := distance_m > distance_threshold_m]
+  demographic_blocks[, flagged_distance := duration_min > duration_threshold_min]
 
   setnames(demographic_blocks, "GEOID20", "id_orig")
   output_columns <- c(
-    "id_orig", "id_dest", "distance_m", "Precinct_I", "total_population",
+    "id_orig", "id_dest", "distance_m", "duration_min", "Precinct_I", "total_population",
     "white", "black", "native", "asian", "pacific_islander", "other",
     "multiple_races", "hispanic", "non_hispanic", "weighted_dist", "flagged_distance"
   )
   demographic_blocks <- demographic_blocks[, ..output_columns]
 
+  distance_flagged_blocks_path <- file.path(
+    precinct_analysis_output_folder,
+    paste0("distance_flagged_blocks_", duration_threshold_min, "_min.csv")
+  )
+  fwrite(demographic_blocks, distance_flagged_blocks_path)
+
   return(demographic_blocks)
 }
 
 # human-readable labels for flag_distant_blocks()'s demographic columns, for
-# consistent map/legend naming. Mirrors graph_functions.R's
-# demographic_legend_dict, extended to this pipeline's column names (e.g.
-# total_population instead of population, plus pacific_islander,
-# multiple_races, non_hispanic, which that dict doesn't cover).
+# consistent map/legend naming. 
 demo_pop_legend_dict <- c(
   total_population = "Total",
   white = "White",
@@ -595,33 +601,28 @@ demo_pop_legend_dict <- c(
   non_hispanic = "Non-Latine"
 )
 
-# build a county-level map of census blocks by distance to their assigned
+# build a county-level map of census blocks by drive time to their assigned
 # polling location, with precinct boundaries drawn on top for context.
 # Two modes, chosen by demo_pop:
-# - demo_pop = NULL: choropleth. Blocks under distance_threshold_m are
-#   neutral gray; blocks at or over it are red, graduated by distance_m.
-# - demo_pop = a demographic column name (e.g. "total_population", "white"):
-#   dot mode, mirroring make_demo_dist_map() in map_functions.R. Only
-#   flagged (over-threshold) blocks get a dot, centered on the block's
-#   centroid, sized by that demographic's population and colored by
-#   distance_m.
-# In both modes, zero-population blocks get a distinct gray fill, and
-# blocks with no assigned polling location (a dropped precinct) get a
-# dashed blue outline drawn over whatever fill they'd otherwise have --
-# population status and assignment status aren't mutually exclusive, so a
-# block can be both (e.g. Monongalia_A/B).
+# - demo_pop = NULL: choropleth. 
+# - demo_pop = a demographic column name. Only
+#   flagged (over-threshold) blocks get a dot
+# In both modes, zero-population blocks get a distinct gray fill, blocks
+# blocks with no assigned polling location 
+# dashed blue outline.
 make_demo_distance_heat_map <- function(
     block_shapes, distance_flagged_blocks, precinct_shapes, demo_pop,
-    distance_threshold_m = DISTANCE_FLAG_THRESHOLD_M, location = LOCATION,
+    duration_threshold_min, location = LOCATION,
     crs_projection = CRS_PROJECTION) {
   # reproject to a plain lat/lon CRS so the graticule comes out
   # horizontal/vertical
   block_shapes <- st_transform(block_shapes, crs_projection)
   precinct_shapes <- st_transform(precinct_shapes, crs_projection)
 
-  #select relevant columns. 
+  #select relevant columns.
   distance_columns <- setdiff(
-    c("id_orig", "id_dest", "distance_m", "flagged_distance", demo_pop), "total_population"
+    c("id_orig", "id_dest", "distance_m", "duration_min", "flagged_distance", demo_pop),
+    "total_population"
   )
   block_distances <- merge(
     block_shapes[, c("GEOID20", "total_population", "INTPTLAT20", "INTPTLON20", "block_geometry")],
@@ -636,7 +637,6 @@ make_demo_distance_heat_map <- function(
   over_threshold_blocks <- block_distances[is_flagged, ]
   not_assigned <- block_distances[is.na(block_distances$id_dest), ]
 
-  distance_threshold <- round(distance_threshold_m / 1609.34, 1)
   demo_pop_label <- if (is.null(demo_pop)) {
     NULL
   } else {
@@ -653,8 +653,8 @@ make_demo_distance_heat_map <- function(
   # mutually exclusive.
   caption_str <- if (is.null(demo_pop)) {
     paste0(
-      "White = under ", distance_threshold,
-      " mi threshold; Gray = no population;\n",
+      "White = under ", duration_threshold_min,
+      " min threshold; Gray = no population;\n",
       "Dashed blue outline = no assigned polling location"
     )
   } else {
@@ -679,16 +679,16 @@ make_demo_distance_heat_map <- function(
   if (is.null(demo_pop)) {
     heat_map <- heat_map +
       geom_sf(
-        data = over_threshold_blocks, aes(fill = distance_m),
+        data = over_threshold_blocks, aes(fill = duration_min),
         color = "grey60", linewidth = 0.1
       ) +
       scale_fill_gradient(
-        low = "#fcbba1", high = "#67000d", name = "Distance (m)"
+        low = "#fcbba1", high = "#67000d", name = "Duration (min)"
       )
   } else {
     # dot mode: draw flagged blocks as plain context polygons, then place a
     # dot at each flagged block's centroid, sized by demo_pop's population
-    # and colored by distance_m -- mirrors make_demo_dist_map() in
+    # and colored by duration_min -- mirrors make_demo_dist_map() in
     # map_functions.R.
     over_threshold_blocks$INTPTLON20 <-
       as.numeric(over_threshold_blocks$INTPTLON20)
@@ -704,11 +704,11 @@ make_demo_distance_heat_map <- function(
         data = over_threshold_blocks,
         aes(
           x = INTPTLON20, y = INTPTLAT20,
-          size = .data[[demo_pop]], color = distance_m
+          size = .data[[demo_pop]], color = duration_min
         )
       ) +
       scale_color_gradient(
-        low = "#fcbba1", high = "#67000d", name = "Distance (m)"
+        low = "#fcbba1", high = "#67000d", name = "Duration (min)"
       ) +
       labs(size = paste(demo_pop_label, 'population'))
   }
@@ -729,7 +729,10 @@ make_demo_distance_heat_map <- function(
     xlab("") + ylab("") +
     theme_minimal()
 
-  file_name <- paste(c(demo_pop, "distance_heat_map.png"), collapse = "_")
+  file_name <- paste(
+    c(paste0(duration_threshold_min, "_min"), demo_pop, "distance_heat_map.png"),
+    collapse = "_"
+  )
   distance_heat_map_path <- file.path(
     precinct_analysis_output_folder, file_name
   )
