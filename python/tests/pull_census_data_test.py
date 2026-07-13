@@ -107,6 +107,32 @@ class TestPullTigerFile:
         assert Path(captured['local_dir']) == expected
         assert Path(captured['unzip_outdir']) == expected
 
+    def test_multiword_state_name_uses_underscores_not_spaces(self):
+        """Multi-word state dirs use underscores (54_WEST_VIRGINIA), not spaces.
+
+        The Census TIGER server names the directory 54_WEST_VIRGINIA; a space
+        404s. Regression guard for every multi-word state (issue #303).
+        """
+        captured = {}
+
+        def fake_download(url, local_dir):
+            captured['url'] = url
+            return Path(local_dir) / 'fake.zip'
+
+        with patch('python.utils.pull_census_data.download_file', side_effect=fake_download), \
+             patch('python.utils.pull_census_data.unzip_file', return_value=None):
+            pull_tiger_file(
+                state='West Virginia',
+                fips='54',
+                county_st='Monongalia_County_WV',
+                county_code='061',
+                geo=BLOCK_GEO,
+                census_year='2020',
+            )
+
+        assert '54_WEST_VIRGINIA' in captured['url']
+        assert '54_WEST VIRGINIA' not in captured['url']
+
 
 class TestRequestWithRetries:
     """Tests for _request_with_retries()."""
