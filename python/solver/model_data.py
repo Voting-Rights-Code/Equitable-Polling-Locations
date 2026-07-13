@@ -317,17 +317,26 @@ class BuildDistanceMetaData:
     potential_locations_set_id: str=None
 
 
+# Floors applied to an exactly-zero metric before log_distance takes its natural
+# log, purely to avoid log(0) = -inf. Per-metric because a meter and a second are
+# different units; a coincident pair (a block centroid on its own site) is
+# essentially zero travel, so these keep the log finite and strongly negative.
+# Non-negativity of the RAW values is guaranteed upstream, when the driving matrix
+# is built (_coerce_negative_metrics_to_null in driving_distance_matrix), so this
+# floor only handles legitimate exactly-zero (coincident) pairs.
+LOG_ZERO_DISTANCE_FLOOR_M = 0.001
+LOG_ZERO_DURATION_FLOOR_S = 0.5
+
+
 def _log_transform_metric_columns(distance_df: pd.DataFrame) -> pd.DataFrame:
     '''Replace each driving-metric column with its natural log, in place.
 
     Both distance_m and (when present) duration_s are log-transformed so a
     log_distance run can later select either metric and find it already logged.
-    Values below 1 are floored to 1.0 first, so the log is non-negative
-    (log(1) == 0): log(0) is undefined, and filter_distance_data rejects any
-    negative distance, so a sub-1 value -- a degenerate coincident block/site
-    pair (distance < 1 m or duration < 1 s) -- would otherwise crash a
-    log_distance run. (Provisional per #294; pending Susama's modeling call on
-    how to treat such pairs.)
+    An exactly-zero value is floored per metric first (distance_m -> 0.001 m,
+    duration_s -> 0.5 s) purely to avoid log(0); legitimately small sub-1 values
+    are left alone and log to a finite negative, which is valid (raw-value
+    non-negativity is enforced upstream, before this transform). See issue #295.
 
     Args:
         distance_df: Frame holding distance_m and optionally duration_s.
@@ -336,11 +345,11 @@ def _log_transform_metric_columns(distance_df: pd.DataFrame) -> pd.DataFrame:
         The same DataFrame object, mutated in place, returned for call-site
         convenience.
     '''
-    metric_columns = [DISTANCE_DISTANCE_M]
+    metric_floors = {DISTANCE_DISTANCE_M: LOG_ZERO_DISTANCE_FLOOR_M}
     if DISTANCE_DURATION_S in distance_df.columns:
-        metric_columns.append(DISTANCE_DURATION_S)
-    for column in metric_columns:
-        distance_df[column].mask(distance_df[column] < 1.0, 1.0, inplace=True)
+        metric_floors[DISTANCE_DURATION_S] = LOG_ZERO_DURATION_FLOOR_S
+    for column, zero_floor in metric_floors.items():
+        distance_df[column].mask(distance_df[column] == 0.0, zero_floor, inplace=True)
         distance_df[column] = np.log(distance_df[column])
     return distance_df
 
@@ -816,31 +825,26 @@ def filter_distance_data(config: PollingModelConfig, distance_df: pd.DataFrame, 
     if any(pop_df>1):
         raise ValueError(f'Some id_orig has multiple associated populations from {config.config_file_path}')
 
-    # Raise error if any distance is missing or invalid. A distance is invalid
-    # if it is null or negative. 0 is a legitimate same-point distance and stays
-    # valid; a negative distance is never a real-world value, and because the KP
-    # objective minimizes distance the solver would treat it as more attractive
-    # than 0 -- so reject it like a missing value.
-    invalid_mask = (
-        pd.isnull(filtered_distance_df.distance_m)
-        | (filtered_distance_df.distance_m < 0)
-    )
+    # Raise error if any distance is missing (null) for this config's locations.
+    # Negative values are NOT rejected here: filter runs downstream of the log
+    # transform, where a negative distance_m is log(sub-1), a legitimately small
+    # distance. Raw negatives are rejected earlier, at ingestion in
+    # build_distance_data (_reject_negative_metric_values). See issue #295.
+    invalid_mask = pd.isnull(filtered_distance_df.distance_m)
     if invalid_mask.any():
         # indicate destinations and origins lacking a valid driving distance
         all_orig = set(filtered_distance_df.id_orig)
         all_dest = set(filtered_distance_df.id_dest)
-        valid_df = filtered_distance_df[
-            pd.notna(filtered_distance_df.distance_m) & (filtered_distance_df.distance_m >= 0)
-        ]
+        valid_df = filtered_distance_df[pd.notna(filtered_distance_df.distance_m)]
         valid_orig = set(valid_df.id_orig)
         valid_dest = set(valid_df.id_dest)
         missing_origs = all_orig - valid_orig
         missing_dests = all_dest - valid_dest
         if len(missing_dests) > 0:
-            print(f'distances missing or invalid (negative) for {len(missing_dests)} destination(s): {missing_dests}')
+            print(f'distances missing for {len(missing_dests)} destination(s): {missing_dests}')
         if len(missing_origs) > 0:
-            print(f'distances missing or invalid (negative) for {len(missing_origs)} origin(s): {missing_origs}')
-        raise ValueError('Some distances are missing or invalid (negative) for current config setting.')
+            print(f'distances missing for {len(missing_origs)} origin(s): {missing_origs}')
+        raise ValueError('Some distances are missing for current config setting.')
 
     # Create other useful columns
     filtered_distance_df[DISTANCE_WEIGHTED_DIST] = (
