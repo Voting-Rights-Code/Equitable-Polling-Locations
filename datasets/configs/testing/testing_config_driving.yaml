@@ -19,3 +19,4 @@ max_min_mult: 5 #scalar >= 1
 maxpctnew: 1 # in interval [0,1]
 minpctold: .5 # in interval [0,1]
 driving: True # True or False (default: False)
+metric: driving_distance # haversine | driving_distance | driving_time

@@ -85,3 +85,25 @@ class TestDbImportDrivingDistances:
             f"All distance_m values must be positive; found non-positive values:\n"
             f"{db_df[db_df['distance_m'] <= 0][['distance_m']].head()}"
         )
+
+    def test_duration_s_round_trips(self, e2e_test_data, imported_driving_distances, test_environment):
+        """duration_s imports into the DrivingDistance table with positive values.
+
+        Args:
+            e2e_test_data: Session-scoped test data dict.
+            imported_driving_distances: Ensures the import has run.
+            test_environment: The loaded test environment.
+        """
+        from python.database.query import Query  # pylint: disable=import-outside-toplevel
+
+        sid = e2e_test_data['sid']
+        query = Query(test_environment)
+        distance_set = query.find_driving_distance_set(
+            census_year='2020', map_source_date='20250101', location=sid,
+        )
+        assert distance_set is not None, f"No DrivingDistancesSet found for location '{sid}'"
+
+        db_df = query.get_driving_distances(distance_set.id)
+        assert 'duration_s' in db_df.columns, 'duration_s column missing from DrivingDistance table'
+        assert db_df['duration_s'].notna().all(), 'duration_s has unexpected nulls'
+        assert (db_df['duration_s'] > 0).all(), 'duration_s values must be positive'

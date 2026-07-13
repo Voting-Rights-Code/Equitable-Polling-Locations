@@ -9,6 +9,8 @@ from sqlalchemy import Column, String, Integer, Float
 from sqlalchemy.ext.declarative import declarative_base
 
 from python.database import imports, models
+from python.database.imports import build_model_column_types
+from python.database.models import ModelConfig, DrivingDistance, DistanceData
 
 _TestBase = declarative_base()
 
@@ -150,3 +152,32 @@ def test_load_model_csv_type_mismatch_reports_column_and_value(tmp_path):
 
     with pytest.raises(ValueError, match=r"(?s)Column: 'count'.*Failed Value: 'abc'"):
         imports.load_model_csv(_NonNullableIntModel, {}, csv_path)
+
+
+def test_build_model_column_types_includes_metric():
+    ''' The metric column is typed as str in build_model_column_types. '''
+    column_types = build_model_column_types(ModelConfig)
+    assert column_types['metric'] == str
+
+
+def test_model_config_metric_column_is_nullable():
+    ''' The metric column on ModelConfig is nullable. '''
+    assert ModelConfig.__table__.columns['metric'].nullable is True
+
+
+def test_build_model_column_types_includes_duration_s_on_driving_distance():
+    ''' The duration_s column is typed as np.float64 in build_model_column_types. '''
+    column_types = build_model_column_types(DrivingDistance)
+    assert column_types['duration_s'] == np.float64
+
+
+def test_build_model_column_types_includes_duration_s_on_distance_data():
+    ''' The duration_s column is typed as np.float64 in build_model_column_types. '''
+    column_types = build_model_column_types(DistanceData)
+    assert column_types['duration_s'] == np.float64
+
+
+def test_duration_s_columns_are_nullable():
+    ''' The duration_s columns on DrivingDistance and DistanceData are nullable. '''
+    assert DrivingDistance.__table__.columns['duration_s'].nullable is True
+    assert DistanceData.__table__.columns['duration_s'].nullable is True

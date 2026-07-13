@@ -4,12 +4,16 @@
 
 from itertools import product
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from python.solver import model_data
+from python.solver.constants import DISTANCE_DISTANCE_M, DISTANCE_DURATION_S, DISTANCE_ID_ORIG, DISTANCE_ID_DEST
+from python.solver.model_config import PollingModelConfig
+from python.solver.model_data import _log_transform_metric_columns, apply_metric, insert_driving_distances
 
-from .constants import TESTING_POTENTIAL_LOCATIONS_PATH, TESTING_DRIVING_DISTANCES_PATH, TEST_LOCATION, MAP_SOURCE_DATE
+from .constants import TESTING_POTENTIAL_LOCATIONS_PATH, TESTING_DRIVING_DISTANCES_PATH, TEST_LOCATION, MAP_SOURCE_DATE, TESTING_CONFIG_DRIVING
 
 
 def test_build_source_columns(location_df_with_driving):
@@ -226,4 +230,154 @@ def test_filter_distance_data_allows_zero_distance(
 
     # Should not raise.
     model_data.filter_distance_data(testing_config_driving, df, False, False)
+
+
+def test_load_driving_distances_csv_tolerates_duration_column(tmp_path):
+    ''' The solver CSV loader must read the new 4-column schema without error. '''
+    path = tmp_path / 'd.csv'
+    path.write_text(
+        'id_orig,id_dest,distance_m,duration_s\n'
+        '1,A,100.0,12.0\n'
+        '2,A,200.0,24.0\n'
+    )
+    df = model_data.load_driving_distances_csv(str(path))
+    assert 'duration_s' in df.columns
+    assert df['distance_m'].tolist() == [100.0, 200.0]
+
+
+def test_load_driving_distances_csv_still_reads_legacy_three_column(tmp_path):
+    ''' Older CSVs without duration_s still load (default distance metric). '''
+    path = tmp_path / 'legacy.csv'
+    path.write_text('id_orig,id_dest,distance_m\n1,A,100.0\n')
+    df = model_data.load_driving_distances_csv(str(path))
+    assert df['distance_m'].tolist() == [100.0]
+    assert 'duration_s' not in df.columns
+
+
+def test_log_transform_applies_to_duration_when_present():
+    df = pd.DataFrame({
+        DISTANCE_DISTANCE_M: [0.0, 100.0],
+        DISTANCE_DURATION_S: [0.0, 50.0],
+    })
+    result = _log_transform_metric_columns(df.copy(deep=True))
+
+    assert result[DISTANCE_DISTANCE_M].tolist() == [0.0, np.log(100.0)]
+    assert result[DISTANCE_DURATION_S].tolist() == [0.0, np.log(50.0)]
+
+
+def test_log_transform_floors_values_below_one_to_zero_log():
+    # Values < 1 (including 0 and sub-1-second / sub-1-metre) floor to 1.0, so
+    # the log is non-negative (log(1) == 0). filter_distance_data rejects any
+    # negative distance, so the old log(0.001) == -6.9 floor crashed a
+    # log_distance run on degenerate coincident pairs. Provisional per #294
+    # pending Susama's modeling decision on how to treat those pairs.
+    df = pd.DataFrame({
+        DISTANCE_DISTANCE_M: [0.0, 0.5, 1.0, 100.0],
+        DISTANCE_DURATION_S: [0.0, 0.25, 1.0, 50.0],
+    })
+    result = _log_transform_metric_columns(df.copy(deep=True))
+
+    assert result[DISTANCE_DISTANCE_M].tolist() == [0.0, 0.0, 0.0, np.log(100.0)]
+    assert result[DISTANCE_DURATION_S].tolist() == [0.0, 0.0, 0.0, np.log(50.0)]
+
+
+def test_log_transform_skips_duration_when_absent():
+    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0]})
+    result = _log_transform_metric_columns(df.copy(deep=True))
+
+    assert DISTANCE_DURATION_S not in result.columns
+    assert result[DISTANCE_DISTANCE_M].tolist() == [np.log(100.0)]
+
+
+def _driving_config(metric):
+    config = PollingModelConfig.load_config(TESTING_CONFIG_DRIVING)
+    config.driving = metric != 'haversine'
+    config.metric = metric
+    return config
+
+
+def test_apply_metric_aliases_duration_for_driving_time():
+    config = _driving_config('driving_time')
+    df = pd.DataFrame({
+        DISTANCE_ID_ORIG: ['a'], DISTANCE_ID_DEST: ['b'],
+        DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_S: [42.0],
+    })
+
+    result = apply_metric(config, df)
+
+    assert result[DISTANCE_DISTANCE_M].tolist() == [42.0]
+
+
+def test_apply_metric_driving_time_aliases_in_place_without_copying():
+    # Regression: apply_metric must not deep-copy the (county-scale, multi-GB) distance
+    # frame just to alias one column. It aliases in place and returns the same object,
+    # matching the haversine/driving_distance branches. A full copy here stacked ~7 GB on
+    # top of the solver subprocess and OOM-killed county-scale driving_time runs.
+    config = _driving_config('driving_time')
+    df = pd.DataFrame({
+        DISTANCE_ID_ORIG: ['a'], DISTANCE_ID_DEST: ['b'],
+        DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_S: [42.0],
+    })
+
+    result = apply_metric(config, df)
+
+    assert result is df
+    assert df[DISTANCE_DISTANCE_M].tolist() == [42.0]
+
+
+def test_apply_metric_noop_for_driving_distance():
+    config = _driving_config('driving_distance')
+    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_S: [42.0]})
+
+    result = apply_metric(config, df)
+
+    assert result[DISTANCE_DISTANCE_M].tolist() == [100.0]
+
+
+def test_apply_metric_noop_for_haversine():
+    config = _driving_config('haversine')
+    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0]})
+
+    result = apply_metric(config, df)
+
+    assert result[DISTANCE_DISTANCE_M].tolist() == [100.0]
+
+
+def test_apply_metric_raises_when_duration_missing():
+    config = _driving_config('driving_time')
+    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0]})
+
+    with pytest.raises(ValueError, match='duration_s') as excinfo:
+        apply_metric(config, df)
+
+    # DB duration is supported now; the guard must not claim otherwise.
+    assert 'Phase 3' not in str(excinfo.value)
+
+
+def test_driving_time_aliases_log_transformed_duration():
+    # With log_distance on, the build log-transforms duration_s; a driving_time run
+    # must then optimize on log(duration), not raw seconds. This locks the
+    # composition of the build transform and the solve-time alias.
+    config = _driving_config('driving_time')
+    df = pd.DataFrame({DISTANCE_DISTANCE_M: [100.0], DISTANCE_DURATION_S: [50.0]})
+
+    logged_df = _log_transform_metric_columns(df.copy(deep=True))
+    result = apply_metric(config, logged_df)
+
+    assert result[DISTANCE_DISTANCE_M].tolist() == [np.log(50.0)]
+
+
+def test_insert_driving_distances_carries_duration_s():
+    base_df = pd.DataFrame({
+        DISTANCE_ID_ORIG: ['a', 'b'], DISTANCE_ID_DEST: ['x', 'y'],
+    })
+    driving_df = pd.DataFrame({
+        DISTANCE_ID_ORIG: ['a', 'b'], DISTANCE_ID_DEST: ['x', 'y'],
+        DISTANCE_DISTANCE_M: [100.0, 200.0], DISTANCE_DURATION_S: [10.0, 20.0],
+    })
+
+    combined = insert_driving_distances(base_df, driving_df)
+
+    assert combined[DISTANCE_DISTANCE_M].tolist() == [100.0, 200.0]
+    assert combined[DISTANCE_DURATION_S].tolist() == [10.0, 20.0]
 

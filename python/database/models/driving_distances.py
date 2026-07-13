@@ -59,6 +59,8 @@ class DrivingDistance(ModelBase):
     id_orig: str = Column(String(256), nullable=False)
     id_dest: str = Column(String(256), nullable=False)
     distance_m: float = Column(Float, nullable=False)
+    duration_s: float = Column(Float, nullable=True)
+    ''' Driving duration in seconds. Nullable: haversine/legacy rows have none. '''
     source: str = Column(String(256), nullable=False)
 
       # Relations
