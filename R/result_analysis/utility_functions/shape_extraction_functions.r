@@ -523,8 +523,6 @@ resolve_block_destinations <- function(block_precinct_assignment, state_county_c
   # as-provided USER_POLL_ when the precinct never appears in the crosswalk at
   # all, meaning no correction was ever needed.
   resolved <- merge(all_blocks, state_county_crosswalk, by = "Precinct_I", all.x = TRUE, sort = FALSE)
-  resolved[, resolved_destination := fifelse(Precinct_I %in% state_county_crosswalk$Precinct_I, 
-                          resolved_polling_location, USER_POLL_)]
   resolved[ , resolved_destination := USER_POLL_][Precinct_I %in% state_county_crosswalk$Precinct_I, 
                           resolved_destination := resolved_polling_location ]
   
