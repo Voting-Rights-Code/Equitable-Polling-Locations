@@ -37,18 +37,18 @@ source('R/result_analysis/utility_functions/regression_functions.R')
 #     4. run 
 #######
 
-args = commandArgs(trailingOnly = TRUE)
-if (length(args) != 1){
-     stop("Must enter exactly one config file") 
-    } else{#read constants from indicated config file
-    config_path <- paste0('R/result_analysis/Basic_analysis_configs/', args[1])
-    source(config_path)
-}
+#args = commandArgs(trailingOnly = TRUE)
+#if (length(args) != 1){
+#     stop("Must enter exactly one config file") 
+#    } else{#read constants from indicated config file
+#    config_path <- paste0('R/result_analysis/Basic_analysis_configs/', args[1])
+#    source(config_path)
+#}
 
 ###
 #For inline testing only
 ###
-#source('R/result_analysis/Basic_analysis_configs/Bartow_County_original.r')
+source('R/result_analysis/Basic_analysis_configs/Monongalia_County_original_driving.r')
 
 #source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
 
@@ -66,7 +66,6 @@ config_dt_list<-c(orig_config_dt, potential_config_dt)
 
 #get driving flags
 DRIVING_FLAG <- set_global_flag(config_dt_list, 'driving')
-LOG_FLAG <- set_global_flag(config_dt_list, 'log_distance')
 
 
 #######
