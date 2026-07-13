@@ -21,7 +21,7 @@ source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
 
 CRS_PROJECTION <- 4326
 
-county_precincts <- extract_county_precincts(STATE_PRECINCT_SOURCE_FILE, COUNTY_NAME, CRS_PROJECTION)
+county_precincts <- extract_county_precincts(STATE_PRECINCT_STABLE_FILE, COUNTY_NAME, CRS_PROJECTION)
 county_precincts <- county_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
 
 tiger_file_path <- file.path(TIGER_FOLDER, LOCATION, paste0(BLOCK_GEOMETRY_FILES, ".shp"))

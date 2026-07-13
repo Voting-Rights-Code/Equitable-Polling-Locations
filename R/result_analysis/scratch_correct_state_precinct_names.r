@@ -35,7 +35,7 @@ file.rename(
   )
 )
 
-state_precincts <- get_shape_data(STATE_PRECINCT_SOURCE_FILE)
+state_precincts <- get_shape_data(STATE_PRECINCT_STABLE_FILE)
 
 # old USER_POLL_ value -> corrected value (toupper of the matching
 # county-provided "Polling Place Name")
@@ -50,4 +50,4 @@ for (old_name in names(name_corrections)) {
     name_corrections[[old_name]]
 }
 
-st_write(state_precincts, STATE_PRECINCT_SOURCE_FILE, append = FALSE)
+st_write(state_precincts, STATE_PRECINCT_STABLE_FILE, append = FALSE)

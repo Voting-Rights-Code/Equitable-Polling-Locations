@@ -16,7 +16,7 @@ source("R/result_analysis/utility_functions/shape_extraction_functions.r")
 run_through_step_5 <- function(config_path) {
   source(config_path)
 
-  state_precincts <- extract_county_precincts(STATE_PRECINCT_SOURCE_FILE, COUNTY_NAME, CRS_PROJECTION)
+  state_precincts <- extract_county_precincts(STATE_PRECINCT_STABLE_FILE, COUNTY_NAME, CRS_PROJECTION)
   state_precincts <- state_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
   names(state_precincts)[names(state_precincts) == "geometry"] <- "precinct_geometry"
   st_geometry(state_precincts) <- "precinct_geometry"

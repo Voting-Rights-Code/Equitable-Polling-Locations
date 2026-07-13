@@ -297,9 +297,11 @@ build_precinct_crosswalk <- function(reviewed_corrections) {
   # pull out dropped  or renamed rows 
   # use the name from the (user corrected) USER_POLL_ column
   # non-entries are kept as NAs
-  crosswalk <- reviewed_corrections[resolution_type %in% c("rename" , "drop"),
-    .(Precinct_I = Precinct_I, resolved_polling_location = fifelse(
-        is.na(USER_POLL_) | USER_POLL_ == "", NA_character_, USER_POLL_ ))]
+  crosswalk <- reviewed_corrections[ , resolved_polling_location := USER_POLL_
+                ][is.na(USER_POLL_) | USER_POLL_ == "", 
+                resolved_polling_location := NA_character_
+                ][resolution_type == "rename" | resolution_type ==  "drop" , 
+                .(Precinct_I, resolved_polling_location) ]
 
   # verify that the rows labeled "split" have the correct data
   split_rows <- reviewed_corrections[resolution_type == "split"]
@@ -509,50 +511,47 @@ get_block_demographics <- function(p3_file_path, p4_file_path) {
   return(block_demographics)
 }
 
-# join each populated census block to its assigned polling location's
+# resolve every block's final polling-place destination by joining the
+# block precinct assignment with the cross walk of maually edited inconsistencies.
+resolve_block_destinations <- function(block_precinct_assignment, state_county_crosswalk) {
+  #get block precinct assignment, drop geometry
+  all_blocks <- data.table(st_drop_geometry(block_precinct_assignment))
+
+  # merge wtih cross walk for correct precinct names: if its as-provided
+  # Precinct_I has a crosswalk entry, use that
+  # entry as-is (including a real NA). Only fall back to the
+  # as-provided USER_POLL_ when the precinct never appears in the crosswalk at
+  # all, meaning no correction was ever needed.
+  resolved <- merge(all_blocks, state_county_crosswalk, by = "Precinct_I", all.x = TRUE, sort = FALSE)
+  resolved[ , resolved_destination := USER_POLL_][Precinct_I %in% state_county_crosswalk$Precinct_I, 
+                          resolved_destination := resolved_polling_location ]
+  
+  resolved[, resolved_polling_location := NULL]
+  return(resolved)
+}
+
+# join each populated census block to its resolved polling location's
 # driving distance, extend with demographic data, and flag blocks whose
 # distance exceeds distance_threshold_m. 
-flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
-                                driving_distances_file, potential_locations_file,
-                                distance_threshold_m) {
-  #drop geometry. Make a data.table 
-  #Recall, block_precinct_assignment is based off (potentially modified) state data
-  populated_blocks <- data.table(st_drop_geometry(block_precinct_assignment))
-  populated_blocks <- populated_blocks[total_population > 0]
+flag_distant_blocks <- function(block_precinct_assignment, state_county_crosswalk, block_demographics,
+                                driving_distances_file, distance_threshold_m) {
+  #get resolved blocks precinct assignments
+  resolved_blocks <- resolve_block_destinations(block_precinct_assignment, 
+            state_county_crosswalk)
 
-  # data with polling location coordinates
-  # clean to match block precinct assignment
-  potential_locations <- fread(potential_locations_file)
-  potential_locations[, USER_POLL_ := toupper(Location)]
 
-  # potential_locations file may depend on county data
-  # this should already be resolved. If not halt and force resolution
-  # This data cleaning can only happen by hand.
-  resolved_blocks <- merge(
-    populated_blocks, potential_locations[, .(USER_POLL_, Location)],
-    by = "USER_POLL_"
-  )
-  stopifnot(
-    "Populated blocks' USER_POLL_ and potential_locations.csv's Location did not match one-to-one 
-    check if the state provided file still matches data from potential_locations files" =
-      nrow(resolved_blocks) == nrow(populated_blocks)
-  )
-
+  #get driving distances
   driving_distances <- fread(driving_distances_file)
   driving_distances[, id_orig := as.character(id_orig)]
+  driving_distances[, id_dest_upper := toupper(id_dest)]
 
   #merge in driving distances
   distance_blocks <- merge(
-    resolved_blocks, driving_distances,
-    by.x = c("GEOID20", "Location"), by.y = c("id_orig", "id_dest")
-  )
-  stopifnot(
-    "Some resolved blocks' (GEOID20, Location) pair had no matching row in driving_distances_file 
-    -- driving_distances_file may be incomplete or out of sync with potential_locations.csv, or vice versa" =
-      nrow(distance_blocks) == nrow(resolved_blocks)
-  )
+    resolved_blocks, driving_distances, by.x = c("GEOID20", "resolved_destination"), 
+    by.y = c("id_orig", "id_dest_upper"), all.x = TRUE)
+  distance_blocks[is.na(distance_m), distance_m := 0]
 
-  # drop block_demographics' total_population (duplicate) before merging 
+  # drop block_demographics' total_population (duplicate) before merging
   demographic_columns <- setdiff(names(block_demographics), c("GEOID20", "total_population"))
   demographic_blocks <- merge(
     distance_blocks, block_demographics[, c("GEOID20", demographic_columns), with = FALSE],
@@ -567,7 +566,7 @@ flag_distant_blocks <- function(block_precinct_assignment, block_demographics,
   demographic_blocks[, weighted_dist := total_population * distance_m]
   demographic_blocks[, flagged_distance := distance_m > distance_threshold_m]
 
-  setnames(demographic_blocks, c("GEOID20", "Location"), c("id_orig", "id_dest"))
+  setnames(demographic_blocks, "GEOID20", "id_orig")
   output_columns <- c(
     "id_orig", "id_dest", "distance_m", "Precinct_I", "total_population",
     "white", "black", "native", "asian", "pacific_islander", "other",
@@ -606,9 +605,11 @@ demo_pop_legend_dict <- c(
 #   flagged (over-threshold) blocks get a dot, centered on the block's
 #   centroid, sized by that demographic's population and colored by
 #   distance_m.
-# In both modes, blocks with no computed distance (unpopulated, or
-# otherwise excluded upstream from flag_distant_blocks -- see #283) get a
-# distinct "no data" fill.
+# In both modes, zero-population blocks get a distinct gray fill, and
+# blocks with no assigned polling location (a dropped precinct) get a
+# dashed blue outline drawn over whatever fill they'd otherwise have --
+# population status and assignment status aren't mutually exclusive, so a
+# block can be both (e.g. Monongalia_A/B).
 make_demo_distance_heat_map <- function(
     block_shapes, distance_flagged_blocks, precinct_shapes, demo_pop,
     distance_threshold_m = DISTANCE_FLAG_THRESHOLD_M, location = LOCATION,
@@ -618,19 +619,22 @@ make_demo_distance_heat_map <- function(
   block_shapes <- st_transform(block_shapes, crs_projection)
   precinct_shapes <- st_transform(precinct_shapes, crs_projection)
 
-  #select relevant columns
-  distance_columns <- c("id_orig", "distance_m", "flagged_distance", demo_pop)
+  #select relevant columns. 
+  distance_columns <- setdiff(
+    c("id_orig", "id_dest", "distance_m", "flagged_distance", demo_pop), "total_population"
+  )
   block_distances <- merge(
-    block_shapes[, c("GEOID20", "INTPTLAT20", "INTPTLON20", "block_geometry")],
+    block_shapes[, c("GEOID20", "total_population", "INTPTLAT20", "INTPTLON20", "block_geometry")],
     distance_flagged_blocks[, distance_columns, with = FALSE],
     by.x = "GEOID20", by.y = "id_orig", all.x = TRUE
   )
 
   #select different subgroups for map
   is_flagged <- block_distances$flagged_distance
-  no_population_blocks <- block_distances[is.na(block_distances$distance_m), ]
-  under_threshold_blocks <- block_distances[!is.na(is_flagged) & !is_flagged, ]
-  over_threshold_blocks <- block_distances[!is.na(is_flagged) & is_flagged, ]
+  no_population_blocks <- block_distances[block_distances$total_population == 0, ]
+  under_threshold_blocks <- block_distances[!is_flagged, ]
+  over_threshold_blocks <- block_distances[is_flagged, ]
+  not_assigned <- block_distances[is.na(block_distances$id_dest), ]
 
   distance_threshold <- round(distance_threshold_m / 1609.34, 1)
   demo_pop_label <- if (is.null(demo_pop)) {
@@ -644,14 +648,20 @@ make_demo_distance_heat_map <- function(
       location, "driving distance to assigned polling location", demo_pop_label
     )
   )
-  # gray indicates no population block
+  # gray indicates no population block; dashed blue outline indicates no
+  # assigned polling location (a dropped precinct) -- the two aren't
+  # mutually exclusive.
   caption_str <- if (is.null(demo_pop)) {
     paste0(
       "White = under ", distance_threshold,
-      " mi threshold; Gray = no population"
+      " mi threshold; Gray = no population;\n",
+      "Dashed blue outline = no assigned polling location"
     )
   } else {
-    "White = populated block; Gray = no population"
+    paste0(
+      "White = populated block; Gray = no population;\n",
+      "Dashed blue outline = no assigned polling location"
+    )
   }
 
   # base layers shared by both modes: no-data/under-threshold context and
@@ -702,6 +712,14 @@ make_demo_distance_heat_map <- function(
       ) +
       labs(size = paste(demo_pop_label, 'population'))
   }
+
+  # drawn last among the fill layers so the dashed outline is visible while
+  # leaving the fill showing through
+  heat_map <- heat_map +
+    geom_sf(
+      data = not_assigned, fill = NA, color = "blue", linewidth = 2,
+      linetype = "dashed"
+    )
 
   heat_map <- heat_map +
     geom_sf(
