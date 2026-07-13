@@ -74,11 +74,7 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
 }
 
 ###### Step 3: flag blocks far from their assigned polling location #######
-# 5 miles in meters. Explicit stand-in for "more than a 15-minute drive"
-# until real drive-time data exists.
-# TODO(#271): replace with a time-based threshold once driving *time* (not
-# just distance) is available.
-DISTANCE_FLAG_THRESHOLD_M <- 8046.72
+# Create data for time to polling location flagging and heat maps. 
 
 #read in block assignment and manual corrections.
 block_precinct_assignment <- st_read(
@@ -102,30 +98,42 @@ p3_file_path <- file.path(REDISTRICTING_FOLDER, LOCATION, "DECENNIALPL2020.P3-Da
 p4_file_path <- file.path(REDISTRICTING_FOLDER, LOCATION, "DECENNIALPL2020.P4-Data.csv")
 block_demographics <- get_block_demographics(p3_file_path, p4_file_path)
 
-distance_flagged_blocks <- flag_distant_blocks(
+distance_flagged_blocks_15 <- flag_distant_blocks(
   block_precinct_assignment, state_county_crosswalk, block_demographics,
   build_driving_distances_file_path(LOCATION),
-  DISTANCE_FLAG_THRESHOLD_M
-)
+  15)
 
-distance_flagged_blocks_path <- file.path(precinct_analysis_output_folder, "distance_flagged_blocks.csv")
-fwrite(distance_flagged_blocks, distance_flagged_blocks_path)
+distance_flagged_blocks_20 <- flag_distant_blocks(
+  block_precinct_assignment, state_county_crosswalk, block_demographics,
+  build_driving_distances_file_path(LOCATION),
+  20)
 
 ###### Step 4: plot county-level distance heat map #######
 
+#make maps fof 15 minutes
+
 # choropleth mode
 make_demo_distance_heat_map(
-  block_precinct_assignment, distance_flagged_blocks,
-  precincts_resolved, demo_pop = NULL
+  block_precinct_assignment, distance_flagged_blocks_15,
+  precincts_resolved, demo_pop = NULL, 15
 )
 
 # dot mode: one map per demographic of interest
 make_demo_distance_heat_map(
-  block_precinct_assignment, distance_flagged_blocks,
-  precincts_resolved, demo_pop = "total_population"
+  block_precinct_assignment, distance_flagged_blocks_15,
+  precincts_resolved, demo_pop = "total_population", 15
 )
 
+#make maps fof 20 minutes
+
+# choropleth mode
 make_demo_distance_heat_map(
-  block_precinct_assignment, distance_flagged_blocks,
-  precincts_resolved, demo_pop = "black"
+  block_precinct_assignment, distance_flagged_blocks_20,
+  precincts_resolved, demo_pop = NULL, 20
+)
+
+# dot mode: one map per demographic of interest
+make_demo_distance_heat_map(
+  block_precinct_assignment, distance_flagged_blocks_20,
+  precincts_resolved, demo_pop = "total_population", 20
 )
