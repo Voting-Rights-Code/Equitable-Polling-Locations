@@ -16,7 +16,7 @@ import requests
 from haversine import haversine, Unit
 
 from python.solver.constants import (
-    DISTANCE_DISTANCE_M, DISTANCE_DURATION_S, DISTANCE_ID_DEST, DISTANCE_ID_ORIG,
+    DISTANCE_DISTANCE_M, DISTANCE_ID_DEST, DISTANCE_ID_ORIG,
 )
 from python.utils.ors_client import OrsMatrixError, query_directions, query_matrix
 from python.utils.ors_url import directions_url_from_matrix_url
@@ -65,52 +65,47 @@ def get_missing_origins(df: pd.DataFrame) -> set:
     return set(missing_rows[DISTANCE_ID_ORIG])
 
 
-def matrix_response_to_long_df(source_names, dest_names, distances, durations) -> pd.DataFrame:
-    '''Reshape ORS matrix grids into a long ``(id_orig, id_dest, distance_m, duration_s)`` frame.
+def matrix_response_to_long_df(source_names, dest_names, distances) -> pd.DataFrame:
+    '''Reshape an ORS matrix response into a long ``(id_orig, id_dest, distance_m)`` frame.
 
     Args:
         source_names: Row labels (one per origin).
         dest_names: Column labels (one per destination).
         distances: ``distances[i][j]`` is the distance from ``source_names[i]``
             to ``dest_names[j]``, as returned by ORS.
-        durations: ``durations[i][j]`` is the corresponding travel time, along
-            the same route, in seconds as returned by ORS; stored unchanged in seconds.
 
     Returns:
-        A long-form DataFrame with columns ``id_orig``, ``id_dest``,
-        ``distance_m``, ``duration_s``.
+        A long-form DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``.
     '''
     rows = []
-    for source, distance_row, duration_row in zip(source_names, distances, durations):
-        for dest, distance_m, duration_seconds in zip(dest_names, distance_row, duration_row):
+    for source, source_row in zip(source_names, distances):
+        for dest, distance_m in zip(dest_names, source_row):
             rows.append({
                 DISTANCE_ID_ORIG: source,
                 DISTANCE_ID_DEST: dest,
                 DISTANCE_DISTANCE_M: distance_m,
-                DISTANCE_DURATION_S: duration_seconds,
             })
     return pd.DataFrame(
         rows,
-        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S],
+        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
     )
 
 
-def _coerce_negative_metrics_to_null(df: pd.DataFrame) -> pd.DataFrame:
-    '''Replace any negative ``distance_m`` or ``duration_s`` with NaN, in place.
+def _coerce_negative_distances_to_null(df: pd.DataFrame) -> pd.DataFrame:
+    '''Replace any negative ``distance_m`` with NaN, in place.
 
     ORS signals "no route" with null, which becomes NaN and is recovered by the
-    snap/retry path. A negative distance or duration is never a valid real-world
-    value; if a routing backend ever emits one, treat it as no-route so it flows
-    through the same recovery and never reaches the output CSV. ``0`` is kept.
+    snap/retry path. A negative distance is never a valid real-world value; if a
+    routing backend ever emits one, treat it as no-route so it flows through the
+    same recovery and never reaches the output CSV. ``0`` is left untouched.
 
     Args:
-        df: Long-form DataFrame with ``distance_m`` and ``duration_s`` columns.
+        df: Long-form DataFrame with a ``distance_m`` column.
 
     Returns:
-        The same DataFrame, with any negative ``distance_m``/``duration_s`` set to NaN.
+        The same DataFrame, with any ``distance_m < 0`` set to NaN.
     '''
     df.loc[df[DISTANCE_DISTANCE_M] < 0, DISTANCE_DISTANCE_M] = float('nan')
-    df.loc[df[DISTANCE_DURATION_S] < 0, DISTANCE_DURATION_S] = float('nan')
     return df
 
 
@@ -122,12 +117,6 @@ def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFr
     source, compute ``distance_m + distance_to_mid`` (haversine offset from
     ``origin`` to that source). Take the minimum over those candidates.
 
-    The chosen neighbor's ``duration_s`` is carried unchanged: the sub-1 km
-    haversine offset is applied to ``distance_m`` only, because converting
-    that offset to a travel time would require an invented speed constant.
-    This is a small, bounded approximation affecting only unroutable (snapped)
-    origins.
-
     Args:
         origin: The id of the origin to estimate distances for.
         df: A DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``
@@ -136,8 +125,8 @@ def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFr
 
     Returns:
         A DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``,
-        ``duration_s``, holding the best snapped estimate per destination.
-        Empty if no in-range neighbor exists.
+        holding the best snapped estimate per destination. Empty if no
+        in-range neighbor exists.
     '''
     candidates = df.rename(columns={DISTANCE_ID_ORIG: 'midpoint'}).copy()
     candidates[DISTANCE_ID_ORIG] = origin
@@ -149,7 +138,7 @@ def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFr
 
     in_range = candidates[candidates['distance_to_mid'] < HAVERSINE_SNAP_RADIUS_METERS].copy()
     if in_range.empty:
-        return in_range[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S]]
+        return in_range[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M]]
 
     in_range['estimated_m'] = in_range[DISTANCE_DISTANCE_M] + in_range['distance_to_mid']
     best = (in_range
@@ -158,7 +147,7 @@ def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFr
             .first()
             .reset_index())
     best[DISTANCE_DISTANCE_M] = best['estimated_m']
-    return best[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S]]
+    return best[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M]]
 
 
 def _build_locations_payload(locations, source_ids, dest_ids):
@@ -222,16 +211,13 @@ def _fetch_one_batch(locations, source_batch, dest_ids, matrix_url):
         matrix_url: ORS matrix endpoint URL.
 
     Returns:
-        A long-form DataFrame with columns ``id_orig``, ``id_dest``,
-        ``distance_m``, ``duration_s``.
+        A long-form DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``.
     '''
     coords, source_indices, dest_indices = _build_locations_payload(
         locations, source_batch, dest_ids,
     )
-    grids = query_matrix(coords, source_indices, dest_indices, matrix_url)
-    return matrix_response_to_long_df(
-        source_batch, dest_ids, grids['distance'], grids['duration'],
-    )
+    distances = query_matrix(coords, source_indices, dest_indices, matrix_url)
+    return matrix_response_to_long_df(source_batch, dest_ids, distances)
 
 
 def _retry_sources_individually(failed_sources: list[str],
@@ -262,25 +248,23 @@ def _retry_sources_individually(failed_sources: list[str],
         time.sleep(PER_SOURCE_RETRY_SLEEP_S)
         for dest in dest_ids:
             try:
-                result = query_directions(locations[source], locations[dest], directions_url)
+                distance = query_directions(locations[source], locations[dest], directions_url)
             except requests.exceptions.RequestException:
                 _emit(f'directions raised for {source} -> {dest}: skipping',
                       _LEVEL_VV, log_fh, verbosity)
                 continue
-            if result is None:
+            if distance is None:
                 _emit(f'directions returned None for {source} -> {dest}: skipping',
                       _LEVEL_VV, log_fh, verbosity)
                 continue
-            distance, duration_seconds = result
             rows.append({
                 DISTANCE_ID_ORIG: source,
                 DISTANCE_ID_DEST: dest,
                 DISTANCE_DISTANCE_M: distance,
-                DISTANCE_DURATION_S: duration_seconds,
             })
     return pd.DataFrame(
         rows,
-        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S],
+        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
     )
 
 
@@ -322,7 +306,7 @@ def _snap_unroutable_origins(df: pd.DataFrame,
     df = df.dropna(subset=[DISTANCE_DISTANCE_M])
     if df.empty:
         return pd.DataFrame(
-            columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S],
+            columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
         )
 
     snapped_parts = []
@@ -337,7 +321,7 @@ def _snap_unroutable_origins(df: pd.DataFrame,
         snapped_parts.append(snapped)
 
     snapped_df = pd.concat(snapped_parts, ignore_index=True) if snapped_parts else pd.DataFrame(
-        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S],
+        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
     )
     return pd.concat([df, snapped_df], ignore_index=True)
 
@@ -369,7 +353,7 @@ def build_distance_matrix(*,
         verbosity: Screen-output ceiling (0 = quiet default, 1 = ``-v``, 2 = ``-vv``).
 
     Returns:
-        A long-form DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``, ``duration_s``.
+        A long-form DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``.
     '''
     source_ids = list(dict.fromkeys(source_ids))   # Dedup, preserve order.
     dest_ids = list(dict.fromkeys(dest_ids))
@@ -389,7 +373,7 @@ def build_distance_matrix(*,
         _emit(f'{done}/{len(source_ids)}: {elapsed:.2f}s', _LEVEL_V, log_fh, verbosity)
 
     df = pd.concat(batch_dfs, ignore_index=True) if batch_dfs else pd.DataFrame(
-        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S],
+        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
     )
 
     if failed_sources:
@@ -399,9 +383,9 @@ def build_distance_matrix(*,
         )
         df = pd.concat([df, retry_df], ignore_index=True)
 
-    # Treat any negative distance or duration as no-route before snapping, so it
-    # flows through the same recovery as a real ORS null and never reaches the CSV.
-    df = _coerce_negative_metrics_to_null(df)
+    # Treat any negative distance as no-route before snapping, so it flows
+    # through the same recovery as a real ORS null and never reaches the CSV.
+    df = _coerce_negative_distances_to_null(df)
 
     return _snap_unroutable_origins(
         df, source_ids, locations,
@@ -418,7 +402,7 @@ def resume_from_partial_output(output_path, source_ids, dest_ids):
 
     Args:
         output_path: Path to a possibly-existing CSV with columns
-            ``id_orig``, ``id_dest``, ``distance_m``, ``duration_s``.
+            ``id_orig``, ``id_dest``, ``distance_m``.
         source_ids: All requested origin ids.
         dest_ids: All requested destination ids.
 
@@ -431,7 +415,7 @@ def resume_from_partial_output(output_path, source_ids, dest_ids):
         existing_df = pd.read_csv(output_path)
     except (FileNotFoundError, pd.errors.EmptyDataError):
         existing_df = pd.DataFrame(
-            columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M, DISTANCE_DURATION_S],
+            columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
         )
 
     present = set(zip(

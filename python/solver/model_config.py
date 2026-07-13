@@ -15,7 +15,6 @@ from .constants import (
     CONFIG_DB_ID, CONFIG_COMMIT_HASH, CONFIG_RUN_TIME, CONFIG_FILE_PATH, CONFIG_LOG_FILE_PATH,
     CONFIG_MAP_SOURCE_DATE, CONFIG_LOCATION_SOURCE, CONFIG_YEAR, CONFIG_BAD_TYPES, CONFIG_PENALIZED_SITES,
     DATA_SOURCE_CSV,
-    CONFIG_DRIVING, CONFIG_METRIC, METRIC_HAVERSINE, METRIC_DRIVING_DISTANCE, METRIC_DRIVING_TIME,
 )
 from python.utils.environments import Environment
 
@@ -102,12 +101,6 @@ class PollingModelConfig:
     log_distance: bool = False
     ''' Log of the distance (driving or haversine) computed and used in optimization if True '''
 
-    metric: str = None
-    ''' Which travel metric to optimize on: 'haversine' (straight-line meters),
-    'driving_distance' (road meters) or 'driving_time' (road seconds). Required on
-    every config and validated for consistency with `driving` in load_config;
-    validation is added in a later task. There is no implicit default. '''
-
     commit_hash: str = None
     '''NOT CURRENTLY IN USE. Git commit under which this code was run'''
     run_time: dt.datetime = None
@@ -173,27 +166,6 @@ class PollingModelConfig:
                 if not isinstance(array_value, list) or len(array_value) == 0:
                     # pylint: disable-next=line-too-long
                     raise ValueError(f'Config file {config_yaml_path} must specify at least one value for array field {key}.')
-
-            # metric is required on every config and must agree with driving:
-            # haversine implies driving off; driving_distance/driving_time imply
-            # driving on. No implicit default — no run silently optimizes on an
-            # unchosen metric.
-            metric_value = config.get(CONFIG_METRIC)
-            valid_metrics = (METRIC_HAVERSINE, METRIC_DRIVING_DISTANCE, METRIC_DRIVING_TIME)
-            if metric_value not in valid_metrics:
-                raise ValueError(
-                    f'Config file {config_yaml_path} must specify {CONFIG_METRIC} as one of '
-                    f'{valid_metrics}.'
-                )
-            driving_enabled = config.get(CONFIG_DRIVING, False) is True
-            metric_needs_driving = metric_value in (METRIC_DRIVING_DISTANCE, METRIC_DRIVING_TIME)
-            if metric_needs_driving != driving_enabled:
-                raise ValueError(
-                    f'Config file {config_yaml_path} has inconsistent driving/{CONFIG_METRIC}: '
-                    f'driving={driving_enabled} but {CONFIG_METRIC}={metric_value!r}. Use '
-                    f'{METRIC_HAVERSINE!r} with driving: False, or {METRIC_DRIVING_DISTANCE!r}/'
-                    f'{METRIC_DRIVING_TIME!r} with driving: True.'
-                )
 
             result = PollingModelConfig(**config)
 

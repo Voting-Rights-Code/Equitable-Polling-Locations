@@ -92,11 +92,6 @@ class ModelConfig(ModelBase):
     census_year: str = Column(String(4), nullable=True, default='2020')
     ''' The year of the distance source data '''
 
-    metric: str = Column(String(256), nullable=True)
-    ''' Which travel metric this config optimizes on: 'haversine',
-    'driving_distance', or 'driving_time'. Nullable for back-compat with
-    configs imported before the metric field existed. '''
-
     created_at: DateTime = Column(DateTime, nullable=False, default=current_time_utc)
     ''' The DateTime this model config was created. '''
 

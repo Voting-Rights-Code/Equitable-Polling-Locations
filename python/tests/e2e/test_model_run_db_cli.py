@@ -156,24 +156,6 @@ class TestModelRunDbCliCsvOutput:
 
         assert result.stdout.strip(), 'Expected non-empty stdout with -v flag'
 
-    def test_driving_time_config_solves(self, e2e_test_data, imported_distance_data_all, imported_configs):
-        """A driving_time config loaded from the DB solves and writes a result file.
-
-        Args:
-            e2e_test_data: Session-scoped test data dict.
-            imported_distance_data_all: Ensures all distance data (incl. duration) is in the DB.
-            imported_configs: Ensures all configs (incl. metric) are in the DB.
-        """
-        sid = e2e_test_data['sid']
-        config_ref = f'{sid}/{sid}_config_driving_duration'
-
-        run_cli(MODULE, config_ref, '-e', 'test', '-o', 'csv')
-
-        files = _result_files(sid, 'config_driving_duration')
-        assert os.path.isfile(files['results']), (
-            f"Expected driving_time results file not found: {files['results']}"
-        )
-
 
 # ---------------------------------------------------------------------------
 # Class: TestModelRunDbCliDbOutput — DB output tests

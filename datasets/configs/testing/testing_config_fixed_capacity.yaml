@@ -17,4 +17,3 @@ precincts_open: 6
 max_min_mult: 5
 maxpctnew: 1
 minpctold: .5
-metric: haversine # haversine | driving_distance | driving_time

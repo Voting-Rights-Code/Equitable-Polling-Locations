@@ -11,7 +11,7 @@ from python.utils.driving_distance_matrix import (
     _LEVEL_DEFAULT,
     _LEVEL_V,
     _LEVEL_VV,
-    _coerce_negative_metrics_to_null,
+    _coerce_negative_distances_to_null,
     _emit,
     build_distance_matrix,
     estimate_origin,
@@ -50,16 +50,14 @@ class TestMatrixResponseToLongDf:
             source_names=['a', 'b'],
             dest_names=['x', 'y'],
             distances=[[0.0, 100.0], [200.0, 0.0]],
-            durations=[[0.0, 9.0], [18.0, 0.0]],
         )
-        assert set(df.columns) == {'id_orig', 'id_dest', 'distance_m', 'duration_s'}
+        assert set(df.columns) == {'id_orig', 'id_dest', 'distance_m'}
 
     def test_row_count_is_sources_times_dests(self):
         df = matrix_response_to_long_df(
             source_names=['a', 'b', 'c'],
             dest_names=['x', 'y'],
             distances=[[1, 2], [3, 4], [5, 6]],
-            durations=[[0, 0], [0, 0], [0, 0]],
         )
         assert len(df) == 6
 
@@ -68,7 +66,6 @@ class TestMatrixResponseToLongDf:
             source_names=['a', 'b'],
             dest_names=['x', 'y'],
             distances=[[10.0, 20.0], [30.0, 40.0]],
-            durations=[[1.0, 2.0], [3.0, 4.0]],
         )
         a_x = df.loc[(df['id_orig'] == 'a') & (df['id_dest'] == 'x'), 'distance_m'].iloc[0]
         b_y = df.loc[(df['id_orig'] == 'b') & (df['id_dest'] == 'y'), 'distance_m'].iloc[0]
@@ -94,7 +91,6 @@ class TestEstimateOrigin:
             'id_orig': ['good1', 'good1', 'good2', 'good2'],
             'id_dest': ['dest1', 'dest2', 'dest1', 'dest2'],
             'distance_m': [100.0, 200.0, 9999.0, 9998.0],
-            'duration_s': [10.0, 20.0, 999.0, 998.0],
         })
         result = estimate_origin('bad', known_df, locations)
         assert set(result.columns) >= {'id_orig', 'id_dest', 'distance_m'}
@@ -109,7 +105,7 @@ class TestEstimateOrigin:
             'far_only': [-83.000, 34.5000],   # ~80 km away
         }
         known_df = pd.DataFrame({
-            'id_orig': ['far_only'], 'id_dest': ['dest1'], 'distance_m': [5000.0], 'duration_s': [500.0],
+            'id_orig': ['far_only'], 'id_dest': ['dest1'], 'distance_m': [5000.0],
         })
         result = estimate_origin('bad', known_df, locations)
         assert len(result) == 0
@@ -120,7 +116,7 @@ class TestBuildDistanceMatrix:
 
     @patch('python.utils.driving_distance_matrix.query_matrix')
     def test_returns_long_form_for_single_batch(self, mock_query):
-        mock_query.return_value = {'distance': [[0.0, 100.0], [200.0, 0.0]], 'duration': [[0.0, 12.0], [24.0, 0.0]]}
+        mock_query.return_value = [[0.0, 100.0], [200.0, 0.0]]
         locations = {'a': [-84.0, 33.9], 'b': [-84.1, 34.0]}
         result = build_distance_matrix(
             locations=locations,
@@ -130,7 +126,7 @@ class TestBuildDistanceMatrix:
             log_fh=io.StringIO(),
             verbosity=0,
         )
-        assert set(result.columns) == {'id_orig', 'id_dest', 'distance_m', 'duration_s'}
+        assert set(result.columns) == {'id_orig', 'id_dest', 'distance_m'}
         # Only the 'a' -> 'b' pair is asked for; the helper requests only that pair.
         assert len(result) == 1
 
@@ -138,7 +134,7 @@ class TestBuildDistanceMatrix:
     def test_batches_when_sources_exceed_cell_limit(self, mock_query):
         # 5 destinations x batch size N must keep cells <= MATRIX_CELL_LIMIT (2500).
         # With 5 dests, max sources/batch is floor(2500/5) - 1 = 499; capped at 10.
-        mock_query.return_value = {'distance': [[0.0] * 5], 'duration': [[0.0] * 5]}
+        mock_query.return_value = [[0.0] * 5]
         locations = {f's{i}': [0.0, 0.0] for i in range(25)}
         locations.update({f'd{j}': [1.0, 1.0] for j in range(5)})
         build_distance_matrix(
@@ -161,7 +157,7 @@ class TestBuildDistanceMatrix:
     @patch('python.utils.driving_distance_matrix.query_matrix')
     def test_retries_individual_sources_on_batch_failure(self, mock_matrix, mock_directions):
         mock_matrix.side_effect = OrsMatrixError('batch failed')
-        mock_directions.return_value = (12345.0, 600.0)
+        mock_directions.return_value = 12345.0
         locations = {'a': [-84.0, 33.9], 'b': [-84.1, 34.0]}
         result = build_distance_matrix(
             locations=locations,
@@ -256,7 +252,7 @@ class TestVerbosityGating:
 
     @patch('python.utils.driving_distance_matrix.query_matrix')
     def test_per_batch_in_log_but_not_screen_at_default(self, mock_query, capsys):
-        mock_query.return_value = {'distance': [[0.0]], 'duration': [[0.0]]}
+        mock_query.return_value = [[0.0]]
         log_fh = io.StringIO()
         build_distance_matrix(
             locations={'a': [-84.0, 33.9], 'd': [-84.1, 34.0]},
@@ -270,7 +266,7 @@ class TestVerbosityGating:
 
     @patch('python.utils.driving_distance_matrix.query_matrix')
     def test_per_batch_appears_on_screen_at_v(self, mock_query, capsys):
-        mock_query.return_value = {'distance': [[0.0]], 'duration': [[0.0]]}
+        mock_query.return_value = [[0.0]]
         log_fh = io.StringIO()
         build_distance_matrix(
             locations={'a': [-84.0, 33.9], 'd': [-84.1, 34.0]},
@@ -285,7 +281,7 @@ class TestVerbosityGating:
     @patch('python.utils.driving_distance_matrix.query_matrix')
     def test_retry_hidden_at_v_visible_at_vv(self, mock_matrix, mock_directions, capsys):
         mock_matrix.side_effect = OrsMatrixError('boom')
-        mock_directions.return_value = (100.0, 10.0)
+        mock_directions.return_value = 100.0
 
         log_fh = io.StringIO()
         build_distance_matrix(
@@ -310,7 +306,7 @@ class TestVerbosityGating:
     def test_snap_success_emits_at_default_level(self, mock_query, capsys):
         '''When ORS routes some pairs but a source has none, snap emits at default level.'''
         # Two sources, one dest. Second source returns NaN -> 'missing'.
-        mock_query.return_value = {'distance': [[100.0], [np.nan]], 'duration': [[12.0], [np.nan]]}
+        mock_query.return_value = [[100.0], [np.nan]]
         # The two sources are within 1km haversine so snap finds a neighbor.
         log_fh = io.StringIO()
         build_distance_matrix(
@@ -330,7 +326,7 @@ class TestVerbosityGating:
     @patch('python.utils.driving_distance_matrix.query_matrix')
     def test_snap_fail_emits_at_default_level(self, mock_query, capsys):
         '''When no in-range neighbor exists, the fail message emits at default level.'''
-        mock_query.return_value = {'distance': [[100.0], [np.nan]], 'duration': [[12.0], [np.nan]]}
+        mock_query.return_value = [[100.0], [np.nan]]
         # The second source is ~80km away — no in-range neighbor.
         log_fh = io.StringIO()
         build_distance_matrix(
@@ -348,23 +344,19 @@ class TestVerbosityGating:
         assert 'no neighbor within 1km, dropped' in capsys.readouterr().out
 
 
-class TestCoerceNegativeMetricsToNull:
-    '''Negative distance_m OR duration_s is mapped to NaN; 0 and positives kept.'''
+class TestCoerceNegativeDistancesToNull:
+    '''Negative distances are mapped to NaN so they behave like no-route.'''
 
-    def test_negative_distance_and_duration_become_nan(self):
+    def test_negative_becomes_nan_zero_and_positive_untouched(self):
         df = pd.DataFrame({
             'id_orig': ['a', 'b', 'c'],
             'id_dest': ['x', 'x', 'x'],
             'distance_m': [-1.0, 0.0, 50.0],
-            'duration_s': [12.0, -2.0, 30.0],
         })
-        result = _coerce_negative_metrics_to_null(df)
-        assert pd.isnull(result.loc[0, 'distance_m'])   # -1 distance -> NaN
-        assert result.loc[1, 'distance_m'] == 0.0       # 0 kept
-        assert result.loc[2, 'distance_m'] == 50.0      # positive kept
-        assert result.loc[0, 'duration_s'] == 12.0      # positive kept
-        assert pd.isnull(result.loc[1, 'duration_s'])   # -2 duration -> NaN
-        assert result.loc[2, 'duration_s'] == 30.0      # positive kept
+        result = _coerce_negative_distances_to_null(df)
+        assert pd.isnull(result.loc[0, 'distance_m'])
+        assert result.loc[1, 'distance_m'] == 0.0
+        assert result.loc[2, 'distance_m'] == 50.0
 
 
 class TestBuildMatrixNegativeHandling:
@@ -373,7 +365,7 @@ class TestBuildMatrixNegativeHandling:
     @patch('python.utils.driving_distance_matrix.query_matrix')
     def test_negative_distance_treated_as_unroutable_and_snapped(self, mock_query):
         # s1's cell is negative -> must be coerced to NaN and snapped to s0.
-        mock_query.return_value = {'distance': [[100.0], [-1.0]], 'duration': [[12.0], [24.0]]}
+        mock_query.return_value = [[100.0], [-1.0]]
         log_fh = io.StringIO()
         df = build_distance_matrix(
             locations={
@@ -388,69 +380,3 @@ class TestBuildMatrixNegativeHandling:
         )
         assert (df['distance_m'] >= 0).all()
         assert 'snapped to nearest haversine neighbor' in log_fh.getvalue()
-
-
-class TestMatrixResponseCarriesDuration:
-    '''Reshape includes a duration_s column alongside distance_m.'''
-
-    def test_long_df_has_both_metric_columns(self):
-        df = matrix_response_to_long_df(
-            source_names=['a', 'b'],
-            dest_names=['x', 'y'],
-            distances=[[0.0, 100.0], [200.0, 0.0]],
-            durations=[[0.0, 9.0], [18.0, 0.0]],
-        )
-        assert set(df.columns) == {'id_orig', 'id_dest', 'distance_m', 'duration_s'}
-        row = df[(df['id_orig'] == 'a') & (df['id_dest'] == 'y')].iloc[0]
-        assert row['distance_m'] == 100.0
-        assert row['duration_s'] == 9.0
-
-
-class TestBuildMatrixHappyPathDuration:
-    '''build_distance_matrix surfaces duration_s on the normal matrix path.'''
-
-    @patch('python.utils.driving_distance_matrix.query_matrix')
-    def test_duration_column_present_and_correct(self, mock_query):
-        mock_query.return_value = {'distance': [[100.0]], 'duration': [[12.0]]}
-        log_fh = io.StringIO()
-        df = build_distance_matrix(
-            locations={'s0': [-84.0, 33.95], 'd': [-84.1, 34.0]},
-            source_ids=['s0'], dest_ids=['d'],
-            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
-            log_fh=log_fh, verbosity=0,
-        )
-        assert 'duration_s' in df.columns
-        assert df.iloc[0]['duration_s'] == 12.0
-
-
-class TestResumeEmptyFrameHasDuration:
-    '''Resuming from a missing file yields the 4-column schema.'''
-
-    def test_missing_file_returns_four_column_frame(self, tmp_path):
-        existing_df, remaining = resume_from_partial_output(
-            str(tmp_path / 'nope.csv'), source_ids=['a'], dest_ids=['x'],
-        )
-        assert list(existing_df.columns) == ['id_orig', 'id_dest', 'distance_m', 'duration_s']
-        assert remaining == [('a', 'x')]
-
-
-class TestEstimateOriginCarriesDuration:
-    '''Snapped origins inherit the chosen neighbor's duration_s.'''
-
-    def test_snapped_origin_has_duration(self):
-        df = pd.DataFrame({
-            'id_orig': ['s0'],
-            'id_dest': ['d'],
-            'distance_m': [100.0],
-            'duration_s': [12.0],
-        })
-        locations = {
-            's0': [-84.0000, 33.9500],
-            's1': [-84.0000, 33.9510],  # ~111m from s0, in range
-            'd':  [-84.1000, 34.0000],
-        }
-        result = estimate_origin('s1', df, locations)
-        assert set(result.columns) == {'id_orig', 'id_dest', 'distance_m', 'duration_s'}
-        row = result.iloc[0]
-        assert row['duration_s'] == 12.0          # neighbor's duration carried as-is
-        assert row['distance_m'] > 100.0          # distance gets the haversine offset

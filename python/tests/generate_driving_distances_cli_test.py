@@ -54,21 +54,19 @@ class TestArgParser:
 
 
 class TestWriteOutputCsv:
-    '''Output CSV has exactly id_orig,id_dest,distance_m,duration_s (no provenance col).'''
+    '''Output CSV has exactly id_orig,id_dest,distance_m (no provenance col).'''
 
-    def test_writes_four_columns_in_order(self, tmp_path):
+    def test_writes_only_three_columns_in_order(self, tmp_path):
         df = pd.DataFrame({
             'id_orig': ['a', 'b'],
             'id_dest': ['x', 'y'],
             'distance_m': [10.0, 20.0],
-            'duration_s': [1.5, 2.5],
             'source': ['driving', 'driving'],   # Provenance column to be stripped.
         })
         out_path = tmp_path / 'out.csv'
         write_output_csv(df, str(out_path))
         written = pd.read_csv(out_path)
-        assert list(written.columns) == ['id_orig', 'id_dest', 'distance_m', 'duration_s']
-        assert written['duration_s'].tolist() == [1.5, 2.5]
+        assert list(written.columns) == ['id_orig', 'id_dest', 'distance_m']
 
 
 class TestDeriveOriginsAndDestinations:
@@ -157,7 +155,7 @@ class TestMain:
             ['x'],
         )
         mock_build.return_value = pd.DataFrame({
-            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [12345.0], 'duration_s': [60.0],
+            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [12345.0],
         })
 
         driving_dir = tmp_path / 'datasets' / 'driving' / 'Gwinnett_GA'
@@ -178,7 +176,7 @@ class TestMain:
             ])
 
         written = pd.read_csv(driving_dir / 'Gwinnett_GA_driving_distances.csv')
-        assert list(written.columns) == ['id_orig', 'id_dest', 'distance_m', 'duration_s']
+        assert list(written.columns) == ['id_orig', 'id_dest', 'distance_m']
         assert written.iloc[0]['distance_m'] == 12345.0
 
     @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
@@ -200,7 +198,7 @@ class TestMain:
             ['x'],
         )
         mock_build.return_value = pd.DataFrame({
-            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [12345.0], 'duration_s': [60.0],
+            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [12345.0],
         })
 
         driving_dir = tmp_path / 'datasets' / 'driving' / 'Gwinnett_GA'
@@ -244,7 +242,7 @@ class TestMain:
             ['x'],
         )
         mock_build.return_value = pd.DataFrame({
-            'id_orig': ['b'], 'id_dest': ['x'], 'distance_m': [777.0], 'duration_s': [45.0],
+            'id_orig': ['b'], 'id_dest': ['x'], 'distance_m': [777.0],
         })
 
         driving_dir = tmp_path / 'datasets' / 'driving' / 'Gwinnett_GA'
@@ -252,7 +250,7 @@ class TestMain:
         expected_output = driving_dir / 'Gwinnett_GA_driving_distances.csv'
         # Pre-existing partial output: (a, x) already done.
         pd.DataFrame({
-            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [100.0], 'duration_s': [50.0],
+            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [100.0],
         }).to_csv(expected_output, index=False)
 
         logdir = tmp_path / 'logs'
@@ -299,7 +297,7 @@ class TestMain:
         os.makedirs(driving_dir, exist_ok=True)
         expected_output = driving_dir / 'Gwinnett_GA_driving_distances.csv'
         pd.DataFrame({
-            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [100.0], 'duration_s': [55.0],
+            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [100.0],
         }).to_csv(expected_output, index=False)
 
         logdir = tmp_path / 'logs'
@@ -363,7 +361,7 @@ class TestConfigDerivedState:
             ['x'],
         )
         mock_build.return_value = pd.DataFrame({
-            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [12345.0], 'duration_s': [60.0],
+            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [12345.0],
         })
         driving_dir = tmp_path / 'datasets' / 'driving' / 'Gwinnett_County_GA'
         logdir = tmp_path / 'logs'
@@ -404,7 +402,7 @@ class TestConfigDerivedState:
             ['x'],
         )
         mock_build.return_value = pd.DataFrame({
-            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [12345.0], 'duration_s': [60.0],
+            'id_orig': ['a'], 'id_dest': ['x'], 'distance_m': [12345.0],
         })
         driving_dir = tmp_path / 'datasets' / 'driving' / 'Gwinnett_County_GA'
         logdir = tmp_path / 'logs'

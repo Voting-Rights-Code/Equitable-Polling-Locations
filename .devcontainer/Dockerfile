@@ -57,8 +57,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         osmium-tool \
         curl \
         cmake \
-        gdal-bin \
-        pandoc \
         libabsl-dev \
         libuv1-dev \
         libgdal-dev \

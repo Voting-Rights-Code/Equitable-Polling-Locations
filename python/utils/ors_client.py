@@ -15,11 +15,8 @@ class OrsMatrixError(Exception):
     '''Raised when the ORS matrix endpoint returns an error response.'''
 
 
-_METRIC_TO_RESPONSE_KEY = {'distance': 'distances', 'duration': 'durations'}
-
-
-def query_matrix(locations, sources, dests, server, *, key=None, metrics=('distance', 'duration')):
-    '''POST a matrix query to ORS and return one result grid per requested metric.
+def query_matrix(locations, sources, dests, server, *, key=None, metric='distance'):
+    '''POST a matrix query to ORS and return the distance rows.
 
     Args:
         locations: All location coordinates as ``[longitude, latitude]`` pairs.
@@ -27,21 +24,19 @@ def query_matrix(locations, sources, dests, server, *, key=None, metrics=('dista
         dests: Indices into ``locations`` for destinations.
         server: ORS matrix endpoint URL.
         key: Optional ORS API key (required only for the public cloud endpoint).
-        metrics: Metrics to request (subset of ``'distance'``, ``'duration'``).
-            Both are returned in a single ORS call at no meaningful extra cost.
+        metric: Metric to request from ORS (``'distance'`` or ``'duration'``).
 
     Returns:
-        A dict mapping each requested metric name to its grid: a list with one
-        row per source, each row having one entry per destination. E.g.
-        ``{'distance': [[...]], 'duration': [[...]]}``.
+        The ``distances`` field of the ORS response: a list with one row per
+        source, each row having one entry per destination.
 
     Raises:
-        OrsMatrixError: When ORS omits a requested metric's grid (error response).
+        OrsMatrixError: When ORS returns an error response (no ``distances`` field).
     '''
     body = {
         'locations': locations,
         'destinations': dests,
-        'metrics': list(metrics),
+        'metrics': [metric],
         'sources': sources,
     }
     headers = {
@@ -53,17 +48,13 @@ def query_matrix(locations, sources, dests, server, *, key=None, metrics=('dista
 
     response = requests.post(server, json=body, headers=headers, timeout=HTTP_TIMEOUT_SECONDS)
     parsed = json.loads(response.text)
-    result = {}
-    for metric in metrics:
-        response_key = _METRIC_TO_RESPONSE_KEY[metric]
-        if response_key not in parsed:
-            raise OrsMatrixError(f'ORS matrix call failed: {parsed.get("error", parsed)}')
-        result[metric] = parsed[response_key]
-    return result
+    if 'distances' not in parsed:
+        raise OrsMatrixError(f'ORS matrix call failed: {parsed.get("error", parsed)}')
+    return parsed['distances']
 
 
 def query_directions(source, dest, server):
-    '''Return ``(distance_m, duration_s)`` between ``source`` and ``dest``.
+    '''Return the driving distance in meters between ``source`` and ``dest``.
 
     Uses the ORS single-pair directions endpoint.
 
@@ -73,9 +64,9 @@ def query_directions(source, dest, server):
         server: ORS directions endpoint URL.
 
     Returns:
-        A ``(distance_m, duration_s)`` tuple, or ``None`` if ORS returned an
-        error (e.g. no route found) or a malformed success payload lacking the
-        expected ``features[0].properties.segments[0]`` path.
+        Driving distance in meters, or ``None`` if ORS returned an error
+        (e.g. no route found) or a malformed success payload lacking the
+        expected ``features[0].properties.segments[0].distance`` path.
     '''
     url = f'{server}?start={source[0]},{source[1]}&end={dest[0]},{dest[1]}'
     response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
@@ -83,8 +74,7 @@ def query_directions(source, dest, server):
     if 'error' in parsed:
         return None
     try:
-        segment = parsed['features'][0]['properties']['segments'][0]
-        return segment['distance'], segment['duration']
+        return parsed['features'][0]['properties']['segments'][0]['distance']
     except (KeyError, IndexError):
         return None
 

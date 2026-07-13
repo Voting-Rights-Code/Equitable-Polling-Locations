@@ -317,34 +317,6 @@ class BuildDistanceMetaData:
     potential_locations_set_id: str=None
 
 
-def _log_transform_metric_columns(distance_df: pd.DataFrame) -> pd.DataFrame:
-    '''Replace each driving-metric column with its natural log, in place.
-
-    Both distance_m and (when present) duration_s are log-transformed so a
-    log_distance run can later select either metric and find it already logged.
-    Values below 1 are floored to 1.0 first, so the log is non-negative
-    (log(1) == 0): log(0) is undefined, and filter_distance_data rejects any
-    negative distance, so a sub-1 value -- a degenerate coincident block/site
-    pair (distance < 1 m or duration < 1 s) -- would otherwise crash a
-    log_distance run. (Provisional per #294; pending Susama's modeling call on
-    how to treat such pairs.)
-
-    Args:
-        distance_df: Frame holding distance_m and optionally duration_s.
-
-    Returns:
-        The same DataFrame object, mutated in place, returned for call-site
-        convenience.
-    '''
-    metric_columns = [DISTANCE_DISTANCE_M]
-    if DISTANCE_DURATION_S in distance_df.columns:
-        metric_columns.append(DISTANCE_DURATION_S)
-    for column in metric_columns:
-        distance_df[column].mask(distance_df[column] < 1.0, 1.0, inplace=True)
-        distance_df[column] = np.log(distance_df[column])
-    return distance_df
-
-
 # Old Build source function
 @timer
 def build_distance_data(
@@ -462,7 +434,8 @@ def build_distance_data(
     if log_distance:
         distance_df[DISTANCE_SOURCE] = DISTANCE_SOURCE_LOG_WITH_SPACE + distance_df[DISTANCE_SOURCE]
         #TODO: why are there 0 distances showing up?
-        distance_df = _log_transform_metric_columns(distance_df)
+        distance_df[DISTANCE_DISTANCE_M].mask(distance_df[DISTANCE_DISTANCE_M] == 0.0, 0.001, inplace=True)
+        distance_df[DISTANCE_DISTANCE_M] = np.log(distance_df[DISTANCE_DISTANCE_M])
 
     # Ensure DISTANCE_ID_ORIG and DISTANCE_ID_DEST are strings
     distance_df[DISTANCE_ID_ORIG] = distance_df[DISTANCE_ID_ORIG].astype(str)
@@ -718,47 +691,6 @@ def filter_dest_type(distance_df: pd.DataFrame, year_list: list[str]):
         DISTANCE_DEST_TYPE_POLLING,
         inplace=True,
     )
-
-
-def apply_metric(config: PollingModelConfig, distance_df: pd.DataFrame) -> pd.DataFrame:
-    '''Alias the configured metric into the working distance_m column.
-
-    Only driving_time changes anything: the optimizer minimizes travel time by
-    reading the duration_s column through the existing distance_m column, so
-    the Kolm-Pollak math, penalties and results stay metric-agnostic. haversine
-    and driving_distance already live in distance_m and are returned unchanged.
-    The cached distance file is never mutated on disk (it holds meters in
-    distance_m and seconds in duration_s), so switching metric never
-    invalidates the cache.
-
-    Args:
-        config: Model configuration providing the metric.
-        distance_df: Loaded distance data.
-
-    Returns:
-        The same DataFrame object with distance_m holding the selected metric.
-        driving_time aliases duration_s into distance_m in place; haversine and
-        driving_distance are returned unchanged. The frame is never copied, so
-        callers must not rely on the input's distance_m staying meters afterward.
-
-    Raises:
-        ValueError: When driving_time is requested but duration_s is absent
-            (e.g. a legacy distance file generated before duration existed).
-    '''
-    if config.metric != METRIC_DRIVING_TIME:
-        return distance_df
-    if DISTANCE_DURATION_S not in distance_df.columns:
-        raise ValueError(
-            f'metric is {METRIC_DRIVING_TIME!r} but the distance data has no '
-            f'{DISTANCE_DURATION_S} column. Regenerate driving distances with duration, '
-            f'or choose a distance metric.'
-        )
-    # Alias in place rather than copying: the county-scale distance frame can be
-    # several GB, and a deep copy here stacks that memory on top of the solver
-    # subprocess, OOM-killing large driving_time runs. Only distance_m is rewritten;
-    # the on-disk cache is untouched (nothing is written back).
-    distance_df[DISTANCE_DISTANCE_M] = distance_df[DISTANCE_DURATION_S]
-    return distance_df
 
 
 # pylint: disable-next=unused-argument
