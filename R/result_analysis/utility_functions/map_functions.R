@@ -248,7 +248,7 @@ distance_bounds <- function(df){
 
 	# pull out global bounds
 	global_max <- max(bound_dt$max_avg_dist)
-	global_min <- max(bound_dt$min_avg_dist)
+	global_min <- min(bound_dt$min_avg_dist)
 	color_bounds <- list(global_min, global_max)
 	return(color_bounds)
 }
