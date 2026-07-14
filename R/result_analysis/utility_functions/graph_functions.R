@@ -690,19 +690,12 @@ plot_population_densities <- function(density_df){
 #at the block group level, ordered by population density
 #log / log scale, with best fit lines
 plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, driving_flag = DRIVING_FLAG){
-	metric <- get_uniform_metric(bg_density_data, 'plot_density_v_distance_bg')
-	if (is.null(metric)) return(invisible(NULL))
-
-	#set graph y axis bounds. if min_distance == 0 m, make 1m
-	min_dist = min(bg_density_data[demographic %in% demo_list, ]$demo_avg_dist, na.rm = TRUE)
-	max_dist = max(bg_density_data[demographic %in% demo_list, ]$demo_avg_dist, na.rm = TRUE)
-	if (min_dist == 0){min_dist = min_dist + .01}
-    y_bounds = c(min_dist,max_dist)
-
 	#trim log density outliers
 	trimmed <- bg_density_data[abs(z_score_log_density)<4, ]
+	#tag each row with its metric's unit, so bounds can be computed per unit below
+	trimmed[, unit := sapply(metric, function(m) METRIC_LABELS[[m]]$unit)]
 
-    descriptor_graph <- function(descriptor_str, demo_list, y_bounds){   
+    descriptor_graph <- function(descriptor_str, demo_list, y_bounds, metric){
 		flag_strs <- make_flag_strs(driving_flag, metric)
 
 		title_str = paste0('Average', flag_strs$driving_str, flag_strs$word, ' to poll by demographic and block group')
@@ -719,7 +712,21 @@ plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, drivi
 		add_graph_to_graph_file_manifest(graph_file_path)
 		ggsave(graph_file_path)
     }
-    descriptors = unique(trimmed$descriptor)
-    sapply(descriptors, function(x){descriptor_graph(x, demo_list, y_bounds)})
+
+	#set graph y axis bounds per unit (apples-to-apples within a unit;
+	#if min_distance == 0, make it .01 so log scale doesn't break)
+	plot_unit_group <- function(unit_data){
+		this_metric <- unit_data$metric[1]
+		demo_filtered <- unit_data[demographic %in% demo_list, ]
+		min_dist <- min(demo_filtered$demo_avg_dist, na.rm = TRUE)
+		max_dist <- max(demo_filtered$demo_avg_dist, na.rm = TRUE)
+		if (min_dist == 0){min_dist <- min_dist + .01}
+		y_bounds <- c(min_dist, max_dist)
+
+		descriptors <- unique(unit_data$descriptor)
+		sapply(descriptors, function(x){descriptor_graph(x, demo_list, y_bounds, this_metric)})
+	}
+
+	invisible(lapply(split(trimmed, trimmed$unit), plot_unit_group))
     }
 
