@@ -99,7 +99,7 @@ results_with_area_geom<- function(location, result_df){
 demographically_weighted_distances <- function(result_df){
 	#takes a result df and calculates the weighted distance for each demographic group
 	#in block
-	weighted_df <- result_df[,lapply(.SD, function(x)distance_m*x), by = c('id_orig', 'config_name', 'config_set', 'descriptor'), .SDcols = DEMO_COLS]
+	weighted_df <- result_df[,lapply(.SD, function(x)distance_m*x), by = c('id_orig', 'config_name', 'config_set', 'descriptor', 'metric'), .SDcols = DEMO_COLS]
 
 	return(weighted_df)
 }
@@ -121,16 +121,16 @@ bg_result_geom <- function(location, result_df){
 	bg_weighted_dist <- block_weighted_dist[ , bg_id := gsub('.{3}$', '', id_orig)]
 
 	#aggregate demographics to block group level
-	bg_demo <- bg_result_geom[ , lapply(.SD, sum), by = c('bg_id','config_set', 'config_name', 'descriptor'), .SDcols = DEMO_COLS]
-	bg_weight <- bg_weighted_dist[ , lapply(.SD, sum), by = c('bg_id','config_set', 'config_name', 'descriptor'), .SDcols = DEMO_COLS]
+	bg_demo <- bg_result_geom[ , lapply(.SD, sum), by = c('bg_id','config_set', 'config_name', 'descriptor', 'metric'), .SDcols = DEMO_COLS]
+	bg_weight <- bg_weighted_dist[ , lapply(.SD, sum), by = c('bg_id','config_set', 'config_name', 'descriptor', 'metric'), .SDcols = DEMO_COLS]
 
 	#melt both
-	id_cols = c('bg_id','config_set', 'config_name', 'descriptor')
+	id_cols = c('bg_id','config_set', 'config_name', 'descriptor', 'metric')
 	demo_data_long <- melt(bg_demo, id.vars = id_cols, measure.vars = DEMO_COLS, value.name ='demo_pop' , variable.name = "demographic")
 	weight_data_long <- melt(bg_weight, id.vars = id_cols, measure.vars = DEMO_COLS, value.name ='demo_weighted_dist' , variable.name = "demographic")
 
 	#merge the two datasets to get one with both demo_pop and demo_weighted_distance columns
-	bg_demo_weight <- merge(demo_data_long, weight_data_long, by = c('bg_id','config_set', 'config_name', 'descriptor', 'demographic'))
+	bg_demo_weight <- merge(demo_data_long, weight_data_long, by = c('bg_id','config_set', 'config_name', 'descriptor', 'demographic', 'metric'))
 
 	#create a demographic average distance column
 	bg_demo_weight <- bg_demo_weight[ , demo_avg_dist := demo_weighted_dist/demo_pop]
@@ -235,21 +235,24 @@ prepare_outputs_for_precinct_maps <- function(result_dt){
 #Calculate min and max distance for a dataframe
 ###########
 
-distance_bounds <- function(df){
+distance_bounds <- function(df, metric_labels = METRIC_LABELS){
 	#calculate the min and max average distances traveled by census block for maps by location
 
 	prepped_df <- copy(df)
+	#get a column of units
+	prepped_df[, unit := sapply(metric, function(m) metric_labels[[m]]$unit)]
+
 	# pull out min and max average distances by location
-	bound_dt <- prepped_df[, .(min_avg_dist = min(avg_dist), max_avg_dist = max(avg_dist)), by = location]
+	bound_dt <- prepped_df[, .(min_avg_dist = min(avg_dist), max_avg_dist = max(avg_dist)), 
+						by = c('location', 'unit')]
 
 	# check for missing data
 	if (any(sapply(bound_dt, anyNA))){
     warning('Some location does not have a min or max average distance for mapping')}
 
+	
 	# pull out global bounds
-	global_max <- max(bound_dt$max_avg_dist)
-	global_min <- min(bound_dt$min_avg_dist)
-	color_bounds <- list(global_min, global_max)
+	color_bounds <- bound_dt[, .(global_max = max(max_avg_dist), global_min = min(min_avg_dist)), by = unit]
 	return(color_bounds)
 }
 
@@ -258,7 +261,9 @@ distance_bounds <- function(df){
 #Make block group maps
 ###############
 
-make_bg_maps <-function(prepped_data, demo_str = 'population', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, color_bounds = global_color_bounds, linear_color_gradient = LINEAR_COLOR_GRADIENT){ 
+make_bg_maps <-function(prepped_data, demo_str = 'population', driving_flag = DRIVING_FLAG,
+						 color_bounds = global_color_bounds,
+						 linear_color_gradient = LINEAR_COLOR_GRADIENT){ 
 	#use aggregated result data to color the map by distance to matched location, for population at large
 	#and plots the polling locations
 	
@@ -267,25 +272,28 @@ make_bg_maps <-function(prepped_data, demo_str = 'population', driving_flag = DR
 	bg_demo_sf <- st_as_sf(prepped_demo)
 
 	#make maps labels based on flags
-	flag_strs <- make_flag_strs(driving_flag, log_flag)
+	metric <- unique(prepped_data$metric)
+	flag_strs <- make_flag_strs(driving_flag, metric)
 	
-	title_str = paste0('Average', flag_strs$driving_str, 'distance to poll (', flag_strs$log_str, 'm)')
-	fill_str = paste0('Avg distance (', flag_strs$log_str, 'm)')
+	title_str = paste0('Average', flag_strs$driving_str, flag_strs$word, ' to poll (', flag_strs$unit, ')')
+	fill_str = paste0('Avg ', flag_strs$word, ' (', flag_strs$unit, ')')
 
 	county = gsub('.{3}$','', unique(prepped_data$location))
 	descriptor = paste(county, unique(prepped_data$descriptor), sep ='_')
 	
 	#make maps
+	#select bounds
+	color_bounds <- color_bounds[unit == flag_strs$unit, ]
 	#color by bg avg distance
 	if(linear_color_gradient){
 		plotted <- ggplot() +
 			geom_sf(data = bg_demo_sf, aes(fill = demo_avg_dist)) +
-			scale_fill_map_distance(limits = c(color_bounds[[1]], color_bounds[[2]]), name = fill_str)
+			scale_fill_map_distance(limits = c(color_bounds$global_min, color_bounds$global_max), name = fill_str)
 	} else{
-		break_vector = round(c(color_bounds[[1]], color_bounds[[1]] + (color_bounds[[2]]-color_bounds[[1]])/4, color_bounds[[1]] + (color_bounds[[2]]-color_bounds[[1]])/2, color_bounds[[1]] + 3*(color_bounds[[2]]-color_bounds[[1]])/4), digits = -2)
+		break_vector = signif(c(color_bounds$global_min, color_bounds$global_min + (color_bounds$global_max-color_bounds$global_min)/4, color_bounds$global_min + (color_bounds$global_max-color_bounds$global_min)/2, color_bounds$global_min + 3*(color_bounds$global_max-color_bounds$global_min)/4), digits = 2)
 		plotted <- ggplot() +
 			geom_sf(data = bg_demo_sf, aes(fill = demo_avg_dist)) +
-			scale_fill_map_distance(limits = c(color_bounds[[1]], color_bounds[[2]]), name = fill_str, transform = 'log', breaks = break_vector)
+			scale_fill_map_distance(limits = c(color_bounds$global_min, color_bounds$global_max), name = fill_str, transform = 'log', breaks = break_vector)
 	}
 
 	#place polling locations
@@ -302,7 +310,7 @@ make_bg_maps <-function(prepped_data, demo_str = 'population', driving_flag = DR
 	ggsave(graph_file_path, plotted)
 }
 
-make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, color_bounds = global_color_bounds, linear_color_gradient = LINEAR_COLOR_GRADIENT){
+make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLAG, color_bounds = global_color_bounds, linear_color_gradient = LINEAR_COLOR_GRADIENT){
 	#use demographic residence_distances to put a dot in  the map colored by distance and sized by population
 	
 	#transform for prepped data for mapping
@@ -317,10 +325,11 @@ make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLA
 	
 	#plot map with a point at the centroid, colored by distance, sized by size
 	#set names
-	flag_strs <- make_flag_strs(driving_flag, log_flag)
+	metric <- unique(prepped_data$metric)
+	flag_strs <- make_flag_strs(driving_flag, metric)
 
-	title_str = paste0('Average', flag_strs$driving_str, 'distance to poll (', flag_strs$log_str, 'm)')
-	color_str = paste0('Avg distance (', flag_strs$log_str, 'm)')
+	title_str = paste0('Average', flag_strs$driving_str, flag_strs$word, ' to poll (', flag_strs$unit, ')')
+	color_str = paste0('Avg ', flag_strs$word, ' (', flag_strs$unit, ')')
 
 	county = gsub('.{3}$','', unique(prepped_data$location))
 	descriptor = paste(county, unique(prepped_data$descriptor), sep ='_')
@@ -329,21 +338,23 @@ make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLA
 	#for ease of comparison across demographics)
 	max_pop <- max(prepped_data$demo_pop)
 
+	color_bounds <- color_bounds[unit == flag_strs$unit, ]
+
 	if(linear_color_gradient){
 		plotted <- ggplot() +
 			geom_sf(data = bg_demo_sf) +
 			geom_point(data = bg_demo_sf, aes(x = INTPTLON20, y = INTPTLAT20, size= demo_pop, color = demo_avg_dist)) +
-			scale_color_map_distance(limits = c(color_bounds[[1]], color_bounds[[2]]), name = color_str) +
+			scale_color_map_distance(limits = c(color_bounds$global_min, color_bounds$global_max), name = color_str) +
 			labs(size = paste(demographic_legend_dict[demo_str], 'population') ) +
 			xlab('') + ylab('') + scale_size(limits= c(0, max_pop)) +
 			ggtitle(paste(demographic_legend_dict[demo_str], title_str), paste('Block groups in', gsub('_', ' ', descriptor))) +
 			theme_tableau_map()
 		} else{
-			break_vector = round(c(color_bounds[[1]], color_bounds[[1]] + (color_bounds[[2]]-color_bounds[[1]])/4, color_bounds[[1]] + (color_bounds[[2]]-color_bounds[[1]])/2, color_bounds[[1]] + 3*(color_bounds[[2]]-color_bounds[[1]])/4), digits = -2)
+			break_vector = signif(c(color_bounds$global_min, color_bounds$global_min + (color_bounds$global_max-color_bounds$global_min)/4, color_bounds$global_min + (color_bounds$global_max-color_bounds$global_min)/2, color_bounds$global_min + 3*(color_bounds$global_max-color_bounds$global_min)/4), digits = 2)
 			plotted <- ggplot() +
 				geom_sf(data = bg_demo_sf) +
 				geom_point(data = bg_demo_sf, aes(x = INTPTLON20, y = INTPTLAT20, size= demo_pop, color = demo_avg_dist)) +
-				scale_color_map_distance(limits = c(color_bounds[[1]], color_bounds[[2]]), name = color_str, transform = 'log', breaks = break_vector) +
+				scale_color_map_distance(limits = c(color_bounds$global_min, color_bounds$global_max), name = color_str, transform = 'log', breaks = break_vector) +
 				labs(size = paste(demographic_legend_dict[demo_str], 'population') ) +
 				xlab('') + ylab('') + scale_size(limits= c(0, max_pop)) +
 				ggtitle(paste(demographic_legend_dict[demo_str], title_str), paste('Block groups in', gsub('_', ' ', descriptor))) +

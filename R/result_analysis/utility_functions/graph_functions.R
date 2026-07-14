@@ -15,10 +15,11 @@ TABLES = c("edes", "precinct_distances", "residence_distances", "results")
 DEMO_COLS =  c("population", "hispanic","non_hispanic", "white", "black", "native", "asian", "pacific_islander", "other")
 
 PRINT_SQL = FALSE
-
-
-
-
+METRIC_LABELS <- list(
+	haversine        = list(word = 'distance', unit = 'm',   scale = 1),
+	driving_distance = list(word = 'distance', unit = 'm',   scale = 1),
+	driving_time     = list(word = 'time',     unit = 'min', scale = 1 / 60)
+)
 
 #########
 #Get flags from the config folders or config file
@@ -80,10 +81,22 @@ select_varying_fields <- function(config_dt){
 		stop(paste('Too many fields vary across collection of config files:', paste(varying_cols, collapse = ', ')))
 	}
 
-	#select the parameter of interest
-	result_dt <- config_dt_filtered[ , ..varying_cols]
+	#always carry metric through, whether or not it's the folder's one varying field
+	cols_to_keep <- union(varying_cols, 'metric')
+	result_dt <- config_dt_filtered[ , ..cols_to_keep]
 	return(result_dt)
 }
+
+scale_distance_columns <- function(dt, metric_labels = METRIC_LABELS){
+	#scale distance-bearing columns by the metric's unit 
+	scale_lookup <- sapply(metric_labels, function(x) x$scale)
+	distance_cols <- intersect(c('distance_m', 'weighted_dist', 'avg_dist', 'y_EDE'), names(dt))
+	if (length(distance_cols) > 0){
+		dt[ , (distance_cols) := lapply(.SD, function(x) x * scale_lookup[metric]), .SDcols = distance_cols]
+	}
+	return(dt)
+}
+
 
 create_descriptor_field <- function(config_dt, field_of_interest){
 	#1) identify the (unique) field that changes
@@ -111,8 +124,10 @@ create_descriptor_field <- function(config_dt, field_of_interest){
 	}
 
 	#2) create a descriptor field
-	#identify the field name
-	varying_field<- names(varying_dt)[names(varying_dt) != 'config_name']
+	#identify the field name; if metric is it, keep it. Else drop it.
+	varying_field <- setdiff(names(varying_dt), c('config_name', 'metric'))
+	if (length(varying_field) == 0){ varying_field <- 'metric' }
+
 	#paste the name of the varying field with its value
 	varying_dt <- varying_dt[, descriptor_pre:= varying_field
 						   ][, descriptor := do.call(paste, c(.SD, sep = '_')), .SDcols = c('descriptor_pre', varying_field)
@@ -266,7 +281,7 @@ assign_descriptor_to_result<- function(config_dt, result_type, field_of_interest
 	#read in descriptor data
 	vary_dt <- create_descriptor_field(config_dt, field_of_interest)
 	#drop varying field (because this changes across config_set)
-	vary_dt <- vary_dt [ , .(config_name, descriptor)]
+	vary_dt <- vary_dt [ , .(config_name, descriptor, metric)]
 	
 	
 	#read in output data
@@ -287,6 +302,9 @@ assign_descriptor_to_result<- function(config_dt, result_type, field_of_interest
 
 	#order the descriptor fields as factors
 	complete_dt <- order_descriptors(complete_dt)
+
+	#TODO: I don't like this here
+	complete_dt <- scale_distance_columns(complete_dt)
 
 	#fix data types (only needed for csv)
 	if ('id_dest' %in% names(complete_dt)){
@@ -340,14 +358,24 @@ demographic_legend_dict <- c(
 	'native' = 'First Nations',
 	'population' = 'Total')
 
-#helper function to make graph titles according to flag values
-make_flag_strs<- function(driving_flag, log_flag){
-	#make flag dependent labels
-	driving_str = ' straight line '
-	log_str = ''
-	if (driving_flag){driving_str = ' driving '} 
-	#if (log_flag){log_str = 'log '}
-	return(as.list(c(driving_str = driving_str, log_str = log_str)))
+#helper to guard plot functions against mixed-metric input data.
+get_uniform_metric <- function(df, plot_name, metric_labels = METRIC_LABELS){
+	metrics <- unique(df$metric)
+	units <- unique(sapply(metrics, function(m) metric_labels[[m]]$unit))
+	if (length(units) > 1){
+		warning(paste0(plot_name, ': skipped, data mixes units (', paste(metrics, collapse = ', '), ')'))
+		return(NULL)
+	}
+	return(metrics)
+}
+
+#helper function to make graph titles according to flag values and metric units
+make_flag_strs <- function(driving_flag, metric){
+	#make flag/metric dependent labels
+	driving_str <- ' straight line '
+	if (driving_flag){driving_str <- ' driving '}
+	metric_info <- METRIC_LABELS[[metric]]
+	return(as.list(c(driving_str = driving_str, word = metric_info$word, unit = metric_info$unit)))
 }
 
 #helper function to combine ede data from different config folders
@@ -389,12 +417,16 @@ ede_with_pop<- function(config_df_list){
 
 #makes a plot showing how y_EDEs change for each demographic group as the
 #number of polls is increased
-plot_poll_edes<-function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
+plot_poll_edes<-function(ede_df, driving_flag = DRIVING_FLAG){
+	#TODO: if (is.null(metric)) return(invisible(NULL)) 
+	#appears with every get_uniform_metric call. 
+	#can these be combined?
+	metric <- get_uniform_metric(ede_df, 'plot_poll_edes')
+	if (is.null(metric)) return(invisible(NULL))
+	flag_strs <- make_flag_strs(driving_flag, metric)
 
-	flag_strs <- make_flag_strs(driving_flag, log_flag)
-	
-	title_str = paste0('Equity weighted', flag_strs$driving_str, 'distance to poll by demographic')
-	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
+	title_str = paste0('Equity weighted', flag_strs$driving_str, flag_strs$word, ' to poll by demographic')
+	y_str = paste0('Equity weighted', flag_strs$driving_str, flag_strs$word, ' (', flag_strs$unit, ')')
 
 	graph = ggplot(ede_df, aes(x = descriptor, y = y_EDE,
 		group = demographic, color = demographic, shape = demographic)) +
@@ -411,11 +443,13 @@ plot_poll_edes<-function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLA
 
 #like plot_poll_edes, but plots just the y_edes for the
 # population as a whole, and not demographic groups
-plot_population_edes <- function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
-	flag_strs <- make_flag_strs(driving_flag, log_flag)
+plot_population_edes <- function(ede_df, driving_flag = DRIVING_FLAG){
+	metric <- get_uniform_metric(ede_df, 'plot_population_edes')
+	if (is.null(metric)) return(invisible(NULL))
+	flag_strs <- make_flag_strs(driving_flag, metric)
 
-	title_str = paste0('Equity weighted', flag_strs$driving_str, 'distance to poll')
-	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
+	title_str = paste0('Equity weighted', flag_strs$driving_str, flag_strs$word, ' to poll')
+	y_str = paste0('Equity weighted', flag_strs$driving_str, flag_strs$word, ' (', flag_strs$unit, ')')
 
 
 	graph = ggplot(ede_df[demographic == 'population', ], aes(x = descriptor, y = y_EDE))+
@@ -430,13 +464,17 @@ plot_population_edes <- function(ede_df, driving_flag = DRIVING_FLAG, log_flag =
 
 #makes a plot showing how the y_EDEs for multiple config_sets change 
 #as the number of polls is increased, for a specified demographic_group 
-plot_multiple_edes<-function(ede_list, demo_grp, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
+plot_multiple_edes<-function(ede_list, demo_grp, driving_flag = DRIVING_FLAG){
 	ede_df <- do.call(rbind, ede_list)
-
-	flag_strs <- make_flag_strs(driving_flag, log_flag)
 	
-	title_str = paste0('Equity weighted', flag_strs$driving_str, 'distance to poll by demographic')
-	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
+	metric <- get_uniform_metric(ede_df, 'plot_multiple_edes')	
+	if (is.null(metric)) return(invisible(NULL))
+
+	flag_strs <- make_flag_strs(driving_flag, metric)
+
+
+	title_str = paste0('Equity weighted', flag_strs$driving_str, flag_strs$word, ' to poll by demographic')
+	y_str = paste0('Equity weighted', flag_strs$driving_str, flag_strs$word, ' (', flag_strs$unit, ')')
 
 	ggplot(ede_df[demographic == demo_grp, ], aes(x = num_polls, y = y_EDE,
 		group = descriptor, color =  descriptor, shape = demo_grp)) +
@@ -455,7 +493,7 @@ plot_multiple_edes<-function(ede_list, demo_grp, driving_flag = DRIVING_FLAG, lo
 
 #makes two plots, one showing the y_ede the other avg distance
 #showing how these variables change across the included runs
-plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
+plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLAG){
 
 	#set x axis label order
 	descriptor_order <- unique(orig_ede$descriptor)
@@ -469,12 +507,14 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 	#does data contain scaling data
 	scale_bool = 'pct_demo_population' %in% names(orig_ede)
 	
-	flag_strs <- make_flag_strs(driving_flag, log_flag)
+	metric <- get_uniform_metric(orig_ede, 'plot_historic_edes')
+	if (is.null(metric)) return(invisible(NULL))
+	flag_strs <- make_flag_strs(driving_flag, metric)
 
 	#labels for various types of data
-	y_EDE_label = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
-	y_avg_label = paste0('Average', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
-	title_str = paste0(flag_strs$log_str, flag_strs$driving_str, 'distance by demographic and optimization run')
+	y_EDE_label = paste0('Equity weighted', flag_strs$driving_str, flag_strs$word, ' (', flag_strs$unit, ')')
+	y_avg_label = paste0('Average', flag_strs$driving_str, flag_strs$word, ' (', flag_strs$unit, ')')
+	title_str = paste0(flag_strs$driving_str, flag_strs$word, ' by demographic and optimization run')
 	#plot with y_EDE
 	y_EDE = ggplot(orig_ede, aes(x = descriptor, y = y_EDE,
 		group = demographic, color = demographic, shape = demographic))
@@ -519,14 +559,14 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 
 #compares optimized runs with historical runs having the same number of
 #polls (via plot_historical_edes)
-plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
+plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_flag = DRIVING_FLAG){
 	#select the relevant optimized runs
 	orig_num_polls <- unique(orig_ede$num_polls)
 	config_num_polls <- unique(config_ede$num_polls)
 	optimization_num_polls<- max(intersect(orig_num_polls, config_num_polls))
 	optimized_run_dfs <- config_ede[num_polls == optimization_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
-	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), driving_flag, log_flag)
+	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), driving_flag)
 
 }
 
@@ -557,17 +597,18 @@ plot_precinct_persistence <- function(precinct_df){
 }
 
 #make boxplots of the average distances traveled and the y_edes at each run
-plot_boxplots <- function(residence_df,log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG){
-	flag_strs <- make_flag_strs(driving_flag, log_flag)
- 
+plot_boxplots <- function(residence_df, driving_flag = DRIVING_FLAG){
+	metric <- get_uniform_metric(residence_df, 'plot_boxplots')
+	if (is.null(metric)) return(invisible(NULL))
+	flag_strs <- make_flag_strs(driving_flag, metric)
+
 	res_pop <- residence_df[demographic == 'population',
 		]
 	#avg distance
 	ggplot(res_pop, aes(x = num_polls, y = avg_dist, group = descriptor)) +
 		stat_boxplot(geom = "errorbar", color = "#555555")+
 		geom_boxplot(outlier.shape = NA, fill = TABLEAU_COLORS[1], color = "#333333", alpha = 0.7) +
-		scale_y_log10(limits = c(500,10500)) +
-		labs(x = 'Number of polls', y = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'), title = "Boxplot of distances by run") +
+		labs(x = 'Number of polls', y = paste0("Avg",  flag_strs$driving_str, flag_strs$word, " (", flag_strs$unit, ')'), title = paste0("Boxplot of ", flag_strs$word, "s by run")) +
 		theme_tableau()
 
 	graph_file_path = 'avg_dist_distribution_boxplots.png'
@@ -576,18 +617,20 @@ plot_boxplots <- function(residence_df,log_flag = LOG_FLAG, driving_flag = DRIVI
 }
 
 #make histogram of the average distances traveled in the historical and ideal situations
-plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_num, log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG){
-	flag_strs <- make_flag_strs(driving_flag, log_flag)
-
+plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_num, driving_flag = DRIVING_FLAG){
 	orig_residence_df <- orig_residence_df[demographic == 'population', ]
 	ideal_residence_df <- config_residence_df[demographic == 'population', ][num_polls == ideal_num, ]
 	res_pop_orig_and_ideal <- rbind( ideal_residence_df, orig_residence_df)
 
+	metric <- get_uniform_metric(res_pop_orig_and_ideal, 'plot_orig_ideal_hist')
+	if (is.null(metric)) return(invisible(NULL))
+	flag_strs <- make_flag_strs(driving_flag, metric)
+
 	#avg_distance
-	title_str = paste0('Distribution of distances traveled by people by year and optimization')
+	title_str = paste0('Distribution of ', flag_strs$word, 's traveled by people by year and optimization')
 	ggplot(res_pop_orig_and_ideal, aes(x = avg_dist, fill = descriptor)) +
 		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
-		labs(x = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'), y = 'Number of people', title =  title_str, fill = 'Optimization Run') +
+		labs(x = paste0("Avg",  flag_strs$driving_str, flag_strs$word, " (", flag_strs$unit, ')'), y = 'Number of people', title =  title_str, fill = 'Optimization Run') +
 		scale_fill_tableau(labels = function(x) str_to_title(str_replace_all(x, '_', ' '))) +
 		theme_tableau()
 	graph_file_path = 'avg_dist_distribution_hist.png'
@@ -598,10 +641,10 @@ plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_n
 plot_demographic_hist<- function(df, demo, flag_strs){
 
 	y_str = paste0('Number of ', demo, ' people')
-	title_str = paste0('Distribution of distances traveled by ', demo, ' people by year and optimization')
+	title_str = paste0('Distribution of ', flag_strs$word, 's traveled by ', demo, ' people by year and optimization')
 	hist = ggplot(df[demographic == demo, ], aes(x = avg_dist, fill = descriptor)) +
 		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
-		labs(x = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'), y = y_str, title =  title_str, fill = 'Optimization Run') + scale_x_continuous(transform = 'log') +
+		labs(x = paste0("Avg",  flag_strs$driving_str, flag_strs$word, " (", flag_strs$unit, ')'), y = y_str, title =  title_str, fill = 'Optimization Run') + scale_x_continuous(transform = 'log') +
 		scale_fill_tableau(labels = function(x) str_to_title(str_replace_all(x, '_', ' '))) +
 		theme_tableau()
 
@@ -611,8 +654,7 @@ plot_demographic_hist<- function(df, demo, flag_strs){
 	return(hist)
 }
 
-plot_original_optimized_demographic_hists <- function(config_residence_df, orig_residence_df, demographic_list = DEMOGRAPHIC_LIST, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
-	flag_strs <- make_flag_strs(driving_flag, log_flag)
+plot_original_optimized_demographic_hists <- function(config_residence_df, orig_residence_df, demographic_list = DEMOGRAPHIC_LIST, driving_flag = DRIVING_FLAG){
 
 	#select the relevant optimized runs
 	orig_num_polls <- unique(orig_residence_df$num_polls)
@@ -621,6 +663,10 @@ plot_original_optimized_demographic_hists <- function(config_residence_df, orig_
 	optimized_run_dfs <- config_residence_df[num_polls == optimization_num_polls]
 	orig_and_optimal <- rbind(orig_residence_df, optimized_run_dfs)
 	descriptor_list <- unique(orig_and_optimal$descriptor)
+
+	metric <- get_uniform_metric(orig_and_optimal, 'plot_original_optimized_demographic_hists')
+	if (is.null(metric)) return(invisible(NULL))
+	flag_strs <- make_flag_strs(driving_flag, metric)
 
 	demographic_hists = lapply(demographic_list, function(x)plot_demographic_hist(orig_and_optimal, x, flag_strs))
 }
@@ -643,8 +689,10 @@ plot_population_densities <- function(density_df){
 #plot of average distances traveled by demographic groups, aggregated 
 #at the block group level, ordered by population density
 #log / log scale, with best fit lines
-plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG){
-	
+plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, driving_flag = DRIVING_FLAG){
+	metric <- get_uniform_metric(bg_density_data, 'plot_density_v_distance_bg')
+	if (is.null(metric)) return(invisible(NULL))
+
 	#set graph y axis bounds. if min_distance == 0 m, make 1m
 	min_dist = min(bg_density_data[demographic %in% demo_list, ]$demo_avg_dist, na.rm = TRUE)
 	max_dist = max(bg_density_data[demographic %in% demo_list, ]$demo_avg_dist, na.rm = TRUE)
@@ -655,10 +703,10 @@ plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, log_f
 	trimmed <- bg_density_data[abs(z_score_log_density)<4, ]
 
     descriptor_graph <- function(descriptor_str, demo_list, y_bounds){   
-		flag_strs <- make_flag_strs(driving_flag, log_flag)
-	
-		title_str = paste0('Average', flag_strs$driving_str, 'distance to poll by demographic and block group')
-		y_str = paste0(paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'))
+		flag_strs <- make_flag_strs(driving_flag, metric)
+
+		title_str = paste0('Average', flag_strs$driving_str, flag_strs$word, ' to poll by demographic and block group')
+		y_str = paste0(paste0("Avg",  flag_strs$driving_str, flag_strs$word, " (", flag_strs$unit, ')'))
 
         ggplot(trimmed[descriptor == descriptor_str & demographic %in% demo_list, ] , aes(x = pop_density_km, y = demo_avg_dist, group = demographic, color = demographic)) +
             geom_point(alpha = .7, aes(size = demo_pop )) + geom_smooth(method=lm, mapping = aes(weight = demo_pop), se= FALSE) + scale_x_continuous(trans = 'log10') + scale_y_log10(limits = y_bounds) +
