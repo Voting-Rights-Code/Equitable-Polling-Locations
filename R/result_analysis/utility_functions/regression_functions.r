@@ -4,6 +4,7 @@ library(stringr)
 library(here)
 
 source('R/result_analysis/utility_functions/load_config_data.R')
+source('R/result_analysis/utility_functions/graph_functions.R')
 source('R/result_analysis/utility_functions/map_functions.R')
 source('R/result_analysis/utility_functions/storage.R')
 
@@ -80,7 +81,7 @@ bg_level_naive_regression <- function(regression_data){
 	trimmed <- regression_data[abs(z_score_log_density)<4, ]
 	distance_model <- trimmed[, as.list(coef(lm(log(demo_avg_dist) ~ log(pop_density_km)),  weights = demo_pop )), by = c('descriptor', 'demographic')]
     setnames(distance_model, c('(Intercept)', 'log(pop_density_km)'), c('intercept', 'density_coef'))
-	csv_file_path = paste(config_set, '_distance_model.csv', sep= '_')
+	csv_file_path = paste(config_set, 'distance_model.csv', sep= '_')
 	add_graph_to_graph_file_manifest(csv_file_path)
 	fwrite(distance_model, csv_file_path)
 	return(distance_model)
