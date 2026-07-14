@@ -601,6 +601,48 @@ demo_pop_legend_dict <- c(
   non_hispanic = "Non-Latine"
 )
 
+# reshape the results from the optimization run to fit the heat maps
+# flag distant columns
+flagged_optimized_distant_blocks <- function(block_shapes, results_file, duration_threshold_min) {
+  
+  #read in optimization results 
+  results <- fread(results_file, colClasses = list(character = "id_orig"))
+  setnames(results, "population", "total_population")
+  results[, duration_min := distance_m / 60]
+
+  #flag
+  results[, flagged_distance := duration_min > duration_threshold_min]
+
+  #reshape
+  output_columns <- c(
+    "id_orig", "id_dest", "distance_m", "duration_min", "total_population",
+    "white", "black", "native", "asian", "pacific_islander", "other",
+    "multiple_races", "hispanic", "non_hispanic", "weighted_dist", "flagged_distance"
+  )
+  results <- results[, ..output_columns]
+  
+  #add in 0 population blocks
+  all_blocks <- data.table(st_drop_geometry(block_shapes))[, .(GEOID20, total_population)]
+  missing_blocks <- all_blocks[!GEOID20 %in% results$id_orig]
+
+  zero_fill_columns <- setdiff(output_columns, c("id_orig", "id_dest", "total_population", "flagged_distance"))
+  missing_rows <- missing_blocks[, id_orig := GEOID20
+              ][, id_dest := "Cheat Lake VFD"
+              ][, (zero_fill_columns) := 0
+              ][, flagged_distance := FALSE
+              ][, ..output_columns]
+
+  results <- rbind(results, missing_rows)
+
+  #write to file
+  distance_flagged_blocks_path <- file.path(
+    precinct_analysis_output_folder,
+    paste0("optimized_distance_flagged_blocks_", duration_threshold_min, "_min.csv")
+  )
+  fwrite(results, distance_flagged_blocks_path)
+
+  return(results)
+}
 # build a county-level map of census blocks by drive time to their assigned
 # polling location, with precinct boundaries drawn on top for context.
 # Two modes, chosen by demo_pop:
@@ -613,7 +655,7 @@ demo_pop_legend_dict <- c(
 make_demo_distance_heat_map <- function(
     block_shapes, distance_flagged_blocks, precinct_shapes, demo_pop,
     duration_threshold_min, location = LOCATION,
-    crs_projection = CRS_PROJECTION) {
+    crs_projection = CRS_PROJECTION, map_label = NULL, color_bounds = NULL) {
   # reproject to a plain lat/lon CRS so the graticule comes out
   # horizontal/vertical
   block_shapes <- st_transform(block_shapes, crs_projection)
@@ -645,7 +687,7 @@ make_demo_distance_heat_map <- function(
   title_str <- gsub(
     "_", " ",
     paste(
-      location, "driving distance to assigned polling location", demo_pop_label
+      location, map_label, "driving distance to assigned polling location", demo_pop_label
     )
   )
   # gray indicates no population block; dashed blue outline indicates no
@@ -683,7 +725,7 @@ make_demo_distance_heat_map <- function(
         color = "grey60", linewidth = 0.1
       ) +
       scale_fill_gradient(
-        low = "#fcbba1", high = "#67000d", name = "Duration (min)"
+        low = "#fcbba1", high = "#67000d", name = "Duration (min)", limits = color_bounds
       )
   } else {
     # dot mode: draw flagged blocks as plain context polygons, then place a
@@ -708,7 +750,7 @@ make_demo_distance_heat_map <- function(
         )
       ) +
       scale_color_gradient(
-        low = "#fcbba1", high = "#67000d", name = "Duration (min)"
+        low = "#fcbba1", high = "#67000d", name = "Duration (min)", limits = color_bounds
       ) +
       labs(size = paste(demo_pop_label, 'population'))
   }
@@ -730,7 +772,7 @@ make_demo_distance_heat_map <- function(
     theme_minimal()
 
   file_name <- paste(
-    c(paste0(duration_threshold_min, "_min"), demo_pop, "distance_heat_map.png"),
+    c(paste0(duration_threshold_min, "_min"), demo_pop, map_label, "distance_heat_map.png"),
     collapse = "_"
   )
   distance_heat_map_path <- file.path(

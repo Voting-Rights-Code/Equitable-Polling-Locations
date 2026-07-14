@@ -108,6 +108,23 @@ distance_flagged_blocks_20 <- flag_distant_blocks(
   build_driving_distances_file_path(LOCATION),
   20)
 
+solver_distance_flagged_blocks_15 <- flagged_optimized_distant_blocks(
+  block_precinct_assignment, OPTIMIZATON_RESULTS, 15
+)
+solver_distance_flagged_blocks_20 <- flagged_optimized_distant_blocks(
+  block_precinct_assignment, OPTIMIZATON_RESULTS, 20
+)
+
+# shared color scale across every heat map below to make the maps 
+# directly comparable.
+flagged_duration_values <- c(
+  distance_flagged_blocks_15[flagged_distance == TRUE, duration_min],
+  distance_flagged_blocks_20[flagged_distance == TRUE, duration_min],
+  solver_distance_flagged_blocks_15[flagged_distance == TRUE, duration_min],
+  solver_distance_flagged_blocks_20[flagged_distance == TRUE, duration_min]
+)
+duration_color_bounds <- c(min(flagged_duration_values), max(flagged_duration_values))
+
 ###### Step 4: plot county-level distance heat map #######
 
 #make maps fof 15 minutes
@@ -115,13 +132,13 @@ distance_flagged_blocks_20 <- flag_distant_blocks(
 # choropleth mode
 make_demo_distance_heat_map(
   block_precinct_assignment, distance_flagged_blocks_15,
-  precincts_resolved, demo_pop = NULL, 15
+  precincts_resolved, demo_pop = NULL, 15, color_bounds = duration_color_bounds
 )
 
 # dot mode: one map per demographic of interest
 make_demo_distance_heat_map(
   block_precinct_assignment, distance_flagged_blocks_15,
-  precincts_resolved, demo_pop = "total_population", 15
+  precincts_resolved, demo_pop = "total_population", 15, color_bounds = duration_color_bounds
 )
 
 #make maps fof 20 minutes
@@ -129,11 +146,33 @@ make_demo_distance_heat_map(
 # choropleth mode
 make_demo_distance_heat_map(
   block_precinct_assignment, distance_flagged_blocks_20,
-  precincts_resolved, demo_pop = NULL, 20
+  precincts_resolved, demo_pop = NULL, 20, color_bounds = duration_color_bounds
 )
 
 # dot mode: one map per demographic of interest
 make_demo_distance_heat_map(
   block_precinct_assignment, distance_flagged_blocks_20,
-  precincts_resolved, demo_pop = "total_population", 20
+  precincts_resolved, demo_pop = "total_population", 20, color_bounds = duration_color_bounds
+)
+
+###### Step 5: plot solver-assignment distance heat map #######
+
+# 15 min
+make_demo_distance_heat_map(
+  block_precinct_assignment, solver_distance_flagged_blocks_15,
+  precincts_resolved, demo_pop = NULL, 15, map_label = "optimized", color_bounds = duration_color_bounds
+)
+make_demo_distance_heat_map(
+  block_precinct_assignment, solver_distance_flagged_blocks_15,
+  precincts_resolved, demo_pop = "total_population", 15, map_label = "optimized", color_bounds = duration_color_bounds
+)
+
+# 20 min
+make_demo_distance_heat_map(
+  block_precinct_assignment, solver_distance_flagged_blocks_20,
+  precincts_resolved, demo_pop = NULL, 20, map_label = "optimized", color_bounds = duration_color_bounds
+)
+make_demo_distance_heat_map(
+  block_precinct_assignment, solver_distance_flagged_blocks_20,
+  precincts_resolved, demo_pop = "total_population", 20, map_label = "optimized", color_bounds = duration_color_bounds
 )
