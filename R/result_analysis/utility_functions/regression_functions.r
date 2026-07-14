@@ -37,8 +37,53 @@ bg_data<-function(prepped_dt){
 	setnames(regression_data, c('AREA20'), c('area'))
 
 	regression_data[ , `:=`(pop_density_km = 1e6 *total_population/(area), pct_white= 100 * white_population/total_population, pct_black = 100 *black_population/total_population)][ , z_score_log_density := scale(log(pop_density_km))]
-	
+
 	return(regression_data)
+}
+
+# reshape block-level distance_flagged_blocks (the precinct-assignment
+# pipeline's per-block distance table, from flag_distant_blocks() in
+# shape_extraction_functions.r) into bg_data()'s expected input shape: one
+# row per (block group, demographic), with demo_pop/demo_avg_dist and
+# AREA20 -- so bg_data()/plot_density_v_distance_bg() can run unmodified on
+# actual precinct-assignment data instead of solver results.
+precinct_bg_density_data <- function(distance_flagged_blocks, location,
+                                     descriptor = "precinct_assignment",
+                                     metric = "driving_time") {
+	# matches DEMO_COLS (graph_functions.R) exactly, aside from renaming
+	# total_population -> population below; excludes multiple_races, as
+	# DEMO_COLS does, so the two pipelines count the same demographic buckets.
+	demo_columns <- c(
+		"total_population", "white", "black", "native", "asian",
+		"pacific_islander", "other", "hispanic", "non_hispanic"
+	)
+
+	long_blocks <- melt(
+		distance_flagged_blocks, id.vars = c("id_orig", "duration_min"),
+		measure.vars = demo_columns, value.name = "demo_pop", variable.name = "demographic"
+	)
+	long_blocks[demographic == "total_population", demographic := "population"]
+	long_blocks[, bg_id := gsub(".{3}$", "", id_orig)]
+	long_blocks[, demo_weighted_dist := duration_min * demo_pop]
+
+	bg_demo <- long_blocks[, .(
+		demo_pop = sum(demo_pop), demo_weighted_dist = sum(demo_weighted_dist)
+	), by = c("bg_id", "demographic")]
+	bg_demo[, demo_avg_dist := demo_weighted_dist / demo_pop]
+
+	bg_map_data <- process_maps(get_map_file(location, block_flag = FALSE))
+	bg_demo_area <- merge(bg_demo, bg_map_data[, .(GEOID20, AREA20)], by.x = "bg_id", by.y = "GEOID20")
+
+	# bg_data() unconditionally drops these polling-destination columns,
+	# which this precinct-assignment pipeline doesn't carry -- add them as
+	# explicit NAs so that drop is a real no-op instead of a data.table
+	# "column does not exist to remove" warning.
+	bg_demo_area[, `:=`(
+		descriptor = descriptor, metric = metric,
+		dest_lat = NA_real_, dest_lon = NA_real_, dest_type = NA_character_,
+		geometry = NA
+	)]
+	return(bg_demo_area)
 }
 
 get_density_data <- function(result_dt){

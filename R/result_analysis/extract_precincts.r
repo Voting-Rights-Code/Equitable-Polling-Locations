@@ -176,3 +176,38 @@ make_demo_distance_heat_map(
   block_precinct_assignment, solver_distance_flagged_blocks_20,
   precincts_resolved, demo_pop = "total_population", 20, map_label = "optimized", color_bounds = duration_color_bounds
 )
+
+###### Step 6: plot density vs. distance for actual precinct assignment #######
+
+source("R/result_analysis/utility_functions/graph_functions.R")
+source("R/result_analysis/utility_functions/regression_functions.r")
+
+precinct_density_data <- precinct_bg_density_data(distance_flagged_blocks_15, LOCATION)
+precinct_regression_data <- bg_data(precinct_density_data)
+
+solver_density_data <- precinct_bg_density_data(
+  solver_distance_flagged_blocks_15, LOCATION, descriptor = "solver_assignment"
+)
+solver_regression_data <- bg_data(solver_density_data)
+
+# shared y-axis scale across the actual and solver assignment density
+# graphs, mirroring make_demo_distance_heat_map()'s color_bounds -- computed
+# the same way plot_density_v_distance_bg() computes it internally, just
+# pooled across both datasets first.
+pooled_density_data <- rbind(precinct_regression_data, solver_regression_data)
+pooled_avg_dist <- pooled_density_data[demographic %in% DEMOGRAPHIC_LIST, demo_avg_dist]
+min_avg_dist <- min(pooled_avg_dist, na.rm = TRUE)
+max_avg_dist <- max(pooled_avg_dist, na.rm = TRUE)
+if (min_avg_dist == 0) min_avg_dist <- min_avg_dist + .01
+shared_density_y_bounds <- c(min_avg_dist, max_avg_dist)
+
+setwd(file.path(here(), precinct_analysis_output_folder))
+plot_density_v_distance_bg(
+  precinct_regression_data, LOCATION, DEMOGRAPHIC_LIST,
+  log_flag = FALSE, driving_flag = TRUE, y_bounds = shared_density_y_bounds
+)
+plot_density_v_distance_bg(
+  solver_regression_data, LOCATION, DEMOGRAPHIC_LIST,
+  log_flag = FALSE, driving_flag = TRUE, y_bounds = shared_density_y_bounds
+)
+setwd(here())
