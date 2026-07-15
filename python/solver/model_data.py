@@ -321,9 +321,10 @@ class BuildDistanceMetaData:
 # log, purely to avoid log(0) = -inf. Per-metric because a meter and a second are
 # different units; a coincident pair (a block centroid on its own site) is
 # essentially zero travel, so these keep the log finite and strongly negative.
-# Non-negativity of the RAW values is guaranteed upstream, when the driving matrix
-# is built (_coerce_negative_metrics_to_null in driving_distance_matrix), so this
-# floor only handles legitimate exactly-zero (coincident) pairs.
+# Non-negativity of the RAW values is enforced upstream: building the driving
+# matrix rejects any negative distance/duration (_reject_negative_metric_values in
+# driving_distance_matrix), so this floor only handles legitimate exactly-zero
+# (coincident) pairs.
 LOG_ZERO_DISTANCE_FLOOR_M = 0.001
 LOG_ZERO_DURATION_FLOOR_S = 0.5
 
