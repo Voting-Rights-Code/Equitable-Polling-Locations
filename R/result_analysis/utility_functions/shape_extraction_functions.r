@@ -693,19 +693,10 @@ make_demo_distance_heat_map <- function(
   # gray indicates no population block; dashed blue outline indicates no
   # assigned polling location (a dropped precinct) -- the two aren't
   # mutually exclusive.
-  caption_str <- if (is.null(demo_pop)) {
-    paste0(
-      "White = under ", duration_threshold_min,
-      " min threshold; Gray = no population;\n",
-      "Dashed blue outline = no assigned polling location"
-    )
-  } else {
-    paste0(
-      "White = populated block; Gray = no population;\n",
-      "Dashed blue outline = no assigned polling location"
-    )
-  }
-
+  caption_str <- paste0( "White = under ", duration_threshold_min,
+                        " min threshold; Gray = no population;\n",
+                        "Dashed blue outline = no assigned polling location")
+  
   # base layers shared by both modes: no-data/under-threshold context and
   # precinct boundaries.
   heat_map <- ggplot() +
