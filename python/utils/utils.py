@@ -10,10 +10,10 @@ import uuid
 import numpy as np
 
 from python.utils.directory_constants import (
-  BLOCK_GROUP_FILE_SUFFIX, CENSUS_FOLDER_NAME, CENSUS_TIGER_DIR, 
+  BLOCK_GROUP_FILE_SUFFIX, CENSUS_FOLDER_NAME, CENSUS_TIGER_DIR,
   DATASETS_DIR, REDISTRICTING_FOLDER_NAME,
   DRIVING_DIR, POLLING_DIR, TABBLOCK_FILE_SUFFIX,
-  BLOCK_GROUP_GEO, BLOCK_GEO, CVAP_FOLDER_NAME
+  BLOCK_GROUP_GEO, BLOCK_GEO, CVAP_FOLDER_NAME, RDH_PREDICTED_VAP_FOLDER_NAME
 )
 
 @dataclass
@@ -180,8 +180,6 @@ def build_redistricting_file_paths(census_year: str, geo: str, pnum: str, locati
 
     return os.path.join(redistricting_dir, file_name)
 
-    return os.path.join(decennial_dir, file_name)
-
 def build_tiger_location_dir(location: str) -> str:
     ''' Returns the path to the Census Tiger data for this location '''
 
@@ -200,6 +198,23 @@ def build_CVAP_source_file_path(census_year: str, location: str) -> str:
     CVAP_dir = build_CVAP_dir_path(location)
 
     return os.path.join(CVAP_dir, file_name_cvap)
+
+# pylint: disable-next=invalid-name
+def build_RDH_predicted_vap_dir_path(location: str) -> str:
+    """Returns the directory for the RDH predicted VAP (Voting Age Population) block data. """
+    return os.path.join(DATASETS_DIR, CENSUS_FOLDER_NAME, RDH_PREDICTED_VAP_FOLDER_NAME, location)
+
+# pylint: disable-next=invalid-name
+def build_RDH_predicted_vap_source_file_path(location: str, projection_year: str) -> str:
+    """Returns the path to the RDH predicted VAP data CSV for a location. """
+    directory = build_RDH_predicted_vap_dir_path(location)
+    if os.path.isdir(directory):
+        # RDH filenames encode state + year range, so we discover rather than construct the name.
+        csv_files = sorted(f for f in os.listdir(directory) if f.endswith('.csv'))
+        if csv_files:
+            return os.path.join(directory, csv_files[0])
+    # No CSV found yet; return a representative path so callers can surface a clear error.
+    return os.path.join(directory, f'vap_proj_{projection_year}_b.csv')
 
 
 def get_block_source_file_path(census_year, location: str) -> str:
