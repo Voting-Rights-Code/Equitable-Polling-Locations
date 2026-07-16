@@ -679,20 +679,19 @@ make_demo_distance_heat_map <- function(
   over_threshold_blocks <- block_distances[is_flagged, ]
   not_assigned <- block_distances[is.na(block_distances$id_dest), ]
 
-  demo_pop_label <- if (is.null(demo_pop)) {
-    NULL
+  #title string
+  if (is.null(demo_pop)) {
+      demo_pop_label <- NULL
+      title_str <- gsub( "_", " ", paste(location, "chloropleth: driving distances to", map_label, 
+                            "polling location"))
   } else {
-    demo_pop_legend_dict[[demo_pop]]
+      demo_pop_label <- demo_pop_legend_dict[[demo_pop]]
+      title_str <- gsub( "_", " ", paste(location, "driving distances to", map_label, 
+                            "polling location:", demo_pop_label))
   }
-  title_str <- gsub(
-    "_", " ",
-    paste(
-      location, map_label, "driving distance to assigned polling location", demo_pop_label
-    )
-  )
-  # gray indicates no population block; dashed blue outline indicates no
-  # assigned polling location (a dropped precinct) -- the two aren't
-  # mutually exclusive.
+
+  # caption: gray indicates no population block; dashed blue outline indicates no
+  # assigned polling location 
   caption_str <- paste0( "White = under ", duration_threshold_min,
                         " min threshold; Gray = no population;\n",
                         "Dashed blue outline = no assigned polling location")
