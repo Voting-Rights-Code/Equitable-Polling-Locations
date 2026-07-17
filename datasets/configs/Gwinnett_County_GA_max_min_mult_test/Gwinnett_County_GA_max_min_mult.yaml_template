@@ -5,6 +5,8 @@ config_name: 'Gwinnett_County_GA_max_min_mult' #should match file name
 # Constants for the optimization function
 location: Gwinnett_County_GA
 census_year: '2020'
+census_data_type: 'redistricting'
+projection_year: null
 year:
     - '2020'
 bad_types:

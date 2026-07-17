@@ -6,6 +6,7 @@ config_name: 'config_template_example' #should match file name
 location: DeKalb_County_GA
 census_year: '2020'
 census_data_type: 'redistricting'
+projection_year: null
 year:
     - '2020'
 bad_types:

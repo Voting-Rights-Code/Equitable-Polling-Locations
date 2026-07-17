@@ -5,6 +5,8 @@ config_name: 'Bartow_County_GA_Change_3' #should match file name
 # Constants for the optimization function
 location: Bartow_County_GA
 census_year: '2020'
+census_data_type: 'redistricting'
+projection_year: null
 year:
     - '2025'
 bad_types:
