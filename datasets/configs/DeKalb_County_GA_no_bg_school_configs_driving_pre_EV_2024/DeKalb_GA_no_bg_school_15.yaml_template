@@ -5,6 +5,8 @@ config_name: 'DeKalb_GA_no_bg_school_15'
 # Constants for the optimization function
 location: DeKalb_County_GA
 census_year: '2020'
+census_data_type: 'redistricting'
+projection_year: null
 year:
     - '2020'
     - '2022'

@@ -20,5 +20,6 @@ time_limit: 360000
 limits_gap: 0.0
 census_year: 2020
 census_data_type: 'redistricting'
+projection_year: null
 year:
 - '2024'

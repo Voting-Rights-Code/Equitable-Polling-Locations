@@ -5,6 +5,8 @@ config_name: 'config_template_Dougherty_log' #should match file name
 # Constants for the optimization function
 location: Dougherty_County_GA
 census_year: '2020'
+census_data_type: 'redistricting'
+projection_year: null
 year:
     - '2020'
     - '2022'

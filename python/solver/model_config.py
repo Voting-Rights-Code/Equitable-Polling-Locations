@@ -24,6 +24,9 @@ MODEL_CONFIG_ARRAY_NAMES = [CONFIG_YEAR, CONFIG_BAD_TYPES, CONFIG_PENALIZED_SITE
 NON_EMPTY_ARRAYS = [CONFIG_YEAR]
 ''' These PollingModelConfig variables are expected to be non-empty arrays. '''
 
+VALID_CENSUS_DATA_TYPES = {'redistricting', 'CVAP', 'predicted_vap'}
+''' Accepted values for the census_data_type config field. '''
+
 
 ENVIRONMENT = 'environment'
 
@@ -62,7 +65,7 @@ class PollingModelConfig:
     census_year: str
     ''' The census year to use. '''
     census_data_type: str
-    ''' The type of census data to use, redistricting, CVAP or ACS. '''
+    ''' The type of census data to use: redistricting, CVAP, predicted_vap, or ACS. '''
     projection_year: str|None
     ''' Required when census_data_type is "predicted_vap". Selects which year's columns to
     extract from the RDH projection file (e.g. "2026"). Pass None for other census_data_type values. '''
@@ -171,6 +174,24 @@ class PollingModelConfig:
                 if not isinstance(array_value, list) or len(array_value) == 0:
                     # pylint: disable-next=line-too-long
                     raise ValueError(f'Config file {config_yaml_path} must specify at least one value for array field {key}.')
+
+            census_data_type_value = config.get('census_data_type')
+            if census_data_type_value not in VALID_CENSUS_DATA_TYPES:
+                raise ValueError(
+                    f'Config file {config_yaml_path} has invalid census_data_type '
+                    f'{census_data_type_value!r}. Must be one of: {sorted(VALID_CENSUS_DATA_TYPES)}.'
+                )
+            projection_year_value = config.get('projection_year')
+            if census_data_type_value == 'predicted_vap' and projection_year_value is None:
+                raise ValueError(
+                    f'Config file {config_yaml_path}: census_data_type "predicted_vap" '
+                    f'requires projection_year to be set.'
+                )
+            if census_data_type_value != 'predicted_vap' and projection_year_value is not None:
+                raise ValueError(
+                    f'Config file {config_yaml_path}: projection_year must be null when '
+                    f'census_data_type is "{census_data_type_value}".'
+                )
 
             result = PollingModelConfig(**config)
 

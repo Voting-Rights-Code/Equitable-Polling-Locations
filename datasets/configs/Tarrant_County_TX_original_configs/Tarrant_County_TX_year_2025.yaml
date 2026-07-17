@@ -2,6 +2,8 @@ config_set: Tarrant_County_TX_original_configs
 config_name: Tarrant_County_TX_year_2025
 location: Tarrant_County_TX
 census_year: '2020'
+census_data_type: 'redistricting'
+projection_year: null
 year:
 - '2025'
 bad_types:
