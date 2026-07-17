@@ -60,7 +60,7 @@ def build_and_import_distance_data(
     driving: bool,
     maps_source_date: str,
     log_distance: bool,
-    projection_year: str = None,
+    projection_year: str|None,
 ) -> ImportResult:
     build_distance_meta_data = build_distance_data(
         data_source=DATA_SOURCE_DB,

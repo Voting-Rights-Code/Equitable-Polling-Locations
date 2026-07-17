@@ -22,7 +22,6 @@ from python.utils import (
 #    build_p4_source_file_path,
     build_CVAP_dir_path,
     build_CVAP_source_file_path,
-    build_RDH_predicted_vap_dir_path,
     build_RDH_predicted_vap_source_file_path,
     is_int,
     get_block_source_file_path,
@@ -30,7 +29,7 @@ from python.utils import (
     timer,
 )
 from python.utils.directory_constants import (
-BLOCK_GEO, P3_NAME, P4_NAME
+BLOCK_GEO, P3_NAME, P4_NAME, RDH_GEOID_COL
 )
 
 from python.utils.pull_census_data import (
@@ -69,7 +68,7 @@ P4_COLUMNS = [
 ]
 
 CVAP_COLUMNS = [
-    "GEOID",
+    RDH_GEOID_COL,
     "CVAP_TOT",
     "CVAP_HSP",
     "CVAP_NHS",
@@ -331,11 +330,11 @@ def get_CVAP_demographics(census_year: str, location: str):
     #add in an empty Other race column because CVAP doesn't have that
     CVAP_df[DISTANCE_OTHER] = np.nan
     #make the GEOID column a string
-    CVAP_df['GEOID'] = CVAP_df['GEOID'].astype(str)
+    CVAP_df[RDH_GEOID_COL] = CVAP_df[RDH_GEOID_COL].astype(str)
 
     # Change column names
     #Note that the GEOID here is changed to match the column name from redistricting
-    CVAP_df = CVAP_df.rename(columns = {"GEOID" : CEN20_GEO_ID,
+    CVAP_df = CVAP_df.rename(columns = {RDH_GEOID_COL: CEN20_GEO_ID,
         "CVAP_HSP": DISTANCE_HISPANIC, "CVAP_NHS": DISTANCE_NON_HISPANIC,
         "CVAP_TOT": DISTANCE_TOTAL_POPULATION, "CVAP_WHT": DISTANCE_WHITE,
         "CVAP_BLA": DISTANCE_BLACK, "CVAP_AMI": DISTANCE_NATIVE, "CVAP_ASI": DISTANCE_ASIAN,
@@ -362,12 +361,9 @@ def get_RDH_predicted_vap_demographics(location: str, projection_year: str) -> p
         ValueError: When no CSV is found in the location directory or projection_year has
             no columns in the file.
     '''
-    vap_dir = build_RDH_predicted_vap_dir_path(location)
     vap_source_file = build_RDH_predicted_vap_source_file_path(location, projection_year)
 
-    # If the directory doesn't exist at all, attempt an automatic download before checking
-    # for the file — this mirrors the pull-on-demand pattern used by CVAP and redistricting.
-    if not os.path.exists(vap_dir):
+    if not os.path.exists(vap_source_file):
         statecode = location[-2:]
         locality = location[:-3].replace('_', ' ')
         pull_RDH_predicted_vap_data(statecode, locality, '2020')
@@ -394,9 +390,9 @@ def get_RDH_predicted_vap_demographics(location: str, projection_year: str) -> p
             f'Missing columns: {missing_cols}'
         )
 
-    vap_df = vap_df[['GEOID'] + vap_projection_year_cols].copy()
+    vap_df = vap_df[[RDH_GEOID_COL] + vap_projection_year_cols].copy()
     # Cast GEOID to str to prevent silent merge failures when census block IDs are read as int.
-    vap_df['GEOID'] = vap_df['GEOID'].astype(str)
+    vap_df[RDH_GEOID_COL] = vap_df[RDH_GEOID_COL].astype(str)
 
     # RDH VAP data follows the P4 structure: Hispanic is a separate total that cross-cuts race.
     # non_hispanic is derived by subtraction because the file does not provide it directly.
@@ -404,7 +400,7 @@ def get_RDH_predicted_vap_demographics(location: str, projection_year: str) -> p
 
     # Rename RDH column names to the shared distance schema used throughout the solver.
     vap_df = vap_df.rename(columns={
-        'GEOID': CEN20_GEO_ID,
+        RDH_GEOID_COL: CEN20_GEO_ID,
         **dict(zip(vap_projection_year_cols, [
             DISTANCE_TOTAL_POPULATION, DISTANCE_HISPANIC, DISTANCE_WHITE, DISTANCE_BLACK,
             DISTANCE_NATIVE, DISTANCE_ASIAN, DISTANCE_PACIFIC_ISLANDER, DISTANCE_OTHER, DISTANCE_MULTIPLE_RACES,

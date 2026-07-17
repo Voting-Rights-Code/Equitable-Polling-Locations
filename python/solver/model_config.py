@@ -63,7 +63,9 @@ class PollingModelConfig:
     ''' The census year to use. '''
     census_data_type: str
     ''' The type of census data to use, redistricting, CVAP or ACS. '''
-
+    projection_year: str|None
+    ''' Required when census_data_type is "predicted_vap". Selects which year's columns to
+    extract from the RDH projection file (e.g. "2026"). Pass None for other census_data_type values. '''
 
     precincts_open: int
     '''The total number of precincts to be used this year. If no
@@ -123,9 +125,6 @@ class PollingModelConfig:
 
     map_source_date: str = None
     ''' The date (YYYYMMDD) of the maps source to use if driving distances are used. '''
-
-    projection_year: str = None
-    ''' The population projection year to extract when census_data_type is "predicted_vap" (e.g. "2026"). '''
 
     environment: Environment = None
     ''' Environment configs, specifically on which bigquery project and dataset

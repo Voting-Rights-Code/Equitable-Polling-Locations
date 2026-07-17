@@ -27,7 +27,7 @@ from python.utils import (
 )
 from python.utils.directory_constants import (
     TABBLOCK_FILE_SUFFIX, BLOCK_GROUP_FILE_SUFFIX,
-    BLOCK_GEO, BLOCK_GROUP_GEO, P3_NAME, P4_NAME,
+    BLOCK_GEO, BLOCK_GROUP_GEO, P3_NAME, P4_NAME, RDH_GEOID_COL,
 )
 
 HTTP_TIMEOUT_SECONDS = 300
@@ -591,12 +591,34 @@ def pull_state_CVAP_data(state, username, password, census_year, rdh_url = RDH_L
         with zf.open(csv_files[0]) as csv_file:
             return pd.read_csv(csv_file, low_memory=False)
 
+def _resolve_location_fips(statecode, county, census_year, api_key, state_lookup):
+    '''Look up state and county FIPS codes and build the canonical location identifier.
+
+    Args:
+        statecode: Two-letter US state code, e.g. 'GA'.
+        county: Full county name with proper capitalization, e.g. 'Gwinnett County'.
+        census_year: Decennial census year, e.g. '2020'.
+        api_key: Census API key.
+        state_lookup: Mapping of state codes to full state names.
+
+    Returns:
+        A (state, fipscode2, countycode, fipscode5, county_st) tuple
+    '''
+    state = state_lookup.get(statecode)
+    fipscode2 = get_all_states_fips_codes(census_year, api_key)[state]
+    countycode = get_county_code(county, get_all_state_county_codes(fipscode2, census_year, api_key))
+    fipscode5 = fipscode2 + countycode
+    county_st = county.replace(' ', '_') + '_' + statecode
+    return state, fipscode2, countycode, fipscode5, county_st
+
+
 def locality_CVAP_only(state_CVAP, countycode):
     #TODO: Move GEOID20 constant definition so it can be used here too
     state_CVAP['GEOID20'] = state_CVAP['GEOID20'].astype(str)
     locality_CVAP = state_CVAP[state_CVAP['GEOID20'].str.startswith(countycode)]
     return(locality_CVAP)
 
+# pylint: disable-next=dangerous-default-value
 def pull_CVAP_data(
     statecode,
     county,
@@ -629,27 +651,21 @@ def pull_CVAP_data(
         raise ValueError(
             'No RDH credentials available. Run `python run.py secret set rdh`. See README.'
         )
-    state = state_lookup.get(statecode)
-    states_fips = get_all_states_fips_codes(census_year, census_apikey)  # get all fips codes for all states
-    fipscode2 = states_fips[state]
-
-    counties_codes = get_all_state_county_codes(fipscode2, census_year, census_apikey)  # get all county codes
-    countycode = get_county_code(county, counties_codes)
-    county_ST = county.replace(' ','_')+ '_' + statecode
-
-    fipscode5 = fipscode2 + countycode
+    state, fipscode2, countycode, fipscode5, county_st = _resolve_location_fips(
+        statecode, county, census_year, census_apikey, state_lookup,
+    )
     state_CVAP = pull_state_CVAP_data(state, rdh_username, rdh_password, census_year, rdh_url)
     locality_CVAP = locality_CVAP_only(state_CVAP, fipscode5)
     
     if locality_CVAP.shape[0] == 0:
         raise ValueError(f'{county} data not in {state} CVAP data')
 
-    save_CVAP_data(locality_CVAP, census_year, county_ST)
+    save_CVAP_data(locality_CVAP, census_year, county_st)
 
     for geo in (BLOCK_GEO, BLOCK_GROUP_GEO):
         # pull tiger files
         print(f"Now pulling tiger data for {geo} geography")
-        pull_tiger_file(state, fipscode2, county_ST, countycode, geo, census_year)
+        pull_tiger_file(state, fipscode2, county_st, countycode, geo, census_year)
     return "Success"
 
 # pylint: disable-next=invalid-name
@@ -687,11 +703,11 @@ def locality_predicted_vap_only(state_vap_df, fipscode5):
     '''
     state_vap_df = state_vap_df.copy()
     # GEOID may be read as int from the CSV; cast to str so startswith works correctly.
-    state_vap_df['GEOID'] = state_vap_df['GEOID'].astype(str)
-    return state_vap_df[state_vap_df['GEOID'].str.startswith(fipscode5)]
+    state_vap_df[RDH_GEOID_COL] = state_vap_df[RDH_GEOID_COL].astype(str)
+    return state_vap_df[state_vap_df[RDH_GEOID_COL].str.startswith(fipscode5)]
 
 
-# pylint: disable-next=invalid-name
+# pylint: disable-next=invalid-name,dangerous-default-value
 def pull_RDH_predicted_vap_data(
     statecode,
     county,
@@ -699,7 +715,7 @@ def pull_RDH_predicted_vap_data(
     census_apikey=None,
     rdh_username=None,
     rdh_password=None,
-    state_lookup=None,
+    state_lookup=STATE_LOOKUP,
 ):
     '''Download block-level RDH predicted VAP (Voting Age Population) projection data for a county.
 
@@ -731,8 +747,6 @@ def pull_RDH_predicted_vap_data(
     # --- Credential resolution ---
     # Each credential falls back to environment variables, then credentials.json,
     # so callers don't need to pass secrets explicitly in normal usage.
-    if state_lookup is None:
-        state_lookup = STATE_LOOKUP
     if census_apikey is None:
         census_apikey = _load_census_key()
     if census_apikey is None:
@@ -751,16 +765,9 @@ def pull_RDH_predicted_vap_data(
         )
 
     # --- FIPS code lookup ---
-    # We need the 2-digit state code and 3-digit county code to build the 5-digit FIPS
-    # prefix used to filter the state-wide block file down to the target county.
-    state = state_lookup.get(statecode)
-    states_fips = get_all_states_fips_codes(census_year, census_apikey)
-    fipscode2 = states_fips[state]
-
-    counties_codes = get_all_state_county_codes(fipscode2, census_year, census_apikey)
-    countycode = get_county_code(county, counties_codes)
-    # county_st is the location key used for the on-disk directory (e.g. 'Gwinnett_County_GA').
-    county_st = county.replace(' ', '_') + '_' + statecode
+    state, _, _, fipscode5, county_st = _resolve_location_fips(
+        statecode, county, census_year, census_apikey, state_lookup,
+    )
 
     # --- Download ---
     # VAP projection files are not indexed in the RDH catalog API, so we use a direct
@@ -773,21 +780,42 @@ def pull_RDH_predicted_vap_data(
     dataset_id = VAP_PROJ_BLOCK_DATASET_IDS[statecode]
     document = f'/web_ready_stage/projections/2026_2035/{statecode.lower()}_vap_proj_2026_2035_b.zip'
 
-    # The /download/ endpoint requires session-based auth (browser cookies), not query-param
-    # auth like the wp-json API. Log in first to get the WordPress session cookies.
-    # RDH's /download/ endpoint requires a browser session cookie (wp-login.php is
-    # blocked for programmatic access). These files must be downloaded manually.
-    # Visit the URL below in a browser while logged in to redistrictingdatahub.org,
-    # then save the CSV from the zip to:
-    #   datasets/census/RDH_predicted_vap/{county_st}/
-    raise NotImplementedError(
-        f'Automated download of VAP projection data is not supported: the RDH download '
-        f'endpoint requires a browser login session.\n'
-        f'Please download the file manually:\n'
-        f'  URL: {RDH_DOWNLOAD_URL}?datasetid={dataset_id}&document={document}\n'
-        f'Extract the CSV from the zip and place it in:\n'
-        f'  datasets/census/RDH_predicted_vap/{county_st}/'
-    )
+    # The /download/ endpoint requires session-based auth (browser cookies). Playwright
+    # drives a real Chromium browser to log in and extract the pre-signed S3 download URL.
+    download_url = f'{RDH_DOWNLOAD_URL}?datasetid={dataset_id}&document={document}'
+    print(f'Logging in to RDH and downloading: {download_url}')
+    # Playwright is an optional heavyweight dependency; import lazily so installing it is
+    # not required for redistricting or CVAP runs that never reach this code path.
+    try:
+        from playwright.sync_api import sync_playwright  # pylint: disable=import-outside-toplevel
+    except ImportError as exc:
+        raise ImportError(
+            'playwright is required to download RDH VAP data. '
+            'Install it: pip install playwright && playwright install chromium'
+        ) from exc
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto('https://redistrictingdatahub.org/login/', timeout=30000)
+        page.fill('[name="username"]', rdh_username)
+        page.fill('[name="password"]', rdh_password)
+        with page.expect_navigation(timeout=30000):
+            page.click('[name="login"]')
+        if '/login/' in page.url:
+            raise ValueError('RDH login failed — check credentials or login page structure changed.')
+        page.goto(download_url, wait_until='networkidle', timeout=60000)
+        presigned_url = page.evaluate('''
+            () => {
+                const links = Array.from(document.querySelectorAll('a'));
+                const link = links.find(el => el.innerText && el.innerText.trim().match(/^Download$/i));
+                return link ? link.href : null;
+            }
+        ''')
+        browser.close()
+        if not presigned_url:
+            raise ValueError('Download link not found on RDH confirmation page.')
+    download_response = requests.get(presigned_url, timeout=HTTP_TIMEOUT_SECONDS)
+    download_response.raise_for_status()
 
     # --- Extract CSV from zip ---
     # RDH delivers each dataset as a single-file zip; we validate that assumption here.
@@ -800,7 +828,6 @@ def pull_RDH_predicted_vap_data(
             block_df = pd.read_csv(csv_file, low_memory=False)
 
     # --- Filter to county and save ---
-    fipscode5 = fipscode2 + countycode
     locality_vap_df = locality_predicted_vap_only(block_df, fipscode5)
 
     if locality_vap_df.shape[0] == 0:
@@ -812,7 +839,8 @@ def pull_RDH_predicted_vap_data(
 
 
 
-def pull_census_data(statecode, county, census_year, apikey=None, state_lookup=None, verbose=False):
+# pylint: disable-next=dangerous-default-value
+def pull_census_data(statecode, county, census_year, apikey=None, state_lookup=STATE_LOOKUP, verbose=False):
     '''Pull P3 and P4 census data and TIGER shapefiles for a given county.
 
     Given a state code (e.g. 'MD' or 'NY') and county name (full name,
@@ -836,8 +864,6 @@ def pull_census_data(statecode, county, census_year, apikey=None, state_lookup=N
     Raises:
         ValueError: If no census API key is available.
     '''
-    if state_lookup is None:
-        state_lookup = STATE_LOOKUP
     if apikey is None:
         apikey = _load_census_key()
     if apikey is None:
@@ -846,25 +872,21 @@ def pull_census_data(statecode, county, census_year, apikey=None, state_lookup=N
             'See README.'
         )
 
-    state = state_lookup.get(statecode)
-    states_fips = get_all_states_fips_codes(census_year, apikey)
-    fipscode = states_fips[state]
-
-    counties_codes = get_all_state_county_codes(fipscode, census_year, apikey)
-    countycode = get_county_code(county, counties_codes)
-    county_st = county.replace(' ', '_') + '_' + statecode
+    state, fipscode2, countycode, _, county_st = _resolve_location_fips(
+        statecode, county, census_year, apikey, state_lookup,
+    )
 
     for geo in (BLOCK_GEO, BLOCK_GROUP_GEO):
         for pnum in (P3_NAME, P4_NAME):
             if verbose:
                 print(f'Now pulling {pnum} data for {geo} geography')
-            data, metadata = pull_ptable_data(geo, pnum, fipscode, countycode, census_year, apikey)
+            data, metadata = pull_ptable_data(geo, pnum, fipscode2, countycode, census_year, apikey)
             save_pdata(data, census_year, county_st, geo, pnum)
             save_pdata(metadata, census_year, county_st, geo, pnum, meta=True)
 
         if verbose:
             print(f'Now pulling tiger data for {geo} geography')
-        pull_tiger_file(state, fipscode, county_st, countycode, geo, census_year, verbose=verbose)
+        pull_tiger_file(state, fipscode2, county_st, countycode, geo, census_year, verbose=verbose)
 
     return 'Success'
 

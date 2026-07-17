@@ -15,7 +15,7 @@ from python.solver.constants import (
     DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_ADDRESS,
     DISTANCE_DEST_LAT, DISTANCE_DEST_LON, DISTANCE_ORIG_LAT, DISTANCE_ORIG_LON,
     DISTANCE_LOCATION_TYPE, DISTANCE_DEST_TYPE,
-    DISTANCE_OTHER, DISTANCE_TOTAL_POPULATION, DEMOGRAPHICS_OUTPUT_COLUMNS, DISTANCE_DEMOGRAPHICS_COLUMNS,
+    DISTANCE_OTHER, DEMOGRAPHICS_OUTPUT_COLUMNS, DISTANCE_DEMOGRAPHICS_COLUMNS,
     DISTANCE_DISTANCE_M, DISTANCE_SOURCE,
 )
 
@@ -191,8 +191,7 @@ def test_clean_data(testing_config_driving, location_df_with_driving):
 
 
 class DemographicsTestBase:
-    '''Base class for demographics function tests. Subclasses override get_demographics()
-    and set pull_patch_target to run the shared output-shape and missing-directory tests.'''
+    '''Base class for demographics function tests.'''
 
     pull_patch_target = None
 
