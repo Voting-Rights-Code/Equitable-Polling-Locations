@@ -87,11 +87,13 @@ select_varying_fields <- function(config_dt){
 	return(result_dt)
 }
 
-#TODO: this needs documentation
+#scale all distance-bearing columns in a result output by the metric's unit 
 scale_distance_columns <- function(dt, metric_labels = METRIC_LABELS){
-	#scale distance-bearing columns by the metric's unit 
+	#rename columns
 	scale_lookup <- setNames(metric_labels$scale, metric_labels$metric)
+	#identify distance columns
 	distance_cols <- intersect(c('distance_m', 'weighted_dist', 'avg_dist', 'y_EDE'), names(dt))
+	#if they exist, scale them
 	if (length(distance_cols) > 0){
 		dt[ , (distance_cols) := lapply(.SD, function(x) x * scale_lookup[metric]), .SDcols = distance_cols]
 	}
@@ -233,7 +235,6 @@ load_results_from_csv <-function(config_dt, result_type){
 	#read data, add config_set and config_name columns
 	#note, this needs a local function
 	dt_list <- lapply(file_path, fread)
-	names(dt_list) <- names(file_path)
 	dt_list_appended <- mapply(function(data, list_name){data[, config_name:=list_name][ , config_set := config_folder][ , location := location]}, dt_list, names(dt_list), SIMPLIFY = FALSE)
 	
 	#combine into one df
@@ -304,9 +305,6 @@ assign_descriptor_to_result<- function(config_dt, result_type, field_of_interest
 	#order the descriptor fields as factors
 	complete_dt <- order_descriptors(complete_dt)
 
-	#TODO: I don't like this here
-	complete_dt <- scale_distance_columns(complete_dt)
-
 	#fix data types (only needed for csv)
 	if ('id_dest' %in% names(complete_dt)){
 		complete_dt[ , id_dest:= as.character(id_dest)]}
@@ -337,6 +335,8 @@ read_result_data<- function(config_dt, field_of_interest = '', descriptor_dict =
 	num_residences <- df_list$residence_distances[ , .(num_residences = .N/6), by = descriptor]
 	nums_to_join <- merge(num_polls, num_residences, all = T)
 	appended_df_list <- lapply(df_list, function(df){merge(df, nums_to_join, by = 'descriptor', all.x = T)})
+	#scale the distance if necessary
+	appended_df_list <- lapply(appended_df_list, scale_distance_columns)
 
 	# Track information about configs used in this analsysis
 	mapply(add_config_info_to_graph_file_manifest, config_dt$id, config_dt$config_set, config_dt$config_name)
