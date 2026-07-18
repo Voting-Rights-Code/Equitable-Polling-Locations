@@ -50,6 +50,8 @@ source('R/result_analysis/utility_functions/regression_functions.R')
 ###
 source('R/result_analysis/Basic_analysis_configs/Monongalia_County_original_driving.r')
 
+#source('R/result_analysis/Basic_analysis_configs/Monongalia_County_original_driving_for_test.r')
+
 #source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
 
 #######
@@ -83,6 +85,29 @@ orig_output_df_list <- read_result_data(orig_config_dt, field_of_interest = ORIG
 potential_output_df_list <- read_result_data(potential_config_dt, field_of_interest = POTENTIAL_FIELD_OF_INTEREST, 
 descriptor_dict = DESCRIPTOR_DICT_POTENTIAL)
 
+#########
+#Decide, once, whether each folder -- and the orig+potential combination,
+#if there is one -- has a single, consistent distance/time unit. Plots
+#that need one unit for their whole y-axis are gated on these below.
+#Maps and plot_density_v_distance_bg are not gated: they handle a mix of
+#units correctly by splitting, and don't consume these checks.
+#########
+
+orig_flag_strs <- resolve_flag_strs(orig_output_df_list$edes, 'orig_data', DRIVING_FLAG)
+
+potential_flag_strs <- if (!is.null(potential_output_df_list)) {
+	resolve_flag_strs(potential_output_df_list$edes, 'potential_data', DRIVING_FLAG)
+} else {
+	NULL
+}
+
+combined_flag_strs <- if (!is.null(orig_flag_strs) && !is.null(potential_flag_strs)) {
+	resolve_combined_flag_strs(
+		c(unique(orig_output_df_list$edes$metric), unique(potential_output_df_list$edes$metric)),
+		'orig_and_potential_combined', DRIVING_FLAG)
+} else {
+	NULL
+}
 
 #########
 #Set up maps
@@ -133,29 +158,39 @@ if(!HISTORICAL_FLAG){
 
     ###graphs####
 
-    #Add percent population to data ede data for graph scaling for all general config folder and orig
-    orig_pop_scaled_edes <- ede_with_pop(orig_output_df_list)
-    potential_pop_scaled_edes <- ede_with_pop(potential_output_df_list)
+    #Make the graphs that require the potential data to have a unique unit
 
-    #Plot the edes for all runs in config_folder by demographic and population only
-    plot_poll_edes(potential_output_df_list$edes)
-    plot_population_edes(potential_output_df_list$edes)
+    if (!is.null(potential_flag_strs)) {
+        #Plot the edes for all runs in config_folder by demographic and population only
+        plot_poll_edes(potential_output_df_list$edes, potential_flag_strs)
+        plot_population_edes(potential_output_df_list$edes, potential_flag_strs)
 
-    #Plot the edes for all runs in original_location and equivalent optimization runs by demographic
-    plot_original_optimized(potential_output_df_list$edes, orig_output_df_list$edes)
-    plot_original_optimized(potential_pop_scaled_edes, orig_pop_scaled_edes, '_scaled')
+        #Boxplots of the average distances traveled and the y_edes at each run in folder
+        plot_boxplots(potential_output_df_list$residence_distances, potential_flag_strs)
+    }
+
+    #Make the graphs that require the combined potential and original data to have a unique unit
+
+    if (!is.null(combined_flag_strs)) {
+        #Add percent population to data ede data for graph scaling for all general config folder and orig
+        orig_pop_scaled_edes <- ede_with_pop(orig_output_df_list)
+        potential_pop_scaled_edes <- ede_with_pop(potential_output_df_list)
+
+        #Plot the edes for all runs in original_location and equivalent optimization runs by demographic
+        plot_original_optimized(potential_output_df_list$edes, orig_output_df_list$edes, combined_flag_strs)
+        plot_original_optimized(potential_pop_scaled_edes, orig_pop_scaled_edes, combined_flag_strs, '_scaled')
+ 
+        #Histogram of the original distributions and that for the desired number of polls
+        plot_orig_ideal_hist(orig_output_df_list$residence_distances, potential_output_df_list$residence_distances, IDEAL_POLL_NUMBER, combined_flag_strs)
+
+        #Histograms of the original distributions by race and that for the desired number of polls
+        plot_original_optimized_demographic_hists(potential_output_df_list$residence_distances, orig_output_df_list$residence_distances, DEMOGRAPHIC_LIST, combined_flag_strs)
+    }
+
+    #Make the graphs that do not require a unique unit
 
     #Plot which precincts are used for each number of polls
     plot_precinct_persistence(potential_output_df_list$precinct_distances)
-
-    #Boxplots of the average distances traveled and the y_edes at each run in folder
-    plot_boxplots(potential_output_df_list$residence_distances)
-
-    #Histogram of the original distributions and that for the desired number of polls
-    #plot_orig_ideal_hist(orig_output_df_list$residence_distances, potential_output_df_list$residence_distances, IDEAL_POLL_NUMBER)
-
-    #Histograms of the original distributions by race and that for the desired number of polls
-    #plot_original_optimized_demographic_hists(potential_output_df_list$residence_distances, orig_output_df_list$residence_distances)
 
     #plot distance v density graphs and regressions
     plot_density_v_distance_bg(rbindlist(potential_bg_density_demo), LOCATION, DEMOGRAPHIC_LIST)
@@ -165,6 +200,8 @@ if(!HISTORICAL_FLAG){
 
     ###maps####
 
+    #maps don't need a unique unit
+    
     sapply(potential_list_prepped, function(x)make_bg_maps(x))
     sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'population'))
     sapply(potential_list_prepped, function(x)make_demo_dist_map(x, 'black'))
@@ -188,14 +225,31 @@ setwd(file.path(here(), plot_folder))
 
 ###historic edes####
 
-#Plot the edes for all runs in historical data (original_config)
-plot_historic_edes(orig_output_df_list$edes)
-orig_pop_scaled_edes <- ede_with_pop(orig_output_df_list)
-plot_historic_edes(orig_pop_scaled_edes, '_scaled')
+#Make the graphs that require the potential data to have a unique unit
 
+if (!is.null(orig_flag_strs)) {
+    #Plot the edes for all runs in historical data (original_config)
+    plot_historic_edes(orig_output_df_list$edes, orig_flag_strs)
+    orig_pop_scaled_edes <- ede_with_pop(orig_output_df_list)
+    plot_historic_edes(orig_pop_scaled_edes, orig_flag_strs,'_scaled')
+}
+
+#Make the graphs that do not require a unique unit
+
+#plot distance v density graphs and regressions
 plot_population_densities(orig_regression_data)
 
+#Plot which precincts are used for each number of polls
+plot_precinct_persistence(orig_output_df_list$precinct_distances)
+
+#plot distance v density graphs and regressions
+plot_density_v_distance_bg(rbindlist(orig_bg_density_demo), LOCATION, DEMOGRAPHIC_LIST)
+orig_bg_coefs <- bg_level_naive_regression(rbindlist(orig_bg_density_demo))
+
+
 ###maps####
+
+#maps don't need a unique unit
 sapply(orig_list_prepped, function(x)make_bg_maps(x))
 
 sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'population'))
@@ -206,10 +260,4 @@ sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
 sapply(orig_list_block_prepped, function(x)make_precinct_map_no_people(x))
 sapply(orig_list_block_prepped, function(x)make_precinct_map(x))
 
-#plot distance v density graphs and regressions
-
-plot_density_v_distance_bg(rbindlist(orig_bg_density_demo), LOCATION, DEMOGRAPHIC_LIST)
-
-orig_bg_coefs <- bg_level_naive_regression(rbindlist(orig_bg_density_demo))
-
-upload_graph_files_to_cloud_storage()
+#upload_graph_files_to_cloud_storage()
