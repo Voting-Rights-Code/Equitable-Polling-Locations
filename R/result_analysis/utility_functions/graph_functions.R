@@ -15,11 +15,11 @@ TABLES = c("edes", "precinct_distances", "residence_distances", "results")
 DEMO_COLS =  c("population", "hispanic","non_hispanic", "white", "black", "native", "asian", "pacific_islander", "other")
 
 PRINT_SQL = FALSE
-METRIC_LABELS <- list(
-	haversine        = list(word = 'distance', unit = 'm',   scale = 1),
-	driving_distance = list(word = 'distance', unit = 'm',   scale = 1),
-	driving_time     = list(word = 'time',     unit = 'min', scale = 1 / 60)
-)
+METRIC_LABELS <- data.table(
+						metric = c('haversine', 'driving_distance', 'driving_time'),
+						word = c('distance', 'distance', 'time'),
+						unit = c('m', 'm', 'min'),
+						scale = c(1, 1, 1/60))
 
 #########
 #Get flags from the config folders or config file
@@ -87,9 +87,10 @@ select_varying_fields <- function(config_dt){
 	return(result_dt)
 }
 
+#TODO: this needs documentation
 scale_distance_columns <- function(dt, metric_labels = METRIC_LABELS){
 	#scale distance-bearing columns by the metric's unit 
-	scale_lookup <- sapply(metric_labels, function(x) x$scale)
+	scale_lookup <- setNames(metric_labels$scale, metric_labels$metric)
 	distance_cols <- intersect(c('distance_m', 'weighted_dist', 'avg_dist', 'y_EDE'), names(dt))
 	if (length(distance_cols) > 0){
 		dt[ , (distance_cols) := lapply(.SD, function(x) x * scale_lookup[metric]), .SDcols = distance_cols]
@@ -359,12 +360,15 @@ demographic_legend_dict <- c(
 	'population' = 'Total')
 
 #helper function to make graph titles according to flag values and metric units
-make_flag_strs <- function(driving_flag, metric, metric_labels = METRIC_LABELS){
+make_flag_strs <- function(driving_flag, available_metrics, metric_labels = METRIC_LABELS){
 	#make flag/metric dependent labels
 	driving_str <- ' straight line '
 	if (driving_flag){driving_str <- ' driving '}
-	metric_info <- METRIC_LABELS[[metric]]
-	return(as.list(c(driving_str = driving_str, word = metric_info$word, unit = metric_info$unit)))
+	metric_info <- metric_labels[metric %in% available_metrics, ]
+	if(length(unique(metric_info$word))>1){
+		stop(paste(paste(available_metrics, collapse = ','), ' has multiple associated words'))
+	}
+ 	return(as.list(c(driving_str = driving_str, word = unique(metric_info$word), unit = unique(metric_info$unit))))
 }
 
 #helper to guard plot functions against mixed-metric input data.
@@ -373,9 +377,9 @@ resolve_flag_strs <- function(df, data_str, driving_flag, metric_labels = METRIC
 	
 	#first, get check if the data mixes units. 
 	metrics <- unique(df$metric)
-	units <- unique(sapply(metrics, function(m) metric_labels[[m]]$unit))
+	units <- unique(metric_labels[.(metrics), on = 'metric', unit])
 	if (length(units) == 1){
-	    flag_strs <- make_flag_strs(driving_flag, metrics[1], metric_labels)
+	    flag_strs <- make_flag_strs(driving_flag, metrics, metric_labels)
 	}else{ #non-unique units
 		warning(paste0(data_str, ' mixes units (', paste(metrics, collapse = ', '), ')'))
 		flag_strs <- NULL
@@ -666,11 +670,11 @@ plot_population_densities <- function(density_df){
 #plot of average distances traveled by demographic groups, aggregated 
 #at the block group level, ordered by population density
 #log / log scale, with best fit lines
-plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, driving_flag = DRIVING_FLAG){
+plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, driving_flag = DRIVING_FLAG, metric_labels = METRIC_LABELS){
 	#trim log density outliers
 	trimmed <- bg_density_data[abs(z_score_log_density)<4, ]
 	#tag each row with its metric's unit, so bounds can be computed per unit below
-	trimmed[, unit := sapply(metric, function(m) METRIC_LABELS[[m]]$unit)]
+	trimmed[metric_labels, unit := i.unit, on = 'metric']
 
     descriptor_graph <- function(descriptor_str, demo_list, y_bounds, metric){
 		flag_strs <- make_flag_strs(driving_flag, metric)

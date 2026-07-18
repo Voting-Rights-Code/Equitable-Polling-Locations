@@ -240,7 +240,7 @@ distance_bounds <- function(df, metric_labels = METRIC_LABELS){
 
 	prepped_df <- copy(df)
 	#get a column of units
-	prepped_df[, unit := sapply(metric, function(m) metric_labels[[m]]$unit)]
+	prepped_df[metric_labels, unit := i.unit, on = 'metric']
 
 	# pull out min and max average distances by location
 	bound_dt <- prepped_df[, .(min_avg_dist = min(avg_dist), max_avg_dist = max(avg_dist)), 
