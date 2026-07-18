@@ -375,7 +375,7 @@ resolve_flag_strs <- function(df, data_str, driving_flag, metric_labels = METRIC
 	metrics <- unique(df$metric)
 	units <- unique(sapply(metrics, function(m) metric_labels[[m]]$unit))
 	if (length(units) == 1){
-	    flag_strs <- make_flag_strs(driving_flag, metrics, metric_labels)
+	    flag_strs <- make_flag_strs(driving_flag, metrics[1], metric_labels)
 	}else{ #non-unique units
 		warning(paste0(data_str, ' mixes units (', paste(metrics, collapse = ', '), ')'))
 		flag_strs <- NULL

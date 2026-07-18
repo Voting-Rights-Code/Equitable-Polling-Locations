@@ -50,8 +50,6 @@ source('R/result_analysis/utility_functions/regression_functions.R')
 ###
 source('R/result_analysis/Basic_analysis_configs/Monongalia_County_original_driving.r')
 
-#source('R/result_analysis/Basic_analysis_configs/Monongalia_County_original_driving_for_test.r')
-
 #source('R/result_analysis/Basic_analysis_configs/Dougherty_County_original_and_log.r')
 
 #######
