@@ -201,27 +201,12 @@ def build_CVAP_source_file_path(census_year: str, location: str) -> str:
 
 # pylint: disable-next=invalid-name
 def build_RDH_predicted_vap_dir_path(location: str) -> str:
-    """Returns the directory for the RDH predicted VAP (Voting Age Population) block data.
-
-    Args:
-        location: Location identifier, e.g. 'Gwinnett_County_GA'.
-
-    Returns:
-        Absolute path to the RDH_predicted_vap directory for this location.
-    """
+    """Returns the directory for the RDH predicted VAP (Voting Age Population) block data. """
     return os.path.join(DATASETS_DIR, CENSUS_FOLDER_NAME, RDH_PREDICTED_VAP_FOLDER_NAME, location)
 
 # pylint: disable-next=invalid-name
 def build_RDH_predicted_vap_source_file_path(location: str, projection_year: str) -> str:
-    """Returns the path to the RDH predicted VAP data CSV for a location.
-
-    Args:
-        location: Location identifier, e.g. 'Gwinnett_County_GA'.
-        projection_year: The VAP projection year to extract, e.g. '2026'.
-
-    Returns:
-        Absolute path to the first CSV found in the directory, or a fallback path if none exists.
-    """
+    """Returns the path to the RDH predicted VAP data CSV for a location. """
     directory = build_RDH_predicted_vap_dir_path(location)
     if os.path.isdir(directory):
         # RDH filenames encode state + year range, so we discover rather than construct the name.
