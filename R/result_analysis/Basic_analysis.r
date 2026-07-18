@@ -258,4 +258,4 @@ sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
 sapply(orig_list_block_prepped, function(x)make_precinct_map_no_people(x))
 sapply(orig_list_block_prepped, function(x)make_precinct_map(x))
 
-#upload_graph_files_to_cloud_storage()
+upload_graph_files_to_cloud_storage()
