@@ -95,23 +95,34 @@ def matrix_response_to_long_df(source_names, dest_names, distances, durations) -
     )
 
 
-def _coerce_negative_metrics_to_null(df: pd.DataFrame) -> pd.DataFrame:
-    '''Replace any negative ``distance_m`` or ``duration_s`` with NaN, in place.
+def _reject_negative_metric_values(df: pd.DataFrame) -> None:
+    '''Raise if any ``distance_m`` or ``duration_s`` is negative.
 
-    ORS signals "no route" with null, which becomes NaN and is recovered by the
-    snap/retry path. A negative distance or duration is never a valid real-world
-    value; if a routing backend ever emits one, treat it as no-route so it flows
-    through the same recovery and never reaches the output CSV. ``0`` is kept.
+    A negative driving distance or duration is physically impossible, so it can
+    only signal a routing-backend error. Per the #294 decision, such a value is
+    treated as invalid and fails the run loudly here, at data generation, rather
+    than being silently recovered. A genuine "no route" arrives from ORS as null
+    (NaN), not a negative, and is left untouched for the snap/drop recovery
+    downstream; ``0`` is a valid distance (a residence at its own polling place)
+    and is also kept.
 
     Args:
         df: Long-form DataFrame with ``distance_m`` and ``duration_s`` columns.
 
-    Returns:
-        The same DataFrame, with any negative ``distance_m``/``duration_s`` set to NaN.
+    Raises:
+        ValueError: If any row has a negative ``distance_m`` or ``duration_s``.
     '''
-    df.loc[df[DISTANCE_DISTANCE_M] < 0, DISTANCE_DISTANCE_M] = float('nan')
-    df.loc[df[DISTANCE_DURATION_S] < 0, DISTANCE_DURATION_S] = float('nan')
-    return df
+    negative_mask = (df[DISTANCE_DISTANCE_M] < 0) | (df[DISTANCE_DURATION_S] < 0)
+    if negative_mask.any():
+        offender = df[negative_mask].iloc[0]
+        raise ValueError(
+            f'{int(negative_mask.sum())} routed pair(s) have a negative distance_m or '
+            f'duration_s, which is never a valid travel metric (first: '
+            f'{offender[DISTANCE_ID_ORIG]} -> {offender[DISTANCE_ID_DEST]}, '
+            f'distance_m={offender[DISTANCE_DISTANCE_M]}, '
+            f'duration_s={offender[DISTANCE_DURATION_S]}). A negative value signals a '
+            f'routing-backend error; regenerate the driving matrix.'
+        )
 
 
 def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFrame:
@@ -399,9 +410,10 @@ def build_distance_matrix(*,
         )
         df = pd.concat([df, retry_df], ignore_index=True)
 
-    # Treat any negative distance or duration as no-route before snapping, so it
-    # flows through the same recovery as a real ORS null and never reaches the CSV.
-    df = _coerce_negative_metrics_to_null(df)
+    # A negative distance or duration is physically impossible; per #294, reject it
+    # as invalid and fail loudly rather than silently recovering it. Real ORS nulls
+    # (no-route) are untouched and still snap/drop below.
+    _reject_negative_metric_values(df)
 
     return _snap_unroutable_origins(
         df, source_ids, locations,
