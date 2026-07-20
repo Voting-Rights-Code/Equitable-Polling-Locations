@@ -52,6 +52,7 @@ def test_build_source_locations(testing_config_driving, location_df_with_driving
         census_year=testing_config_driving.census_year,
         location=testing_config_driving.location,
         census_data_type=testing_config_driving.census_data_type,
+        projection_year=testing_config_driving.projection_year,
     )
     # Get the blockgroup to get the expected Locations
     blockgroup = model_data.get_blockgroup_gdf(testing_config_driving.census_year, TEST_LOCATION)
@@ -189,56 +190,97 @@ def test_clean_data(testing_config_driving, location_df_with_driving):
         )
 
 
-class TestGetCVAPDemographics:
-    ''' Unit tests for model_data.get_CVAP_demographics using the committed testing fixture. '''
+class DemographicsTestBase:
+    '''Base class for demographics function tests.'''
+
+    pull_patch_target = None
+
+    def get_demographics(self, location='testing'):
+        raise NotImplementedError
 
     def test_output_columns_are_exactly_right(self):
-        ''' Returned DataFrame has exactly the shared distance schema columns — no raw CVAP names survive. '''
-        result = model_data.get_CVAP_demographics('2020', 'testing')
-        assert set(result.columns) == DEMOGRAPHICS_OUTPUT_COLUMNS
+        assert set(self.get_demographics().columns) == DEMOGRAPHICS_OUTPUT_COLUMNS
+
+    def test_geoid_is_string_dtype(self):
+        ''' GEO_ID must be string so merges on this column do not silently fail due to type mismatch. '''
+        assert pd.api.types.is_string_dtype(self.get_demographics()[CEN20_GEO_ID])
+
+    def test_missing_directory_triggers_pull(self):
+        ''' The appropriate pull function is called when the data directory does not exist. '''
+        with patch('python.solver.model_data.os.path.exists', return_value=False), \
+             patch(self.pull_patch_target) as mock_pull, \
+             pytest.raises(ValueError):
+            self.get_demographics(location='Gwinnett_County_GA')
+        mock_pull.assert_called_once_with('GA', 'Gwinnett County', '2020')
+
+
+class TestGetRDHPredictedVAPDemographics(DemographicsTestBase):
+    """Unit tests for model_data.get_RDH_predicted_vap_demographics using the committed testing fixture."""
+
+    pull_patch_target = 'python.solver.model_data.pull_RDH_predicted_vap_data'
+
+    def get_demographics(self, location='testing'):
+        return model_data.get_RDH_predicted_vap_demographics(location, '2026')
+
+    def test_missing_file_raises_value_error(self):
+        """A clear ValueError is raised when no CSV exists in the location directory."""
+        with patch('python.utils.utils.os.path.isdir', return_value=True), \
+             patch('python.utils.utils.os.listdir', return_value=[]), \
+             pytest.raises(ValueError, match='RDH predicted VAP data not found'):
+            model_data.get_RDH_predicted_vap_demographics('testing', '2026')
+
+    def test_invalid_projection_year_raises_value_error(self):
+        """A clear ValueError is raised when projection_year has no columns in the file."""
+        with pytest.raises(ValueError, match='projection_year'):
+            model_data.get_RDH_predicted_vap_demographics('testing', '2040')
+
+def test_build_distance_data_predicted_vap_census_type(tmp_path):
+    """build_distance_data writes a valid distance CSV when census_data_type is 'predicted_vap'."""
+    output_path = tmp_path / 'predicted_vap_distances.csv'
+    model_data.build_distance_data(
+        'csv',
+        census_year='2020',
+        census_data_type='predicted_vap',
+        projection_year='2026',
+        location='testing',
+        driving=False,
+        log_distance=False,
+        potential_locations_path_override=TESTING_POTENTIAL_LOCATIONS_PATH,
+        output_path_override=str(output_path),
+    )
+    result = model_data.load_distance_data_csv(str(output_path))
+    assert len(result) > 0
+    assert set(result.columns) >= {DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_TOTAL_POPULATION}
+
+
+class TestGetCVAPDemographics(DemographicsTestBase):
+    ''' Unit tests for model_data.get_CVAP_demographics using the committed testing fixture. '''
+
+    pull_patch_target = 'python.solver.model_data.pull_CVAP_data'
+
+    def get_demographics(self, location='testing'):
+        return model_data.get_CVAP_demographics('2020', location)
 
     def test_other_race_column_is_all_nan(self):
         ''' CVAP has no Other race category; the column must be fully NaN so downstream math is not silently wrong. '''
-        result = model_data.get_CVAP_demographics('2020', 'testing')
-        assert result[DISTANCE_OTHER].isna().all()
-
-    def test_geoid_is_string_dtype(self):
-        ''' GEO_ID must be string so merges on this column do not silently fail due to int/str type mismatch. '''
-        result = model_data.get_CVAP_demographics('2020', 'testing')
-        assert pd.api.types.is_string_dtype(result[CEN20_GEO_ID])
+        assert self.get_demographics()[DISTANCE_OTHER].isna().all()
 
     def test_missing_file_raises_value_error(self):
         ''' A clear ValueError is raised when the CVAP directory exists but the requested year file does not. '''
         with pytest.raises(ValueError, match='CVAP data not found'):
             model_data.get_CVAP_demographics('2019', 'testing')
 
-    def test_missing_directory_triggers_pull_CVAP_data(self):
-        ''' pull_CVAP_data is called when the CVAP directory does not exist. '''
-        with patch('python.solver.model_data.os.path.exists', return_value=False), \
-             patch('python.solver.model_data.pull_CVAP_data') as mock_pull, \
-             pytest.raises(ValueError):
-            model_data.get_CVAP_demographics('2020', 'Gwinnett_County_GA')
-        mock_pull.assert_called_once_with('GA', 'Gwinnett County', '2020')
 
-
-class TestGetRedistrictingDemographics:
+class TestGetRedistrictingDemographics(DemographicsTestBase):
     ''' Unit tests for model_data.get_redistricting_demographics using the committed testing fixture. '''
 
-    def test_output_columns_are_exactly_right(self):
-        ''' Returned DataFrame has exactly the shared distance schema columns — no raw census names survive. '''
-        result = model_data.get_redistricting_demographics('2020', 'testing')
-        assert set(result.columns) == DEMOGRAPHICS_OUTPUT_COLUMNS
+    pull_patch_target = 'python.solver.model_data.pull_census_data'
+
+    def get_demographics(self, location='testing'):
+        return model_data.get_redistricting_demographics('2020', location)
 
     def test_missing_file_raises_value_error(self):
         ''' A clear ValueError is raised when the redistricting directory exists but the requested year file does not. '''
         with pytest.raises(ValueError, match='P3 not found'):
             model_data.get_redistricting_demographics('2019', 'testing')
-
-    def test_missing_directory_triggers_pull_census_data(self):
-        ''' pull_census_data is called when the redistricting directory does not exist. '''
-        with patch('python.solver.model_data.os.path.exists', return_value=False), \
-             patch('python.solver.model_data.pull_census_data') as mock_pull, \
-             pytest.raises(ValueError):
-            model_data.get_redistricting_demographics('2020', 'Gwinnett_County_GA')
-        mock_pull.assert_called_once_with('GA', 'Gwinnett County', '2020')
 

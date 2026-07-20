@@ -162,11 +162,12 @@ class ModelRun():
                 build_distance_data(
                     data_source=DATA_SOURCE_CSV,
                     census_year=self._config.census_year,
-                    census_data_type=self._config.census_data_type, 
+                    census_data_type=self._config.census_data_type,
                     location=self._config.location,
                     driving=self._config.driving,
                     log_distance=self._config.log_distance,
                     map_source_date=self._config.map_source_date,
+                    projection_year=self._config.projection_year,
                 )
         else:
             # Force evaluates _query to create a Query instance in order to get the polling locations from the database

@@ -26,6 +26,9 @@ CVAP_FOLDER_NAME = 'CVAP'
 
 RDH_PREDICTED_VAP_FOLDER_NAME = 'RDH_predicted_vap'
 
+RDH_GEOID_COL = 'GEOID'
+''' The GEOID column name used in RDH and CVAP source CSV files. '''
+
 BLOCK_GEO = 'block'
 
 BLOCK_GROUP_GEO = 'block group'

@@ -22,17 +22,18 @@ from python.utils import (
 #    build_p4_source_file_path,
     build_CVAP_dir_path,
     build_CVAP_source_file_path,
+    build_RDH_predicted_vap_source_file_path,
     is_int,
     get_block_source_file_path,
     get_block_group_block_source_file_path,
     timer,
 )
 from python.utils.directory_constants import (
-BLOCK_GEO, P3_NAME, P4_NAME
+BLOCK_GEO, P3_NAME, P4_NAME, RDH_GEOID_COL
 )
 
 from python.utils.pull_census_data import (
-    pull_census_data, pull_CVAP_data
+    pull_census_data, pull_CVAP_data, pull_RDH_predicted_vap_data
 )
 from .model_config import PollingModelConfig
 
@@ -67,7 +68,7 @@ P4_COLUMNS = [
 ]
 
 CVAP_COLUMNS = [
-    "GEOID",
+    RDH_GEOID_COL,
     "CVAP_TOT",
     "CVAP_HSP",
     "CVAP_NHS",
@@ -78,6 +79,20 @@ CVAP_COLUMNS = [
     "CVAP_NHP",
     "CVAP_2OM"
     ]
+
+RDH_PREDICTED_VAP_COL_PREFIXES = [
+    # Each prefix maps to a DISTANCE_* output column (order matters — zip'd in get_RDH_predicted_vap_demographics).
+    # Full column name in the RDH CSV is f'{prefix}_{projection_year}', e.g. 'Projected_TotalPop_VAP_2026'.
+    'Projected_TotalPop_VAP',
+    'Projected_HispanicOrLatino_VAP',
+    'Projected_WhiteAloneNotHisp_VAP',
+    'Projected_BlackOrAfAmAlone_VAP',
+    'Projected_AmIndianOrAKNativeAlone_VAP',
+    'Projected_AsianAlone_VAP',
+    'Projected_PacificIslanderAlone_VAP',
+    'Projected_OtherRaceAlone_VAP',
+    'Projected_TwoOrMoreRaces_VAP',
+]
 
 BLOCK_SHAPE_COLS = [
     TIGER20_GEOID20,
@@ -315,11 +330,11 @@ def get_CVAP_demographics(census_year: str, location: str):
     #add in an empty Other race column because CVAP doesn't have that
     CVAP_df[DISTANCE_OTHER] = np.nan
     #make the GEOID column a string
-    CVAP_df['GEOID'] = CVAP_df['GEOID'].astype(str)
+    CVAP_df[RDH_GEOID_COL] = CVAP_df[RDH_GEOID_COL].astype(str)
 
     # Change column names
     #Note that the GEOID here is changed to match the column name from redistricting
-    CVAP_df = CVAP_df.rename(columns = {"GEOID" : CEN20_GEO_ID,
+    CVAP_df = CVAP_df.rename(columns = {RDH_GEOID_COL: CEN20_GEO_ID,
         "CVAP_HSP": DISTANCE_HISPANIC, "CVAP_NHS": DISTANCE_NON_HISPANIC,
         "CVAP_TOT": DISTANCE_TOTAL_POPULATION, "CVAP_WHT": DISTANCE_WHITE,
         "CVAP_BLA": DISTANCE_BLACK, "CVAP_AMI": DISTANCE_NATIVE, "CVAP_ASI": DISTANCE_ASIAN,
@@ -330,7 +345,73 @@ def get_CVAP_demographics(census_year: str, location: str):
     return(CVAP_df)
 
 
-def get_demographics_block(census_year: str, location: str, census_data_type: str) -> pd.DataFrame:
+# pylint: disable-next=invalid-name
+def get_RDH_predicted_vap_demographics(location: str, projection_year: str) -> pd.DataFrame:
+    '''Get RDH predicted VAP (Voting Age Population) demographic block data for a location
+    and projection year (P3/P4 data). The underlying census base is always 2020 for these projections.
+
+    Args:
+        location: Location identifier, e.g. 'Gwinnett_County_GA'.
+        projection_year: The VAP projection year to extract from the file, e.g. '2026'.
+
+    Returns:
+        DataFrame with columns matching DEMOGRAPHICS_OUTPUT_COLUMNS.
+
+    Raises:
+        ValueError: When no CSV is found in the location directory or projection_year has
+            no columns in the file.
+    '''
+    vap_source_file = build_RDH_predicted_vap_source_file_path(location, projection_year)
+
+    if not os.path.exists(vap_source_file):
+        statecode = location[-2:]
+        locality = location[:-3].replace('_', ' ')
+        pull_RDH_predicted_vap_data(statecode, locality, '2020')
+
+    if not os.path.exists(vap_source_file):
+        raise ValueError(
+            f'RDH predicted VAP data not found. Download using '
+            f'pull_RDH_predicted_vap_data or manually following the instructions in '
+            f'docs/input_files.md#rdh-predicted-vap-data. {vap_source_file}'
+        )
+
+    vap_df = pd.read_csv(vap_source_file, low_memory=False)
+
+    # Build the full column names for the requested year from the shared prefix list.
+    # Each prefix is e.g. 'Projected_TotalPop_VAP'; appending the year gives the CSV column name.
+    vap_projection_year_cols = [f'{prefix}_{projection_year}' for prefix in RDH_PREDICTED_VAP_COL_PREFIXES]
+    total_col, hispanic_col = vap_projection_year_cols[0], vap_projection_year_cols[1]
+
+    # Validate that the requested projection year is actually present in the file.
+    missing_cols = [col for col in vap_projection_year_cols if col not in vap_df.columns]
+    if missing_cols:
+        raise ValueError(
+            f'projection_year {projection_year!r} not found in RDH VAP file for {location}. '
+            f'Missing columns: {missing_cols}'
+        )
+
+    vap_df = vap_df[[RDH_GEOID_COL] + vap_projection_year_cols].copy()
+    # Cast GEOID to str to prevent silent merge failures when census block IDs are read as int.
+    vap_df[RDH_GEOID_COL] = vap_df[RDH_GEOID_COL].astype(str)
+
+    # RDH VAP data follows the P4 structure: Hispanic is a separate total that cross-cuts race.
+    # non_hispanic is derived by subtraction because the file does not provide it directly.
+    non_hispanic = vap_df[total_col] - vap_df[hispanic_col]
+
+    # Rename RDH column names to the shared distance schema used throughout the solver.
+    vap_df = vap_df.rename(columns={
+        RDH_GEOID_COL: CEN20_GEO_ID,
+        **dict(zip(vap_projection_year_cols, [
+            DISTANCE_TOTAL_POPULATION, DISTANCE_HISPANIC, DISTANCE_WHITE, DISTANCE_BLACK,
+            DISTANCE_NATIVE, DISTANCE_ASIAN, DISTANCE_PACIFIC_ISLANDER, DISTANCE_OTHER, DISTANCE_MULTIPLE_RACES,
+        ]))
+    })
+    vap_df[DISTANCE_NON_HISPANIC] = non_hispanic
+
+    return vap_df
+
+
+def get_demographics_block(census_year: str, location: str, census_data_type: str, projection_year: str) -> pd.DataFrame:
     '''
     Combine the demographic block data a given census_data types for a specific location and
     census year with the corresponding tiger geographic data.
@@ -340,6 +421,8 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
         demographics = get_redistricting_demographics(census_year, location)
     elif census_data_type == 'CVAP':
         demographics = get_CVAP_demographics(census_year, location)
+    elif census_data_type == 'predicted_vap':
+        demographics = get_RDH_predicted_vap_demographics(location, projection_year)
 
     #get block group geographic
     blocks_gdf = get_blocks_gdf(census_year, location)
@@ -383,6 +466,7 @@ def build_distance_data(
     data_source: Literal['db', 'csv'],
     census_year: str,
     census_data_type: str,
+    projection_year: str|None,
     location: str,
     driving: bool,
     log_distance: bool,
@@ -447,7 +531,7 @@ def build_distance_data(
     #####
     # Cross join polling locations and demographics tables
     #####
-    demographics_block_df = get_demographics_block(census_year, location, census_data_type)
+    demographics_block_df = get_demographics_block(census_year, location, census_data_type, projection_year)
     distance_df = demographics_block_df.merge(all_locations, how=PD_CROSS)
 
     #####
