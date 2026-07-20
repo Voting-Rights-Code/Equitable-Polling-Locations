@@ -412,7 +412,13 @@ def resume_from_partial_output(output_path, source_ids, dest_ids):
         is a list of ``(id_orig, id_dest)`` tuples not yet present in the file.
     '''
     try:
-        existing_df = pd.read_csv(output_path)
+        # Force the id columns to str: numeric-looking GEOIDs otherwise load as
+        # int64, so the present-pair check below (and the CLI's later
+        # drop_duplicates) never match the str source/dest ids. See #305.
+        existing_df = pd.read_csv(
+            output_path,
+            dtype={DISTANCE_ID_ORIG: str, DISTANCE_ID_DEST: str},
+        )
     except (FileNotFoundError, pd.errors.EmptyDataError):
         existing_df = pd.DataFrame(
             columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],

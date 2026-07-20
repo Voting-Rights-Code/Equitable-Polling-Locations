@@ -209,6 +209,34 @@ class TestResumeFromPartialOutput:
         assert existing_df.empty
         assert set(remaining_pairs) == {('a', 'x')}
 
+    def test_numeric_geoids_already_present_are_recognized(self, tmp_path):
+        '''Numeric-looking GEOIDs must match str source_ids so resume skips them.
+
+        Regression for #305: pd.read_csv infers id_orig as int64 for numeric
+        census-block GEOIDs, so the present-pair check never matched the str
+        source_ids built by the CLI. Every pair looked "remaining" and got
+        re-fetched, then survived drop_duplicates as a duplicate row (one int
+        key from the old file, one str key freshly fetched).
+        '''
+        existing_csv = tmp_path / 'partial.csv'
+        pd.DataFrame({
+            'id_orig': ['540610120004019', '540610120004019'],
+            'id_dest': ['University High School', 'Triune-Halleck VFD'],
+            'distance_m': [100.0, 200.0],
+        }).to_csv(existing_csv, index=False)
+
+        existing_df, remaining_pairs = resume_from_partial_output(
+            existing_csv,
+            source_ids=['540610120004019'],
+            dest_ids=['University High School', 'Triune-Halleck VFD'],
+        )
+        # The CSV already covers every requested pair, so nothing remains.
+        assert remaining_pairs == []
+        # id_orig must load as str (not int64) so the CLI's later concat +
+        # drop_duplicates keys match the freshly-fetched str ids.
+        assert existing_df['id_orig'].dtype == object
+        assert existing_df['id_orig'].iloc[0] == '540610120004019'
+
 
 class TestEmitHelper:
     '''_emit writes to log_fh always; to stdout only when level <= verbosity.'''
