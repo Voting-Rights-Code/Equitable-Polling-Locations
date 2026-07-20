@@ -36,7 +36,7 @@ from datetime import datetime
 # only if the user has the project conda env active. Fall back to a
 # file-path import so host-side use without project deps still works.
 try:
-    from python.utils.ors_setup import GEOFABRIK_STATE_SLUGS, buffered_pbf_path
+    from python.utils.ors_setup import GEOFABRIK_STATE_SLUGS, ORS_DATA_DIR, buffered_pbf_path
 except ImportError:  # pragma: no cover - host-only fallback path
     import importlib.util  # pylint: disable=import-outside-toplevel  # fallback for host invocation without project conda env
     _here = os.path.dirname(os.path.abspath(__file__))
@@ -49,6 +49,7 @@ except ImportError:  # pragma: no cover - host-only fallback path
     _setup_module = importlib.util.module_from_spec(_setup_spec)
     _setup_spec.loader.exec_module(_setup_module)
     GEOFABRIK_STATE_SLUGS = _setup_module.GEOFABRIK_STATE_SLUGS
+    ORS_DATA_DIR = _setup_module.ORS_DATA_DIR
     buffered_pbf_path = _setup_module.buffered_pbf_path
 
 
@@ -213,6 +214,13 @@ def main(argv=None):
             )
             sys.exit(2)
         _tee(f'pbf: {buffered_path}', log_fh)
+
+        # Pre-create the ORS files dir (bind-mounted at /home/ors/files) so the
+        # root ORS container never auto-creates it root-owned. A root-owned
+        # datasets/openrouteservice/ blocks git from unlinking the tracked
+        # .gitkeep there for anyone who has run ORS. See #320.
+        os.makedirs(ORS_DATA_DIR, exist_ok=True)
+        _tee(f'files dir: {ORS_DATA_DIR}', log_fh)
 
         # Pre-create the per-state buffered graph cache dir so the compose
         # bind mount resolves to a user-owned directory (Docker would otherwise

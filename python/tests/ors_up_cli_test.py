@@ -175,6 +175,24 @@ class TestMainOrchestration:
             main(['georgia', '--logdir', str(tmp_path / 'logs')])
         assert (tmp_path / 'georgia-buffered').is_dir()
 
+    @patch('python.scripts.ors_up_cli.poll_health', return_value=True)
+    @patch('python.scripts.ors_up_cli.subprocess.run')
+    @patch('python.scripts.ors_up_cli._ensure_host_only')
+    def test_pre_creates_ors_data_dir(
+        self, unused_mock_host, unused_mock_run, unused_mock_poll, tmp_path,
+    ):
+        '''main must mkdir the ORS files dir before docker compose up so the root
+        ORS container never auto-creates it root-owned (breaks git). See #320.'''
+        del unused_mock_host, unused_mock_run, unused_mock_poll
+        buffered = tmp_path / 'georgia-buffered.osm.pbf'
+        buffered.touch()
+        ors_data_dir = tmp_path / 'openrouteservice'
+        with patch('python.scripts.ors_up_cli.ORS_GRAPHS_DIR', str(tmp_path / 'graphs')), \
+             patch('python.scripts.ors_up_cli.ORS_DATA_DIR', str(ors_data_dir)), \
+             patch('python.scripts.ors_up_cli.buffered_pbf_path', return_value=str(buffered)):
+            main(['georgia', '--logdir', str(tmp_path / 'logs')])
+        assert ors_data_dir.is_dir()
+
     @patch('python.scripts.ors_up_cli.poll_health', return_value=False)
     @patch('python.scripts.ors_up_cli.subprocess.run')
     @patch('python.scripts.ors_up_cli._ensure_host_only')
