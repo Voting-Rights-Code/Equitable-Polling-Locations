@@ -607,9 +607,8 @@ demo_pop_legend_dict <- c(
 # - demo_pop = NULL: choropleth. 
 # - demo_pop = a demographic column name. Only
 #   flagged (over-threshold) blocks get a dot
-# In both modes, zero-population blocks get a distinct gray fill, blocks
-# blocks with no assigned polling location 
-# dashed blue outline.
+# In both modes, zero-population blocks get a distinct gray fill.
+# Blocks with no assigned polling location get a dashed blue outline.
 make_demo_distance_heat_map <- function(
     block_shapes, distance_flagged_blocks, precinct_shapes, demo_pop,
     duration_threshold_min, location = LOCATION,
