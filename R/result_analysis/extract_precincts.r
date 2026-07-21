@@ -124,7 +124,7 @@ make_demo_distance_heat_map(
   precincts_resolved, demo_pop = "total_population", 15
 )
 
-#make maps fof 20 minutes
+# Make maps for 20 minutes
 
 # choropleth mode
 make_demo_distance_heat_map(
