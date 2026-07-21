@@ -110,7 +110,7 @@ distance_flagged_blocks_20 <- flag_distant_blocks(
 
 ###### Step 4: plot county-level distance heat map #######
 
-#make maps fof 15 minutes
+# Make maps for 15 minutes
 
 # choropleth mode
 make_demo_distance_heat_map(
