@@ -12,6 +12,7 @@ import pandas as pd
 import pytest
 import requests
 
+import python.utils.pull_census_data as pcd
 from python.utils.pull_census_data import (
     pull_state_CVAP_data,
     pull_tiger_file,
@@ -22,6 +23,8 @@ from python.utils.pull_census_data import (
     HTTP_RETRY_BACKOFF_SECONDS,
     get_census_json,
     download_file,
+    pull_RDH_predicted_vap_data,
+    HTTP_TIMEOUT_SECONDS,
 )
 from python.utils.directory_constants import BLOCK_GEO
 
@@ -414,7 +417,6 @@ class TestLoadRdhCredentials:
 
 def test_pull_CVAP_data_raises_when_rdh_credentials_missing(monkeypatch):
     ''' pull_CVAP_data fails fast (before any network call) when RDH creds are absent. '''
-    import python.utils.pull_census_data as pcd
     monkeypatch.setattr(pcd, '_load_rdh_credentials', lambda *a, **k: (None, None))
     with pytest.raises(ValueError, match='No RDH credentials available'):
         pcd.pull_CVAP_data('GA', 'Gwinnett County', '2020', census_apikey='fake-key')
@@ -441,3 +443,151 @@ class TestGetCensusJson:
              patch('python.utils.pull_census_data.time.sleep', return_value=None):
             result = get_census_json('http://example/api')
         assert result == {'ok': True}
+
+
+def _make_vap_zip_bytes(matching_geoid, non_matching_geoid):
+    ''' Returns a minimal RDH VAP projection zip file in memory containing one CSV. '''
+    header = 'GEOID,STATEFP,COUNTYFP,STATE,COUNTY,Projected_TotalPop_VAP_2026'
+    csv_content = (
+        header + '\n'
+        f'{matching_geoid},13,135,Georgia,Gwinnett County,30\n'
+        f'{non_matching_geoid},48,453,Texas,Travis County,10\n'
+    )
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w') as zf:
+        zf.writestr('ga_vap_proj_2026_2035_b.csv', csv_content)
+    return zip_buffer.getvalue()
+
+
+def _make_mock_playwright_page(url='https://redistrictingdatahub.org/download/?datasetid=54445',
+                                evaluate_return='https://s3.example.com/presigned-download-url'):
+    ''' Returns (mock_sync_playwright, mock_page) wired so `with sync_playwright() as p:
+    browser = p.chromium.launch(...); page = browser.new_page()` yields mock_page. '''
+    mock_page = MagicMock()
+    mock_page.url = url
+    mock_page.evaluate.return_value = evaluate_return
+
+    mock_browser = MagicMock()
+    mock_browser.new_page.return_value = mock_page
+
+    mock_chromium = MagicMock()
+    mock_chromium.launch.return_value = mock_browser
+
+    mock_playwright_ctx = MagicMock()
+    mock_playwright_ctx.chromium = mock_chromium
+
+    mock_sync_playwright = MagicMock()
+    mock_sync_playwright.return_value.__enter__.return_value = mock_playwright_ctx
+
+    return mock_sync_playwright, mock_page
+
+
+class TestPullRDHPredictedVapData:
+    ''' Unit tests for pull_RDH_predicted_vap_data: credential/state validation fail fast
+    without network calls; the download path (Playwright login + requests.get + zip extract +
+    county filter + save) is exercised with Playwright and HTTP fully mocked. '''
+
+    def test_raises_when_census_apikey_missing(self, monkeypatch):
+        ''' Fails fast, before any network call, when no census API key is available. '''
+        monkeypatch.setattr(pcd, '_load_census_key', lambda *a, **k: None)
+        with pytest.raises(ValueError, match='No census key available'):
+            pull_RDH_predicted_vap_data('GA', 'Gwinnett County', '2020')
+
+    def test_raises_when_rdh_credentials_missing(self, monkeypatch):
+        ''' Fails fast, before any network call, when RDH credentials are absent. '''
+        monkeypatch.setattr(pcd, '_load_rdh_credentials', lambda *a, **k: (None, None))
+        with pytest.raises(ValueError, match='No RDH credentials available'):
+            pull_RDH_predicted_vap_data('GA', 'Gwinnett County', '2020', census_apikey='fake-key')
+
+    def test_raises_for_state_without_block_level_projection(self, monkeypatch):
+        ''' CT has no block-level VAP projection dataset; rejected after FIPS resolution,
+        before any Playwright/HTTP call. '''
+        monkeypatch.setattr(
+            pcd, '_resolve_location_fips',
+            lambda *a, **k: ('Connecticut', '09', '001', '09001', 'Fairfield_County_CT'),
+        )
+        with pytest.raises(ValueError, match='No block-level VAP projection dataset available for CT'):
+            pull_RDH_predicted_vap_data(
+                'CT', 'Fairfield County', '2020',
+                census_apikey='fake-key', rdh_username='user', rdh_password='pass',
+            )
+
+    def test_raises_when_login_fails(self, monkeypatch):
+        ''' Raises ValueError when the RDH page URL still contains /login/ after the click,
+        indicating the login attempt failed. '''
+        mock_sync_playwright, _ = _make_mock_playwright_page(
+            url='https://redistrictingdatahub.org/login/',
+        )
+        monkeypatch.setattr(pcd, '_resolve_location_fips', lambda *a, **k: (
+            'Georgia', '13', '135', '13135', 'Gwinnett_County_GA',
+        ))
+        with patch('playwright.sync_api.sync_playwright', mock_sync_playwright), \
+             pytest.raises(ValueError, match='RDH login failed'):
+            pull_RDH_predicted_vap_data(
+                'GA', 'Gwinnett County', '2020',
+                census_apikey='fake-key', rdh_username='user', rdh_password='pass',
+            )
+
+    def test_raises_when_download_link_not_found(self, monkeypatch):
+        ''' Raises ValueError when no presigned download link is found on the confirmation page. '''
+        mock_sync_playwright, _ = _make_mock_playwright_page(evaluate_return=None)
+        monkeypatch.setattr(pcd, '_resolve_location_fips', lambda *a, **k: (
+            'Georgia', '13', '135', '13135', 'Gwinnett_County_GA',
+        ))
+        with patch('playwright.sync_api.sync_playwright', mock_sync_playwright), \
+             pytest.raises(ValueError, match='Download link not found'):
+            pull_RDH_predicted_vap_data(
+                'GA', 'Gwinnett County', '2020',
+                census_apikey='fake-key', rdh_username='user', rdh_password='pass',
+            )
+
+    def test_raises_when_locality_not_in_state_data(self, monkeypatch):
+        ''' Raises ValueError when no rows in the downloaded state file match the county's FIPS prefix. '''
+        zip_bytes = _make_vap_zip_bytes(matching_geoid='484530501053055', non_matching_geoid='484539999999999')
+        download_resp = MagicMock()
+        download_resp.content = zip_bytes
+        download_resp.raise_for_status = MagicMock()
+
+        mock_sync_playwright, _ = _make_mock_playwright_page()
+        monkeypatch.setattr(pcd, '_resolve_location_fips', lambda *a, **k: (
+            'Georgia', '13', '135', '13135', 'Gwinnett_County_GA',
+        ))
+        with patch('playwright.sync_api.sync_playwright', mock_sync_playwright), \
+             patch('python.utils.pull_census_data.requests.get', return_value=download_resp), \
+             pytest.raises(ValueError, match='data not in'):
+            pull_RDH_predicted_vap_data(
+                'GA', 'Gwinnett County', '2020',
+                census_apikey='fake-key', rdh_username='user', rdh_password='pass',
+            )
+
+    def test_returns_success_and_saves_filtered_csv(self, tmp_path, monkeypatch):
+        ''' Happy path: Playwright login, presigned download, zip extract, county filter, save.
+        Verifies credentials reach the login form, the download URL is requested once, and only
+        the row matching the county's FIPS prefix is written to disk. '''
+        zip_bytes = _make_vap_zip_bytes(matching_geoid='131350501053055', non_matching_geoid='484530501053055')
+        download_resp = MagicMock()
+        download_resp.content = zip_bytes
+        download_resp.raise_for_status = MagicMock()
+
+        mock_sync_playwright, mock_page = _make_mock_playwright_page()
+        monkeypatch.setattr(pcd, '_resolve_location_fips', lambda *a, **k: (
+            'Georgia', '13', '135', '13135', 'Gwinnett_County_GA',
+        ))
+        monkeypatch.setattr(pcd, 'build_RDH_predicted_vap_dir_path', lambda location: str(tmp_path))
+
+        with patch('playwright.sync_api.sync_playwright', mock_sync_playwright), \
+             patch('python.utils.pull_census_data.requests.get', return_value=download_resp) as mock_get:
+            result = pull_RDH_predicted_vap_data(
+                'GA', 'Gwinnett County', '2020',
+                census_apikey='fake-key', rdh_username='user', rdh_password='pass',
+            )
+
+        assert result == 'Success'
+        mock_page.fill.assert_any_call('[name="username"]', 'user')
+        mock_page.fill.assert_any_call('[name="password"]', 'pass')
+        mock_get.assert_called_once_with('https://s3.example.com/presigned-download-url', timeout=HTTP_TIMEOUT_SECONDS)
+
+        saved_files = list(tmp_path.glob('*.csv'))
+        assert len(saved_files) == 1
+        saved_df = pd.read_csv(saved_files[0])
+        assert saved_df['GEOID'].astype(str).tolist() == ['131350501053055']
