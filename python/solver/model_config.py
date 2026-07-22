@@ -65,7 +65,7 @@ class PollingModelConfig:
     census_year: str
     ''' The census year to use. '''
     census_data_type: str
-    ''' The type of census data to use: redistricting, CVAP, predicted_vap, or ACS. '''
+    ''' The type of census data to use: redistricting, CVAP, or predicted_vap. '''
     projection_year: str|None
     ''' Required when census_data_type is "predicted_vap". Selects which year's columns to
     extract from the RDH projection file (e.g. "2026"). Pass None for other census_data_type values. '''
