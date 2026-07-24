@@ -77,6 +77,9 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
 # Create data for time to polling location flagging and heat maps. 
 
 #read in block assignment and manual corrections.
+#note, this assigns each block to a precinct by dominant
+#area. Therefore, some block geometries are clipped in this 
+#representation
 block_precinct_assignment <- st_read(
   file.path(precinct_analysis_output_folder, "block_precinct_assignment.gpkg"))
 names(block_precinct_assignment)[names(block_precinct_assignment) == "geometry"] <- "block_geometry"
@@ -129,6 +132,16 @@ flagged_duration_values <- c(
 duration_color_bounds <- c(min(flagged_duration_values), max(flagged_duration_values))
 
 ###### Step 4: plot county-level distance heat map #######
+
+#note, the heat maps use data where the blocks have been clipped 
+#to the state precinct by dominant area.
+#Therefore, some of the blocks in the precinct maps are trimmed to
+#the precinct lines. Portions of blocks that lie in non-assigned
+#precincts will appear as holes.
+#In the optimized maps, the same clipped blocks are used, but the 
+#precinct lines are drawn the full blocks. Missing block pieces will 
+#still appear as holes, but in the same precinct as the drawn portion 
+#of the block.
 
 #make maps fof 15 minutes
 
