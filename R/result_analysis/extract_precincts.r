@@ -82,6 +82,9 @@ block_precinct_assignment <- st_read(
 names(block_precinct_assignment)[names(block_precinct_assignment) == "geometry"] <- "block_geometry"
 st_geometry(block_precinct_assignment) <- "block_geometry"
 
+# polling-location points, for context on the heat maps below.
+polling_locations <- get_polling_locations(LOCATION)
+
 
 crosswalk_path <- file.path(precinct_analysis_output_folder, "precinct_polling_location_crosswalk.csv")
 state_county_crosswalk <- if (file.exists(crosswalk_path)) {
@@ -132,13 +135,13 @@ duration_color_bounds <- c(min(flagged_duration_values), max(flagged_duration_va
 # choropleth mode
 make_demo_distance_heat_map(
   block_precinct_assignment, distance_flagged_blocks_15,
-  precincts_resolved, demo_pop = NULL, 15, color_bounds = duration_color_bounds
+  precincts_resolved, polling_locations, demo_pop = NULL, 15, color_bounds = duration_color_bounds
 )
 
 # dot mode: one map per demographic of interest
 make_demo_distance_heat_map(
   block_precinct_assignment, distance_flagged_blocks_15,
-  precincts_resolved, demo_pop = "total_population", 15, color_bounds = duration_color_bounds
+  precincts_resolved, polling_locations, demo_pop = "total_population", 15, color_bounds = duration_color_bounds
 )
 
 #make maps fof 20 minutes
@@ -146,35 +149,43 @@ make_demo_distance_heat_map(
 # choropleth mode
 make_demo_distance_heat_map(
   block_precinct_assignment, distance_flagged_blocks_20,
-  precincts_resolved, demo_pop = NULL, 20, color_bounds = duration_color_bounds
+  precincts_resolved, polling_locations, demo_pop = NULL, 20, color_bounds = duration_color_bounds
 )
 
 # dot mode: one map per demographic of interest
 make_demo_distance_heat_map(
   block_precinct_assignment, distance_flagged_blocks_20,
-  precincts_resolved, demo_pop = "total_population", 20, color_bounds = duration_color_bounds
+  precincts_resolved, polling_locations, demo_pop = "total_population", 20, color_bounds = duration_color_bounds
 )
 
 ###### Step 5: plot solver-assignment distance heat map #######
 
+# use the solver's own grouping of blocks (dissolved precinct-like outlines,
+# written by Basic_analysis.r's make_precinct_map()) instead of the
+# state-provided precincts, since these maps show the solver's assignment,
+# not the as-provided precincts.
+solver_precinct_shapes <- get_solver_precinct_shapes(
+  SOLVER_PRECINCT_SHAPEFILE, OPTIMIZATON_RESULTS
+)
+
 # 15 min
 make_demo_distance_heat_map(
   block_precinct_assignment, solver_distance_flagged_blocks_15,
-  precincts_resolved, demo_pop = NULL, 15, map_label = "optimized", color_bounds = duration_color_bounds
+  solver_precinct_shapes, polling_locations, demo_pop = NULL, 15, map_label = "optimized", color_bounds = duration_color_bounds
 )
 make_demo_distance_heat_map(
   block_precinct_assignment, solver_distance_flagged_blocks_15,
-  precincts_resolved, demo_pop = "total_population", 15, map_label = "optimized", color_bounds = duration_color_bounds
+  solver_precinct_shapes, polling_locations, demo_pop = "total_population", 15, map_label = "optimized", color_bounds = duration_color_bounds
 )
 
 # 20 min
 make_demo_distance_heat_map(
   block_precinct_assignment, solver_distance_flagged_blocks_20,
-  precincts_resolved, demo_pop = NULL, 20, map_label = "optimized", color_bounds = duration_color_bounds
+  solver_precinct_shapes, polling_locations, demo_pop = NULL, 20, map_label = "optimized", color_bounds = duration_color_bounds
 )
 make_demo_distance_heat_map(
   block_precinct_assignment, solver_distance_flagged_blocks_20,
-  precincts_resolved, demo_pop = "total_population", 20, map_label = "optimized", color_bounds = duration_color_bounds
+  solver_precinct_shapes, polling_locations, demo_pop = "total_population", 20, map_label = "optimized", color_bounds = duration_color_bounds
 )
 
 ###### Step 6: plot density vs. distance for actual precinct assignment #######
