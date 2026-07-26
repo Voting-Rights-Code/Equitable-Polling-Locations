@@ -11,6 +11,7 @@ import sys
 import urllib.error
 import urllib.request
 from datetime import datetime
+from typing import TextIO
 
 import pandas as pd
 
@@ -205,6 +206,39 @@ def _assert_ors_reachable(matrix_url: str) -> None:
     sys.exit(1)
 
 
+def _report_unrouted_origins(df: pd.DataFrame,
+                             source_ids: list[str],
+                             locations: dict[str, list[float]],
+                             log_fh: TextIO) -> set[str]:
+    '''Detect origins with no routed row and print an actionable summary.
+
+    Args:
+        df: Long-form distance DataFrame to check — the build result in probe
+            mode, or the final combined frame in write mode (which may carry
+            null ``distance_m`` rows from a hand-edited CSV).
+        source_ids: All requested origin ids.
+        locations: Mapping from id to ``[longitude, latitude]``, used to print
+            each missing origin's coordinates.
+        log_fh: Open writable log file handle.
+
+    Returns:
+        The set of unrouted origin ids; empty when every origin routed.
+    '''
+    unrouted = get_missing_origins(df) | (set(source_ids) - set(df[DISTANCE_ID_ORIG]))
+    if not unrouted:
+        return unrouted
+    lines = [
+        f'{len(unrouted)} origin(s) could not be routed and were dropped; correct '
+        f'the underlying data (e.g. a bad centroid) and rerun — resume will fetch '
+        f'only the missing pairs:'
+    ]
+    for origin in sorted(unrouted):
+        longitude, latitude = locations.get(origin, (None, None))
+        lines.append(f'  {origin} (lat={latitude}, lon={longitude})')
+    _tee('\n'.join(lines), log_fh)
+    return unrouted
+
+
 def _reject_unknown_slug(state: str) -> None:
     '''Exit with code 2 if state is not a known Geofabrik state slug.
 
@@ -227,7 +261,10 @@ def main(argv=None):
         argv: Optional list of argv-style strings; ``None`` uses ``sys.argv``.
 
     Returns:
-        ``0`` on success. (Exits via ``sys.exit(main())`` from the if __name__ block.)
+        ``0`` on success; ``1`` when any requested origin could not be routed
+        (in the normal mode the partial CSV of completed work is still
+        written first). Exits via ``sys.exit(main())`` from the if __name__
+        block.
     '''
     args = build_arg_parser().parse_args(argv)
 
@@ -273,10 +310,14 @@ def main(argv=None):
                 matrix_url=matrix_url,
                 log_fh=log_fh, verbosity=args.verbose,
             )
-            # Two failure modes: snap returned no row (origin absent from df) or some
-            # dests still null after snapping (origin present with nulls). Union both.
-            bad = get_missing_origins(df) | (set(source_ids) - set(df[DISTANCE_ID_ORIG]))
-            _tee(f'unroutable origins: {sorted(bad)}', log_fh)
+            # TODO(#325): detection here is origin-level — an origin that routes
+            # to some destinations but not others (pair-level incompleteness) is
+            # not flagged here; it is caught downstream at model-run time by
+            # model_data's completeness check. Known gap, deliberately not fixed
+            # in this ticket.
+            if _report_unrouted_origins(df, source_ids, locations, log_fh):
+                return 1
+            _tee('no unroutable origins found', log_fh)
             return 0
 
         output_path = build_output_csv_path(config.location)
@@ -295,6 +336,10 @@ def main(argv=None):
                 f'no new pairs to fetch; rewrote {len(existing_df)} rows to {output_path}',
                 log_fh,
             )
+            # A hand-edited CSV can satisfy every pair yet leave distance_m
+            # blank — still a failure the solver would hit later.
+            if _report_unrouted_origins(existing_df, source_ids, locations, log_fh):
+                return 1
             return 0
 
         remaining_sources = sorted({pair[0] for pair in remaining_pairs})
@@ -314,6 +359,11 @@ def main(argv=None):
 
         write_output_csv(combined, output_path)
         _tee(f'wrote {len(combined)} rows to {output_path}', log_fh)
+        # The CSV is written first so completed work is never lost: on a
+        # failure here, a human fixes the flagged origins and reruns, and
+        # resume fetches only the missing pairs.
+        if _report_unrouted_origins(combined, source_ids, locations, log_fh):
+            return 1
         return 0
     finally:
         log_fh.close()

@@ -134,6 +134,19 @@ The first driving run for a state is slow: it downloads a one-time ~13 GB full-U
 
 State slugs are full Geofabrik names (`georgia`, `new-york`, `district-of-columbia`); see `python/utils/ors_setup.py` for the full list.
 
+### Unroutable origins fail the run
+
+Every populated census block needs a real driving distance for the solver to run, so an origin ORS cannot route is an error, not a warning. When any origin is unrouted, the CLI still writes the CSV with everything that was successfully computed (completed work is never lost), then **exits non-zero** and prints each missing origin with its id and lat/lon. Fix the underlying data (typically a bad block centroid) and rerun — the resume logic reads the existing CSV and fetches only the missing pairs. Rows patched into the CSV by hand are likewise recognized as satisfied on the next run.
+
+### Pre-flight probe: `--check-bad-locations`
+
+```bash
+python3 run.py generate_driving_distances_cli --check-bad-locations \
+  -l datasets/configs/<config_set>/<config>.yaml
+```
+
+Probe-only mode: performs the same ORS routing but writes **no** output CSV, then reports unroutable origins and exits non-zero if it found any (0 when all origins routed). Useful as a pre-flight check when onboarding a new county — it surfaces bad centroids before you commit to treating a generated matrix as final. Note the check is origin-level: an origin that routes to some destinations but not others is not flagged here; that gap is caught downstream at model-run time.
+
 ### Manual lifecycle (debugging / repeated experiments)
 
 If you want ORS up persistently:
