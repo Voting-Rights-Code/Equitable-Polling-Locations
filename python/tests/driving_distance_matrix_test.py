@@ -15,7 +15,6 @@ from python.utils.driving_distance_matrix import (
     _emit,
     _reject_negative_distances,
     build_distance_matrix,
-    estimate_origin,
     get_missing_origins,
     matrix_response_to_long_df,
     resume_from_partial_output,
@@ -72,44 +71,6 @@ class TestMatrixResponseToLongDf:
         b_y = df.loc[(df['id_orig'] == 'b') & (df['id_dest'] == 'y'), 'distance_m'].iloc[0]
         assert a_x == 10.0
         assert b_y == 40.0
-
-
-class TestEstimateOrigin:
-    '''Snap an unroutable origin to its nearest routable haversine neighbor.
-
-    The neighbor must be within 1000 m haversine; the estimated driving distance
-    is (neighbor's driving distance) + (haversine offset).
-    '''
-
-    def test_snaps_to_nearest_within_1km(self):
-        # Coordinates: ``[longitude, latitude]``.
-        locations = {
-            'bad': [-84.000, 33.9500],
-            'good1': [-84.000, 33.9510],   # ~111 m north of bad
-            'good2': [-84.005, 34.0000],   # ~5.5 km away - out of range
-        }
-        known_df = pd.DataFrame({
-            'id_orig': ['good1', 'good1', 'good2', 'good2'],
-            'id_dest': ['dest1', 'dest2', 'dest1', 'dest2'],
-            'distance_m': [100.0, 200.0, 9999.0, 9998.0],
-        })
-        result = estimate_origin('bad', known_df, locations)
-        assert set(result.columns) >= {'id_orig', 'id_dest', 'distance_m'}
-        assert set(result['id_dest']) == {'dest1', 'dest2'}
-        # Only good1 is in range; estimate ~ 100 + ~111 = ~211 for dest1.
-        dest1_row = result[result['id_dest'] == 'dest1'].iloc[0]
-        assert 200 < dest1_row['distance_m'] < 250
-
-    def test_returns_empty_when_no_neighbor_in_range(self):
-        locations = {
-            'bad': [-84.000, 33.9500],
-            'far_only': [-83.000, 34.5000],   # ~80 km away
-        }
-        known_df = pd.DataFrame({
-            'id_orig': ['far_only'], 'id_dest': ['dest1'], 'distance_m': [5000.0],
-        })
-        result = estimate_origin('bad', known_df, locations)
-        assert len(result) == 0
 
 
 class TestBuildDistanceMatrix:
@@ -175,6 +136,38 @@ class TestBuildDistanceMatrix:
         expected_directions_url = 'http://ors:8080/ors/v2/directions/driving-car'
         for call in mock_directions.call_args_list:
             assert call.args[2] == expected_directions_url
+
+
+class TestUnroutableOriginsAreDropped:
+    '''An unroutable origin yields no rows — never a fabricated estimate (#325).'''
+
+    @patch('python.utils.driving_distance_matrix.query_matrix')
+    def test_unroutable_origin_rows_are_dropped_not_fabricated(self, mock_query):
+        '''Even with a routable origin ~111 m away, no distance is invented.
+
+        The haversine snap fallback was removed per #325: a fabricated
+        distance is indistinguishable from a real route in the output.
+        Callers detect dropped origins by comparing requested source_ids
+        against the returned id_orig values and must fail loud.
+        '''
+        # s1 is ~111 m north of s0 — the old snap path would have borrowed
+        # s0's route and fabricated a row for s1.
+        mock_query.return_value = [[100.0], [np.nan]]
+        log_fh = io.StringIO()
+        df = build_distance_matrix(
+            locations={
+                's0': [-84.0000, 33.9500],
+                's1': [-84.0000, 33.9510],
+                'd':  [-84.1000, 34.0000],
+            },
+            source_ids=['s0', 's1'],
+            dest_ids=['d'],
+            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
+            log_fh=log_fh, verbosity=0,
+        )
+        assert set(df['id_orig']) == {'s0'}
+        assert df['distance_m'].notna().all()
+        assert 'snapped' not in log_fh.getvalue()
 
 
 class TestResumeFromPartialOutput:
@@ -330,48 +323,6 @@ class TestVerbosityGating:
             log_fh=log_fh, verbosity=2,
         )
         assert 'retrying source a' in capsys.readouterr().out
-
-    @patch('python.utils.driving_distance_matrix.query_matrix')
-    def test_snap_success_emits_at_default_level(self, mock_query, capsys):
-        '''When ORS routes some pairs but a source has none, snap emits at default level.'''
-        # Two sources, one dest. Second source returns NaN -> 'missing'.
-        mock_query.return_value = [[100.0], [np.nan]]
-        # The two sources are within 1km haversine so snap finds a neighbor.
-        log_fh = io.StringIO()
-        build_distance_matrix(
-            locations={
-                's0': [-84.0000, 33.9500],
-                's1': [-84.0000, 33.9510],  # ~111m north of s0
-                'd':  [-84.1000, 34.0000],
-            },
-            source_ids=['s0', 's1'],
-            dest_ids=['d'],
-            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
-            log_fh=log_fh, verbosity=0,
-        )
-        assert 'snapped to nearest haversine neighbor' in log_fh.getvalue()
-        assert 'snapped to nearest haversine neighbor' in capsys.readouterr().out
-
-    @patch('python.utils.driving_distance_matrix.query_matrix')
-    def test_snap_fail_emits_at_default_level(self, mock_query, capsys):
-        '''When no in-range neighbor exists, the fail message emits at default level.'''
-        mock_query.return_value = [[100.0], [np.nan]]
-        # The second source is ~80km away — no in-range neighbor.
-        log_fh = io.StringIO()
-        build_distance_matrix(
-            locations={
-                's0': [-84.0000, 33.9500],
-                's1': [-83.0000, 34.5000],
-                'd':  [-84.1000, 34.0000],
-            },
-            source_ids=['s0', 's1'],
-            dest_ids=['d'],
-            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
-            log_fh=log_fh, verbosity=0,
-        )
-        assert 'no neighbor within 1km, dropped' in log_fh.getvalue()
-        assert 'no neighbor within 1km, dropped' in capsys.readouterr().out
-
 
 class TestRejectNegativeDistances:
     '''A negative distance_m fails loudly at generation (#294); 0 and NaN pass.'''
