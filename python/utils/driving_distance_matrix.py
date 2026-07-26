@@ -314,9 +314,13 @@ def build_distance_matrix(*,
 def resume_from_partial_output(output_path, source_ids, dest_ids):
     '''Return ``(existing_df, remaining_pairs)`` for resuming a partial run.
 
-    Fixes the upstream geolib bug where an existing partial output caused the
-    CLI to return without writing anything. Instead, treat the existing file
-    as a warm-start cache and compute the pairs still to fetch.
+    Loads an existing output CSV (if any) as a warm-start cache and computes
+    the ``(id_orig, id_dest)`` pairs not yet present in it. This lets a rerun
+    fetch only the delta when the origin/destination set has grown between
+    runs (e.g. a new potential polling location was added), and recognizes
+    rows a human hand-patched into the CSV (e.g. for a previously unrouted
+    origin) as satisfied instead of re-querying or clobbering them — the
+    prescribed recovery path after a fail-loud unrouted-origin run (#325).
 
     Args:
         output_path: Path to a possibly-existing CSV with columns

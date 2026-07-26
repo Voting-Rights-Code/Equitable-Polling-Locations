@@ -171,11 +171,7 @@ class TestUnroutableOriginsAreDropped:
 
 
 class TestResumeFromPartialOutput:
-    '''Partial-CSV resume: skip pairs already populated, do not silently exit.
-
-    Fixes the upstream geolib bug where an existing partial output caused
-    get_all_distances to return after printing missing origins (no work done).
-    '''
+    '''Partial-CSV resume: keep pairs already populated, fetch only the delta.'''
 
     def test_returns_existing_pairs_unchanged_and_remaining_pairs_to_fetch(self, tmp_path):
         existing_csv = tmp_path / 'partial.csv'

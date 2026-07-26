@@ -38,11 +38,16 @@ from python.utils.utils import build_potential_locations_file_path, log_date_pre
 
 def build_arg_parser() -> argparse.ArgumentParser:
     '''Return the CLI argument parser.'''
+    # A separate function (unlike older sibling CLIs that parse inline) so
+    # tests can exercise parsing directly, per this repo's TDD mandate.
     parser = argparse.ArgumentParser(
         description='Generate driving-distance CSV for a county config.',
     )
     parser.add_argument(
         '--state', default=None,
+        # The override exists because not every config location can derive a
+        # state: the 'testing' fixture's location has no _<ST> suffix. It also
+        # lets an operator deliberately point at a different state's graph.
         help='Geofabrik state slug override (e.g. "georgia", "new-york"). '
              'When omitted, derived by parsing the trailing _<ST> postal code '
              'from the config location.',
@@ -283,6 +288,9 @@ def main(argv=None):
         try:
             state = state_slug_from_location(config.location)
         except ValueError as exc:
+            # Expected for synthetic configs whose location field doesn't follow
+            # the <Name>_<ST> convention — e.g. the 'testing' fixture — which is
+            # the case that motivated the --state override in the first place.
             print(
                 f'Couldn\'t derive state from config (location={config.location!r}; {exc}).\n'
                 f'Either rename the location to end in _<ST> '

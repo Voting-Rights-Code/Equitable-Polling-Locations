@@ -469,7 +469,11 @@ def insert_driving_distances(
     driving_distances_df: driving distance data frame with id_orig, id_dest, and distance_m columns
 
     Raises
-    ValueError - if anything goes wrong (missing file, bad format, missing data)
+    ValueError - if driving_distances_df is missing any of the id_orig, id_dest, or
+        distance_m COLUMNS. Row-level completeness (every populated block having a
+        distance) is NOT checked here — the left join leaves nulls for absent pairs,
+        and the caller further down enforces completeness ('Some distances are
+        missing for current config setting.').
 
     Returns
     The original dataframe with the distance_m column populated with the driving distances.
