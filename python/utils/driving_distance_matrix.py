@@ -91,22 +91,32 @@ def matrix_response_to_long_df(source_names, dest_names, distances) -> pd.DataFr
     )
 
 
-def _coerce_negative_distances_to_null(df: pd.DataFrame) -> pd.DataFrame:
-    '''Replace any negative ``distance_m`` with NaN, in place.
+def _reject_negative_distances(df: pd.DataFrame) -> None:
+    '''Raise if any ``distance_m`` is negative.
 
-    ORS signals "no route" with null, which becomes NaN and is recovered by the
-    snap/retry path. A negative distance is never a valid real-world value; if a
-    routing backend ever emits one, treat it as no-route so it flows through the
-    same recovery and never reaches the output CSV. ``0`` is left untouched.
+    A negative driving distance is physically impossible, so it can only
+    signal a routing-backend error. Per the #294 decision, such a value fails
+    the run loudly here, at data generation, rather than being silently
+    recovered. A genuine "no route" arrives from ORS as null (NaN), not a
+    negative, and is left untouched; ``0`` is a valid distance (a residence at
+    its own polling place) and is also kept.
 
     Args:
         df: Long-form DataFrame with a ``distance_m`` column.
 
-    Returns:
-        The same DataFrame, with any ``distance_m < 0`` set to NaN.
+    Raises:
+        ValueError: If any row has a negative ``distance_m``.
     '''
-    df.loc[df[DISTANCE_DISTANCE_M] < 0, DISTANCE_DISTANCE_M] = float('nan')
-    return df
+    negative_mask = df[DISTANCE_DISTANCE_M] < 0
+    if negative_mask.any():
+        offender = df[negative_mask].iloc[0]
+        raise ValueError(
+            f'{int(negative_mask.sum())} routed pair(s) have a negative distance_m, '
+            f'which is never a valid driving distance (first: '
+            f'{offender[DISTANCE_ID_ORIG]} -> {offender[DISTANCE_ID_DEST]}, '
+            f'distance_m={offender[DISTANCE_DISTANCE_M]}). A negative value signals '
+            f'a routing-backend error; regenerate the driving matrix.'
+        )
 
 
 def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFrame:
@@ -383,9 +393,10 @@ def build_distance_matrix(*,
         )
         df = pd.concat([df, retry_df], ignore_index=True)
 
-    # Treat any negative distance as no-route before snapping, so it flows
-    # through the same recovery as a real ORS null and never reaches the CSV.
-    df = _coerce_negative_distances_to_null(df)
+    # Fail loud on negative distances (a routing-backend error) before any
+    # further processing, per the #294 decision. ORS signals a genuine
+    # no-route as null, never as a negative.
+    _reject_negative_distances(df)
 
     return _snap_unroutable_origins(
         df, source_ids, locations,
