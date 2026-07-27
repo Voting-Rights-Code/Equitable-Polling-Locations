@@ -100,14 +100,17 @@ p3_file_path <- file.path(REDISTRICTING_FOLDER, LOCATION, "DECENNIALPL2020.P3-Da
 p4_file_path <- file.path(REDISTRICTING_FOLDER, LOCATION, "DECENNIALPL2020.P4-Data.csv")
 block_demographics <- get_block_demographics(p3_file_path, p4_file_path)
 
+#driving distance path
+driving_distance_path <- build_driving_distances_file_path(LOCATION)
+
 distance_flagged_blocks_15 <- flag_distant_blocks(
   block_precinct_assignment, state_county_crosswalk, block_demographics,
-  build_driving_distances_file_path(LOCATION),
+  driving_distance_path,
   15)
 
 distance_flagged_blocks_20 <- flag_distant_blocks(
   block_precinct_assignment, state_county_crosswalk, block_demographics,
-  build_driving_distances_file_path(LOCATION),
+  driving_distance_path,
   20)
 
 solver_distance_flagged_blocks_15 <- flagged_optimized_distant_blocks(
@@ -119,13 +122,15 @@ solver_distance_flagged_blocks_20 <- flagged_optimized_distant_blocks(
 
 # shared color scale across every heat map below to make the maps 
 # directly comparable.
+# Recall that the _15 and _20 tables are the same, with different flags
 flagged_duration_values <- c(
   distance_flagged_blocks_15[flagged_distance == TRUE, duration_min],
-  distance_flagged_blocks_20[flagged_distance == TRUE, duration_min],
-  solver_distance_flagged_blocks_15[flagged_distance == TRUE, duration_min],
-  solver_distance_flagged_blocks_20[flagged_distance == TRUE, duration_min]
+  solver_distance_flagged_blocks_15[flagged_distance == TRUE, duration_min]
 )
-duration_color_bounds <- c(min(flagged_duration_values), max(flagged_duration_values))
+
+#TODO: the 15 minutes below is hard coded. However, it is hard coded into
+# the output file names too. Changing this will need a refactor
+duration_color_bounds <- c(15, max(flagged_duration_values, na.rm = TRUE))
 
 ###### Step 4: plot county-level distance heat map #######
 
@@ -189,18 +194,16 @@ solver_density_data <- precinct_bg_density_data(
 )
 solver_regression_data <- bg_data(solver_density_data)
 
-# shared y-axis scale across the actual and solver assignment density
-# graphs, mirroring make_demo_distance_heat_map()'s color_bounds -- computed
-# the same way plot_density_v_distance_bg() computes it internally, just
-# pooled across both datasets first.
+# Set y-bound in order to share y-axis scale for regression maps across two different "runs"
+# in this case, the solver output, and the optimizer
 pooled_density_data <- rbind(precinct_regression_data, solver_regression_data)
-pooled_avg_dist <- pooled_density_data[demographic %in% DEMOGRAPHIC_LIST, demo_avg_dist]
-min_avg_dist <- min(pooled_avg_dist, na.rm = TRUE)
-max_avg_dist <- max(pooled_avg_dist, na.rm = TRUE)
-if (min_avg_dist == 0) min_avg_dist <- min_avg_dist + .01
-shared_density_y_bounds <- c(min_avg_dist, max_avg_dist)
+shared_density_y_bounds <- compute_density_y_bounds(pooled_density_data, DEMOGRAPHIC_LIST)
 
+#change directories because these maps make different assumptions 
+#of where to write
 setwd(file.path(here(), precinct_analysis_output_folder))
+
+#plot regression graphs
 plot_density_v_distance_bg(
   precinct_regression_data, LOCATION, DEMOGRAPHIC_LIST,
   log_flag = FALSE, driving_flag = TRUE, y_bounds = shared_density_y_bounds

@@ -607,6 +607,8 @@ flagged_optimized_distant_blocks <- function(block_shapes, results_file, duratio
   
   #read in optimization results 
   results <- fread(results_file, colClasses = list(character = "id_orig"))
+  #TODO: until the bug where distance_m has data in seconds for certain runs, this
+  #is going to be broken. This will be wired through as part of that bug
   results[, duration_min := distance_m / 60]
 
   #flag
@@ -620,13 +622,27 @@ flagged_optimized_distant_blocks <- function(block_shapes, results_file, duratio
   )
   results <- results[, ..output_columns]
   
-  #add in 0 population blocks
+  #determine which blocks the solver never assigned (zero population, by design)
   all_blocks <- data.table(st_drop_geometry(block_shapes))[, .(GEOID20, population)]
   missing_blocks <- all_blocks[!GEOID20 %in% results$id_orig]
 
+  ####
+  # each zero-population block borrows its nearest assigned block's real
+  # destination (as in make_precinct_maps)
+  ####
+  #merge results and block assingment geometries
+  assigned_geom <- block_shapes[block_shapes$GEOID20 %in% results$id_orig, "GEOID20"]
+  assigned_geom <- merge(assigned_geom, results[, .(id_orig, id_dest)], by.x = "GEOID20", by.y = "id_orig")
+
+  #get the geometries of the unassigned blocks and assign them to a neighboring block's desination
+  missing_geom <- block_shapes[block_shapes$GEOID20 %in% missing_blocks$GEOID20, "GEOID20"]
+  nearest <- st_join(missing_geom, assigned_geom[, "id_dest"], join = st_nearest_feature)
+  missing_blocks <- merge(missing_blocks, st_drop_geometry(nearest)[, c("GEOID20", "id_dest")], by = "GEOID20")
+
+  #fill in the rest of the data for missing blocks
   zero_fill_columns <- setdiff(output_columns, c("id_orig", "id_dest", "population", "flagged_distance"))
+  
   missing_rows <- missing_blocks[, id_orig := GEOID20
-              ][, id_dest := "Cheat Lake VFD"
               ][, (zero_fill_columns) := 0
               ][, flagged_distance := FALSE
               ][, ..output_columns]
@@ -642,6 +658,7 @@ flagged_optimized_distant_blocks <- function(block_shapes, results_file, duratio
 
   return(results)
 }
+
 # build a county-level map of census blocks by drive time to their assigned
 # polling location, with precinct boundaries drawn on top for context.
 # Two modes, chosen by demo_pop:
@@ -681,7 +698,7 @@ make_demo_distance_heat_map <- function(
   #title string
   if (is.null(demo_pop)) {
       demo_pop_label <- NULL
-      title_str <- gsub( "_", " ", paste(location, "chloropleth: driving distances to", map_label, 
+      title_str <- gsub( "_", " ", paste(location, "choropleth: driving times to", map_label, 
                             "polling location"))
   } else {
       demo_pop_label <- demo_pop_legend_dict[[demo_pop]]
@@ -717,10 +734,8 @@ make_demo_distance_heat_map <- function(
         low = "#fcbba1", high = "#67000d", name = "Duration (min)", limits = color_bounds
       )
   } else {
-    # dot mode: draw flagged blocks as plain context polygons, then place a
-    # dot at each flagged block's centroid, sized by demo_pop's population
-    # and colored by duration_min -- mirrors make_demo_dist_map() in
-    # map_functions.R.
+    # dot mode: place a dot at each flagged block's centroid, sized by demo_pop's population
+    # and colored by duration_min. blocks drawn for context
     over_threshold_blocks$INTPTLON20 <-
       as.numeric(over_threshold_blocks$INTPTLON20)
     over_threshold_blocks$INTPTLAT20 <-

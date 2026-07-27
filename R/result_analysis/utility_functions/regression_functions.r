@@ -98,10 +98,13 @@ bg_level_naive_regression <- function(regression_data){
 # In the case where distances reprensent actual precincts, not 
 # optimizer assigned matchings, reshape distance data to match bg_data()
 # inputs to plug into the regression pipeline.
+# TODO this is for drive time only, and will need generalizing
 precinct_bg_density_data <- function(distance_flagged_blocks, location, demo_columns,
                                      descriptor = "precinct_assignment",
                                      metric = "driving_time") {
 	
+	#make long, with demographics getting the own row
+	#add weighted distance column
 	long_blocks <- melt(
 		distance_flagged_blocks, id.vars = c("id_orig", "duration_min"),
 		measure.vars = demo_columns, value.name = "demo_pop", variable.name = "demographic"
@@ -109,18 +112,17 @@ precinct_bg_density_data <- function(distance_flagged_blocks, location, demo_col
 	long_blocks[, bg_id := gsub(".{3}$", "", id_orig)]
 	long_blocks[, demo_weighted_dist := duration_min * demo_pop]
 
+	#roll up to block group level statistics
 	bg_demo <- long_blocks[, .(
 		demo_pop = sum(demo_pop), demo_weighted_dist = sum(demo_weighted_dist)
 	), by = c("bg_id", "demographic")]
 	bg_demo[, demo_avg_dist := demo_weighted_dist / demo_pop]
 
+	#get block geographic data
 	bg_map_data <- process_maps(get_map_file(location, block_flag = FALSE))
 	bg_demo_area <- merge(bg_demo, bg_map_data[, .(GEOID20, AREA20)], by.x = "bg_id", by.y = "GEOID20")
 
-	# bg_data() unconditionally drops these polling-destination columns,
-	# which this precinct-assignment pipeline doesn't carry -- add them as
-	# explicit NAs so that drop is a real no-op instead of a data.table
-	# "column does not exist to remove" warning.
+	# put in empty columns that the regression pipe_line expects to see
 	bg_demo_area[, `:=`(
 		descriptor = descriptor, metric = metric,
 		dest_lat = NA_real_, dest_lon = NA_real_, dest_type = NA_character_,
