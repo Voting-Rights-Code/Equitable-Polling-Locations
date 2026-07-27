@@ -123,6 +123,7 @@ precinct_bg_density_data <- function(distance_flagged_blocks, location, demo_col
 	bg_demo_area <- merge(bg_demo, bg_map_data[, .(GEOID20, AREA20)], by.x = "bg_id", by.y = "GEOID20")
 
 	# put in empty columns that the regression pipe_line expects to see
+	# so that bg_data can drop them cleanly.
 	bg_demo_area[, `:=`(
 		descriptor = descriptor, metric = metric,
 		dest_lat = NA_real_, dest_lon = NA_real_, dest_type = NA_character_,
