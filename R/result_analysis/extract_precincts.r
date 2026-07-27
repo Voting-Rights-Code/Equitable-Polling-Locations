@@ -6,6 +6,8 @@ library(ggplot2)
 
 setwd(here())
 source("R/result_analysis/utility_functions/shape_extraction_functions.r")
+source("R/result_analysis/utility_functions/graph_functions.R")
+source("R/result_analysis/utility_functions/regression_functions.r")
 
 #######
 # Read in command line arguments
@@ -109,10 +111,10 @@ distance_flagged_blocks_20 <- flag_distant_blocks(
   20)
 
 solver_distance_flagged_blocks_15 <- flagged_optimized_distant_blocks(
-  block_precinct_assignment, OPTIMIZATON_RESULTS, 15
+  block_precinct_assignment, OPTIMIZATION_RESULTS, 15
 )
 solver_distance_flagged_blocks_20 <- flagged_optimized_distant_blocks(
-  block_precinct_assignment, OPTIMIZATON_RESULTS, 20
+  block_precinct_assignment, OPTIMIZATION_RESULTS, 20
 )
 
 # shared color scale across every heat map below to make the maps 
@@ -138,7 +140,7 @@ make_demo_distance_heat_map(
 # dot mode: one map per demographic of interest
 make_demo_distance_heat_map(
   block_precinct_assignment, distance_flagged_blocks_15,
-  precincts_resolved, demo_pop = "total_population", 15, color_bounds = duration_color_bounds
+  precincts_resolved, demo_pop = "population", 15, color_bounds = duration_color_bounds
 )
 
 #make maps fof 20 minutes
@@ -152,7 +154,7 @@ make_demo_distance_heat_map(
 # dot mode: one map per demographic of interest
 make_demo_distance_heat_map(
   block_precinct_assignment, distance_flagged_blocks_20,
-  precincts_resolved, demo_pop = "total_population", 20, color_bounds = duration_color_bounds
+  precincts_resolved, demo_pop = "population", 20, color_bounds = duration_color_bounds
 )
 
 ###### Step 5: plot solver-assignment distance heat map #######
@@ -164,7 +166,7 @@ make_demo_distance_heat_map(
 )
 make_demo_distance_heat_map(
   block_precinct_assignment, solver_distance_flagged_blocks_15,
-  precincts_resolved, demo_pop = "total_population", 15, map_label = "optimized", color_bounds = duration_color_bounds
+  precincts_resolved, demo_pop = "population", 15, map_label = "optimized", color_bounds = duration_color_bounds
 )
 
 # 20 min
@@ -174,19 +176,16 @@ make_demo_distance_heat_map(
 )
 make_demo_distance_heat_map(
   block_precinct_assignment, solver_distance_flagged_blocks_20,
-  precincts_resolved, demo_pop = "total_population", 20, map_label = "optimized", color_bounds = duration_color_bounds
+  precincts_resolved, demo_pop = "population", 20, map_label = "optimized", color_bounds = duration_color_bounds
 )
 
 ###### Step 6: plot density vs. distance for actual precinct assignment #######
 
-source("R/result_analysis/utility_functions/graph_functions.R")
-source("R/result_analysis/utility_functions/regression_functions.r")
-
-precinct_density_data <- precinct_bg_density_data(distance_flagged_blocks_15, LOCATION)
+precinct_density_data <- precinct_bg_density_data(distance_flagged_blocks_15, LOCATION, DEMO_COLS)
 precinct_regression_data <- bg_data(precinct_density_data)
 
 solver_density_data <- precinct_bg_density_data(
-  solver_distance_flagged_blocks_15, LOCATION, descriptor = "solver_assignment"
+  solver_distance_flagged_blocks_15, LOCATION, DEMO_COLS, descriptor = "solver_assignment"
 )
 solver_regression_data <- bg_data(solver_density_data)
 

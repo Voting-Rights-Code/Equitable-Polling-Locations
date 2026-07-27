@@ -413,7 +413,7 @@ compute_block_precinct_overlaps <- function(county_precincts,
 
   #merge in population data
   p3_population <- data.table(p3_population)[
-    , .(GEOID20 = sub("^1000000US", "", GEO_ID), total_population)
+    , .(GEOID20 = sub("^1000000US", "", GEO_ID), population)
   ]
   county_blocks <- merge(county_blocks, p3_population, by = "GEOID20")
 
@@ -482,7 +482,7 @@ get_block_demographics <- function(p3_file_path, p4_file_path) {
   p3_header <- names(fread(p3_file_path, nrows = 0))
   p3_raw <- fread(p3_file_path, header = FALSE, skip = 2, col.names = p3_header)
   p3_demographics <- p3_raw[, .(
-    GEO_ID, total_population = P3_001N, white = P3_003N, black = P3_004N,
+    GEO_ID, population = P3_001N, white = P3_003N, black = P3_004N,
     native = P3_005N, asian = P3_006N, pacific_islander = P3_007N,
     other = P3_008N, multiple_races = P3_009N
   )]
@@ -490,7 +490,7 @@ get_block_demographics <- function(p3_file_path, p4_file_path) {
   p4_header <- names(fread(p4_file_path, nrows = 0))
   p4_raw <- fread(p4_file_path, header = FALSE, skip = 2, col.names = p4_header)
   p4_demographics <- p4_raw[, .(
-    GEO_ID, total_population_p4 = P4_001N, hispanic = P4_002N,
+    GEO_ID, population_p4 = P4_001N, hispanic = P4_002N,
     non_hispanic = P4_003N
   )]
 
@@ -500,11 +500,11 @@ get_block_demographics <- function(p3_file_path, p4_file_path) {
   ### Check that the populations match (i.e. that the tables are both pulled for the same data)
   stopifnot(
     "P3 and P4 total population disagree for at least one block" =
-      all(block_demographics$total_population == block_demographics$total_population_p4)
+      all(block_demographics$population == block_demographics$population_p4)
   )
 
   #clean columns
-  block_demographics[, total_population_p4 := NULL
+  block_demographics[, population_p4 := NULL
                 ][, GEOID20 := gsub("^1000000US", "", GEO_ID)
                 ][, GEO_ID := NULL]
 
@@ -554,8 +554,8 @@ flag_distant_blocks <- function(block_precinct_assignment, state_county_crosswal
   distance_blocks[is.na(duration_s), duration_s := 0]
   distance_blocks[, duration_min := duration_s / 60]
 
-  # drop block_demographics' total_population (duplicate) before merging
-  demographic_columns <- setdiff(names(block_demographics), c("GEOID20", "total_population"))
+  # drop block_demographics' population (duplicate) before merging
+  demographic_columns <- setdiff(names(block_demographics), c("GEOID20", "population"))
   demographic_blocks <- merge(
     distance_blocks, block_demographics[, c("GEOID20", demographic_columns), with = FALSE],
     by = "GEOID20"
@@ -566,12 +566,12 @@ flag_distant_blocks <- function(block_precinct_assignment, state_county_crosswal
       nrow(demographic_blocks) == nrow(distance_blocks)
   )
 
-  demographic_blocks[, weighted_dist := total_population * distance_m]
+  demographic_blocks[, weighted_dist := population * distance_m]
   demographic_blocks[, flagged_distance := duration_min > duration_threshold_min]
 
   setnames(demographic_blocks, "GEOID20", "id_orig")
   output_columns <- c(
-    "id_orig", "id_dest", "distance_m", "duration_min", "Precinct_I", "total_population",
+    "id_orig", "id_dest", "distance_m", "duration_min", "Precinct_I", "population",
     "white", "black", "native", "asian", "pacific_islander", "other",
     "multiple_races", "hispanic", "non_hispanic", "weighted_dist", "flagged_distance"
   )
@@ -589,7 +589,7 @@ flag_distant_blocks <- function(block_precinct_assignment, state_county_crosswal
 # human-readable labels for flag_distant_blocks()'s demographic columns, for
 # consistent map/legend naming. 
 demo_pop_legend_dict <- c(
-  total_population = "Total",
+  population = "Total",
   white = "White",
   black = "African American",
   native = "First Nations",
@@ -607,7 +607,6 @@ flagged_optimized_distant_blocks <- function(block_shapes, results_file, duratio
   
   #read in optimization results 
   results <- fread(results_file, colClasses = list(character = "id_orig"))
-  setnames(results, "population", "total_population")
   results[, duration_min := distance_m / 60]
 
   #flag
@@ -615,17 +614,17 @@ flagged_optimized_distant_blocks <- function(block_shapes, results_file, duratio
 
   #reshape
   output_columns <- c(
-    "id_orig", "id_dest", "distance_m", "duration_min", "total_population",
+    "id_orig", "id_dest", "distance_m", "duration_min", "population",
     "white", "black", "native", "asian", "pacific_islander", "other",
     "multiple_races", "hispanic", "non_hispanic", "weighted_dist", "flagged_distance"
   )
   results <- results[, ..output_columns]
   
   #add in 0 population blocks
-  all_blocks <- data.table(st_drop_geometry(block_shapes))[, .(GEOID20, total_population)]
+  all_blocks <- data.table(st_drop_geometry(block_shapes))[, .(GEOID20, population)]
   missing_blocks <- all_blocks[!GEOID20 %in% results$id_orig]
 
-  zero_fill_columns <- setdiff(output_columns, c("id_orig", "id_dest", "total_population", "flagged_distance"))
+  zero_fill_columns <- setdiff(output_columns, c("id_orig", "id_dest", "population", "flagged_distance"))
   missing_rows <- missing_blocks[, id_orig := GEOID20
               ][, id_dest := "Cheat Lake VFD"
               ][, (zero_fill_columns) := 0
@@ -664,17 +663,17 @@ make_demo_distance_heat_map <- function(
   #select relevant columns.
   distance_columns <- setdiff(
     c("id_orig", "id_dest", "distance_m", "duration_min", "flagged_distance", demo_pop),
-    "total_population"
+    "population"
   )
   block_distances <- merge(
-    block_shapes[, c("GEOID20", "total_population", "INTPTLAT20", "INTPTLON20", "block_geometry")],
+    block_shapes[, c("GEOID20", "population", "INTPTLAT20", "INTPTLON20", "block_geometry")],
     distance_flagged_blocks[, distance_columns, with = FALSE],
     by.x = "GEOID20", by.y = "id_orig", all.x = TRUE
   )
 
   #select different subgroups for map
   is_flagged <- block_distances$flagged_distance
-  no_population_blocks <- block_distances[block_distances$total_population == 0, ]
+  no_population_blocks <- block_distances[block_distances$population == 0, ]
   under_threshold_blocks <- block_distances[!is_flagged, ]
   over_threshold_blocks <- block_distances[is_flagged, ]
   not_assigned <- block_distances[is.na(block_distances$id_dest), ]
