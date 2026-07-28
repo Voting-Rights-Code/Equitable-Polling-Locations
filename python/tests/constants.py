@@ -7,6 +7,7 @@ from python.utils.directory_constants import POLLING_DIR, CONFIG_BASE_DIR, RESUL
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTING_POTENTIAL_LOCATIONS_PATH = os.path.join(POLLING_DIR, 'testing', 'testing_potential_locations.csv')
 TESTING_DRIVING_DISTANCES_PATH = os.path.join(DRIVING_DIR, 'testing', 'testing_driving_distances.csv')
+TESTING_DISTANCES_2020_PATH = os.path.join(POLLING_DIR, 'testing', 'testing_distances_2020.csv')
 
 TEST_LOCATION = 'testing'
 MAP_SOURCE_DATE='20250101'

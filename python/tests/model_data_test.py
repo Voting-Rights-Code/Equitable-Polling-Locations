@@ -19,7 +19,10 @@ from python.solver.constants import (
     DISTANCE_DISTANCE_M, DISTANCE_SOURCE, DISTANCE_TOTAL_POPULATION,
 )
 
-from .constants import TESTING_POTENTIAL_LOCATIONS_PATH, TESTING_DRIVING_DISTANCES_PATH, TEST_LOCATION, MAP_SOURCE_DATE
+from .constants import (
+    TESTING_POTENTIAL_LOCATIONS_PATH, TESTING_DRIVING_DISTANCES_PATH, TESTING_DISTANCES_2020_PATH,
+    TEST_LOCATION, MAP_SOURCE_DATE,
+)
 
 
 def test_build_source_columns(location_df_with_driving):
@@ -233,6 +236,17 @@ class TestGetRDHPredictedVAPDemographics(DemographicsTestBase):
         """A clear ValueError is raised when projection_year has no columns in the file."""
         with pytest.raises(ValueError, match='projection_year'):
             model_data.get_RDH_predicted_vap_demographics('testing', '2040')
+
+    def test_geoids_match_expected_testing_blocks(self):
+        """The testing fixture's GEOIDs are exactly the 10 blocks used by testing_distances_2020.csv."""
+        expected_blocks = set(
+            pd.read_csv(TESTING_DISTANCES_2020_PATH)['id_orig'].astype(str).unique().tolist()
+        )
+        actual_blocks = set(self.get_demographics()[CEN20_GEO_ID].tolist())
+        assert actual_blocks == expected_blocks, (
+            f'Missing: {expected_blocks - actual_blocks}\n'
+            f'Unexpected: {actual_blocks - expected_blocks}'
+        )
 
 def test_build_distance_data_predicted_vap_census_type(tmp_path):
     """build_distance_data writes a valid distance CSV when census_data_type is 'predicted_vap'."""

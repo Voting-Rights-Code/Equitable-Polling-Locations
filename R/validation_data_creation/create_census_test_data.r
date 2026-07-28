@@ -60,3 +60,8 @@ st_write(testing_tiger_block, 'datasets/census/tiger/testing/tl_2020_13135_tabbl
 Gwinnett_CVAP <- fread('datasets/census/CVAP/Gwinnett_County_GA/CVAP_2020-Data.csv')
 testing_ACS <- Gwinnett_CVAP[GEOID20 %in% as.character(blocks) , ]
 fwrite(testing_ACS, 'datasets/census/CVAP/testing/CVAP_2020-Data.csv')
+
+#RDH predicted VAP data
+Gwinnett_predicted_vap <- fread('datasets/census/RDH_predicted_vap/Gwinnett_County_GA/ga_vap_proj_2026_2035_b.csv')
+testing_predicted_vap <- Gwinnett_predicted_vap[GEOID %in% blocks, ]
+fwrite(testing_predicted_vap, 'datasets/census/RDH_predicted_vap/testing/testing_vap_proj_2026_2035_b.csv')
