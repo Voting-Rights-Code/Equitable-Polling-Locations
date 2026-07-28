@@ -26,3 +26,4 @@ dependencies:
           - alembic==1.13.3
           - google-cloud-bigquery-storage==2.27.0
           - googlemaps==4.10.0
+          - playwright==1.49.1
