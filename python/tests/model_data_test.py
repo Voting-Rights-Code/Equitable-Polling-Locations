@@ -227,8 +227,8 @@ class TestGetRDHPredictedVAPDemographics(DemographicsTestBase):
 
     def test_missing_file_raises_value_error(self):
         """A clear ValueError is raised when no CSV exists in the location directory."""
-        with patch('python.utils.utils.os.path.isdir', return_value=True), \
-             patch('python.utils.utils.os.listdir', return_value=[]), \
+        with patch('python.solver.model_data.os.path.exists', return_value=False), \
+             patch(self.pull_patch_target), \
              pytest.raises(ValueError, match='RDH predicted VAP data not found'):
             model_data.get_RDH_predicted_vap_demographics('testing', '2026')
 
