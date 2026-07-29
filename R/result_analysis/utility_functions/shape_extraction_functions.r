@@ -464,7 +464,7 @@ compute_block_precinct_overlaps <- function(county_precincts,
 
   #merge in population data
   p3_population <- data.table(p3_population)[
-    , .(GEOID20 = sub("^1000000US", "", GEO_ID), total_population)
+    , .(GEOID20 = sub("^1000000US", "", GEO_ID), population)
   ]
   county_blocks <- merge(county_blocks, p3_population, by = "GEOID20")
 
@@ -533,7 +533,7 @@ get_block_demographics <- function(p3_file_path, p4_file_path) {
   p3_header <- names(fread(p3_file_path, nrows = 0))
   p3_raw <- fread(p3_file_path, header = FALSE, skip = 2, col.names = p3_header)
   p3_demographics <- p3_raw[, .(
-    GEO_ID, total_population = P3_001N, white = P3_003N, black = P3_004N,
+    GEO_ID, population = P3_001N, white = P3_003N, black = P3_004N,
     native = P3_005N, asian = P3_006N, pacific_islander = P3_007N,
     other = P3_008N, multiple_races = P3_009N
   )]
@@ -541,7 +541,7 @@ get_block_demographics <- function(p3_file_path, p4_file_path) {
   p4_header <- names(fread(p4_file_path, nrows = 0))
   p4_raw <- fread(p4_file_path, header = FALSE, skip = 2, col.names = p4_header)
   p4_demographics <- p4_raw[, .(
-    GEO_ID, total_population_p4 = P4_001N, hispanic = P4_002N,
+    GEO_ID, population_p4 = P4_001N, hispanic = P4_002N,
     non_hispanic = P4_003N
   )]
 
@@ -551,11 +551,11 @@ get_block_demographics <- function(p3_file_path, p4_file_path) {
   ### Check that the populations match (i.e. that the tables are both pulled for the same data)
   stopifnot(
     "P3 and P4 total population disagree for at least one block" =
-      all(block_demographics$total_population == block_demographics$total_population_p4)
+      all(block_demographics$population == block_demographics$population_p4)
   )
 
   #clean columns
-  block_demographics[, total_population_p4 := NULL
+  block_demographics[, population_p4 := NULL
                 ][, GEOID20 := gsub("^1000000US", "", GEO_ID)
                 ][, GEO_ID := NULL]
 
@@ -605,8 +605,8 @@ flag_distant_blocks <- function(block_precinct_assignment, state_county_crosswal
   distance_blocks[is.na(duration_s), duration_s := 0]
   distance_blocks[, duration_min := duration_s / 60]
 
-  # drop block_demographics' total_population (duplicate) before merging
-  demographic_columns <- setdiff(names(block_demographics), c("GEOID20", "total_population"))
+  # drop block_demographics' population (duplicate) before merging
+  demographic_columns <- setdiff(names(block_demographics), c("GEOID20", "population"))
   demographic_blocks <- merge(
     distance_blocks, block_demographics[, c("GEOID20", demographic_columns), with = FALSE],
     by = "GEOID20"
@@ -617,12 +617,12 @@ flag_distant_blocks <- function(block_precinct_assignment, state_county_crosswal
       nrow(demographic_blocks) == nrow(distance_blocks)
   )
 
-  demographic_blocks[, weighted_dist := total_population * distance_m]
+  demographic_blocks[, weighted_dist := population * distance_m]
   demographic_blocks[, flagged_distance := duration_min > duration_threshold_min]
 
   setnames(demographic_blocks, "GEOID20", "id_orig")
   output_columns <- c(
-    "id_orig", "id_dest", "distance_m", "duration_min", "Precinct_I", "total_population",
+    "id_orig", "id_dest", "distance_m", "duration_min", "Precinct_I", "population",
     "white", "black", "native", "asian", "pacific_islander", "other",
     "multiple_races", "hispanic", "non_hispanic", "weighted_dist", "flagged_distance"
   )
@@ -645,7 +645,7 @@ flag_distant_blocks <- function(block_precinct_assignment, state_county_crosswal
 # human-readable labels for flag_distant_blocks()'s demographic columns, for
 # consistent map/legend naming. 
 demo_pop_legend_dict <- c(
-  total_population = "Total",
+  population = "Total",
   white = "White",
   black = "African American",
   native = "First Nations",
@@ -663,7 +663,8 @@ flagged_optimized_distant_blocks <- function(block_shapes, results_file, duratio
   
   #read in optimization results 
   results <- fread(results_file, colClasses = list(character = "id_orig"))
-  setnames(results, "population", "total_population")
+  #TODO: until the bug where distance_m has data in seconds for certain runs, this
+  #is going to be broken. This will be wired through as part of that bug
   results[, duration_min := distance_m / 60]
 
   #flag
@@ -671,19 +672,33 @@ flagged_optimized_distant_blocks <- function(block_shapes, results_file, duratio
 
   #reshape
   output_columns <- c(
-    "id_orig", "id_dest", "distance_m", "duration_min", "total_population",
+    "id_orig", "id_dest", "distance_m", "duration_min", "population",
     "white", "black", "native", "asian", "pacific_islander", "other",
     "multiple_races", "hispanic", "non_hispanic", "weighted_dist", "flagged_distance"
   )
   results <- results[, ..output_columns]
   
-  #add in 0 population blocks
-  all_blocks <- data.table(st_drop_geometry(block_shapes))[, .(GEOID20, total_population)]
+  #determine which blocks the solver never assigned (zero population, by design)
+  all_blocks <- data.table(st_drop_geometry(block_shapes))[, .(GEOID20, population)]
   missing_blocks <- all_blocks[!GEOID20 %in% results$id_orig]
 
-  zero_fill_columns <- setdiff(output_columns, c("id_orig", "id_dest", "total_population", "flagged_distance"))
+  ####
+  # each zero-population block borrows its nearest assigned block's real
+  # destination (as in make_precinct_maps)
+  ####
+  #merge results and block assingment geometries
+  assigned_geom <- block_shapes[block_shapes$GEOID20 %in% results$id_orig, "GEOID20"]
+  assigned_geom <- merge(assigned_geom, results[, .(id_orig, id_dest)], by.x = "GEOID20", by.y = "id_orig")
+
+  #get the geometries of the unassigned blocks and assign them to a neighboring block's desination
+  missing_geom <- block_shapes[block_shapes$GEOID20 %in% missing_blocks$GEOID20, "GEOID20"]
+  nearest <- st_join(missing_geom, assigned_geom[, "id_dest"], join = st_nearest_feature)
+  missing_blocks <- merge(missing_blocks, st_drop_geometry(nearest)[, c("GEOID20", "id_dest")], by = "GEOID20")
+
+  #fill in the rest of the data for missing blocks
+  zero_fill_columns <- setdiff(output_columns, c("id_orig", "id_dest", "population", "flagged_distance"))
+  
   missing_rows <- missing_blocks[, id_orig := GEOID20
-              ][, id_dest := "Cheat Lake VFD"
               ][, (zero_fill_columns) := 0
               ][, flagged_distance := FALSE
               ][, ..output_columns]
@@ -704,6 +719,7 @@ flagged_optimized_distant_blocks <- function(block_shapes, results_file, duratio
 
   return(results)
 }
+
 # build a county-level map of census blocks by drive time to their assigned
 # polling location, with precinct boundaries and polling-location points
 # drawn on top for context.
@@ -711,9 +727,8 @@ flagged_optimized_distant_blocks <- function(block_shapes, results_file, duratio
 # - demo_pop = NULL: choropleth.
 # - demo_pop = a demographic column name. Only
 #   flagged (over-threshold) blocks get a dot
-# In both modes, zero-population blocks get a distinct gray fill, blocks
-# blocks with no assigned polling location
-# dashed blue outline.
+# In both modes, zero-population blocks get a distinct gray fill.
+# Blocks with no assigned polling location get a dashed blue outline.
 make_demo_distance_heat_map <- function(
     block_shapes, distance_flagged_blocks, precinct_shapes, polling_locations, demo_pop,
     duration_threshold_min, location = LOCATION,
@@ -726,17 +741,17 @@ make_demo_distance_heat_map <- function(
   #select relevant columns.
   distance_columns <- setdiff(
     c("id_orig", "id_dest", "distance_m", "duration_min", "flagged_distance", demo_pop),
-    "total_population"
+    "population"
   )
   block_distances <- merge(
-    block_shapes[, c("GEOID20", "total_population", "INTPTLAT20", "INTPTLON20", "block_geometry")],
+    block_shapes[, c("GEOID20", "population", "INTPTLAT20", "INTPTLON20", "block_geometry")],
     distance_flagged_blocks[, distance_columns, with = FALSE],
     by.x = "GEOID20", by.y = "id_orig", all.x = TRUE
   )
 
   #select different subgroups for map
   is_flagged <- block_distances$flagged_distance
-  no_population_blocks <- block_distances[block_distances$total_population == 0, ]
+  no_population_blocks <- block_distances[block_distances$population == 0, ]
   under_threshold_blocks <- block_distances[!is_flagged, ]
   over_threshold_blocks <- block_distances[is_flagged, ]
   not_assigned <- block_distances[is.na(block_distances$id_dest), ]
@@ -744,7 +759,7 @@ make_demo_distance_heat_map <- function(
   #title string
   if (is.null(demo_pop)) {
       demo_pop_label <- NULL
-      title_str <- gsub( "_", " ", paste(location, "chloropleth: driving distances to", map_label, 
+      title_str <- gsub( "_", " ", paste(location, "choropleth: driving times to", map_label, 
                             "polling location"))
   } else {
       demo_pop_label <- demo_pop_legend_dict[[demo_pop]]
@@ -780,10 +795,8 @@ make_demo_distance_heat_map <- function(
         low = "#fcbba1", high = "#67000d", name = "Duration (min)", limits = color_bounds
       )
   } else {
-    # dot mode: draw flagged blocks as plain context polygons, then place a
-    # dot at each flagged block's centroid, sized by demo_pop's population
-    # and colored by duration_min -- mirrors make_demo_dist_map() in
-    # map_functions.R.
+    # dot mode: place a dot at each flagged block's centroid, sized by demo_pop's population
+    # and colored by duration_min. blocks drawn for context
     over_threshold_blocks$INTPTLON20 <-
       as.numeric(over_threshold_blocks$INTPTLON20)
     over_threshold_blocks$INTPTLAT20 <-
