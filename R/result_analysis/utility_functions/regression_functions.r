@@ -13,6 +13,7 @@ source('R/result_analysis/utility_functions/storage.R')
 #2. take density data and aggregate key columns up to the block level
 #########
 
+# 1. combine result data with block area data to get population density and related measures
 bg_data<-function(prepped_dt){
 
 	prepped_data <- copy(prepped_dt)
@@ -37,10 +38,12 @@ bg_data<-function(prepped_dt){
 	setnames(regression_data, c('AREA20'), c('area'))
 
 	regression_data[ , `:=`(pop_density_km = 1e6 *total_population/(area), pct_white= 100 * white_population/total_population, pct_black = 100 *black_population/total_population)][ , z_score_log_density := scale(log(pop_density_km))]
-	
+
 	return(regression_data)
 }
 
+
+#2. take density data and aggregate key columns up to the block level
 get_density_data <- function(result_dt){
     #take density data and aggregate key columns up to the block level
 	result_data <- copy(result_dt)
@@ -71,6 +74,7 @@ get_density_data <- function(result_dt){
     return(regression_data)
 }
 
+#3. Run regresions and return results in a dataframe.
 bg_level_naive_regression <- function(regression_data){
 	config_set = unique(regression_data$config_set)
 	if(length(config_set)>1){
@@ -84,6 +88,48 @@ bg_level_naive_regression <- function(regression_data){
 	add_graph_to_graph_file_manifest(csv_file_path)
 	fwrite(distance_model, csv_file_path)
 	return(distance_model)
+}
+
+
+#######
+# Reshape distance data from actual precincts to be ingest by the regression pipeline
+#######
+
+# In the case where distances reprensent actual precincts, not 
+# optimizer assigned matchings, reshape distance data to match bg_data()
+# inputs to plug into the regression pipeline.
+# TODO this is for drive time only, and will need generalizing
+precinct_bg_density_data <- function(distance_flagged_blocks, location, demo_columns,
+                                     descriptor = "precinct_assignment",
+                                     metric = "driving_time") {
+	
+	#make long, with demographics getting the own row
+	#add weighted distance column
+	long_blocks <- melt(
+		distance_flagged_blocks, id.vars = c("id_orig", "duration_min"),
+		measure.vars = demo_columns, value.name = "demo_pop", variable.name = "demographic"
+	)
+	long_blocks[, bg_id := gsub(".{3}$", "", id_orig)]
+	long_blocks[, demo_weighted_dist := duration_min * demo_pop]
+
+	#roll up to block group level statistics
+	bg_demo <- long_blocks[, .(
+		demo_pop = sum(demo_pop), demo_weighted_dist = sum(demo_weighted_dist)
+	), by = c("bg_id", "demographic")]
+	bg_demo[, demo_avg_dist := demo_weighted_dist / demo_pop]
+
+	#get block geographic data
+	bg_map_data <- process_maps(get_map_file(location, block_flag = FALSE))
+	bg_demo_area <- merge(bg_demo, bg_map_data[, .(GEOID20, AREA20)], by.x = "bg_id", by.y = "GEOID20")
+
+	# put in empty columns that the regression pipe_line expects to see
+	# so that bg_data can drop them cleanly.
+	bg_demo_area[, `:=`(
+		descriptor = descriptor, metric = metric,
+		dest_lat = NA_real_, dest_lon = NA_real_, dest_type = NA_character_,
+		geometry = NA
+	)]
+	return(bg_demo_area)
 }
 
 

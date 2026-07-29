@@ -640,25 +640,44 @@ plot_population_densities <- function(density_df){
 	ggsave(graph_file_path)
 }
 
+# compute y_bounds for regressions 
+compute_density_y_bounds <- function(density_data, demo_list) {
+    filtered_dist <- density_data[demographic %in% demo_list, demo_avg_dist]
+    y_bounds <- c(min(filtered_dist, na.rm = TRUE), max(filtered_dist, na.rm = TRUE))
+	return(y_bounds)
+}
+
+
+
 #plot of average distances traveled by demographic groups, aggregated 
 #at the block group level, ordered by population density
 #log / log scale, with best fit lines
-plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG){
+plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG, y_bounds = NULL){
+
+	#the y_bounds variable can be defined in case one wants to compare this output
+	#across different solver data sets.
+	#Else, set graph y axis bounds. if min_distance == 0 m, make 1m
+	if (is.null(y_bounds)){
+    y_bounds <- compute_density_y_bounds(bg_density_data, demo_list)
+	}
 	
-	#set graph y axis bounds. if min_distance == 0 m, make 1m
-	min_dist = min(bg_density_data[demographic %in% demo_list, ]$demo_avg_dist, na.rm = TRUE)
-	max_dist = max(bg_density_data[demographic %in% demo_list, ]$demo_avg_dist, na.rm = TRUE)
-	if (min_dist == 0){min_dist = min_dist + .01}
-    y_bounds = c(min_dist,max_dist)
+	#disallow 0 minimum distances
+	if(y_bounds[1] == 0){y_bounds[1] = 1}
 
 	#trim log density outliers
 	trimmed <- bg_density_data[abs(z_score_log_density)<4, ]
 
-    descriptor_graph <- function(descriptor_str, demo_list, y_bounds){   
+	# distance values are meters except for driving-time configs, which report
+	# minutes -- the y-axis label needs to match.
+	# TODO(#231): replace with METRIC_LABELS/get_uniform_metric once that lands.
+	metric <- unique(trimmed$metric)
+	unit_label <- if (identical(metric, "driving_time")) "min" else "m"
+
+    descriptor_graph <- function(descriptor_str, demo_list, y_bounds){
 		flag_strs <- make_flag_strs(driving_flag, log_flag)
-	
+
 		title_str = paste0('Average', flag_strs$driving_str, 'distance to poll by demographic and block group')
-		y_str = paste0(paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'))
+		y_str = paste0(paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' ', unit_label, ')'))
 
         ggplot(trimmed[descriptor == descriptor_str & demographic %in% demo_list, ] , aes(x = pop_density_km, y = demo_avg_dist, group = demographic, color = demographic)) +
             geom_point(alpha = .7, aes(size = demo_pop )) + geom_smooth(method=lm, mapping = aes(weight = demo_pop), se= FALSE) + scale_x_continuous(trans = 'log10') + scale_y_log10(limits = y_bounds) +

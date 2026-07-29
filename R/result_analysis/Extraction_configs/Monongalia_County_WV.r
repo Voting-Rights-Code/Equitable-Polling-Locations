@@ -41,3 +41,13 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
 # Block geometry, for Step 2  
 ########
 BLOCK_GEOMETRY_FILES <- "tl_2020_54061_tabblock20"
+
+########
+# Optimization output
+########
+OPTIMIZATION_RESULTS <- 'datasets/results/Monongalia_County_WV_results/Monongalia_County_WV_driving_original_configs.Monongalia_County_WV_metric_driving_time_results.csv'
+
+########
+# Demographic groups for density-vs-distance graphs
+########
+DEMOGRAPHIC_LIST <- c("population")

@@ -29,6 +29,16 @@ Key libraries: `data.table`, `ggplot2`, `sf`, `bigrquery`, `googleCloudStorageR`
 - Lint with `lintr::lint()`. Format with `styler::style_file()`.
 - No formal test suite.
 
+### Comments
+
+Guiding question: what would someone need to pick this code up and contribute to it? Answer it as tersely as the altitude allows — three layers, not one.
+
+- **Script sections** (`Step 1: ...`, `#######` banners) group a *sequence* of function calls in a linear, top-to-bottom script (`extract_precincts.r`, `flag_state_provided_precincts.r`) into named phases. Only earns its keep when there's an actual sequence to narrate — utility files whose functions get called from elsewhere in arbitrary order don't need it.
+- **Function headers** carry the *why* — a few sentences above the function: what problem it solves, why it exists, why it's shaped the way it is. Allowed to run more than one line.
+- **Internal comments** are bare scaffolding: one short phrase per logical block, description not explanation. Their job is letting a reader check the code against the header's claim at a skim, not re-explaining it. Give one its own "why" clause only when that specific step hides something the header didn't cover (`put in empty columns... so bg_data can drop them cleanly`) — that's the exception, not the default.
+
+Cut a cross-reference to another function when it only claims "this works like that" (`mirrors color_bounds`) — useful once, dead weight after. Keep one when it cites where an unusual technique's precedent lives (`as in make_precinct_maps`).
+
 ## Package Management
 
 R packages are managed by [renv](https://rstudio.github.io/renv/). `renv.lock` at the repo root is the canonical pinned package set. To add or update a package, use `renv::install("pkg-name")` followed by `renv::snapshot()`, then commit `renv.lock`. The smoke test (`R/tests/r_smoke_test.R`) reads from `renv.lock` directly — no separate list to keep in sync.
