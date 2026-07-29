@@ -47,7 +47,7 @@ p3_file_path <- file.path(REDISTRICTING_FOLDER, LOCATION, "DECENNIALPL2020.P3-Da
 p3_population <- fread(
   p3_file_path,
   header = FALSE, skip = 2,
-  select = c(1, 3), col.names = c("GEO_ID", "total_population")
+  select = c(1, 3), col.names = c("GEO_ID", "population")
 )
 
 ######
@@ -91,7 +91,7 @@ st_write(
 ######
 
 precinct_population <- data.table(st_drop_geometry(block_precinct_assignment))[
-  , .(total_population = sum(total_population), assigned_blocks = .N), by = Precinct_I
+  , .(total_population = sum(population), assigned_blocks = .N), by = Precinct_I
 ]
 
 as_provided_precincts_with_population <- merge(

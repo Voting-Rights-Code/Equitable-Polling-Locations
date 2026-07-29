@@ -640,32 +640,36 @@ plot_population_densities <- function(density_df){
 	ggsave(graph_file_path)
 }
 
+# compute y_bounds for regressions 
+compute_density_y_bounds <- function(density_data, demo_list) {
+    filtered_dist <- density_data[demographic %in% demo_list, demo_avg_dist]
+    y_bounds <- c(min(filtered_dist, na.rm = TRUE), max(filtered_dist, na.rm = TRUE))
+	return(y_bounds)
+}
+
+
+
 #plot of average distances traveled by demographic groups, aggregated 
 #at the block group level, ordered by population density
 #log / log scale, with best fit lines
 plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG, y_bounds = NULL){
 
-	#set graph y axis bounds. if min_distance == 0 m, make 1m
-	#an explicit y_bounds (e.g. shared across two datasets for an
-	#apples-to-apples comparison, mirroring make_demo_distance_heat_map()'s
-	#color_bounds) overrides this.
+	#the y_bounds variable can be defined in case one wants to compare this output
+	#across different solver data sets.
+	#Else, set graph y axis bounds. if min_distance == 0 m, make 1m
 	if (is.null(y_bounds)){
-		min_dist = min(bg_density_data[demographic %in% demo_list, ]$demo_avg_dist, na.rm = TRUE)
-		max_dist = max(bg_density_data[demographic %in% demo_list, ]$demo_avg_dist, na.rm = TRUE)
-		if (min_dist == 0){min_dist = min_dist + .01}
-	    y_bounds = c(min_dist,max_dist)
+    y_bounds <- compute_density_y_bounds(bg_density_data, demo_list)
 	}
+	
+	#disallow 0 minimum distances
+	if(y_bounds[1] == 0){y_bounds[1] = 1}
 
 	#trim log density outliers
 	trimmed <- bg_density_data[abs(z_score_log_density)<4, ]
 
-	# TODO(#231): minimal, scoped stand-in for feature/231-r-metric-awareness's
-	# METRIC_LABELS mechanism -- only handles the one metric this branch
-	# needs (driving_time). Callers without a metric column (nothing sets
-	# one on this branch yet) fall through to today's "m" behavior
-	# unchanged. Expect a merge conflict here when #231 lands; prefer that
-	# branch's generalized METRIC_LABELS/get_uniform_metric over this
-	# lookup at that point.
+	# distance values are meters except for driving-time configs, which report
+	# minutes -- the y-axis label needs to match.
+	# TODO(#231): replace with METRIC_LABELS/get_uniform_metric once that lands.
 	metric <- unique(trimmed$metric)
 	unit_label <- if (identical(metric, "driving_time")) "min" else "m"
 
