@@ -134,7 +134,7 @@ duration_color_bounds <- c(15, max(flagged_duration_values, na.rm = TRUE))
 
 ###### Step 4: plot county-level distance heat map #######
 
-#make maps fof 15 minutes
+# Make maps for 15 minutes
 
 # choropleth mode
 make_demo_distance_heat_map(
@@ -148,7 +148,7 @@ make_demo_distance_heat_map(
   precincts_resolved, demo_pop = "population", 15, color_bounds = duration_color_bounds
 )
 
-#make maps fof 20 minutes
+# Make maps for 20 minutes
 
 # choropleth mode
 make_demo_distance_heat_map(
