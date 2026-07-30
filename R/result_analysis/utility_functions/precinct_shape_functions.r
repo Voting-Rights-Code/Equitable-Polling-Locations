@@ -504,7 +504,7 @@ apply_corrections <- function(state_precincts, mismatches_csv_path) {
 # combine them into one row-per-block demographic breakdown.
 get_block_demographics <- function(p3_file_path, p4_file_path) {
 
-  ### Read P3 and P4 data
+  # read P3 and P4 data
   # row 1 holds the real census column codes (GEO_ID, NAME, P3_001N, ...) <- keep;
   # row 2 holds long descriptive labels <- drop;
   # data starts at row 3.
