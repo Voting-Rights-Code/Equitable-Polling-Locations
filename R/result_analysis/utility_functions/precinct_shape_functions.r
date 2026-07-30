@@ -90,7 +90,7 @@ compute_block_precinct_overlaps <- function(county_precincts,
   #calculate block area in square meters
   county_blocks$block_area <- as.numeric(st_area(county_blocks$geometry))
 
-  # intersect blocks with precincts and compute the overlap area and percent overlap
+  #intersect blocks with precincts to measure overlap
   block_precinct_intersection <- st_intersection(county_blocks, county_precincts)
   block_precinct_intersection$overlap_area <- as.numeric(st_area(block_precinct_intersection$geometry))
 
@@ -98,6 +98,11 @@ compute_block_precinct_overlaps <- function(county_precincts,
   block_precinct_intersection$percent_outside_precinct <- 1-
     block_precinct_intersection$overlap_area /
     block_precinct_intersection$block_area
+
+  #swap in each block's full shape in place of the precinct-clipped piece
+  st_geometry(block_precinct_intersection) <- county_blocks$geometry[
+    match(block_precinct_intersection$GEOID20, county_blocks$GEOID20)
+  ]
 
   # return to project's standard projection
   block_precinct_intersection <- st_transform(block_precinct_intersection, crs_projection)
@@ -157,7 +162,7 @@ flag_overlapping_blocks <- function(block_precinct_intersection, min_percent_ove
 }
 
 # flag precincts with zero total population, using the raw as-provided
-# precinct shapes (not the clipped block geometries) so the output geometry
+# precinct shapes (not the block-level geometries) so the output geometry
 # matches what a human reviewer expects to see. Writes
 # flagged_unpopulated_precincts.gpkg.
 flag_unpopulated_precincts <- function(as_provided_precincts, block_precinct_assignment) {

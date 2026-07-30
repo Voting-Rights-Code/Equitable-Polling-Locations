@@ -114,9 +114,8 @@ state_county_crosswalk <- if (file.exists(crosswalk_path)) {
 }
 
 #read in block assignment: each block's dominant precinct (from
-#flag_state_provided_precincts.r's Step 3). Some block geometries are
-#clipped, since a block split across a precinct boundary keeps only the
-#piece assigned to its dominant precinct.
+#flag_state_provided_precincts.r's Step 3), with each block's full
+#geometry.
 block_precinct_assignment <- st_read(
   file.path("block_precinct_assignment.gpkg"))
 names(block_precinct_assignment)[names(block_precinct_assignment) == "geometry"] <- "block_geometry"
@@ -159,15 +158,9 @@ duration_color_bounds <- c(15, max(flagged_duration_values, na.rm = TRUE))
 
 ###### Step 6: plot county-level distance heat map #######
 
-#note, the heat maps use data where the blocks have been clipped
-#to the state precinct by dominant area.
-#Therefore, some of the blocks in the precinct maps are trimmed to
-#the precinct lines. Portions of blocks that lie in non-assigned
-#precincts will appear as holes.
-#In the optimized maps, the same clipped blocks are used, but the
-#precinct lines are drawn the full blocks. Missing block pieces will
-#still appear as holes, but in the same precinct as the drawn portion
-#of the block.
+#note, a block near a precinct boundary can visually
+#extend past the precinct line drawn on top for the state-precinct maps
+#but not the optimized maps below.
 
 # Make maps for 15 minutes
 
