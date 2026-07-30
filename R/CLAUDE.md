@@ -29,6 +29,7 @@ Key libraries: `data.table`, `ggplot2`, `sf`, `bigrquery`, `googleCloudStorageR`
 - Lint with `lintr::lint()`. Format with `styler::style_file()`.
 - No formal test suite.
 
+
 ### Comments
 
 Guiding question: what would someone need to pick this code up and contribute to it? Answer it as tersely as the altitude allows — three layers, not one.

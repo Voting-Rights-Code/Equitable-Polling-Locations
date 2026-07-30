@@ -78,10 +78,17 @@ state_precincts <- st_read(STATE_PRECINCT_STABLE_FILE)
 # Apply corrections from the mismatches.cvs and create crosswalk data
 ########
 
+#TODO:
+# 1. This commenting sucks. What is going on and why? 
+# 2. Is there a better flow where one just creates the crosswalk and never 
+# overwrites the state_data?
+
+#update state files, but don't write to file (yet)
 updated_state_precincts <- apply_corrections(
   state_precincts, RECONCILIATION_CSV
 )
 
+#why is this two lines? should this be combined with the above?
 reconciliation_data <- fread(RECONCILIATION_CSV)
 crosswalk <- build_precinct_crosswalk(reconciliation_data)
 
