@@ -450,8 +450,9 @@ apply_corrections <- function(state_precincts, mismatches_csv_path) {
 # area and the percent of the block's area that overlap leaves outside the
 # precinct. One row per (block, precinct) pair that overlaps at all -- a
 # block touching 3 precincts produces 3 rows. 
-compute_block_precinct_overlaps <- function(county_precincts, 
-                county_blocks, p3_population, area_crs = AREA_CRS) {
+compute_block_precinct_overlaps <- function(county_precincts,
+                county_blocks, p3_population, area_crs = AREA_CRS,
+                crs_projection = CRS_PROJECTION) {
 
   ####clean precinct and block data ####
   #transform to an equal-area projection for area calculations.
@@ -478,6 +479,10 @@ compute_block_precinct_overlaps <- function(county_precincts,
   block_precinct_intersection$percent_outside_precinct <- 1-
     block_precinct_intersection$overlap_area /
     block_precinct_intersection$block_area
+
+  # area calculations are done -- return geometry in the project's standard
+  # projection instead of leaving it in the equal-area CRS used above.
+  block_precinct_intersection <- st_transform(block_precinct_intersection, crs_projection)
 
   return(block_precinct_intersection)
 }
