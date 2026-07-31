@@ -14,22 +14,22 @@ source("R/result_analysis/utility_functions/regression_functions.r")
 # Read in command line arguments
 # A config file must be given to get the location-specific constants for the
 # extraction to be run. To extract a different county or state, add a new
-# config file under R/result_analysis/Extraction_configs/ instead of editing
-# this file. 
+# config file under R/result_analysis/precinct_configs/ instead of editing
+# this file.
 #######
 
 #args <- commandArgs(trailingOnly = TRUE)
 #if (length(args) != 1) {
 #  stop("Must enter exactly one config file")
 #} else {
-#  config_path <- paste0("R/result_analysis/Extraction_configs/", args[1])
+#  config_path <- paste0("R/result_analysis/precinct_configs/", args[1])
 #  source(config_path)
 #}
 
 ###
 # For inline testing only
 ###
-source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
+source("R/result_analysis/precinct_configs/Monongalia_County_WV.r")
 
 #define output folder. 
 precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
@@ -83,7 +83,6 @@ p4_file_path <- file.path(REDISTRICTING_FOLDER, LOCATION, "DECENNIALPL2020.P4-Da
 block_demographics <- get_block_demographics(p3_file_path, p4_file_path)
 
 #read in driving distances
-#TODO: why do some paths have build functions while others don't?
 driving_distance_path <- build_driving_distances_file_path(LOCATION)
 driving_distances <- fread(driving_distance_path)
 driving_distances[, id_orig := as.character(id_orig)]

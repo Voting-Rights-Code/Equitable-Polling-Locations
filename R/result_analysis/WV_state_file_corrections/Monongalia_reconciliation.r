@@ -3,7 +3,7 @@ library(here)
 
 setwd(here())
 source("R/result_analysis/utility_functions/precinct_shape_functions.r")
-source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
+source("R/result_analysis/precinct_configs/Monongalia_County_WV.r")
 
 ########
 # Reconciliation script for Monongalia County, WV -- builds the

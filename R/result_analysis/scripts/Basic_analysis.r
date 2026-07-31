@@ -21,7 +21,7 @@ setwd(here())
 source('R/result_analysis/utility_functions/storage.R')
 source('R/result_analysis/utility_functions/graph_functions.R')
 source('R/result_analysis/utility_functions/map_functions.R')
-source('R/result_analysis/utility_functions/regression_functions.R')
+source('R/result_analysis/utility_functions/regression_functions.r')
 
 
 #######

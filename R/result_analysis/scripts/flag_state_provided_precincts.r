@@ -16,7 +16,7 @@ source("R/result_analysis/utility_functions/precinct_shape_functions.r")
 ###
 # For inline testing only
 ###
-source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
+source("R/result_analysis/precinct_configs/Monongalia_County_WV.r")
 
 
 ######

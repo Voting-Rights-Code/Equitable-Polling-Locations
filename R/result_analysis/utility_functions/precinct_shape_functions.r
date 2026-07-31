@@ -32,8 +32,6 @@ build_driving_distances_file_path <- function(location, driving_folder = DRIVING
   ))
 }
 
-#TODO: there are more file paths being built on the fly. Should they be put in here?
-
 # wrap a digit-only id so that a csv reader (e.g. excel) loads it as text
 force_text_for_spreadsheet <- function(id_column) {
   paste0('="', id_column, '"')
