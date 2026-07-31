@@ -27,7 +27,7 @@ source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
 #TODO: there are still global constants being called. FIX!!
 
 as_provided_precincts <- extract_county_precincts(
-  STATE_PRECINCT_AS_PROVIDED_FILE, COUNTY_NAME, CRS_PROJECTION
+  STATE_PRECINCT_FILE, COUNTY_NAME, CRS_PROJECTION
 )
 as_provided_precincts <- as_provided_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
 names(as_provided_precincts)[names(as_provided_precincts) == "geometry"] <- "precinct_geometry"

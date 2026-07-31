@@ -203,23 +203,6 @@ flag_populated_unassigned_blocks <- function(block_precinct_assignment) {
 
 ######## extract_precincts.r: reconcile county-provided precinct data (Step 2) ########
 
-# compute the folder-name prefix for the NEXT state-file correction step
-# by finding the highest existing v<N> sibling folder under the
-# state precinct file's parent directory (if any) and returning v<N+1>
-next_correction_step_prefix <- function(state_precinct_source_file, location) {
-  state_folder <- dirname(state_precinct_source_file)
-  state_folder_basename <- basename(state_folder)
-  precincts_root <- dirname(state_folder)
-
-  version_pattern <- paste0("^", state_folder_basename, "_", location, "_v([0-9]+)_.*$")
-  sibling_folders <- list.dirs(precincts_root, full.names = FALSE, recursive = FALSE)
-  matching_folders <- sibling_folders[grepl(version_pattern, sibling_folders)]
-  existing_versions <- as.integer(sub(version_pattern, "\\1", matching_folders))
-
-  next_version <- ifelse(length(existing_versions) == 0, 1, max(existing_versions) + 1)
-  return(paste0(state_folder_basename, "_", location, "_v", next_version))
-}
-
 # reshape a county-provided precinct/polling-location table from one row per
 # polling place (with one or more columns listing the precincts it serves) to
 # one row per (location, precinct) pair. Precinct_columns of length 1 works
@@ -248,10 +231,11 @@ add_precinct_id <- function(precincts_long, county_name) {
 
 # Check that county-provided and state-provided (polling location, precinct)
 # pairs agree everywhere. Doesn't correct anything itself -- on any mismatch,
-# writes it to file and stops; apply_corrections() is what a human runs
-# afterward, once reviewed.
+# merges the new disagreements into the existing mismatch record (preserving
+# any rows already reviewed) and stops. extract_precincts.r applies a
+# reviewed record automatically on its next run, via apply_corrections().
 check_poll_precinct_agreement <- function(county_precincts_long, state_precincts,
-                                          state_precinct_source_file, location = LOCATION, output_folder = precinct_analysis_output_folder) {
+                                          location = LOCATION, output_folder = precinct_analysis_output_folder) {
 
   # rename the state's USER_POLL_ to make merged columns clear
   state_precincts_dt <- data.table(st_drop_geometry(state_precincts))
@@ -270,11 +254,9 @@ check_poll_precinct_agreement <- function(county_precincts_long, state_precincts
   ]
 
   if (nrow(mismatched_rows) > 0) {
-    # County_Nam only comes from state_precincts_dt, USER_POLL_ only comes
-    # from county_precincts_long -- NA in either marks which side the row
-    # didn't originate from. Checking state_USER_POLL_/USER_POLL_'s values
-    # here (instead of row-origin columns) would mislabel a real state
-    # precinct with a blank name field as "county_only".
+    # Some state_USER_POLL_ entries are legitimately blank. County_Nam is
+    # not. Therefore, we use County_Nam (state column) and USER_POLL_ 
+    # (containing county data) to identify missing information.
     mismatched_rows[
       , mismatch_source := fcase(
         is.na(County_Nam), "county_only",
@@ -290,35 +272,38 @@ check_poll_precinct_agreement <- function(county_precincts_long, state_precincts
       )
     ]
 
+    # write mismatches to file.
+    # This is a record of reconciliation between the state and the county.
+    # version controlled via git-lfs
     mismatches_path <- file.path(output_folder, "location_precinct_mismatches.csv")
     fwrite(mismatched_rows, mismatches_path)
 
-    next_step_prefix <- next_correction_step_prefix(state_precinct_source_file, location)
-
     stop(
-      "Found ", nrow(mismatched_rows), " precinct(s) that disagree between ",
-      "the state shapefile and the county file. Full list written to ",
-      mismatches_path, " -- see its mismatch_source column: 'state_only' means ",
-      "the precinct is in the state shapefile but not the county file; ",
-      "'county_only' is the reverse; 'name_mismatch' means the precinct is in ",
-      "both but state_USER_POLL_ and USER_POLL_ disagree.\n",
-      "Check that the COUNTY_PRECINCT_COLUMN_NAMES are correct. Furthermore, ",
-      "investigate with the county/state. For each row, fill in:\n",
-      "  - USER_POLL_: the correct polling place name.\n",
-      "  - resolution_type: one of 'rename' (same precinct, name only), ",
-      "'split' (this county precinct is an administrative division of ",
-      "an existing state precinct), or 'drop' (this precinct is not ",
-      "recognized by the county).\n",
-      "  - geometry_source_precinct_I: for 'split' rows only, the ",
-      "state provided ",
-      "Precinct_I whose geometry this row should reuse. Blank for 'rename' ",
-      "and 'drop'.\n",
-      "DO NOT remove rows -- a 'drop' decision belongs in resolution_type, ",
-      "not in deleting the row.\n",
-      "Document the decision in a new script under ",
-      "R/result_analysis/WV_state_file_corrections/ named ",
-      next_step_prefix, "_reconciliation.r that calls apply_corrections(), ",
-      "then re-run extract_precincts.r."
+      "Found ", nrow(mismatched_rows), " precinct(s) that disagree between the 
+      state shapefile and the county file. Full list written to ", 
+      mismatches_path, ".\n
+      See its mismatch_source column: 'state_only' means the precinct is in the 
+      state shapefile but not the county file; 'county_only' is the reverse; 
+      'name_mismatch' means the precinct is in both but state_USER_POLL_ and 
+      USER_POLL_ disagree.\n
+      Check that the COUNTY_PRECINCT_COLUMN_NAMES are correct. Furthermore, 
+      investigate with the county/state. For each unreviewed row, fill in:\n
+        - USER_POLL_: the correct polling place name.\n
+        - resolution_type: one of 'rename' (same precinct, name only), 
+            'split' (this county precinct is an administrative division of an 
+                    existing state precinct), 
+            or 'drop' (this precinct is not recognized by the county).\n
+        - geometry_source_precinct_I: for 'split' rows, the state provided 
+                Precinct_I whose geometry this row should reuse. 
+                Leave blank for 'rename' and 'drop'.\n
+      DO NOT remove rows -- a 'drop' decision belongs in resolution_type, not in
+      deleting the row.\n
+      Re-run extract_precincts.r once every row is filled in -- it applies this 
+      file automatically. If 
+      R/result_analysis/WV_state_file_corrections/", location, "_reconciliation.r 
+      doesn't exist yet, create it (see an existing one for the pattern) to build 
+      the polling-location crosswalk from this file; re-run it whenever new rows are 
+      added here."
     )
   }
 
@@ -332,8 +317,7 @@ check_poll_precinct_agreement <- function(county_precincts_long, state_precincts
 # and return state_precincts once verified to agree with it.
 reconcile_state_precinct_data <- function(precinct_file, precinct_column_names,
                                            location_name_col, address_col,
-                                           state_precincts, county_name,
-                                           state_precinct_source_file, location) {
+                                           state_precincts, county_name, location) {
   #read in county provided data
   provided_polls <- fread(precinct_file)
 
@@ -362,7 +346,7 @@ reconcile_state_precinct_data <- function(precinct_file, precinct_column_names,
   #County assignments correct. State precinct list correct.
   #If county does not assign a precinct, use state assignment.
   corrected_state_data <- check_poll_precinct_agreement(
-    precincts_long, state_precincts, state_precinct_source_file, location
+    precincts_long, state_precincts, location
   )
 
 return(corrected_state_data)
@@ -370,11 +354,11 @@ return(corrected_state_data)
 
 ##### one-off WV_state_file_corrections/*.r scripts: apply a human-reviewed correction #####
 
+# block_precinct_assignments.csv is created before the state data is adjusted
 # build a (Precinct_I, resolved_polling_location) crosswalk from a reviewed
 # mismatches table. One row per state provided Precinct_I that needed a
-# correction; resolved_polling_location is NA where no real destination
-# exists.
-# This is used to add dropped rows back into block precinct_assignments
+# correction; resolved_polling_location is NA for precincts that legitimately
+# lack destinations.
 build_precinct_crosswalk <- function(reviewed_corrections) {
   #check that resolution type has correct entries.
   unsupported <- reviewed_corrections[
@@ -385,10 +369,9 @@ build_precinct_crosswalk <- function(reviewed_corrections) {
       " is not a supported resolution type"))
   }
 
-
-  # pull out dropped  or renamed rows
+  # pull out dropped or renamed rows from the corrections data
   # use the name from the (user corrected) USER_POLL_ column
-  # non-entries are kept as NAs
+  # unassigned polling locations are kept as NAs
   crosswalk <- reviewed_corrections[ , resolved_polling_location := USER_POLL_
                 ][is.na(USER_POLL_) | USER_POLL_ == "",
                 resolved_polling_location := NA_character_
@@ -431,12 +414,9 @@ build_precinct_crosswalk <- function(reviewed_corrections) {
   return(crosswalk)
 }
 
-# read a human-reviewed location_precinct_mismatches.csv and mechanically
-# apply every row's resolution_type to state_precincts.
-apply_corrections <- function(state_precincts, mismatches_csv_path) {
-  #read in mismatch data
-  #error if resolution types aren't filled in.
-  reviewed_corrections <- fread(mismatches_csv_path)
+# apply a human-reviewed correction data's resolution_type to state_precincts.
+# check that data entered correctly
+apply_corrections <- function(state_precincts, reviewed_corrections) {
   stopifnot(
     "location_precinct_mismatches.csv has unfilled resolution_type rows -- \
     every row must be reviewed and assigned rename/split/drop before this \
@@ -451,7 +431,6 @@ apply_corrections <- function(state_precincts, mismatches_csv_path) {
     every rename/split needs a real destination filled in before this can run" =
     all(!is.na(rename_split_poll) & rename_split_poll != "")
   )
-
 
   # renames: relabel in place, geometry untouched
   rename_targets <- reviewed_corrections[resolution_type == "rename",

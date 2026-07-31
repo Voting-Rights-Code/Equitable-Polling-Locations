@@ -8,8 +8,7 @@ COUNTY_NAME <- sub("\\_.*", "", LOCATION)
 ######
 #data set locations
 ######
-STATE_PRECINCT_STABLE_FILE <- "datasets/precincts/West_Virginia_20260424_wmA84/VotingPrecincts_20260424_wmA84.shp"
-STATE_PRECINCT_AS_PROVIDED_FILE <- "datasets/precincts/West_Virginia_20260424_wmA84_as_provided/VotingPrecincts_20260424_wmA84.shp"
+STATE_PRECINCT_FILE <- "datasets/precincts/West_Virginia_20260424_wmA84_as_provided/VotingPrecincts_20260424_wmA84.shp"
 
 
 ########

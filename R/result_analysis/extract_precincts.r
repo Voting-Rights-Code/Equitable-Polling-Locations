@@ -37,21 +37,29 @@ source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
 precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
 
 ###### Step 1: extract and validate the county's precincts#######
-state_precincts <- extract_county_precincts(STATE_PRECINCT_STABLE_FILE, COUNTY_NAME, CRS_PROJECTION)
+state_precincts <- extract_county_precincts(STATE_PRECINCT_FILE, COUNTY_NAME, CRS_PROJECTION)
 
 state_precincts <- state_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
 st_geometry(state_precincts) <- "precinct_geometry"
 
-###### 
-# Step 2: reconcile county-provided precinct data 
+######
+# Step 2: reconcile county-provided precinct data
 # Assume that the county provided precinct data (if it exists)
-# is correct. The reconciliation is to get the state data to match it. 
-# Changes are made to the state file
+# is correct. The reconciliation is to get the state data to match it,
+# applying any reviewed corrections in memory -- nothing is written back
+# to the state precinct file itself.
 #######
 
 #If the county provides precinct data, 
 #reconcile it with the state provided precinct data
 if (COUNTY_PROVIDES_PRECINCT_DATA) {
+  #check if mismatches have been addressed
+  mismatches_path <- file.path(precinct_analysis_output_folder, "location_precinct_mismatches.csv")
+  if (file.exists(mismatches_path)) {
+    reconciliation_data <- fread(mismatches_path)
+    state_precincts <- apply_corrections(state_precincts, reconciliation_data)
+  }
+  #use this to reconcile state data
   precincts_resolved <- reconcile_state_precinct_data(
     COUNTY_PROVIDED_PRECINCT_FILE,
     COUNTY_PRECINCT_COLUMN_NAMES,
@@ -59,7 +67,6 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
     COUNTY_POLLING_LOCATION_ADDRESS_COL,
     state_precincts,
     COUNTY_NAME,
-    STATE_PRECINCT_STABLE_FILE,
     LOCATION
   )
 } else {
