@@ -2,7 +2,7 @@
 
 This document provides column-level definitions for all database tables and views in the `equitable_polling_locations_prod` BigQuery dataset. For an overview of the database, see [database](database.md).
 
-Demographic population fields in this dataset are sourced either from the U.S. Census Bureau's Decennial Census redistricting data, or from Redistricting Data Hub's disaggregation of the ACD CVAP (citizen voting age data) Specifically, for the redistricting data:
+Demographic population fields in this dataset are sourced from one of three places, selected per-config by `census_data_type`: the U.S. Census Bureau's Decennial Census redistricting data, Redistricting Data Hub's disaggregation of ACS CVAP (citizen voting age population) data, or Redistricting Data Hub's disaggregation of projected VAP (voting age population) data. Specifically, for the redistricting data:
 - **Race data:** Table P3 (Race for the Population 18 Years and Over)
 - **Ethnicity data:** Table P4 (Hispanic or Latino Origin by Race for the Population 18 Years and Over)
 - These population counts represent the voting-age population (18+) at the census block level.
@@ -11,6 +11,12 @@ For the CVAP data:
 - **Race and Ethnicity** come from the ACS P2 tables. See Redistricting Data Hub's [documentation page](https://redistrictingdatahub.org/data/about-our-data/american-community-survey/#cvap).
    - Note that race and ethnicity are calculated differently in these tables than for redistricting
 - These population counts represent the *citizen* voting-age population (18+) at the census block level.
+- All uses of data products based off of Redistricting Data Hub's data must comply with their [terms and conditions](https://redistrictingdatahub.org/terms-and-conditions/).
+
+For the RDH predicted VAP data (`census_data_type: predicted_vap`):
+- Population projections are based on the 2020 census (P3/P4 tables) and cover multiple future years in a single file; the config's `projection_year` field selects which year's columns are used.
+- Census/ACS population projections are only published at the block group level, too coarse for this model, which assigns individual census blocks to polling locations. Redistricting Data Hub disaggregates these projections down to the block level — the same role it plays for CVAP data above — which is why this dataset is used instead of pulling ACS projection data directly.
+- These population counts represent the projected voting-age population (18+) at the census block level.
 - All uses of data products based off of Redistricting Data Hub's data must comply with their [terms and conditions](https://redistrictingdatahub.org/terms-and-conditions/).
 ---
 
@@ -41,6 +47,8 @@ Stores the configuration parameters used to generate optimization model output. 
 | fixed_capacity_site_number | INTEGER | NULLABLE | If set, holds the per-location capacity constant at this number of people, rather than varying with the number of open precincts. |
 | log_distance | BOOLEAN | NULLABLE | If true, the optimization uses the natural log of distances instead of raw distances. |
 | census_year | STRING(4) | NULLABLE | The census year for the distance source data. Default: `2020`. |
+| census_data_type | STRING(256) | NULLABLE | Population data source. One of: `redistricting` (2020 decennial P3/P4), `CVAP` (citizen VAP, block-level ACS via RDH), or `predicted_vap` (RDH projected VAP; requires `projection_year`). Default: `redistricting`. |
+| projection_year | STRING(256) | NULLABLE | Required when `census_data_type` is `predicted_vap`; selects which year's columns to extract from the RDH projection file (e.g., `2026`). Null otherwise. |
 | created_at | DATETIME | REQUIRED | Timestamp when this config record was created (UTC). |
 
 ---
