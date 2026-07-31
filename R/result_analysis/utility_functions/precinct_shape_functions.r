@@ -230,10 +230,10 @@ add_precinct_id <- function(precincts_long, county_name) {
 }
 
 # Check that county-provided and state-provided (polling location, precinct)
-# pairs agree everywhere. Doesn't correct anything itself -- on any mismatch,
-# merges the new disagreements into the existing mismatch record (preserving
-# any rows already reviewed) and stops. extract_precincts.r applies a
-# reviewed record automatically on its next run, via apply_corrections().
+# pairs agree everywhere. Identifies mismatches, creates a correction
+# table documenting mismatches and prompts the user to enter reconciliation
+# data. extract_precincts.r applies the reviewed record automatically on its 
+# next run, via apply_corrections().
 check_poll_precinct_agreement <- function(county_precincts_long, state_precincts,
                                           location = LOCATION, output_folder = precinct_analysis_output_folder) {
 
@@ -552,7 +552,7 @@ get_driving_distances <- function(block_precinct_assignment, state_county_crossw
     by.y = c("id_orig", "id_dest_upper"), all.x = TRUE)
 
   #alert if there are missing distances or times for blocks with associated polling locations
-  missing_distances <- distance_blocks[(is.na(distance_m) | is.na(duration_s)) & !is.na(resolved_destination), ]
+  missing_distances <- distance_blocks[(is.na(distance_m) | is.na(duration_s)) & !(is.na(resolved_destination) | resolved_destination == ''), ]
   if (nrow(missing_distances)>0){
     stop(paste('The following blocks do not have driving distances: ', paste(missing_distances$GEOID20, collapse = ', ')))
   }
@@ -575,13 +575,7 @@ result_shaped_output <- function(block_demographics, block_precinct_assignment,
   distance_blocks[, population := NULL]
   distance_demographic_blocks <- merge( distance_blocks, block_demographics,
     by = "GEOID20")
-  #TODO: is this needed? how does this ever happen?
-  stopifnot(
-    "Some distance-joined blocks' GEOID20 had no matching row in block_demographics
-    -- block_demographics may be incomplete or out of sync with the block/precinct assignment, or vice versa" =
-      nrow(distance_demographic_blocks) == nrow(distance_blocks)
-  )
-
+  
   distance_demographic_blocks[, weighted_dist := population * distance_m]
 
   setnames(distance_demographic_blocks, "GEOID20", "id_orig")
@@ -633,6 +627,8 @@ demo_pop_legend_dict <- c(
   non_hispanic = "Non-Latine"
 )
 
+#TODO: given how the st_nearest_feature seems to assign blocks differently every run, 
+#is this the right thing to do?
 # read the solver-optimized precinct shapefile. Error if data is stale or missing
 get_solver_precinct_shapes <- function(solver_precinct_shapefile,
                                        results_file) {

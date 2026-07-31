@@ -16,8 +16,6 @@ source("R/result_analysis/utility_functions/regression_functions.r")
 # extraction to be run. To extract a different county or state, add a new
 # config file under R/result_analysis/Extraction_configs/ instead of editing
 # this file. 
-# TODO: The config's contents will grow as more steps are added to this
-# script.
 #######
 
 #args <- commandArgs(trailingOnly = TRUE)

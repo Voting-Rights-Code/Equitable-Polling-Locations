@@ -24,8 +24,6 @@ source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
 # precinct file. These are the AS-PROVIDED precincts.
 ######
 
-#TODO: there are still global constants being called. FIX!!
-
 as_provided_precincts <- extract_county_precincts(
   STATE_PRECINCT_FILE, COUNTY_NAME, CRS_PROJECTION
 )

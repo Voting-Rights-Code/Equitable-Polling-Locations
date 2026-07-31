@@ -11,12 +11,17 @@ source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
 # location_precinct_mismatches.csv. Re-run whenever new rows are added to
 # that file (see check_poll_precinct_agreement()'s instructions for when
 # that happens).
-#
-# Corrections are determined by running extract_precincts.r, which halts at
-# check_poll_precinct_agreement() and (over)writes
-# location_precinct_mismatches.csv -- one row per (Precinct_I, polling
-# location) pair that disagrees between the state shapefile and the county
-# file (see its mismatch_source column).
+########
+
+########
+# Standard work flow: 
+# 1. Run flag_state_provided_precincts.r
+# 2. run extract_precincts.r
+# 3. halt if state and county files don't match
+# 4. user updates mismatch file
+# 5. run reconciliation file
+# 6. run extract_precincts.r
+# 7. If mismatch file is changed, rerun reconciliation and extract precincts files
 ########
 
 ########
@@ -53,16 +58,17 @@ source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
 #         to resolve each block's final polling destination.
 ########
 
+#change directory
 precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
 setwd(precinct_analysis_output_folder)
 
+#read in correction data
 RECONCILIATION_CSV <- "location_precinct_mismatches.csv"
 reconciliation_data <- fread(RECONCILIATION_CSV)
 
+#build crosswalk
 crosswalk <- build_precinct_crosswalk(reconciliation_data)
 
-#write to file. na = "NA" so a genuinely-absent resolved_polling_location
-#(a real 'drop', no destination) reads back as NA, not "" -- fread()'s
-#default na.strings only recognizes the literal text "NA", not a blank field.
+#write to file. 
 crosswalk_path <- "precinct_polling_location_crosswalk.csv"
-fwrite(crosswalk, crosswalk_path, na = "NA")
+fwrite(crosswalk, crosswalk_path)
