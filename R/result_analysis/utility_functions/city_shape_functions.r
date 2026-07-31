@@ -57,6 +57,8 @@ crop_to_boundary <- function(boundary_shape_data, county_shape_data) {
   cropped_shapes$GEOID20 <- gsub("X", "", make.names(cropped_shapes$GEOID20, unique = TRUE))
 
   # create interior point for cropped shapes
+  # Note: st_point_on_surface guarantees the point is in the shape
+  # while st_centroid does not.
   interior_pt <- st_point_on_surface(cropped_shapes)
   # calculate a new INTPTLAT20/INTPTLON20 column
   interior_pt$INTPTLAT20 <- st_coordinates(interior_pt)[, 2]

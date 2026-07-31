@@ -612,7 +612,7 @@ flag_distant_blocks <- function(distance_demographic_blocks, duration_threshold_
 
 # human-readable labels for flag_distant_blocks()'s demographic columns, for
 # consistent map/legend naming.
-demo_pop_legend_dict <- c(
+demographic_legend_dict <- c(
   population = "Total",
   white = "White",
   black = "African American",
@@ -731,14 +731,14 @@ get_polling_locations <- function(location) {
 # build a county-level map of census blocks by drive time to their assigned
 # polling location, with precinct boundaries and polling-location points
 # drawn on top for context.
-# Two modes, chosen by demo_pop:
-# - demo_pop = NULL: choropleth.
-# - demo_pop = a demographic column name. Only
+# Two modes, chosen by demographic:
+# - demographic = NULL: choropleth.
+# - demographic = a demographic column name. Only
 #   flagged (over-threshold) blocks get a dot
 # In both modes, zero-population blocks get a distinct gray fill.
 # Blocks with no assigned polling location get a dashed blue outline.
 make_demo_distance_heat_map <- function(
-    block_shapes, distance_flagged_blocks, precinct_shapes, polling_locations, demo_pop,
+    block_shapes, distance_flagged_blocks, precinct_shapes, polling_locations, demographic,
     duration_threshold_min, location = LOCATION,
     crs_projection = CRS_PROJECTION, map_label = NULL, color_bounds = NULL) {
   # reproject to a plain lat/lon CRS so the graticule comes out
@@ -748,7 +748,7 @@ make_demo_distance_heat_map <- function(
 
   #select relevant columns.
   distance_columns <- setdiff(
-    c("id_orig", "id_dest", "distance_m", "duration_min", "flagged_distance", demo_pop),
+    c("id_orig", "id_dest", "distance_m", "duration_min", "flagged_distance", demographic),
     "population"
   )
   block_distances <- merge(
@@ -765,14 +765,14 @@ make_demo_distance_heat_map <- function(
   not_assigned <- block_distances[is.na(block_distances$id_dest), ]
 
   #title string
-  if (is.null(demo_pop)) {
-      demo_pop_label <- NULL
+  if (is.null(demographic)) {
+      demographic_label <- NULL
       title_str <- gsub( "_", " ", paste(location, "choropleth: driving times to", map_label,
                             "polling location"))
   } else {
-      demo_pop_label <- demo_pop_legend_dict[[demo_pop]]
+      demographic_label <- demographic_legend_dict[[demographic]]
       title_str <- gsub( "_", " ", paste(location, "driving distances to", map_label,
-                            "polling location:", demo_pop_label))
+                            "polling location:", demographic_label))
   }
 
   # caption: gray indicates no population block; dashed blue outline indicates no
@@ -793,7 +793,7 @@ make_demo_distance_heat_map <- function(
       linewidth = 0.1
     )
 
-  if (is.null(demo_pop)) {
+  if (is.null(demographic)) {
     heat_map <- heat_map +
       geom_sf(
         data = over_threshold_blocks, aes(fill = duration_min),
@@ -803,7 +803,7 @@ make_demo_distance_heat_map <- function(
         low = "#fcbba1", high = "#67000d", name = "Duration (min)", limits = color_bounds
       )
   } else {
-    # dot mode: place a dot at each flagged block's centroid, sized by demo_pop's population
+    # dot mode: place a dot at each flagged block's centroid, sized by demographic's population
     # and colored by duration_min. blocks drawn for context
     over_threshold_blocks$INTPTLON20 <-
       as.numeric(over_threshold_blocks$INTPTLON20)
@@ -819,13 +819,13 @@ make_demo_distance_heat_map <- function(
         data = over_threshold_blocks,
         aes(
           x = INTPTLON20, y = INTPTLAT20,
-          size = .data[[demo_pop]], color = duration_min
+          size = .data[[demographic]], color = duration_min
         )
       ) +
       scale_color_gradient(
         low = "#fcbba1", high = "#67000d", name = "Duration (min)", limits = color_bounds
       ) +
-      labs(size = paste(demo_pop_label, 'population'))
+      labs(size = paste(demographic_label, 'population'))
   }
 
   # drawn last among the fill layers so the dashed outline is visible while
@@ -850,7 +850,7 @@ make_demo_distance_heat_map <- function(
 
   #write to file
   file_name <- paste(
-    c(paste0(duration_threshold_min, "_min"), demo_pop, map_label, "distance_heat_map.png"),
+    c(paste0(duration_threshold_min, "_min"), demographic, map_label, "distance_heat_map.png"),
     collapse = "_"
   )
   ggsave(file_name, heat_map, width = 10, height = 8)
