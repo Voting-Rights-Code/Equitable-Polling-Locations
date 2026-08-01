@@ -115,6 +115,8 @@ RDH predicted VAP data provides block-level population projections for the Votin
 
 **Why RDH instead of pulling ACS data directly:** Census/ACS population projections are only published at the block group level. The solver assigns individual census blocks — not block groups — to polling locations, so block-group-level projections are too coarse to use directly. Redistricting Data Hub disaggregates these projections down to the block level, the same disaggregation role it plays for CVAP data above, which is why this model uses RDH's predicted VAP dataset rather than pulling ACS projection data directly.
 
+For documentation of RDH's projections methodology, see their [Population Projections](https://redistrictingdatahub.org/projections/) page.
+
 **Prerequisites:** downloading this data requires RDH credentials. Store them once with:
 
 ```bash
