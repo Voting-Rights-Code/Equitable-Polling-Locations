@@ -2,7 +2,7 @@
 
 This document provides column-level definitions for all database tables and views in the `equitable_polling_locations_prod` BigQuery dataset. For an overview of the database, see [database](database.md).
 
-Demographic population fields in this dataset are sourced from one of three places, selected per-config by `census_data_type`: the U.S. Census Bureau's Decennial Census redistricting data, Redistricting Data Hub's disaggregation of ACS CVAP (citizen voting age population) data, or Redistricting Data Hub's disaggregation of projected VAP (voting age population) data. Specifically, for the redistricting data:
+Demographic population fields in this dataset are sourced from one of three places, selected per-config by `census_data_type`: the U.S. Census Bureau's Decennial Census redistricting data, Redistricting Data Hub's disaggregation of ACS CVAP (citizen voting age population) data, or Redistricting Data Hub's own projected VAP (voting age population) modeling, built from decennial census and ACS data as historical inputs. Specifically, for the redistricting data:
 - **Race data:** Table P3 (Race for the Population 18 Years and Over)
 - **Ethnicity data:** Table P4 (Hispanic or Latino Origin by Race for the Population 18 Years and Over)
 - These population counts represent the voting-age population (18+) at the census block level.
@@ -15,7 +15,7 @@ For the CVAP data:
 
 For the RDH predicted VAP data (`census_data_type: predicted_vap`):
 - Population projections are based on the 2020 census (P3/P4 tables) and cover multiple future years in a single file; the config's `projection_year` field selects which year's columns are used. See Redistricting Data Hub's [projections methodology page](https://redistrictingdatahub.org/projections/).
-- Census/ACS population projections are only published at the block group level, too coarse for this model, which assigns individual census blocks to polling locations. Redistricting Data Hub disaggregates these projections down to the block level — the same role it plays for CVAP data above — which is why this dataset is used instead of pulling ACS projection data directly.
+- Unlike CVAP, this isn't a disaggregation of an existing ACS product — the Census Bureau/ACS does not publish future-year population projections at all, at any geography. RDH produces the projection itself, using the 2020 decennial census and 5-year ACS estimates only as historical inputs, and delivers the result at the block level this model requires.
 - These population counts represent the projected voting-age population (18+) at the census block level.
 - All uses of data products based off of Redistricting Data Hub's data must comply with their [terms and conditions](https://redistrictingdatahub.org/terms-and-conditions/).
 ---
