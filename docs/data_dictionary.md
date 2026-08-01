@@ -2,7 +2,7 @@
 
 This document provides column-level definitions for all database tables and views in the `equitable_polling_locations_prod` BigQuery dataset. For an overview of the database, see [database](database.md).
 
-Demographic population fields in this dataset are sourced from one of three places, selected per-config by `census_data_type`: the U.S. Census Bureau's Decennial Census redistricting data, Redistricting Data Hub's disaggregation of ACS CVAP (citizen voting age population) data, or Redistricting Data Hub's own projected VAP (voting age population) modeling, built from decennial census and ACS data as historical inputs. Specifically, for the redistricting data:
+Demographic population fields in this dataset are sourced from one of three places, selected per-config by `census_data_type`: the U.S. Census Bureau's Decennial Census redistricting data, Redistricting Data Hub's disaggregation of ACS CVAP (citizen voting age population) data, or Redistricting Data Hub's own projected VAP (voting age population) modeling. The projected VAP modeling is built from decennial census and ACS data as historical inputs. Specifically, for the redistricting data:
 - **Race data:** Table P3 (Race for the Population 18 Years and Over)
 - **Ethnicity data:** Table P4 (Hispanic or Latino Origin by Race for the Population 18 Years and Over)
 - These population counts represent the voting-age population (18+) at the census block level.
