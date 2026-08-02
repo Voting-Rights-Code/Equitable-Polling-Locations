@@ -10,19 +10,14 @@ library(here)
 library(dplyr)
 
 setwd(here())
-source("R/result_analysis/utility_functions/shape_extraction_functions.r")
+source("R/result_analysis/utility_functions/city_shape_functions.r")
+source("R/result_analysis/utility_functions/precinct_shape_functions.r")
 
 ###
 # For inline testing only
 ###
-source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
+source("R/result_analysis/precinct_configs/Monongalia_County_WV.r")
 
-CRS_PROJECTION <- 4326
-
-precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
-if (!file.exists(file.path(here(), precinct_analysis_output_folder))) {
-  dir.create(file.path(here(), precinct_analysis_output_folder), recursive = TRUE)
-}
 
 ######
 # Step 1: extract the county's data from the state provided
@@ -30,7 +25,7 @@ if (!file.exists(file.path(here(), precinct_analysis_output_folder))) {
 ######
 
 as_provided_precincts <- extract_county_precincts(
-  STATE_PRECINCT_AS_PROVIDED_FILE, COUNTY_NAME, CRS_PROJECTION
+  STATE_PRECINCT_FILE, COUNTY_NAME, TIGER_CRS
 )
 as_provided_precincts <- as_provided_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
 names(as_provided_precincts)[names(as_provided_precincts) == "geometry"] <- "precinct_geometry"
@@ -40,9 +35,11 @@ st_geometry(as_provided_precincts) <- "precinct_geometry"
 # Step 2: extract the county's census blocks and population
 ######
 
+#get county shape data, don't stray from tiger projection
 tiger_file_path <- file.path(TIGER_FOLDER, LOCATION, paste0(BLOCK_GEOMETRY_FILES, ".shp"))
-county_blocks <- get_shape_data(tiger_file_path)
+county_blocks <- get_shape_data(tiger_file_path, crs_projection = TIGER_CRS)
 
+#get county demographic data
 p3_file_path <- file.path(REDISTRICTING_FOLDER, LOCATION, "DECENNIALPL2020.P3-Data.csv")
 p3_population <- fread(
   p3_file_path,
@@ -50,27 +47,27 @@ p3_population <- fread(
   select = c(1, 3), col.names = c("GEO_ID", "population")
 )
 
+########## Set folder for outputs #############
+#create output folder
+precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
+if (!file.exists(file.path(here(), precinct_analysis_output_folder))) {
+  dir.create(file.path(here(), precinct_analysis_output_folder), recursive = TRUE)
+}
+setwd(file.path(here(), precinct_analysis_output_folder))
+
 ######
 # Step 3: associate blocks with their dominant state provided precinct.
 # Write both the full association table, and the associations with some
 # uncertainty (flagged) to file
 ######
 
+#keep geometry objects in tiger projection
 block_precinct_intersection <- compute_block_precinct_overlaps(
-  as_provided_precincts, county_blocks, p3_population, AREA_CRS
+  as_provided_precincts, county_blocks, p3_population, crs_projection = TIGER_CRS
 )
 
 block_precinct_assignment <- assign_block_to_dominant_precinct(block_precinct_intersection)
 
-st_write(
-  block_precinct_assignment,
-  file.path(precinct_analysis_output_folder, "block_precinct_assignment.gpkg"), append = FALSE
-)
-
-st_write(
-  block_precinct_assignment %>% filter(flagged == TRUE),
-  file.path(precinct_analysis_output_folder, "flagged_assigned_blocks.gpkg"), append = FALSE
-)
 
 ######
 # Step 4: flag every (block, precinct) pair with significant overlap
@@ -80,28 +77,20 @@ st_write(
 
 overlapping_blocks <- flag_overlapping_blocks(block_precinct_intersection)
 
-st_write(
-  overlapping_blocks %>% filter(flagged == TRUE),
-  file.path(precinct_analysis_output_folder, "flagged_overlapping_blocks.gpkg"), append = FALSE
-)
 
 ######
 # Step 5: flag precincts with zero population
 # Write to file to flag for anomalous precinct review
 ######
 
-precinct_population <- data.table(st_drop_geometry(block_precinct_assignment))[
-  , .(total_population = sum(population), assigned_blocks = .N), by = Precinct_I
-]
-
-as_provided_precincts_with_population <- merge(
-  as_provided_precincts, precinct_population,
-  by = "Precinct_I", all.x = TRUE, sort = FALSE
+precincts_with_zero_population <- flag_unpopulated_precincts(
+  as_provided_precincts, block_precinct_assignment
 )
-as_provided_precincts_with_population <- as_provided_precincts_with_population %>%
-  mutate(unpopulated_precinct = is.na(total_population) | total_population == 0)
 
-st_write(
-  as_provided_precincts_with_population %>% filter(unpopulated_precinct == TRUE),
-  file.path(precinct_analysis_output_folder, "flagged_unpopulated_precincts.gpkg"), append = FALSE
-)
+######
+# Step 6: flag populated blocks with no assigned poll
+# Write to file to flag for anomalous precinct review
+######
+
+unassigned_populated_blocks <- flag_populated_unassigned_blocks(block_precinct_assignment)
+

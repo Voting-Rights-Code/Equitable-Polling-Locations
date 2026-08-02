@@ -6,7 +6,11 @@ Result analysis and visualization scripts. Secondary to the Python solver — us
 
 | Directory | Purpose |
 |-----------|---------|
-| `result_analysis/` | Main analysis scripts (per-county configs) |
+| `result_analysis/scripts/` | Core pipeline scripts (`Basic_analysis.r`, `extract_city.r`, `extract_precincts.r`, `flag_state_provided_precincts.r`) |
+| `result_analysis/precinct_configs/` | Per-county config files for the precinct-reconciliation pipeline |
+| `result_analysis/city_configs/` | Per-city config files for the city-extraction pipeline |
+| `result_analysis/Basic_analysis_configs/` | Per-config-set config files for `Basic_analysis.r` |
+| `result_analysis/WV_state_file_corrections/` | Persistent per-county reconciliation scripts (human-reviewed corrections) |
 | `result_analysis/utility_functions/` | Shared functions: storage, graphs, maps, config loading |
 | `result_analysis/deprecated/` | Archived historical analyses |
 | `tests/` | Manual verification scripts (not automated) |
@@ -28,6 +32,7 @@ Key libraries: `data.table`, `ggplot2`, `sf`, `bigrquery`, `googleCloudStorageR`
 - Pre-allocate vectors; never grow objects in a loop.
 - Lint with `lintr::lint()`. Format with `styler::style_file()`.
 - No formal test suite.
+
 
 ### Comments
 
