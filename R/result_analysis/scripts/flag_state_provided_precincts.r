@@ -25,7 +25,7 @@ source("R/result_analysis/precinct_configs/Monongalia_County_WV.r")
 ######
 
 as_provided_precincts <- extract_county_precincts(
-  STATE_PRECINCT_FILE, COUNTY_NAME, CRS_PROJECTION
+  STATE_PRECINCT_FILE, COUNTY_NAME, TIGER_CRS
 )
 as_provided_precincts <- as_provided_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
 names(as_provided_precincts)[names(as_provided_precincts) == "geometry"] <- "precinct_geometry"
@@ -35,9 +35,9 @@ st_geometry(as_provided_precincts) <- "precinct_geometry"
 # Step 2: extract the county's census blocks and population
 ######
 
-#get county shape data
+#get county shape data, don't stray from tiger projection
 tiger_file_path <- file.path(TIGER_FOLDER, LOCATION, paste0(BLOCK_GEOMETRY_FILES, ".shp"))
-county_blocks <- get_shape_data(tiger_file_path)
+county_blocks <- get_shape_data(tiger_file_path, crs_projection = TIGER_CRS)
 
 #get county demographic data
 p3_file_path <- file.path(REDISTRICTING_FOLDER, LOCATION, "DECENNIALPL2020.P3-Data.csv")
@@ -61,8 +61,9 @@ setwd(file.path(here(), precinct_analysis_output_folder))
 # uncertainty (flagged) to file
 ######
 
+#keep geometry objects in tiger projection
 block_precinct_intersection <- compute_block_precinct_overlaps(
-  as_provided_precincts, county_blocks, p3_population, AREA_CRS
+  as_provided_precincts, county_blocks, p3_population, crs_projection = TIGER_CRS
 )
 
 block_precinct_assignment <- assign_block_to_dominant_precinct(block_precinct_intersection)

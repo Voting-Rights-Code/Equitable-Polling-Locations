@@ -13,7 +13,7 @@ POTENTIAL_LOCATIONS_SUFFIX <- "_potential_locations.csv"
 DRIVING_FOLDER <- "datasets/driving"
 DRIVING_DISTANCE_SUFFIX <- "_driving_distances.csv"
 AREA_CRS <- 5070
-
+TIGER_CRS <- 4269
 ######## Path / IO helpers ########
 
 # path to a location's potential-locations CSV
@@ -43,7 +43,7 @@ force_text_for_spreadsheet <- function(id_column) {
 # Note for future projects: This is custom built for the WV precinct shapefile and may need
 # generalization.
 extract_county_precincts <- function(precinct_source_file, county_name,
-                                     crs_projection = CRS_PROJECTION) {
+                                     crs_projection = TIGER_CRS) {
   #read state data
   statewide_precincts <- get_shape_data(
     precinct_source_file,
@@ -69,7 +69,7 @@ extract_county_precincts <- function(precinct_source_file, county_name,
 # block touching 3 precincts produces 3 rows.
 compute_block_precinct_overlaps <- function(county_precincts,
                 county_blocks, p3_population, area_crs = AREA_CRS,
-                crs_projection = CRS_PROJECTION) {
+                crs_projection = TIGER_CRS) {
 
   #transform to an equal-area projection for area calculations.
   #5070 is NAD83 / Conus Albers.
@@ -105,6 +105,12 @@ compute_block_precinct_overlaps <- function(county_precincts,
   # return to project's standard projection
   block_precinct_intersection <- st_transform(block_precinct_intersection, crs_projection)
 
+  #check that all blocks are accounted for
+  if (length(unique(block_precinct_intersection$GEOID20)) < length(county_blocks$GEOID20)){
+    stop(paste('The following blocks do not intersect any precinct: ',
+        paste0(setdiff(county_blocks$GEOID20, unique(block_precinct_intersection$GEOID20)),
+        collapse = ', ')))
+  }
   return(block_precinct_intersection)
 }
 
@@ -740,7 +746,7 @@ get_polling_locations <- function(location) {
 make_demo_distance_heat_map <- function(
     block_shapes, distance_flagged_blocks, precinct_shapes, polling_locations, demographic,
     duration_threshold_min, location = LOCATION,
-    crs_projection = CRS_PROJECTION, map_label = NULL, color_bounds = NULL) {
+    crs_projection = TIGER_CRS, map_label = NULL, color_bounds = NULL) {
   # reproject to a plain lat/lon CRS so the graticule comes out
   # horizontal/vertical
   block_shapes <- st_transform(block_shapes, crs_projection)

@@ -35,7 +35,7 @@ source("R/result_analysis/precinct_configs/Monongalia_County_WV.r")
 precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
 
 ###### Step 1: extract and validate the county's precincts#######
-state_precincts <- extract_county_precincts(STATE_PRECINCT_FILE, COUNTY_NAME, CRS_PROJECTION)
+state_precincts <- extract_county_precincts(STATE_PRECINCT_FILE, COUNTY_NAME, TIGER_CRS)
 
 state_precincts <- state_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
 st_geometry(state_precincts) <- "precinct_geometry"
