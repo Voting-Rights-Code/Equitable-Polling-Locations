@@ -111,9 +111,7 @@ Note, any use of data or data products built on data from Redistricting Data Hub
 
 Stored in `datasets/census/RDH_predicted_vap/<County_ST>/`
 
-RDH predicted VAP data provides block-level population projections for the Voting Age Population (VAP) sourced from the [Redistricting Data Hub](https://redistrictingdatahub.org/). These projections are based on the 2020 census (P3/P4 tables) and cover multiple future years in a single file (e.g., 2026–2035). The `projection_year` config field selects which year's columns are used at model-run time.
-
-**Why RDH instead of pulling ACS data directly:** This isn't the same situation as CVAP, where ACS already publishes a block-group-level product that RDH disaggregates. The Census Bureau/ACS does not publish future-year population projections at all, at any geography — projections require a forecasting methodology, not just tabulation of a survey. RDH produces the projection itself: it uses the 2020 decennial census and 5-year ACS estimates only as historical inputs to its own modeling, then delivers the result at the census block level, the granularity this model requires. There is no ACS projection product to pull directly instead.
+VAP stands for voting age population. This is from the 2020 census. [Redistricting Data Hub](https://redistrictingdatahub.org/) creates projections from 2026 - 2035, as the ACS does not publish projections.
 
 For documentation of RDH's projections methodology, see their [Population Projections](https://redistrictingdatahub.org/projections/) page.
 

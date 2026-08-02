@@ -14,8 +14,9 @@ For the CVAP data:
 - All uses of data products based off of Redistricting Data Hub's data must comply with their [terms and conditions](https://redistrictingdatahub.org/terms-and-conditions/).
 
 For the RDH predicted VAP data (`census_data_type: predicted_vap`):
-- Population projections are based on the 2020 census (P3/P4 tables) and cover multiple future years in a single file; the config's `projection_year` field selects which year's columns are used. See Redistricting Data Hub's [projections methodology page](https://redistrictingdatahub.org/projections/).
-- Unlike CVAP, this isn't a disaggregation of an existing ACS product — the Census Bureau/ACS does not publish future-year population projections at all, at any geography. RDH produces the projection itself, using the 2020 decennial census and 5-year ACS estimates only as historical inputs, and delivers the result at the block level this model requires.
+- **Race and Ethnicity** come from the 2020 census' P3/P4 tables. See Redistricting Data Hub's [projections methodology page](https://redistrictingdatahub.org/projections/).
+- Note that the dataset used is RDH's own, as ACS data is only available at the block group level, not the block level, and does not include projections at all.
+- Projections are from 2026 - 2035
 - These population counts represent the projected voting-age population (18+) at the census block level.
 - All uses of data products based off of Redistricting Data Hub's data must comply with their [terms and conditions](https://redistrictingdatahub.org/terms-and-conditions/).
 ---
