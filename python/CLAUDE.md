@@ -42,6 +42,11 @@ All code must be written using TDD:
 
 When modifying existing code, update the associated tests before or alongside the change, and confirm all relevant tests pass before considering the work done.
 
+### Delivery Scripts
+
+`python/scripts/delivery_scripts/` holds scripts written to produce a specific client/analysis deliverable, similar to the R files.  These may be one off, or the maybe narrowly scoped repeated tooling. As such, these should follow the same TDD conventions as the R files do. Just like the R work, commit them alongside the deliverable they produced, for traceability.
+
+
 ## Key Conventions
 
 - Config paths are case-sensitive: use `Gwinnett_GA`, not `Gwinnett_Ga`
