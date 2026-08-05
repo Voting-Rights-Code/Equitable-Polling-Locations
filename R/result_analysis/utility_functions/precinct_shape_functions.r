@@ -194,7 +194,7 @@ flag_unpopulated_precincts <- function(as_provided_precincts, block_precinct_ass
 # location
 flag_populated_unassigned_blocks <- function(block_precinct_assignment) {
   unassigned_populated_blocks <- block_precinct_assignment %>%
-    mutate(unassigned_populated = population > 0 & (is.na(USER_POLL_) | USER_POLL_ == ""))
+    mutate(unassigned_populated = population > 0 & is.na(USER_POLL_))
 
   #write to file
   st_write(
@@ -323,7 +323,7 @@ reconcile_state_precinct_data <- function(precinct_file, precinct_column_names,
                                            location_name_col, address_col,
                                            state_precincts, county_name, location) {
   #read in county provided data
-  provided_polls <- fread(precinct_file)
+  provided_polls <- safe_fread(precinct_file)
 
   #validate the columns indicated in the config against columns in provided data
   precinct_column_numbers <- which(names(provided_polls) %in% precinct_column_names)
@@ -377,8 +377,6 @@ build_precinct_crosswalk <- function(reviewed_corrections) {
   # use the name from the (user corrected) USER_POLL_ column
   # unassigned polling locations are kept as NAs
   crosswalk <- reviewed_corrections[ , resolved_polling_location := USER_POLL_
-                ][is.na(USER_POLL_) | USER_POLL_ == "",
-                resolved_polling_location := NA_character_
                 ][resolution_type == "rename" | resolution_type ==  "drop" ,
                 .(Precinct_I, resolved_polling_location) ]
 
@@ -556,7 +554,7 @@ get_driving_distances <- function(block_precinct_assignment, state_county_crossw
     by.y = c("id_orig", "id_dest_upper"), all.x = TRUE)
 
   #alert if there are missing distances or times for blocks with associated polling locations
-  missing_distances <- distance_blocks[(is.na(distance_m) | is.na(duration_s)) & !(is.na(resolved_destination) | resolved_destination == ''), ]
+  missing_distances <- distance_blocks[(is.na(distance_m) | is.na(duration_s)) & !is.na(resolved_destination), ]
   if (nrow(missing_distances)>0){
     stop(paste('The following blocks do not have driving distances: ', paste(missing_distances$GEOID20, collapse = ', ')))
   }

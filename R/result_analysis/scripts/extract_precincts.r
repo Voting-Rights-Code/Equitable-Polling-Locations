@@ -54,7 +54,7 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
   #check if mismatches have been addressed
   mismatches_path <- file.path(precinct_analysis_output_folder, "location_precinct_mismatches.csv")
   if (file.exists(mismatches_path)) {
-    reconciliation_data <- fread(mismatches_path)
+    reconciliation_data <- safe_fread(mismatches_path)
     state_precincts <- apply_corrections(state_precincts, reconciliation_data)
   }
   #use this to reconcile state data
@@ -109,7 +109,7 @@ setwd(file.path(here(), precinct_analysis_output_folder))
 #map the state_provided precinct to the reolved polling locations
 crosswalk_path <- "precinct_polling_location_crosswalk.csv"
 state_county_crosswalk <- if (file.exists(crosswalk_path)) {
-  fread(crosswalk_path)
+  safe_fread(crosswalk_path)
 } else {
   # no correction script has ever run for this county -- every precinct's
   # as-provided USER_POLL_ is already correct, so an empty crosswalk (every
@@ -120,8 +120,8 @@ state_county_crosswalk <- if (file.exists(crosswalk_path)) {
 #read in block assignment: each block's dominant precinct (from
 #flag_state_provided_precincts.r's Step 3), with each block's full
 #geometry.
-block_precinct_assignment <- st_read(
-  file.path("block_precinct_assignment.gpkg"))
+block_precinct_assignment <- normalize_missing_strings(st_read(
+  file.path("block_precinct_assignment.gpkg")))
 names(block_precinct_assignment)[names(block_precinct_assignment) == "geometry"] <- "block_geometry"
 st_geometry(block_precinct_assignment) <- "block_geometry"
 
