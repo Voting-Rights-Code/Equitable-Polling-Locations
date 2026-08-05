@@ -631,10 +631,9 @@ demographic_legend_dict <- c(
   non_hispanic = "Non-Latine"
 )
 
-# dissolve populated blocks into the previously generated precincts made of only populated blocks to 
-# consistently create the same full precinct shapes.
-
-dissolve_by_destination <- function(populated_geom, dest_columns = "id_dest") {
+# build the populated-block-only precinct shapes used for fallback assignment
+# so the same fallback shape is used for empty blocks as well.
+build_populated_block_only_precincts <- function(populated_geom, dest_columns = "id_dest") {
   input_geometry_column <- attr(populated_geom, "sf_column")
 
   populated_geom %>%
@@ -699,14 +698,14 @@ flagged_optimized_distant_blocks <- function(block_shapes, optimization_results,
 
   ####
   # each zero-population block borrows its nearest assigned precinct's
-  # id_dest (see dissolve_by_destination())
+  # id_dest (see build_populated_block_only_precincts())
   ####
-  assigned_geom <- block_shapes[block_shapes$GEOID20 %in% results$id_orig, "GEOID20"]
-  assigned_geom <- merge(assigned_geom, results[, .(id_orig, id_dest)], by.x = "GEOID20", by.y = "id_orig")
-  dissolved_destinations <- dissolve_by_destination(assigned_geom)
+  assigned_block_geometries <- block_shapes[block_shapes$GEOID20 %in% results$id_orig, "GEOID20"]
+  assigned_block_geometries <- merge(assigned_block_geometries, results[, .(id_orig, id_dest)], by.x = "GEOID20", by.y = "id_orig")
+  populated_block_only_precincts <- build_populated_block_only_precincts(assigned_block_geometries)
 
-  missing_geom <- block_shapes[!block_shapes$GEOID20 %in% results$id_orig, "GEOID20"]
-  nearest <- st_join(missing_geom, dissolved_destinations, join = st_nearest_feature)
+  unassigned_block_geometries <- block_shapes[!block_shapes$GEOID20 %in% results$id_orig, "GEOID20"]
+  nearest <- st_join(unassigned_block_geometries, populated_block_only_precincts, join = st_nearest_feature)
   nearest_dest <- data.table(st_drop_geometry(nearest))[, .(GEOID20, nearest_dest = id_dest)]
 
   results_full <- merge(all_blocks, results, by.x = "GEOID20", by.y = "id_orig", all.x = TRUE)
