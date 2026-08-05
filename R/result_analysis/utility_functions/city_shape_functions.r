@@ -15,6 +15,32 @@ TIGER_FOLDER <- "datasets/census/tiger"
 REDISTRICTING_FOLDER <- "datasets/census/redistricting"
 DEMO_BG_FOLDER <- "block group demographics"
 
+######## Missing-value normalization ########
+# fwrite()/st_write() write NA_character_ as a blank cell either way, but
+# fread() only recognizes literal "NA" text on the way back in, and st_read()
+# has no na-string option at all -- DBF doesn't have a real NULL to give it.
+# Without this, we have to is.na(x) | x == ''. Collapse "" back to NA right 
+# after each read. instead, this lets us just use is.na downstream without 
+# worrying about silent errors
+#
+# Uses `[[`, not the data.table idiom, because this also has to run on sf
+# objects from st_read() -- data.table's `:=` strips the sfc column's
+# crs/bbox attributes. Plain `[` won't work either: data.table overloads
+# dt[character_columns] as a join, not column selection, so `[[` in a loop
+# is the one form that behaves the same on both data.table and sf.
+normalize_missing_strings <- function(data) {
+  character_columns <- names(data)[vapply(data, is.character, logical(1))]
+  for (column_name in character_columns) {
+    data[[column_name]] <- replace(data[[column_name]], data[[column_name]] == "", NA_character_)
+  }
+  return(data)
+}
+
+# fread(), with the same blank -> NA cleanup get_shape_data() does for shapefiles.
+safe_fread <- function(...) {
+  normalize_missing_strings(fread(...))
+}
+
 ######## Shape read / crop chain ########
 
 # read a shapefile and reproject it to crs_projection
@@ -23,6 +49,7 @@ DEMO_BG_FOLDER <- "block group demographics"
 get_shape_data <- function(shape_file_path, crs_projection = CRS_PROJECTION) {
   shape_data <- st_read(shape_file_path)
   shape_data <- st_transform(shape_data, crs_projection)
+  shape_data <- normalize_missing_strings(shape_data)
   return(shape_data)
 }
 
