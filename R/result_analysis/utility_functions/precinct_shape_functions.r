@@ -5,6 +5,7 @@ library(ggplot2)
 
 source("R/result_analysis/utility_functions/city_shape_functions.r")
 source("R/result_analysis/utility_functions/tableau_theme.R")
+source("R/result_analysis/utility_functions/map_functions.R")
 
 
 ######## Constants ########
@@ -631,19 +632,6 @@ demographic_legend_dict <- c(
   non_hispanic = "Non-Latine"
 )
 
-# build the populated-block-only precinct shapes used for fallback assignment
-# so the same fallback shape is used for empty blocks as well.
-build_populated_block_only_precincts <- function(populated_geom, dest_columns = "id_dest") {
-  input_geometry_column <- attr(populated_geom, "sf_column")
-
-  populated_geom %>%
-    group_by(across(all_of(dest_columns))) %>%
-    summarize(geometry = st_union(.data[[input_geometry_column]])) %>%
-    ungroup()
-}
-
-#TODO: given how the st_nearest_feature seems to assign blocks differently every run, 
-#is this the right thing to do?
 # read the solver-optimized precinct shapefile. Error if data is stale or missing
 get_solver_precinct_shapes <- function(solver_precinct_shapefile,
                                        results_file) {
@@ -698,20 +686,20 @@ flagged_optimized_distant_blocks <- function(block_shapes, optimization_results,
 
   ####
   # each zero-population block borrows its nearest assigned precinct's
-  # id_dest (see build_populated_block_only_precincts())
+  # id_dest (see build_destination_fallback_precincts())
   ####
   assigned_block_geometries <- block_shapes[block_shapes$GEOID20 %in% results$id_orig, "GEOID20"]
   assigned_block_geometries <- merge(assigned_block_geometries, results[, .(id_orig, id_dest)], by.x = "GEOID20", by.y = "id_orig")
-  populated_block_only_precincts <- build_populated_block_only_precincts(assigned_block_geometries)
+  destination_fallback_precincts <- build_destination_fallback_precincts(assigned_block_geometries)
 
   unassigned_block_geometries <- block_shapes[!block_shapes$GEOID20 %in% results$id_orig, "GEOID20"]
-  nearest <- st_join(unassigned_block_geometries, populated_block_only_precincts, join = st_nearest_feature)
+  nearest <- st_join(unassigned_block_geometries, destination_fallback_precincts, join = st_nearest_feature)
   nearest_dest <- data.table(st_drop_geometry(nearest))[, .(GEOID20, nearest_dest = id_dest)]
 
   results_full <- merge(all_blocks, results, by.x = "GEOID20", by.y = "id_orig", all.x = TRUE)
   results_full <- merge(results_full, nearest_dest, by = "GEOID20", all.x = TRUE)
   stopifnot(
-    "Every solver-skipped block should have a nearest-dissolved-destination fallback -- nearest_dest may be missing rows for some GEOID20" =
+    "Every solver-skipped block should have a nearest destination fallback -- nearest_dest may be missing rows for some GEOID20" =
       nrow(results_full[is.na(id_dest) & is.na(nearest_dest)]) == 0
   )
   results_full[is.na(id_dest), id_dest := nearest_dest]
