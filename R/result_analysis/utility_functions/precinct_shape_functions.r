@@ -631,6 +631,18 @@ demographic_legend_dict <- c(
   non_hispanic = "Non-Latine"
 )
 
+# dissolve populated blocks into the previously generated precincts made of only populated blocks to 
+# consistently create the same full precinct shapes.
+
+dissolve_by_destination <- function(populated_geom, dest_columns = "id_dest") {
+  input_geometry_column <- attr(populated_geom, "sf_column")
+
+  populated_geom %>%
+    group_by(across(all_of(dest_columns))) %>%
+    summarize(geometry = st_union(.data[[input_geometry_column]])) %>%
+    ungroup()
+}
+
 #TODO: given how the st_nearest_feature seems to assign blocks differently every run, 
 #is this the right thing to do?
 # read the solver-optimized precinct shapefile. Error if data is stale or missing
@@ -684,30 +696,35 @@ flagged_optimized_distant_blocks <- function(block_shapes, optimization_results,
 
   #determine which blocks the solver never assigned (zero population, by design)
   all_blocks <- data.table(st_drop_geometry(block_shapes))[, .(GEOID20, population)]
-  missing_blocks <- all_blocks[!GEOID20 %in% results$id_orig]
 
   ####
-  # each zero-population block borrows its nearest assigned block's real
-  # destination (as in make_precinct_maps)
+  # each zero-population block borrows its nearest assigned precinct's
+  # id_dest (see dissolve_by_destination())
   ####
-  #merge results and block assingment geometries
   assigned_geom <- block_shapes[block_shapes$GEOID20 %in% results$id_orig, "GEOID20"]
   assigned_geom <- merge(assigned_geom, results[, .(id_orig, id_dest)], by.x = "GEOID20", by.y = "id_orig")
+  dissolved_destinations <- dissolve_by_destination(assigned_geom)
 
-  #get the geometries of the unassigned blocks and assign them to a neighboring block's desination
-  missing_geom <- block_shapes[block_shapes$GEOID20 %in% missing_blocks$GEOID20, "GEOID20"]
-  nearest <- st_join(missing_geom, assigned_geom[, "id_dest"], join = st_nearest_feature)
-  missing_blocks <- merge(missing_blocks, st_drop_geometry(nearest)[, c("GEOID20", "id_dest")], by = "GEOID20")
+  missing_geom <- block_shapes[!block_shapes$GEOID20 %in% results$id_orig, "GEOID20"]
+  nearest <- st_join(missing_geom, dissolved_destinations, join = st_nearest_feature)
+  nearest_dest <- data.table(st_drop_geometry(nearest))[, .(GEOID20, nearest_dest = id_dest)]
 
-  #fill in the rest of the data for missing blocks
+  results_full <- merge(all_blocks, results, by.x = "GEOID20", by.y = "id_orig", all.x = TRUE)
+  results_full <- merge(results_full, nearest_dest, by = "GEOID20", all.x = TRUE)
+  stopifnot(
+    "Every solver-skipped block should have a nearest-dissolved-destination fallback -- nearest_dest may be missing rows for some GEOID20" =
+      nrow(results_full[is.na(id_dest) & is.na(nearest_dest)]) == 0
+  )
+  results_full[is.na(id_dest), id_dest := nearest_dest]
+  results_full[, nearest_dest := NULL]
+
   zero_fill_columns <- setdiff(output_columns, c("id_orig", "id_dest", "population", "flagged_distance"))
+  results_full[is.na(duration_min), (zero_fill_columns) := 0]
+  results_full[, flagged_distance := duration_min > duration_threshold_min]
 
-  missing_rows <- missing_blocks[, id_orig := GEOID20
-              ][, (zero_fill_columns) := 0
-              ][, flagged_distance := FALSE
-              ][, ..output_columns]
-
-  results <- rbind(results, missing_rows)
+  setnames(results_full, "GEOID20", "id_orig")
+  results_full <- results_full[, ..output_columns]
+  results <- results_full
 
   #write to file
   distance_flagged_blocks_path <- paste0(
