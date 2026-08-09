@@ -111,7 +111,7 @@ Note, any use of data or data products built on data from Redistricting Data Hub
 
 Stored in `datasets/census/RDH_predicted_vap/<County_ST>/`
 
-VAP stands for voting age population. This is from the 2020 census. [Redistricting Data Hub](https://redistrictingdatahub.org/) creates projections from 2026 - 2035, as the ACS does not publish projections.
+RDH predicted VAP data provides block-level population projections for the Voting Age Population (VAP) sourced from the [Redistricting Data Hub](https://redistrictingdatahub.org/). These projections are based on the 2020 census (P3/P4 tables) and cover multiple future years in a single file (e.g., 2026–2035). The `projection_year` config field selects which year's columns are used at model-run time.
 
 For documentation of RDH's projections methodology, see their [Population Projections](https://redistrictingdatahub.org/projections/) page.
 
