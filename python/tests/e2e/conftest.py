@@ -36,7 +36,7 @@ _TESTING_CONFIG_DIR = os.path.join(
 _SRC_POTENTIAL_LOCATIONS = os.path.join(_TESTING_POLLING_DIR, 'testing_potential_locations.csv')
 _SRC_DISTANCES = os.path.join(_TESTING_POLLING_DIR, 'testing_distances_2020.csv')
 _SRC_CVAP_DISTANCES = os.path.join(_TESTING_POLLING_DIR, 'testing_CVAP_distances_2020.csv')
-_SRC_PREDICTED_VAP_DISTANCES = os.path.join(_TESTING_POLLING_DIR, 'testing_predicted_vap_distances_2020.csv')
+_SRC_PROJECTED_VAP_DISTANCES = os.path.join(_TESTING_POLLING_DIR, 'testing_projected_vap_distances_2020.csv')
 _SRC_DRIVING_DISTANCES = os.path.join(_TESTING_POLLING_DIR, 'testing_driving_2020.csv')
 _SRC_BASE_CONFIG = os.path.join(_TESTING_CONFIG_DIR, 'testing_config_no_bg.yaml')
 
@@ -84,7 +84,7 @@ _SRC_BASE_CONFIG = os.path.join(_TESTING_CONFIG_DIR, 'testing_config_no_bg.yaml'
 #                          polling type so the e2e assertion is vacuously
 #                          true today; the assertion shape generalizes if
 #                          the fixture later gains year-distinct types.
-#   - config_predicted_vap exercises the predicted_vap census_data_type
+#   - config_projected_vap exercises the projected_vap census_data_type
 #                          end-to-end, parallel to config_CVAP; requires
 #                          projection_year to be set (cross-field
 #                          validation in PollingModelConfig).
@@ -104,7 +104,7 @@ CONFIG_VARIANTS = {
     'config_capacity': {'capacity': 3},
     'config_new_locations': {'maxpctnew': 0.5, 'minpctold': 0.75},
     'config_CVAP': {'census_data_type': 'CVAP'},
-    'config_predicted_vap': {'census_data_type': 'predicted_vap', 'projection_year': '2026'},
+    'config_projected_vap': {'census_data_type': 'projected_vap', 'projection_year': '2026'},
     'config_low_capacity': {'capacity': 2.5, 'precincts_open': 4},
     'config_fixed_capacity': {'capacity': 2.5, 'precincts_open': 4, 'fixed_capacity_site_number': 3},
     'config_bad_types': {'bad_types': ['bg_centroid', 'Elec Day School - Potential']},
@@ -317,7 +317,7 @@ def e2e_test_data(e2e_session_id, pytestconfig):
             - ``potential_locations``: path to the copied potential locations CSV
             - ``distances``: path to the linear distances CSV (redistricting)
             - ``cvap_distances``: path to the CVAP distances CSV
-            - ``predicted_vap_distances``: path to the predicted_vap distances CSV
+            - ``projected_vap_distances``: path to the projected_vap distances CSV
             - ``distances_log``: path to the log-transformed distances CSV
             - ``driving_distances``: path to the driving distances CSV (polling dir)
             - ``driving_distances_log``: path to the log-transformed driving CSV
@@ -351,12 +351,12 @@ def e2e_test_data(e2e_session_id, pytestconfig):
     driving_distances_import_path = os.path.join(driving_subdir, f'{sid}_driving_distances.csv')
 
     cvap_distances_path = os.path.join(polling_subdir, f'{sid}_CVAP_distances_2020.csv')
-    predicted_vap_distances_path = os.path.join(polling_subdir, f'{sid}_predicted_vap_distances_2020.csv')
+    projected_vap_distances_path = os.path.join(polling_subdir, f'{sid}_projected_vap_distances_2020.csv')
 
     shutil.copy(_SRC_POTENTIAL_LOCATIONS, potential_locations_path)
     shutil.copy(_SRC_DISTANCES, distances_path)
     shutil.copy(_SRC_CVAP_DISTANCES, cvap_distances_path)
-    shutil.copy(_SRC_PREDICTED_VAP_DISTANCES, predicted_vap_distances_path)
+    shutil.copy(_SRC_PROJECTED_VAP_DISTANCES, projected_vap_distances_path)
     shutil.copy(_SRC_DRIVING_DISTANCES, driving_distances_path)
     # The db_import_driving_distances_cli only expects columns matching the
     # DrivingDistance model (id_orig, id_dest, distance_m) plus V1 (ignored).
@@ -437,7 +437,7 @@ def e2e_test_data(e2e_session_id, pytestconfig):
         'potential_locations': potential_locations_path,
         'distances': distances_path,
         'cvap_distances': cvap_distances_path,
-        'predicted_vap_distances': predicted_vap_distances_path,
+        'projected_vap_distances': projected_vap_distances_path,
         'distances_log': distances_log_path,
         'driving_distances': driving_distances_path,
         'driving_distances_log': driving_distances_log_path,

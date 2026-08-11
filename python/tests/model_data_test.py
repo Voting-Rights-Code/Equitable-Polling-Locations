@@ -217,25 +217,25 @@ class DemographicsTestBase:
         mock_pull.assert_called_once_with('GA', 'Gwinnett County', '2020')
 
 
-class TestGetRDHPredictedVAPDemographics(DemographicsTestBase):
-    """Unit tests for model_data.get_RDH_predicted_vap_demographics using the committed testing fixture."""
+class TestGetRDHProjectedVAPDemographics(DemographicsTestBase):
+    """Unit tests for model_data.get_RDH_projected_vap_demographics using the committed testing fixture."""
 
-    pull_patch_target = 'python.solver.model_data.pull_RDH_predicted_vap_data'
+    pull_patch_target = 'python.solver.model_data.pull_RDH_projected_vap_data'
 
     def get_demographics(self, location='testing'):
-        return model_data.get_RDH_predicted_vap_demographics(location, '2026')
+        return model_data.get_RDH_projected_vap_demographics(location, '2026')
 
     def test_missing_file_raises_value_error(self):
         """A clear ValueError is raised when no CSV exists in the location directory."""
         with patch('python.solver.model_data.os.path.exists', return_value=False), \
              patch(self.pull_patch_target), \
-             pytest.raises(ValueError, match='RDH predicted VAP data not found'):
-            model_data.get_RDH_predicted_vap_demographics('testing', '2026')
+             pytest.raises(ValueError, match='RDH projected VAP data not found'):
+            model_data.get_RDH_projected_vap_demographics('testing', '2026')
 
     def test_invalid_projection_year_raises_value_error(self):
         """A clear ValueError is raised when projection_year has no columns in the file."""
         with pytest.raises(ValueError, match='projection_year'):
-            model_data.get_RDH_predicted_vap_demographics('testing', '2040')
+            model_data.get_RDH_projected_vap_demographics('testing', '2040')
 
     def test_geoids_match_expected_testing_blocks(self):
         """The testing fixture's GEOIDs are exactly the 10 blocks used by testing_distances_2020.csv."""
@@ -248,13 +248,13 @@ class TestGetRDHPredictedVAPDemographics(DemographicsTestBase):
             f'Unexpected: {actual_blocks - expected_blocks}'
         )
 
-def test_build_distance_data_predicted_vap_census_type(tmp_path):
-    """build_distance_data writes a valid distance CSV when census_data_type is 'predicted_vap'."""
-    output_path = tmp_path / 'predicted_vap_distances.csv'
+def test_build_distance_data_projected_vap_census_type(tmp_path):
+    """build_distance_data writes a valid distance CSV when census_data_type is 'projected_vap'."""
+    output_path = tmp_path / 'projected_vap_distances.csv'
     model_data.build_distance_data(
         'csv',
         census_year='2020',
-        census_data_type='predicted_vap',
+        census_data_type='projected_vap',
         projection_year='2026',
         location='testing',
         driving=False,

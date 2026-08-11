@@ -22,7 +22,7 @@ from python.utils import (
 #    build_p4_source_file_path,
     build_CVAP_dir_path,
     build_CVAP_source_file_path,
-    build_RDH_predicted_vap_source_file_path,
+    build_RDH_projected_vap_source_file_path,
     is_int,
     get_block_source_file_path,
     get_block_group_block_source_file_path,
@@ -33,7 +33,7 @@ BLOCK_GEO, P3_NAME, P4_NAME, RDH_GEOID_COL
 )
 
 from python.utils.pull_census_data import (
-    pull_census_data, pull_CVAP_data, pull_RDH_predicted_vap_data
+    pull_census_data, pull_CVAP_data, pull_RDH_projected_vap_data
 )
 from .model_config import PollingModelConfig
 
@@ -80,8 +80,8 @@ CVAP_COLUMNS = [
     "CVAP_2OM"
     ]
 
-RDH_PREDICTED_VAP_COL_PREFIXES = [
-    # Each prefix maps to a DISTANCE_* output column (order matters — zip'd in get_RDH_predicted_vap_demographics).
+RDH_PROJECTED_VAP_COL_PREFIXES = [
+    # Each prefix maps to a DISTANCE_* output column (order matters — zip'd in get_RDH_projected_vap_demographics).
     # Full column name in the RDH CSV is f'{prefix}_{projection_year}', e.g. 'Projected_TotalPop_VAP_2026'.
     'Projected_TotalPop_VAP',
     'Projected_HispanicOrLatino_VAP',
@@ -346,8 +346,8 @@ def get_CVAP_demographics(census_year: str, location: str):
 
 
 # pylint: disable-next=invalid-name
-def get_RDH_predicted_vap_demographics(location: str, projection_year: str) -> pd.DataFrame:
-    '''Get RDH predicted VAP (Voting Age Population) demographic block data for a location
+def get_RDH_projected_vap_demographics(location: str, projection_year: str) -> pd.DataFrame:
+    '''Get RDH projected VAP (Voting Age Population) demographic block data for a location
     and projection year (P3/P4 data). The underlying census base is always 2020 for these projections.
 
     Args:
@@ -361,25 +361,25 @@ def get_RDH_predicted_vap_demographics(location: str, projection_year: str) -> p
         ValueError: When no CSV is found in the location directory or projection_year has
             no columns in the file.
     '''
-    vap_source_file = build_RDH_predicted_vap_source_file_path(location, projection_year)
+    vap_source_file = build_RDH_projected_vap_source_file_path(location, projection_year)
 
     if not os.path.exists(vap_source_file):
         statecode = location[-2:]
         locality = location[:-3].replace('_', ' ')
-        pull_RDH_predicted_vap_data(statecode, locality, '2020')
+        pull_RDH_projected_vap_data(statecode, locality, '2020')
 
     if not os.path.exists(vap_source_file):
         raise ValueError(
-            f'RDH predicted VAP data not found. Download using '
-            f'pull_RDH_predicted_vap_data or manually following the instructions in '
-            f'docs/input_files.md#rdh-predicted-vap-data. {vap_source_file}'
+            f'RDH projected VAP data not found. Download using '
+            f'pull_RDH_projected_vap_data or manually following the instructions in '
+            f'docs/input_files.md#rdh-projected-vap-data. {vap_source_file}'
         )
 
     vap_df = pd.read_csv(vap_source_file, low_memory=False)
 
     # Build the full column names for the requested year from the shared prefix list.
     # Each prefix is e.g. 'Projected_TotalPop_VAP'; appending the year gives the CSV column name.
-    vap_projection_year_cols = [f'{prefix}_{projection_year}' for prefix in RDH_PREDICTED_VAP_COL_PREFIXES]
+    vap_projection_year_cols = [f'{prefix}_{projection_year}' for prefix in RDH_PROJECTED_VAP_COL_PREFIXES]
     total_col, hispanic_col = vap_projection_year_cols[0], vap_projection_year_cols[1]
 
     # Validate that the requested projection year is actually present in the file.
@@ -421,8 +421,8 @@ def get_demographics_block(census_year: str, location: str, census_data_type: st
         demographics = get_redistricting_demographics(census_year, location)
     elif census_data_type == 'CVAP':
         demographics = get_CVAP_demographics(census_year, location)
-    elif census_data_type == 'predicted_vap':
-        demographics = get_RDH_predicted_vap_demographics(location, projection_year)
+    elif census_data_type == 'projected_vap':
+        demographics = get_RDH_projected_vap_demographics(location, projection_year)
 
     #get block group geographic
     blocks_gdf = get_blocks_gdf(census_year, location)

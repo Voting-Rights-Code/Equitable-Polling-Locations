@@ -23,7 +23,7 @@ from python.utils import (
     build_redistricting_dir_path, build_redistricting_file_paths,
     build_CVAP_dir_path, build_CVAP_source_file_path,
     build_tiger_location_dir,
-    build_RDH_predicted_vap_dir_path,
+    build_RDH_projected_vap_dir_path,
 )
 from python.utils.directory_constants import (
     TABBLOCK_FILE_SUFFIX, BLOCK_GROUP_FILE_SUFFIX,
@@ -669,7 +669,7 @@ def pull_CVAP_data(
     return "Success"
 
 # pylint: disable-next=invalid-name
-def save_RDH_predicted_vap_data(df, location, filename):
+def save_RDH_projected_vap_data(df, location, filename):
     '''Write county-filtered VAP projection data to its canonical directory.
 
     Args:
@@ -681,7 +681,7 @@ def save_RDH_predicted_vap_data(df, location, filename):
     Returns:
         Path to the written CSV.
     '''
-    dirname = build_RDH_predicted_vap_dir_path(location)
+    dirname = build_RDH_projected_vap_dir_path(location)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
     # os.path.basename strips any directory prefix from the RDH zip entry name,
@@ -691,7 +691,7 @@ def save_RDH_predicted_vap_data(df, location, filename):
     return fpath
 
 
-def locality_predicted_vap_only(state_vap_df, fipscode5):
+def locality_projected_vap_only(state_vap_df, fipscode5):
     '''Filter a state-wide block-level VAP projection DataFrame to a single county.
 
     Args:
@@ -708,7 +708,7 @@ def locality_predicted_vap_only(state_vap_df, fipscode5):
 
 
 # pylint: disable-next=invalid-name,dangerous-default-value
-def pull_RDH_predicted_vap_data(
+def pull_RDH_projected_vap_data(
     statecode,
     county,
     census_year,
@@ -717,11 +717,11 @@ def pull_RDH_predicted_vap_data(
     rdh_password=None,
     state_lookup=STATE_LOOKUP,
 ):
-    '''Download block-level RDH predicted VAP (Voting Age Population) projection data for a county.
+    '''Download block-level RDH projected VAP (Voting Age Population) projection data for a county.
 
     Downloads the state block projection file from RDH (one file per state, one row per
     block), filters it to the specified county using the 5-digit FIPS code, and saves the
-    result to datasets/census/RDH_predicted_vap/<location>/.
+    result to datasets/census/RDH_projected_vap/<location>/.
 
     These files are not indexed in the RDH catalog API; dataset IDs are looked up from
     VAP_PROJ_BLOCK_DATASET_IDS. CT has no block-level projection and will raise ValueError.
@@ -828,12 +828,12 @@ def pull_RDH_predicted_vap_data(
             block_df = pd.read_csv(csv_file, low_memory=False)
 
     # --- Filter to county and save ---
-    locality_vap_df = locality_predicted_vap_only(block_df, fipscode5)
+    locality_vap_df = locality_projected_vap_only(block_df, fipscode5)
 
     if locality_vap_df.shape[0] == 0:
         raise ValueError(f'{county} data not in {state} VAP projection data')
 
-    save_RDH_predicted_vap_data(locality_vap_df, county_st, filename)
+    save_RDH_projected_vap_data(locality_vap_df, county_st, filename)
 
     return 'Success'
 

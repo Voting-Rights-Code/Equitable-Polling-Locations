@@ -23,7 +23,7 @@ from python.utils.pull_census_data import (
     HTTP_RETRY_BACKOFF_SECONDS,
     get_census_json,
     download_file,
-    pull_RDH_predicted_vap_data,
+    pull_RDH_projected_vap_data,
     HTTP_TIMEOUT_SECONDS,
 )
 from python.utils.directory_constants import BLOCK_GEO
@@ -482,8 +482,8 @@ def _make_mock_playwright_page(url='https://redistrictingdatahub.org/download/?d
     return mock_sync_playwright, mock_page
 
 
-class TestPullRDHPredictedVapData:
-    ''' Unit tests for pull_RDH_predicted_vap_data: credential/state validation fail fast
+class TestPullRDHProjectedVapData:
+    ''' Unit tests for pull_RDH_projected_vap_data: credential/state validation fail fast
     without network calls; the download path (Playwright login + requests.get + zip extract +
     county filter + save) is exercised with Playwright and HTTP fully mocked. '''
 
@@ -491,13 +491,13 @@ class TestPullRDHPredictedVapData:
         ''' Fails fast, before any network call, when no census API key is available. '''
         monkeypatch.setattr(pcd, '_load_census_key', lambda *a, **k: None)
         with pytest.raises(ValueError, match='No census key available'):
-            pull_RDH_predicted_vap_data('GA', 'Gwinnett County', '2020')
+            pull_RDH_projected_vap_data('GA', 'Gwinnett County', '2020')
 
     def test_raises_when_rdh_credentials_missing(self, monkeypatch):
         ''' Fails fast, before any network call, when RDH credentials are absent. '''
         monkeypatch.setattr(pcd, '_load_rdh_credentials', lambda *a, **k: (None, None))
         with pytest.raises(ValueError, match='No RDH credentials available'):
-            pull_RDH_predicted_vap_data('GA', 'Gwinnett County', '2020', census_apikey='fake-key')
+            pull_RDH_projected_vap_data('GA', 'Gwinnett County', '2020', census_apikey='fake-key')
 
     def test_raises_for_state_without_block_level_projection(self, monkeypatch):
         ''' CT has no block-level VAP projection dataset; rejected after FIPS resolution,
@@ -507,7 +507,7 @@ class TestPullRDHPredictedVapData:
             lambda *a, **k: ('Connecticut', '09', '001', '09001', 'Fairfield_County_CT'),
         )
         with pytest.raises(ValueError, match='No block-level VAP projection dataset available for CT'):
-            pull_RDH_predicted_vap_data(
+            pull_RDH_projected_vap_data(
                 'CT', 'Fairfield County', '2020',
                 census_apikey='fake-key', rdh_username='user', rdh_password='pass',
             )
@@ -523,7 +523,7 @@ class TestPullRDHPredictedVapData:
         ))
         with patch('playwright.sync_api.sync_playwright', mock_sync_playwright), \
              pytest.raises(ValueError, match='RDH login failed'):
-            pull_RDH_predicted_vap_data(
+            pull_RDH_projected_vap_data(
                 'GA', 'Gwinnett County', '2020',
                 census_apikey='fake-key', rdh_username='user', rdh_password='pass',
             )
@@ -536,7 +536,7 @@ class TestPullRDHPredictedVapData:
         ))
         with patch('playwright.sync_api.sync_playwright', mock_sync_playwright), \
              pytest.raises(ValueError, match='Download link not found'):
-            pull_RDH_predicted_vap_data(
+            pull_RDH_projected_vap_data(
                 'GA', 'Gwinnett County', '2020',
                 census_apikey='fake-key', rdh_username='user', rdh_password='pass',
             )
@@ -555,7 +555,7 @@ class TestPullRDHPredictedVapData:
         with patch('playwright.sync_api.sync_playwright', mock_sync_playwright), \
              patch('python.utils.pull_census_data.requests.get', return_value=download_resp), \
              pytest.raises(ValueError, match='data not in'):
-            pull_RDH_predicted_vap_data(
+            pull_RDH_projected_vap_data(
                 'GA', 'Gwinnett County', '2020',
                 census_apikey='fake-key', rdh_username='user', rdh_password='pass',
             )
@@ -573,11 +573,11 @@ class TestPullRDHPredictedVapData:
         monkeypatch.setattr(pcd, '_resolve_location_fips', lambda *a, **k: (
             'Georgia', '13', '135', '13135', 'Gwinnett_County_GA',
         ))
-        monkeypatch.setattr(pcd, 'build_RDH_predicted_vap_dir_path', lambda location: str(tmp_path))
+        monkeypatch.setattr(pcd, 'build_RDH_projected_vap_dir_path', lambda location: str(tmp_path))
 
         with patch('playwright.sync_api.sync_playwright', mock_sync_playwright), \
              patch('python.utils.pull_census_data.requests.get', return_value=download_resp) as mock_get:
-            result = pull_RDH_predicted_vap_data(
+            result = pull_RDH_projected_vap_data(
                 'GA', 'Gwinnett County', '2020',
                 census_apikey='fake-key', rdh_username='user', rdh_password='pass',
             )
