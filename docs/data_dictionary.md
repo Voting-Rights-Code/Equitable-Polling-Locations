@@ -13,7 +13,7 @@ For the CVAP data:
 - These population counts represent the *citizen* voting-age population (18+) at the census block level.
 - All uses of data products based off of Redistricting Data Hub's data must comply with their [terms and conditions](https://redistrictingdatahub.org/terms-and-conditions/).
 
-For the RDH predicted VAP data (`census_data_type: predicted_vap`):
+For the RDH projected VAP data (`census_data_type: projected_vap`):
 - Note that the dataset used is RDH's own, not a census derivative.
 - The ACS data is only available at the block group level, not the block level, and only for certain years.
 - Instead, RDH develops their [own methodology](https://redistrictingdatahub.org/projections/) using a combination of block level census data and block group level ACS data to project VAP populations from 2026-2035.
@@ -48,8 +48,8 @@ Stores the configuration parameters used to generate optimization model output. 
 | fixed_capacity_site_number | INTEGER | NULLABLE | If set, holds the per-location capacity constant at this number of people, rather than varying with the number of open precincts. |
 | log_distance | BOOLEAN | NULLABLE | If true, the optimization uses the natural log of distances instead of raw distances. |
 | census_year | STRING(4) | NULLABLE | The census year for the distance source data. Default: `2020`. |
-| census_data_type | STRING(256) | NULLABLE | Population data source. One of: `redistricting` (2020 decennial P3/P4), `CVAP` (citizen VAP, block-level ACS via RDH), or `predicted_vap` (RDH projected VAP; requires `projection_year`). Default: `redistricting`. |
-| projection_year | STRING(256) | NULLABLE | Required when `census_data_type` is `predicted_vap`; selects which year's columns to extract from the RDH projection file (e.g., `2026`). Null otherwise. |
+| census_data_type | STRING(256) | NULLABLE | Population data source. One of: `redistricting` (2020 decennial P3/P4), `CVAP` (citizen VAP, block-level ACS via RDH), or `projected_vap` (RDH projected VAP; requires `projection_year`). Default: `redistricting`. |
+| projection_year | STRING(256) | NULLABLE | Required when `census_data_type` is `projected_vap`; selects which year's columns to extract from the RDH projection file (e.g., `2026`). Null otherwise. |
 | created_at | DATETIME | REQUIRED | Timestamp when this config record was created (UTC). |
 
 ---

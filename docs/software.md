@@ -68,7 +68,7 @@ The algorithm for this model is as follows:
 1. The model then uses this matching and demographic data to compute a new data derived scaling factor ($\alpha$), which it then uses to compute $Y_{EDE}$ for the matched system.
 
 ### A FEW THINGS TO NOTE:
-1. Currently, this model is run on census redistricting data, which counts voting age population; on disaggregated citizen voting age population (CVAP) data (from the census ACS, disaggregated by [Redistricting Data Hub](https://redistrictingdatahub.org/)); or on RDH's block-level projected voting age population (predicted VAP) data, for future years. We make no assumptions about other factors surrounding eligibility to vote, such as local disqualification laws or voter registration status.
+1. Currently, this model is run on census redistricting data, which counts voting age population; on disaggregated citizen voting age population (CVAP) data (from the census ACS, disaggregated by [Redistricting Data Hub](https://redistrictingdatahub.org/)); or on RDH's block-level projected voting age population (projected VAP) data, for future years. We make no assumptions about other factors surrounding eligibility to vote, such as local disqualification laws or voter registration status.
 
 1. This model reports two different verstions of racial demographics:
     1. When it uses Census redistricting data, Ethnicity (Hispanic / Non-Hispanic) is orthogonal to race in the census data. Therefore, one may be Hispanic and Asian at the same time.

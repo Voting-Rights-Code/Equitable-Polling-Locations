@@ -6,4 +6,4 @@ For more on the Kolm-Pollak distance and why it is suitable for optimizing with 
 
 **CVAP Data:** Block-level Citizen Voting Age Population (CVAP) data is sourced from the [Redistricting Data Hub](https://redistrictingdatahub.org/). Use of this data is subject to the [RDH Terms and Conditions](https://redistrictingdatahub.org/terms-and-conditions/).
 
-**Predicted VAP Data:** Block-level projected Voting Age Population (VAP) data is sourced from the [Redistricting Data Hub](https://redistrictingdatahub.org/). Use of this data is subject to the [RDH Terms and Conditions](https://redistrictingdatahub.org/terms-and-conditions/).
+**Projected VAP Data:** Block-level projected Voting Age Population (VAP) data is sourced from the [Redistricting Data Hub](https://redistrictingdatahub.org/). Use of this data is subject to the [RDH Terms and Conditions](https://redistrictingdatahub.org/terms-and-conditions/).
