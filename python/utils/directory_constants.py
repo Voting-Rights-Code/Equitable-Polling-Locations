@@ -24,7 +24,7 @@ REDISTRICTING_FOLDER_NAME = 'redistricting'
 
 CVAP_FOLDER_NAME = 'CVAP'
 
-RDH_PREDICTED_VAP_FOLDER_NAME = 'RDH_predicted_vap'
+RDH_PROJECTED_VAP_FOLDER_NAME = 'RDH_projected_vap'
 
 RDH_GEOID_COL = 'GEOID'
 ''' The GEOID column name used in RDH and CVAP source CSV files. '''

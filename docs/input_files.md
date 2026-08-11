@@ -7,7 +7,7 @@ When setting up a **new location** for the first time, the following inputs are 
 1. A *manually generated* dataset of past and potential polling locations, consistent with local laws
 1. A config file that contains the parameters for a given optimization
 1. Optionally, a dataset of driving distances if driving distance analysis is desired
-1. Optionally, if you are using CVAP or RDH predicted VAP data, a [Redistricting Data Hub](https://redistrictingdatahub.org/) username and password.
+1. Optionally, if you are using CVAP or RDH projected VAP data, a [Redistricting Data Hub](https://redistrictingdatahub.org/) username and password.
   1. Note, if you are using any data from Redistricting Data Hub or data products derived from their data, you must comply with their [Terms and Conditions](https://redistrictingdatahub.org/terms-and-conditions/)
 
 ## Census Data (demographics and shapefiles)
@@ -107,11 +107,11 @@ For documentation of their disaggregation process and their fields, see their [C
 
 Note, any use of data or data products built on data from Redistricting Data Hub must comply with their [Terms and Conditions](https://redistrictingdatahub.org/terms-and-conditions/).
 
-### RDH predicted VAP data
+### RDH projected VAP data
 
-Stored in `datasets/census/RDH_predicted_vap/<County_ST>/`
+Stored in `datasets/census/RDH_projected_vap/<County_ST>/`
 
-RDH predicted VAP data provides block-level population projections for the Voting Age Population (VAP) sourced from the [Redistricting Data Hub](https://redistrictingdatahub.org/). These projections are based on the 2020 census (P3/P4 tables) and cover multiple future years in a single file (e.g., 2026–2035). The `projection_year` config field selects which year's columns are used at model-run time.
+RDH projected VAP data provides block-level population projections for the Voting Age Population (VAP) sourced from the [Redistricting Data Hub](https://redistrictingdatahub.org/). These projections are based on the 2020 census (P3/P4 tables) and cover multiple future years in a single file (e.g., 2026–2035). The `projection_year` config field selects which year's columns are used at model-run time.
 
 For documentation of RDH's projections methodology, see their [Population Projections](https://redistrictingdatahub.org/projections/) page.
 
@@ -123,7 +123,7 @@ python run.py secret set rdh
 
 See [to_run.md — RDH Credentials](to_run.md#rdh-credentials) for full credential management commands and environment variable alternatives.
 
-**Automatic download:** when `census_data_type: predicted_vap` is set in a config, the model attempts to download the data automatically on first run if the directory does not yet exist.
+**Automatic download:** when `census_data_type: projected_vap` is set in a config, the model attempts to download the data automatically on first run if the directory does not yet exist.
 
 **Manual download:** to download data for a county without running the full model:
 
@@ -251,8 +251,8 @@ The following fields are defined in the `PollingModelConfig` class (see `python/
 | config_name | str | Yes | — | Unique name of this config. Should match the file name (without `.yaml`). |
 | location | str | Yes | — | Geographic location for the model. Must be of the form `<Location>_County_<ST>` or `Contained_in_<Location>_City_of_<ST>` to match census encoding. |
 | census_year | str | Yes | `2020` | The census year that maps and demographic data are pulled from. |
-| census_data_type | str | Yes | — | Population data to use. One of: `redistricting` (2020 decennial P3/P4), `CVAP` (citizen VAP, block-level ACS via RDH), or `predicted_vap` (RDH projected VAP; also requires `projection_year`). |
-| projection_year | str | No | — | Required when `census_data_type` is `predicted_vap`. Selects which year's columns to extract from the RDH projection file (e.g., `"2026"`). |
+| census_data_type | str | Yes | — | Population data to use. One of: `redistricting` (2020 decennial P3/P4), `CVAP` (citizen VAP, block-level ACS via RDH), or `projected_vap` (RDH projected VAP; also requires `projection_year`). |
+| projection_year | str | No | — | Required when `census_data_type` is `projected_vap`. Selects which year's columns to extract from the RDH projection file (e.g., `"2026"`). |
 | year | list[str] | Yes | — | Array of years of historical polling data relevant to this model (e.g., `['2020', '2022']`). Must not be empty. |
 | bad_types | list[str] | No | `[]` | Location types to exclude from consideration. Values must match `Location type` entries in the `*_potential_locations.csv` file. |
 | beta | float | Yes | — | Kolm-Pollak inequality aversion parameter. Range: `[-2, 0]`. `0` = indifference (uses mean distance). `-1` is a typical value. More negative values weight equity more heavily. |

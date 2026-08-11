@@ -24,7 +24,7 @@ MODEL_CONFIG_ARRAY_NAMES = [CONFIG_YEAR, CONFIG_BAD_TYPES, CONFIG_PENALIZED_SITE
 NON_EMPTY_ARRAYS = [CONFIG_YEAR]
 ''' These PollingModelConfig variables are expected to be non-empty arrays. '''
 
-VALID_CENSUS_DATA_TYPES = {'redistricting', 'CVAP', 'predicted_vap'}
+VALID_CENSUS_DATA_TYPES = {'redistricting', 'CVAP', 'projected_vap'}
 ''' Accepted values for the census_data_type config field. '''
 
 
@@ -65,9 +65,9 @@ class PollingModelConfig:
     census_year: str
     ''' The census year to use. '''
     census_data_type: str
-    ''' The type of census data to use: redistricting, CVAP, or predicted_vap. '''
+    ''' The type of census data to use: redistricting, CVAP, or projected_vap. '''
     projection_year: str|None
-    ''' Required when census_data_type is "predicted_vap". Selects which year's columns to
+    ''' Required when census_data_type is "projected_vap". Selects which year's columns to
     extract from the RDH projection file (e.g. "2026"). Pass None for other census_data_type values. '''
 
     precincts_open: int
@@ -182,12 +182,12 @@ class PollingModelConfig:
                     f'{census_data_type_value!r}. Must be one of: {sorted(VALID_CENSUS_DATA_TYPES)}.'
                 )
             projection_year_value = config.get('projection_year')
-            if census_data_type_value == 'predicted_vap' and projection_year_value is None:
+            if census_data_type_value == 'projected_vap' and projection_year_value is None:
                 raise ValueError(
-                    f'Config file {config_yaml_path}: census_data_type "predicted_vap" '
+                    f'Config file {config_yaml_path}: census_data_type "projected_vap" '
                     f'requires projection_year to be set.'
                 )
-            if census_data_type_value != 'predicted_vap' and projection_year_value is not None:
+            if census_data_type_value != 'projected_vap' and projection_year_value is not None:
                 raise ValueError(
                     f'Config file {config_yaml_path}: projection_year must be null when '
                     f'census_data_type is "{census_data_type_value}".'
