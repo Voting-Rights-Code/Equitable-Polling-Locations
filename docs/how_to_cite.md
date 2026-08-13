@@ -8,5 +8,5 @@ If you use the Equitable-Polling-Locations code base in your work, please cite t
 
 ## Data Attribution and Terms
 
-If your work uses results derived from CVAP data, that data was sourced from the [Redistricting Data Hub](https://redistrictingdatahub.org/). You must comply with the [RDH Terms and Conditions](https://redistrictingdatahub.org/terms-and-conditions/) and cite RDH appropriately. See their site for current citation guidance.
+If your work uses results derived from CVAP or projected VAP data, that data was sourced from the [Redistricting Data Hub](https://redistrictingdatahub.org/). You must comply with the [RDH Terms and Conditions](https://redistrictingdatahub.org/terms-and-conditions/) and cite RDH appropriately. See their site for current citation guidance.
 
