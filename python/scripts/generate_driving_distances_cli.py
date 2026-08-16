@@ -97,6 +97,13 @@ def derive_origins_and_destinations(config):
             - ``source_ids``: census block GEOIDs (origins).
             - ``dest_ids``: potential-location ``Location`` values (destinations).
     '''
+    # Always reads local files, disregarding config.data_source — structural,
+    # not a choice: data_source is stripped on YAML load (IGNORE_ON_LOAD in
+    # python/solver/model_config.py), so a YAML-loaded config is always 'csv'.
+    # Only model_run_db_cli sets 'db', at runtime, as a came-from-the-DB
+    # provenance marker — and this CLI loads configs from YAML only. DB-backed
+    # generation would be a new feature (e.g. a generate_driving_distances_db_cli
+    # sibling, mirroring the model_run_cli / model_run_db_cli split).
     blocks_gdf = get_blocks_gdf(config.census_year, config.location)
     pots_df = load_potential_locations_csv(
         build_potential_locations_file_path(config.location),
