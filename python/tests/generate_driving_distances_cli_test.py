@@ -407,13 +407,72 @@ class TestMain:
             'python.scripts.generate_driving_distances_cli.build_output_csv_path',
             return_value=str(expected_output),
         ):
-            main([
+            rc = main([
                 '--state', 'georgia',
                 '-l', str(tmp_path / 'cfg.yaml'),
                 '--logdir', str(logdir),
             ])
 
+        assert rc == 0
         assert not mock_build.called
+
+    @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
+    @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
+    @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
+    @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
+    def test_short_circuit_exits_nonzero_on_blank_distance_row(
+        self, mock_cfg_cls, mock_derive, mock_build, unused_mock_reach, tmp_path, capsys,
+    ):
+        '''A hand-edited blank distance_m must fail the no-new-pairs short-circuit.
+
+        Regression guard: resume counts a present-but-blank pair as satisfied,
+        so a plain rerun never re-fetches it — without this check the run
+        would exit 0 with an output the solver later rejects.
+        '''
+        del unused_mock_reach
+        mock_cfg_cls.load_config.return_value = MagicMock(
+            location='Gwinnett_GA', census_year='2020',
+            config_file_path=str(tmp_path / 'cfg.yaml'),
+        )
+        mock_derive.return_value = (
+            {
+                'block_ok': [-84.0, 33.9],
+                'block_blank': [-84.05, 33.91],
+                'poll_x': [-84.1, 34.0],
+            },
+            ['block_ok', 'block_blank'],
+            ['poll_x'],
+        )
+
+        driving_dir = tmp_path / 'datasets' / 'driving' / 'Gwinnett_GA'
+        os.makedirs(driving_dir, exist_ok=True)
+        expected_output = driving_dir / 'Gwinnett_GA_driving_distances.csv'
+        # Every requested pair is present, but one row has a blank distance_m
+        # (as a human patching the file might leave it).
+        pd.DataFrame({
+            'id_orig': ['block_ok', 'block_blank'],
+            'id_dest': ['poll_x', 'poll_x'],
+            'distance_m': [100.0, None],
+        }).to_csv(expected_output, index=False)
+
+        logdir = tmp_path / 'logs'
+        os.makedirs(logdir, exist_ok=True)
+        with patch(
+            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
+            return_value=str(expected_output),
+        ):
+            rc = main([
+                '--state', 'georgia',
+                '-l', str(tmp_path / 'cfg.yaml'),
+                '--logdir', str(logdir),
+            ])
+
+        assert rc == 1
+        assert not mock_build.called   # no pairs remained; nothing was fetched
+        out = capsys.readouterr().out
+        assert 'blank distance_m' in out
+        assert 'block_blank' in out
+        assert 'will NOT fetch' in out
 
 
 class TestStateValidation:
