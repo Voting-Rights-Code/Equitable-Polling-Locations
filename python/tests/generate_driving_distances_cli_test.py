@@ -227,9 +227,14 @@ class TestMain:
         assert rc == 1
         assert not driving_dir.exists() or not expected_output.exists()
         out = capsys.readouterr().out
+        assert 'could not be routed' in out
         assert 'block_bad' in out
         assert '33.91' in out       # latitude of the unrouted origin
         assert '-84.05' in out      # longitude of the unrouted origin
+        # Probe mode writes no CSV, so the message must not reference one, nor
+        # promise anything about resume.
+        assert 'resume' not in out
+        assert str(expected_output) not in out
 
     @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
     @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
@@ -313,6 +318,8 @@ class TestMain:
         written = pd.read_csv(expected_output)
         assert set(written['id_orig']) == {'block_ok'}
         out = capsys.readouterr().out
+        # The failure message names the CSV the missing rows are absent from.
+        assert f'no rows in {expected_output}' in out
         assert 'block_bad' in out
         assert '33.91' in out
         assert '-84.05' in out

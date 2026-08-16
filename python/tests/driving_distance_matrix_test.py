@@ -74,7 +74,7 @@ class TestMatrixResponseToLongDf:
 
 
 class TestBuildDistanceMatrix:
-    '''Top-level orchestration: batch, retry, snap, reshape.'''
+    '''Top-level orchestration: batch, retry, reshape.'''
 
     @patch('python.utils.driving_distance_matrix.query_matrix')
     def test_returns_long_form_for_single_batch(self, mock_query):
@@ -266,7 +266,7 @@ class TestEmitHelper:
 
 
 class TestVerbosityGating:
-    '''build_distance_matrix writes per-batch + snap + retry events at the right levels.'''
+    '''build_distance_matrix writes per-batch + retry events at the right levels.'''
 
     @patch('python.utils.driving_distance_matrix.query_matrix')
     def test_per_batch_in_log_but_not_screen_at_default(self, mock_query, capsys):
@@ -319,6 +319,7 @@ class TestVerbosityGating:
             log_fh=log_fh, verbosity=2,
         )
         assert 'retrying source a' in capsys.readouterr().out
+
 
 class TestRejectNegativeDistances:
     '''A negative distance_m fails loudly at generation (#294); 0 and NaN pass.'''

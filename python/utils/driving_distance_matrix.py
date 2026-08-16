@@ -312,7 +312,7 @@ def build_distance_matrix(*,
 
 
 def resume_from_partial_output(output_path, source_ids, dest_ids):
-    '''Return ``(existing_df, remaining_pairs)`` for resuming a partial run.
+    '''Return ``(existing_df, remaining_pairs)`` for resuming from a previous run's partial output CSV.
 
     Loads an existing output CSV (if any) as a warm-start cache and computes
     the ``(id_orig, id_dest)`` pairs not yet present in it. This lets a rerun

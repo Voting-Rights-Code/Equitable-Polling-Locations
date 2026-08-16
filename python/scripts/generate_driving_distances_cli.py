@@ -98,12 +98,14 @@ def derive_origins_and_destinations(config):
             - ``dest_ids``: potential-location ``Location`` values (destinations).
     '''
     # Always reads local files, disregarding config.data_source — structural,
-    # not a choice: data_source is stripped on YAML load (IGNORE_ON_LOAD in
-    # python/solver/model_config.py), so a YAML-loaded config is always 'csv'.
-    # Only model_run_db_cli sets 'db', at runtime, as a came-from-the-DB
-    # provenance marker — and this CLI loads configs from YAML only. DB-backed
-    # generation would be a new feature (e.g. a generate_driving_distances_db_cli
-    # sibling, mirroring the model_run_cli / model_run_db_cli split).
+    # not a choice: data_source is not a YAML field at all. load_config REJECTS
+    # a YAML that contains it (ValueError 'unknown fields' — IGNORE_ON_LOAD in
+    # python/solver/model_config.py excludes it from allowed_fields), so here
+    # the field always holds its DATA_SOURCE_CSV default. Only model_run_db_cli
+    # sets 'db', at runtime, as a came-from-the-DB provenance marker — and this
+    # CLI loads configs from YAML only. DB-backed generation would be a new
+    # feature (e.g. a generate_driving_distances_db_cli sibling, mirroring the
+    # model_run_cli / model_run_db_cli split).
     blocks_gdf = get_blocks_gdf(config.census_year, config.location)
     pots_df = load_potential_locations_csv(
         build_potential_locations_file_path(config.location),
@@ -218,35 +220,75 @@ def _assert_ors_reachable(matrix_url: str) -> None:
     sys.exit(1)
 
 
+def _origin_lines(origins: set[str], locations: dict[str, list[float]]) -> list[str]:
+    '''Return one indented ``id (lat=..., lon=...)`` line per origin, sorted by id.
+
+    Args:
+        origins: Origin ids to list.
+        locations: Mapping from id to ``[longitude, latitude]``.
+
+    Returns:
+        A list of formatted message lines.
+    '''
+    lines = []
+    for origin in sorted(origins):
+        longitude, latitude = locations.get(origin, (None, None))
+        lines.append(f'  {origin} (lat={latitude}, lon={longitude})')
+    return lines
+
+
 def _report_unrouted_origins(df: pd.DataFrame,
                              source_ids: list[str],
                              locations: dict[str, list[float]],
-                             log_fh: TextIO) -> set[str]:
-    '''Detect origins with no routed row and print an actionable summary.
+                             log_fh: TextIO,
+                             *,
+                             output_path: str | None = None) -> set[str]:
+    '''Detect origins lacking a usable distance and print a mode-accurate summary.
+
+    Two failure shapes are distinguished: origins with no rows at all in
+    ``df`` (ORS could not route them), and origins whose rows carry a blank
+    ``distance_m`` — possible only via a hand-edited output CSV, and NOT
+    recovered by a plain rerun, because resume counts those pairs as present.
 
     Args:
         df: Long-form distance DataFrame to check — the build result in probe
-            mode, or the final combined frame in write mode (which may carry
-            null ``distance_m`` rows from a hand-edited CSV).
+            mode, or the just-written frame in the write paths.
         source_ids: All requested origin ids.
         locations: Mapping from id to ``[longitude, latitude]``, used to print
             each missing origin's coordinates.
         log_fh: Open writable log file handle.
+        output_path: Path of the output CSV that was just written, named in
+            the failure message. ``None`` in probe mode, where no CSV exists
+            and the message must not reference one (or resume).
 
     Returns:
-        The set of unrouted origin ids; empty when every origin routed.
+        The set of origin ids lacking a usable distance; empty when every
+        origin has one.
     '''
-    unrouted = get_missing_origins(df) | (set(source_ids) - set(df[DISTANCE_ID_ORIG]))
+    blank_origins = get_missing_origins(df)
+    absent_origins = set(source_ids) - set(df[DISTANCE_ID_ORIG])
+    unrouted = blank_origins | absent_origins
     if not unrouted:
         return unrouted
-    lines = [
-        f'{len(unrouted)} origin(s) could not be routed and were dropped; correct '
-        f'the underlying data (e.g. a bad centroid) and rerun — resume will fetch '
-        f'only the missing pairs:'
-    ]
-    for origin in sorted(unrouted):
-        longitude, latitude = locations.get(origin, (None, None))
-        lines.append(f'  {origin} (lat={latitude}, lon={longitude})')
+
+    lines = []
+    if output_path is None:
+        lines.append(f'{len(unrouted)} origin(s) could not be routed; correct the '
+                     'underlying data (e.g. a bad centroid) and re-run the probe:')
+        lines.extend(_origin_lines(unrouted, locations))
+    else:
+        if absent_origins:
+            lines.append(f'{len(absent_origins)} origin(s) could not be routed and have '
+                         f'no rows in {output_path}; correct the underlying data (e.g. a '
+                         'bad centroid) and rerun — resume will fetch only the missing '
+                         'pairs:')
+            lines.extend(_origin_lines(absent_origins, locations))
+        if blank_origins:
+            lines.append(f'{len(blank_origins)} origin(s) in the existing CSV '
+                         f'({output_path}) have a blank distance_m; fill in the value, or '
+                         'delete the row so resume re-fetches it — rerunning without a '
+                         'change will NOT fetch these pairs:')
+            lines.extend(_origin_lines(blank_origins, locations))
     _tee('\n'.join(lines), log_fh)
     return unrouted
 
@@ -273,10 +315,11 @@ def main(argv=None):
         argv: Optional list of argv-style strings; ``None`` uses ``sys.argv``.
 
     Returns:
-        ``0`` on success; ``1`` when any requested origin could not be routed
-        (in the normal mode the partial CSV of completed work is still
-        written first). Exits via ``sys.exit(main())`` from the if __name__
-        block.
+        ``0`` on success; ``1`` when any requested origin lacks a usable
+        distance — either ORS could not route it, or its row in the existing
+        output CSV has a blank ``distance_m`` (in the normal mode the CSV of
+        completed work is still written first). Exits via ``sys.exit(main())``
+        from the if __name__ block.
     '''
     args = build_arg_parser().parse_args(argv)
 
@@ -353,7 +396,8 @@ def main(argv=None):
             )
             # A hand-edited CSV can satisfy every pair yet leave distance_m
             # blank — still a failure the solver would hit later.
-            if _report_unrouted_origins(existing_df, source_ids, locations, log_fh):
+            if _report_unrouted_origins(existing_df, source_ids, locations, log_fh,
+                                        output_path=output_path):
                 return 1
             return 0
 
@@ -377,7 +421,8 @@ def main(argv=None):
         # The CSV is written first so completed work is never lost: on a
         # failure here, a human fixes the flagged origins and reruns, and
         # resume fetches only the missing pairs.
-        if _report_unrouted_origins(combined, source_ids, locations, log_fh):
+        if _report_unrouted_origins(combined, source_ids, locations, log_fh,
+                                    output_path=output_path):
             return 1
         return 0
     finally:

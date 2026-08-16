@@ -471,9 +471,9 @@ def insert_driving_distances(
     Raises
     ValueError - if driving_distances_df is missing any of the id_orig, id_dest, or
         distance_m COLUMNS. Row-level completeness (every populated block having a
-        distance) is NOT checked here — the left join leaves nulls for absent pairs,
-        and the caller further down enforces completeness ('Some distances are
-        missing for current config setting.').
+        valid distance) is NOT checked here — the left join leaves nulls for absent
+        pairs; filter_distance_data enforces completeness at model-run time, raising
+        'Some distances are missing or invalid (negative) for current config setting.'
 
     Returns
     The original dataframe with the distance_m column populated with the driving distances.
