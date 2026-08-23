@@ -46,6 +46,10 @@ create_graph_file_manifest <- function() {
         # relative to ("result_analysis_outputs" or "precinct_analysis_outputs").
         # Set by the first add_graph_to_graph_file_manifest call.
         output_tree = NULL,
+        # Input files the analysis consumed, registered by
+        # add_source_to_graph_file_manifest. Each entry records a role, the
+        # repo-relative path it came from, and its cloud object name.
+        sources = list(),
         # The date and time this analsis was run
         created_at = now(tzone = "UTC")
 	)
@@ -90,10 +94,8 @@ add_model_run_id_to_graph_file_manifest <- function(model_run_id) {
 # config_set: string of the config set
 # config_name: string of the config name
 add_config_info_to_graph_file_manifest <- function(config_id, config_set, config_name) {
-    if (nchar(config_id) == 0) {
-		# Handle null or empty string cases
-		stop(paste0("add_config_info_to_graph_file_manifest got an invalid config_id ", config_id))
-	}
+    # config_id may be empty: it is a database concept, and configs recovered
+    # from a results CSV filename carry only config_set and config_name.
 
     if (nchar(config_set) == 0) {
 		# Handle null or empty string cases
@@ -165,6 +167,49 @@ add_graph_to_graph_file_manifest <- function(graph_file) {
     graph_file_path
 }
 
+# Register an input file the analysis consumed. Unlike graph files, sources
+# may live anywhere under the repo root (e.g. datasets/driving/); they upload
+# under sources/<basename> beside the graphs, so the uploaded folder holds
+# everything a reader needs to reproduce the analysis.
+#
+# role: short label for what the file is (e.g. "driving_distances")
+# source_file: path to the file, relative paths resolved against getwd()
+add_source_to_graph_file_manifest <- function(role, source_file) {
+    if (nchar(role) == 0 || nchar(source_file) <= 1) {
+        stop(paste0("add_source_to_graph_file_manifest got an invalid role or path: '",
+                    role, "' '", source_file, "'"))
+    }
+    source_path <- file.path(getwd(), source_file)
+    root_prefix <- paste0(here(), "/")
+    if (!startsWith(source_path, root_prefix)) {
+        stop(paste0("cannot record source file ", source_path,
+                    " -- not under the repo root ", here()))
+    }
+    if (!file.exists(source_path)) {
+        stop(paste0("cannot record source file ", source_path,
+                    " -- file does not exist"))
+    }
+
+    # Init .graph_file_manifest if it doesn't already exist
+	get_graph_file_manifest()
+
+    origin <- substring(source_path, nchar(root_prefix) + 1)
+    source_entry <- list(
+        role = role,
+        origin = origin,
+        object_name = paste0("sources/", basename(source_path))
+    )
+
+    already_recorded <- any(sapply(.graph_file_manifest$sources,
+                                   function(existing) existing$origin == origin))
+    if (!already_recorded) {
+        num_sources <- length(.graph_file_manifest$sources)
+        .graph_file_manifest$sources[[num_sources + 1]] <<- source_entry
+    }
+
+    source_entry
+}
+
 # Uploads all files in the manifest to Google Cloud Storage.
 upload_graph_files_to_cloud_storage <- function() {
     manifest = get_graph_file_manifest()
@@ -205,6 +250,19 @@ upload_graph_files_to_cloud_storage <- function() {
             gcs_upload(file=local_file_path, bucket=STORAGE_BUCKET, name=cloud_storage_file_name, predefinedAcl=STORAGE_PREDEFINED_ACL)
         } else {
             stop(paste0("upload_graph_files_to_cloud_storage cannot find file ", local_file_path))
+        }
+    }
+
+    # Upload each consumed input recorded in sources
+    for (source_entry in manifest$sources) {
+        local_file_path <- file.path(here(), source_entry$origin)
+        cloud_storage_file_name <- paste(cloud_storage_base_path, source_entry$object_name, sep="/")
+
+        if (file.exists(local_file_path)) {
+            print(paste0("Uploading file ", local_file_path, " -> ", STORAGE_BUCKET, ":", cloud_storage_file_name))
+            gcs_upload(file=local_file_path, bucket=STORAGE_BUCKET, name=cloud_storage_file_name, predefinedAcl=STORAGE_PREDEFINED_ACL)
+        } else {
+            stop(paste0("upload_graph_files_to_cloud_storage cannot find source file ", local_file_path))
         }
     }
 
