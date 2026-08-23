@@ -18,7 +18,8 @@ STORAGE_BUCKET = NULL
 STORAGE_PREDEFINED_ACL = "bucketLevel" # "private"
 
 # The subdirectory to upload this analysis under in cloud storage.  This should
-# not start with a "/" character.
+# not start with a "/" character. Each analysis family may override this in its
+# config, giving that family its own sibling folder in the bucket.
 STORAGE_BASE_DIR = "equitable-polling-locations-analyses"
 
 # The name of this analysis in cloud storage
@@ -41,6 +42,10 @@ create_graph_file_manifest <- function() {
 		model_run_ids = c(),
         # The graphs files generated
 		graph_files = c(),
+        # Basename of the single output tree the graph_files entries are
+        # relative to ("result_analysis_outputs" or "precinct_analysis_outputs").
+        # Set by the first add_graph_to_graph_file_manifest call.
+        output_tree = NULL,
         # The date and time this analsis was run
         created_at = now(tzone = "UTC")
 	)
@@ -59,7 +64,7 @@ get_graph_file_manifest <- function() {
 # Clear the graph_file_manifest. Calling get_graph_file_manifest
 # after this function will start with a clear one.
 clear_graph_file_manifest <- function() {
-	.graph_file_manifest = NULL
+	.graph_file_manifest <<- NULL
 }
 
 # Uniquely add a model_run_id to the graph_file_manifest.
@@ -126,18 +131,34 @@ add_graph_to_graph_file_manifest <- function(graph_file) {
 	}
     graph_file_path <- file.path(getwd(), graph_file)
 
-    parent_dir <- valid_directories[startsWith(graph_file_path, valid_directories)]
+    # The trailing "/" anchors the match, so a sibling directory that only
+    # shares a prefix (e.g. a result_analysis_outputs_extra) is rejected.
+    parent_dir <- valid_directories[startsWith(graph_file_path, paste0(valid_directories, "/"))]
     if (length(parent_dir) == 0) {
-        stop('trying to upload a file in an unsupported directory')
+        stop(paste0("cannot record graph file ", graph_file_path,
+                    " -- not under a supported output directory (",
+                    paste(valid_directories, collapse = ", "), ")"))
     }
-
-    # Strip off the root directory from graph_file_path
-    # but keep any subsequent sub-directories after it.
-    root_dir <- here()
-    graph_file_path <- substring(graph_file_path, nchar(root_dir) + 2)
 
     # Init .graph_file_manifest if it doesn't already exist
 	get_graph_file_manifest()
+
+    # One manifest describes one output tree. The first registration pins the
+    # tree; entries are stored relative to it, so each entry is also the cloud
+    # object name at upload time.
+    parent_dir_name <- basename(parent_dir)
+    if (is.null(.graph_file_manifest$output_tree)) {
+        .graph_file_manifest$output_tree <<- parent_dir_name
+    } else if (.graph_file_manifest$output_tree != parent_dir_name) {
+        stop(paste0("cannot record graph file ", graph_file_path,
+                    " -- this manifest already holds files from ",
+                    .graph_file_manifest$output_tree,
+                    "; call clear_graph_file_manifest() to start a new analysis"))
+    }
+
+    # Strip off the matched output tree from graph_file_path
+    # but keep any subsequent sub-directories after it.
+    graph_file_path <- substring(graph_file_path, nchar(parent_dir) + 2)
 
 	.graph_file_manifest$graph_files <<- unique(c(.graph_file_manifest$graph_files, graph_file_path))
 
@@ -168,17 +189,15 @@ upload_graph_files_to_cloud_storage <- function() {
     date_stamp = format(manifest$created_at, "%Y%m%d-%H%M%S")
     cloud_storage_base_path <- paste(STORAGE_BASE_DIR, CLOUD_STORAGE_ANALYSIS_NAME, date_stamp, sep="/")
 
+    # Entries are relative to the manifest's single output tree (pinned at
+    # registration): each entry is the cloud object name, and the local file
+    # is the tree plus the entry.
+    local_tree <- file.path(here(), manifest$output_tree)
+
     # Upload each graph file found in the manifest
-    for (graph_file in manifest$graph_files) { 
-        
-        # define further file name strings for uploads and checks
-        local_file_path <- paste(here(), graph_file, sep="/")
-
-        #check that the parent directory is in the group of valid directories
-        parent_dir <- valid_directories[startsWith(local_file_path, valid_directories)]
-
-        file_name <- substring(local_file_path, nchar(parent_dir) + 2)
-        cloud_storage_file_name <- paste(cloud_storage_base_path, file_name, sep="/")
+    for (graph_file in manifest$graph_files) {
+        local_file_path <- file.path(local_tree, graph_file)
+        cloud_storage_file_name <- paste(cloud_storage_base_path, graph_file, sep="/")
 
         #Check that the path still exists and upload
         if (file.exists(local_file_path)) {
@@ -187,7 +206,6 @@ upload_graph_files_to_cloud_storage <- function() {
         } else {
             stop(paste0("upload_graph_files_to_cloud_storage cannot find file ", local_file_path))
         }
-    
     }
 
     # Upload the manifest of this analysis to cloud storage
