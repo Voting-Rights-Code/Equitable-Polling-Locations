@@ -18,18 +18,18 @@ source("R/result_analysis/utility_functions/regression_functions.r")
 # this file.
 #######
 
-#args <- commandArgs(trailingOnly = TRUE)
-#if (length(args) != 1) {
-#  stop("Must enter exactly one config file")
-#} else {
-#  config_path <- paste0("R/result_analysis/precinct_configs/", args[1])
-#  source(config_path)
-#}
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) != 1) {
+  stop("Must enter exactly one config file")
+} else {
+  config_path <- paste0("R/result_analysis/precinct_configs/", args[1])
+  source(config_path)
+}
 
 ###
 # For inline testing only
 ###
-source("R/result_analysis/precinct_configs/Monongalia_County_WV.r")
+#source("R/result_analysis/precinct_configs/Monongalia_County_WV.r")
 
 #define output folder. 
 precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
@@ -84,16 +84,35 @@ block_demographics <- get_block_demographics(p3_file_path, p4_file_path)
 
 #read in driving distances
 driving_distance_path <- build_driving_distances_file_path(LOCATION)
+add_source_to_graph_file_manifest("driving_distances", driving_distance_path)
 driving_distances <- fread(driving_distance_path)
 driving_distances[, id_orig := as.character(id_orig)]
 driving_distances[, id_dest_upper := toupper(id_dest)]
 
 #read in optimization results (used for both duration thresholds below)
+add_source_to_graph_file_manifest("optimization_results", OPTIMIZATION_RESULTS)
+#record the config the results file came from. The filename is
+#<config_set>.<config_name>_results.csv and is the only provenance a CSV
+#carries -- no config id, and no model_run_id (both are database concepts).
+results_file_stem <- sub("_results\\.csv$", "", basename(OPTIMIZATION_RESULTS))
+add_config_info_to_graph_file_manifest(
+  "",
+  sub("\\..*$", "", results_file_stem),
+  sub("^[^.]*\\.", "", results_file_stem)
+)
 optimization_results <- fread(
   OPTIMIZATION_RESULTS, colClasses = list(character = "id_orig")
 )
 
-#read the solver-optimized precinct shapefile, for Step 7's maps
+#read the solver-optimized precinct shapefile, for Step 7's maps.
+#Register it and its sidecars as sources: until #333 has this script build
+#the outlines itself, they are consumed Basic_analysis output.
+for (shapefile_part in paste0(sub("\\.shp$", "", SOLVER_PRECINCT_SHAPEFILE),
+                              c(".shp", ".dbf", ".shx", ".prj"))) {
+  if (file.exists(shapefile_part)) {
+    add_source_to_graph_file_manifest("solver_precinct_shapefile", shapefile_part)
+  }
+}
 solver_precinct_shapes <- get_solver_precinct_shapes(
   SOLVER_PRECINCT_SHAPEFILE, OPTIMIZATION_RESULTS
 )
@@ -245,3 +264,7 @@ plot_density_v_distance_bg(
   solver_regression_data, LOCATION, DEMOGRAPHIC_LIST,
   log_flag = FALSE, driving_flag = TRUE, y_bounds = shared_density_y_bounds
 )
+
+###### Step 9: upload this session's outputs and sources to cloud storage #######
+
+upload_graph_files_to_cloud_storage()
