@@ -2,11 +2,15 @@ library(data.table)
 library(interactions)
 library(ggplot2)
 library(here)
+library(gargle)
+options(gargle_oauth_email = TRUE)
 
 setwd(here())
 
 # For uploading outputs to Google Cloud Storage
 source('R/result_analysis/utility_functions/storage.R')
+# For shared plot styling (theme_tableau, title/subtitle auto-wrapping)
+source('R/result_analysis/utility_functions/tableau_theme.R')
 
 STORAGE_BUCKET <- 'equitable-polling-analysis'
 CLOUD_STORAGE_ANALYSIS_NAME <- 'Tarrant_County_TX_exploration'
@@ -19,74 +23,73 @@ dt_2025 <- fread('datasets/results/Tarrant_County_TX_results/Tarrant_County_TX_o
 
 dt_2026 <- fread('datasets/results/Tarrant_County_TX_results/Tarrant_County_TX_original_configs_capacity_2.Tarrant_County_TX_year_2026_precinct_distances.csv')
 
-dt_optimal <- fread('datasets/results/Tarrant_County_TX_results/Tarrant_County_TX_fair_capacity_2.Tarrant_County_TX_precincts_open_215_precinct_distances.csv')
+dt_optimal_215 <- fread('datasets/results/Tarrant_County_TX_results/Tarrant_County_TX_fair_capacity_2.Tarrant_County_TX_precincts_open_215_precinct_distances.csv')
 
 #separate out demographic numbers into columns
 #Note, this loses the distance data
 dt_2024_pop <- dcast(dt_2024, id_dest ~ demographic, value.var = 'demo_pop' )
+dt_2025_pop <- dcast(dt_2025, id_dest ~ demographic, value.var = 'demo_pop' )
+
 
 #add in flags for when a polling location is dropped
 polls_2025 = unique(dt_2025$id_dest)
 polls_2026 = unique(dt_2026$id_dest)
-polls_optimal  = unique(dt_optimal$id_dest)
+polls_optimal  = unique(dt_optimal_215$id_dest)
 
-dt_pop_polls <- dt_2024_pop[ , dropped_2025 := TRUE
+dt_pop_polls_2024 <- dt_2024_pop[ , dropped_2025 := TRUE
                 ][id_dest %in% polls_2025, dropped_2025 := FALSE
                 ][ , dropped_2026 := TRUE][id_dest %in% polls_2026, dropped_2026 := FALSE
-                ][ , dropped_optimal := TRUE][id_dest %in% polls_optimal, dropped_optimal := FALSE]
+                ][ , dropped_optimal_215 := TRUE][id_dest %in% polls_optimal, dropped_optimal_215 := FALSE]
+
+dt_pop_polls_2025 <- dt_2025_pop[ , dropped_2026 := TRUE
+                ][id_dest %in% polls_2026, dropped_2026 := FALSE
+                ]
 
 #run models
-#Linear Probability Model intacting Latine and White
-latine_white_interaction_lpm_2025 <- lm(dropped_2025 ~ hispanic + white + (hispanic):(white), dt_pop_polls)
-plot_2025_lpm <- interact_plot(latine_white_interaction_lpm_2025, hispanic, white, 
-  main.title ="Effect of Latine Population on Probability of 2025 Poll Closures (LPM)", y.label = "Probability of Poll Closure", x.label = "Latine Population",
-  legend.main = "White Population") + ylim(0, 1)
 
-add_graph_to_graph_file_manifest("result_analysis_outputs/Tarrant_County_TX_original_configs_capacity_2/latine_white_interaction_lpm_2025.png")
-ggsave("result_analysis_outputs/Tarrant_County_TX_original_configs_capacity_2/latine_white_interaction_lpm_2025.png")
+#create and plot the interaction of Latine and White populations on the probability
+#of poll closures.
+plot_white_latine_interation <- function(dt, dropped_col, base_year, target_run, model_type){
+  #set up model title arguments based on model_type
+  if (model_type == 'lpm'){
+    model <- lm
+    family_arg <- NULL
+    model_label <- "LPM"
+    } else if (model_type == 'logit'){
+    model <- glm
+    family_arg <- binomial(link = "logit")
+    model_label <- "Logistic"
+  } else {
+    stop("model_type must be either 'lpm' or 'logit'")
+  }
 
-latine_white_interaction_lpm_2026 <- lm(dropped_2026 ~ hispanic + white + (hispanic):(white), dt_pop_polls)
-plot_2026_lpm <- interact_plot(latine_white_interaction_lpm_2026, hispanic, white, 
-  main.title ="Effect of Latine Population on Probability of 2026 Poll Closures (LPM)", y.label = "Probability of Poll Closure", x.label = "Latine Population",
-  legend.main = "White Population") + ylim(0, 1)
+  #set up title labels based on target_run
+  target_label <- if (target_run == "optimal") "Optimal Race-Blind" else target_run
 
-add_graph_to_graph_file_manifest("result_analysis_outputs/Tarrant_County_TX_original_configs_capacity_2/latine_white_interaction_lpm_2026.png")
-ggsave("result_analysis_outputs/Tarrant_County_TX_original_configs_capacity_2/latine_white_interaction_lpm_2026.png")
+  latine_white_interaction <- model(as.formula(paste0(dropped_col, " ~ hispanic + white + (hispanic):(white)")), dt, family = family_arg)
+  plot <- interact_plot(latine_white_interaction, hispanic, white,
+    main.title = paste0("Effect of Latine Population on Probability of ", target_label, " Poll Closures (", model_label, ")"),
+     y.label = "Probability of Poll Closure", x.label = "Latine Population",
+    legend.main = "White Population") + ylim(0, 1) + theme_tableau() + labs(subtitle = paste("Comparison to", base_year))
+  file_name <- paste0("latine_white_interaction_", model_type, "_", base_year, "_", target_run, ".png")
+  add_graph_to_graph_file_manifest(file_name)
+  ggsave(file_name)
+}
 
-latine_white_interaction_lpm_optimal <- lm(dropped_optimal ~ hispanic + white + (hispanic):(white), dt_pop_polls)
-plot_optimized_lpm <-interact_plot(latine_white_interaction_lpm_optimal, hispanic, white,
-  main.title ="Effect of Latine Population on Probability of Optimal Race-Blind Poll Closures (LPM)", y.label = "Probability of Poll Closure", x.label = "Latine Population",
-  legend.main = "White Population") + ylim(0, 1)
+###Historic runs
+setwd(file.path(here(), "result_analysis_outputs/Tarrant_County_TX_original_configs_capacity_2"))
+plot_white_latine_interation(dt_pop_polls_2024, "dropped_2025", "2024", "2025", "lpm")
+plot_white_latine_interation(dt_pop_polls_2024, "dropped_2026", "2024", "2026", "lpm")
+plot_white_latine_interation(dt_pop_polls_2025, "dropped_2026", "2025", "2026", "lpm")
+plot_white_latine_interation(dt_pop_polls_2024, "dropped_2025", "2024", "2025", "logit")
+plot_white_latine_interation(dt_pop_polls_2024, "dropped_2026", "2024", "2026", "logit")
+plot_white_latine_interation(dt_pop_polls_2024, "dropped_2026", "2025", "2026", "logit")
 
-add_graph_to_graph_file_manifest("result_analysis_outputs/Tarrant_County_TX_fair_capacity_2/latine_white_interaction_lpm_optimized.png")
-ggsave("result_analysis_outputs/Tarrant_County_TX_fair_capacity_2/latine_white_interaction_lpm_optimized.png")
+###Optimized runs
+setwd(file.path(here(), "result_analysis_outputs/Tarrant_County_TX_fair_capacity_2"))
 
+plot_white_latine_interation(dt_pop_polls_2024, "dropped_optimal_215", "2024", "optimal", "lpm")
+plot_white_latine_interation(dt_pop_polls_2024, "dropped_optimal_215", "2024", "optimal", "logit")
 
-#Logit interaction Latine and white
-
-latine_white_interaction_logit_2025 <- glm(dropped_2025 ~ hispanic + white + (hispanic):(white), dt_pop_polls, family = binomial(link = "logit"))
-plot_2025_logit <- interact_plot(latine_white_interaction_logit_2025, hispanic, white,
-  main.title ="Effect of Latine Population on Probability of 2025 Poll Closures (Logistic)", y.label = "Probability of Poll Closure", x.label = "Latine Population",
-  legend.main = "White Population") + ylim(0, 1)
-
-add_graph_to_graph_file_manifest("result_analysis_outputs/Tarrant_County_TX_original_configs_capacity_2/latine_white_interaction_logit_2025.png")
-ggsave("result_analysis_outputs/Tarrant_County_TX_original_configs_capacity_2/latine_white_interaction_logit_2025.png")
-
-latine_white_interaction_logit_2026 <- glm(dropped_2026 ~ hispanic + white + (hispanic):(white), dt_pop_polls, family = binomial(link = "logit"))
-plot_2026_logit <- interact_plot(latine_white_interaction_logit_2026, hispanic, white,
-  main.title ="Effect of Latine Population on Probability of 2026 Poll Closures (Logistic)", y.label = "Probability of Poll Closure", x.label = "Latine Population",
-  legend.main = "White Population") + ylim(0, 1)
-
-add_graph_to_graph_file_manifest("result_analysis_outputs/Tarrant_County_TX_original_configs_capacity_2/latine_white_interaction_logit_2026.png")
-ggsave("result_analysis_outputs/Tarrant_County_TX_original_configs_capacity_2/latine_white_interaction_logit_2026.png")
-
-
-latine_white_interaction_logit_optimal <- glm(dropped_optimal ~ hispanic + white + (hispanic):(white), dt_pop_polls,  family = binomial(link = "logit"))
-plot_optimized_logit <- interact_plot(latine_white_interaction_logit_optimal, hispanic, white,
-  main.title ="Effect of Latine Population on Probability of Optimal Race-Blind Poll Closures (Logistic)", y.label = "Probability of Poll Closure", x.label = "Latine Population",
-  legend.main = "White Population") + ylim(0, 1)
-
-add_graph_to_graph_file_manifest("result_analysis_outputs/Tarrant_County_TX_fair_capacity_2/latine_white_interaction_logit_optimized.png")
-ggsave("result_analysis_outputs/Tarrant_County_TX_fair_capacity_2/latine_white_interaction_logit_optimized.png")
 
 upload_graph_files_to_cloud_storage()
