@@ -11,10 +11,23 @@ setwd(here())
 source('R/result_analysis/utility_functions/storage.R')
 # For shared plot styling (theme_tableau, title/subtitle auto-wrapping)
 source('R/result_analysis/utility_functions/tableau_theme.R')
+# For define_connection(), needed by the county config file sourced below
+source('R/result_analysis/utility_functions/load_config_data.R')
+# Get config constants for Tarrant County, TX, including the Google Cloud Storage bucket name
+source('R/result_analysis/Basic_analysis_configs/Tarrant_County_original_and_fair_capacity_2.r')
 
-STORAGE_BUCKET <- 'equitable-polling-analysis'
+# Reassign the config's own analysis name 
 CLOUD_STORAGE_ANALYSIS_NAME <- 'Tarrant_County_TX_exploration'
 
+#this should only be run after Basic_analysis.r has been run for
+#Tarrant_County_original_and_fair_capacity_2.r
+required_folders <- file.path(here(), 'result_analysis_outputs',
+  c('Tarrant_County_TX_original_configs_capacity_2', 'Tarrant_County_TX_fair_capacity_2'))
+missing_folders <- required_folders[!file.exists(required_folders)]
+if (length(missing_folders) > 0){
+  stop(paste0(paste(missing_folders, collapse = ', '),
+    ' does not exist. Run Basic_analysis.r for Tarrant_County_original_and_fair_capacity_2.r first.'))
+}
 
 #read in 2024, and 2025 and 2026 historical precinct data, as well as the optimal assignments
 dt_2024 <- fread('datasets/results/Tarrant_County_TX_results/Tarrant_County_TX_original_configs_capacity_2.Tarrant_County_TX_year_2024_precinct_distances.csv')
