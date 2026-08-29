@@ -20,26 +20,7 @@ TABLEAU_COLORS <- c(
     "#44AA99"   # [10] teal          (Paul Tol muted)
 )
 
-# Wraps long plot titles/subtitles onto multiple lines instead of letting
-# them run off the edge of the saved image (element_text has no wrapping
-# of its own, and ggtext::element_textbox isn't a project dependency).
-element_textwrap <- function(width = 50, ...) {
-    et <- element_text(...)
-    attr(et, "wrap_width") <- width
-    class(et) <- c("element_textwrap", class(et))
-    et
-}
-
-element_grob.element_textwrap <- function(element, label = "", ...) {
-    width <- attr(element, "wrap_width")
-    if (!is.null(label) && nzchar(label) && !is.null(width)) {
-        label <- paste(strwrap(label, width = width), collapse = "\n")
-    }
-    NextMethod()
-}
-
-theme_tableau <- function(base_size = 11, base_family = "sans",
-                           title_wrap_width = 50, subtitle_wrap_width = 50) {
+theme_tableau <- function(base_size = 11, base_family = "sans") {
     theme_bw(base_size = base_size, base_family = base_family) %+replace%
         theme(
             # Background
@@ -62,12 +43,10 @@ theme_tableau <- function(base_size = 11, base_family = "sans",
             panel.border = element_blank(),
 
             # Title and labels
-            plot.title    = element_textwrap(width = title_wrap_width,
-                                         face = "bold", size = base_size + 1,
+            plot.title    = element_text(face = "bold", size = base_size + 1,
                                          color = "#333333", hjust = 0,
                                          margin = margin(b = 6)),
-            plot.subtitle = element_textwrap(width = subtitle_wrap_width,
-                                         size = base_size, color = "#666666",
+            plot.subtitle = element_text(size = base_size, color = "#666666",
                                          hjust = 0, margin = margin(b = 8)),
             axis.title    = element_text(size = base_size, color = "#333333"),
             axis.text     = element_text(size = base_size - 1, color = "#555555"),
@@ -132,11 +111,8 @@ MAP_POLL_TYPE_SHAPES <- c(
 )
 
 # Map variant: suppress all axis/grid elements for clean geographic rendering
-theme_tableau_map <- function(base_size = 11, base_family = "sans",
-                               title_wrap_width = 50, subtitle_wrap_width = 50) {
-    theme_tableau(base_size = base_size, base_family = base_family,
-                  title_wrap_width = title_wrap_width,
-                  subtitle_wrap_width = subtitle_wrap_width) %+replace%
+theme_tableau_map <- function(base_size = 11, base_family = "sans") {
+    theme_tableau(base_size = base_size, base_family = base_family) %+replace%
         theme(
             axis.text.x  = element_blank(),
             axis.text.y  = element_blank(),
