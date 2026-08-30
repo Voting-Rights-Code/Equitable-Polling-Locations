@@ -94,10 +94,11 @@ def load_model_csv(
 
     Reads the CSV without enforcing types so that raw values are available for validation.
     Each column is then matched to its model counterpart (honoring column_renames) and
-    converted with the appropriate typed converter. Two validations run per column:
+    converted with the appropriate typed converter. Three checks run per column:
 
     1. Non-nullable numeric columns are checked for nulls before conversion.
-    2. Type conversion errors are caught and re-raised with the exact CSV line number,
+    2. Empty cells in non-nullable string columns are normalized to '' before conversion.
+    3. Type conversion errors are caught and re-raised with the exact CSV line number,
        column name, and failing value to simplify debugging malformed source files.
 
     Args:
@@ -160,6 +161,17 @@ def load_model_csv(
                         f'Line: {line_number}\n'
                         f'Expected Type: {expected_type}'
                     )
+
+            # Normalize empty cells in non-nullable string columns to ''. That matches the
+            # established convention in production for empty required strings (e.g. the
+            # blank addresses on centroid rows). It has to happen here, where column
+            # nullability is known: pandas reads an empty cell as NaN, csv_str_converter's
+            # emptiness check misses it because bool(NaN) is True, and set_column_types'
+            # astype(str) then renders it as the literal string 'nan'. Nullable string
+            # columns are deliberately left alone -- what an empty value means there is a
+            # per-column question nobody currently hits, so no blanket rule is imposed.
+            elif model_column not in nullable_columns:
+                df[csv_column] = df[csv_column].fillna('')
 
             try:
                 df[csv_column] = df[csv_column].apply(converter)
