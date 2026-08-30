@@ -29,6 +29,14 @@ class _NonNullableFloatModel(_TestBase):
     value = Column(Float, nullable=False)
 
 
+class _NonNullableStringModel(_TestBase):
+    ''' Test model with a non-nullable string column. '''
+    __tablename__ = 'test_non_nullable_string'
+    id = Column(String(36), primary_key=True)
+    name = Column(String(256))
+    address = Column(String(256), nullable=False)
+
+
 def test_load_model_csv_results(test_results_path):
     ''' Valid results CSV loads with correct shape and types. '''
     df = imports.load_model_csv(models.Result, {}, test_results_path)
@@ -111,6 +119,22 @@ def test_load_model_csv_null_in_non_nullable_float_raises(tmp_path):
 
     with pytest.raises(ValueError, match=r'Unexpected null value'):
         imports.load_model_csv(_NonNullableFloatModel, {}, csv_path)
+
+
+def test_load_model_csv_empty_non_nullable_string_becomes_empty_string(tmp_path):
+    ''' Empty value in a non-nullable string column imports as '' and never as 'nan'. '''
+    csv_path = os.path.join(tmp_path, 'empty_string.csv')
+    pd.DataFrame({
+        'id': ['a', 'b', 'c'],
+        'name': ['x', 'y', 'z'],
+        'address': ['123 Main St', None, '456 Oak Ave'],
+    }).to_csv(csv_path, index=False)
+
+    df = imports.load_model_csv(_NonNullableStringModel, {}, csv_path)
+    df = imports.set_column_types(df, _NonNullableStringModel)
+
+    assert df.loc[1, 'address'] == ''
+    assert df.loc[1, 'address'] != 'nan'
 
 
 def test_load_model_csv_null_error_reports_line_number(tmp_path):
