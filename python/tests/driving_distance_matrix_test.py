@@ -21,6 +21,14 @@ from python.utils.driving_distance_matrix import (
 )
 from python.utils.ors_client import OrsMatrixError
 
+# Two origins, one destination — coordinates are arbitrary; not exercised
+# by anything using this constant.
+SAMPLE_LOCATIONS = {
+    's0': [-84.0000, 33.9500],
+    's1': [-84.0000, 33.9510],
+    'd':  [-84.1000, 34.0000],
+}
+
 
 class TestGetOriginsWithBlankDistances:
     '''Identify origins with any null driving distance.'''
@@ -147,11 +155,7 @@ class TestUnroutableOriginsAreDropped:
         mock_query.return_value = [[100.0], [np.nan]] # s0 routes, s1 doesn't
         log_fh = io.StringIO()
         df = build_distance_matrix(
-            locations={
-                's0': [-84.0000, 33.9500],
-                's1': [-84.0000, 33.9510],
-                'd':  [-84.1000, 34.0000],
-            },
+            locations=SAMPLE_LOCATIONS,
             source_ids=['s0', 's1'],
             dest_ids=['d'],
             matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
@@ -192,12 +196,8 @@ class TestIdentifyUnmatchedPairs:
 
     def test_numeric_geoids_already_present_are_recognized(self, tmp_path):
         '''Numeric-looking GEOIDs must match str source_ids so they're recognized as already present.
-
-        Regression for #305: pd.read_csv infers id_orig as int64 for numeric
-        census-block GEOIDs, so the present-pair check never matched the str
-        source_ids built by the CLI. Every pair looked "remaining" and got
-        re-fetched, then survived drop_duplicates as a duplicate row (one int
-        key from the old file, one str key freshly fetched).
+        pd.read_csv infers id_orig as int64 for numeric census-block GEOIDs, silently preventing a match
+        due to type mismatch.
         '''
         existing_csv = tmp_path / 'partial.csv'
         pd.DataFrame({
@@ -343,11 +343,7 @@ class TestBuildMatrixNegativeHandling:
         mock_query.return_value = [[100.0], [-1.0]]
         with pytest.raises(ValueError, match='negative'):
             build_distance_matrix(
-                locations={
-                    's0': [-84.0000, 33.9500],
-                    's1': [-84.0000, 33.9510],  # ~111m north of s0
-                    'd':  [-84.1000, 34.0000],
-                },
+                locations=SAMPLE_LOCATIONS,
                 source_ids=['s0', 's1'],
                 dest_ids=['d'],
                 matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
