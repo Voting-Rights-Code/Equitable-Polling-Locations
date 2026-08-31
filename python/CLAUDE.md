@@ -32,6 +32,8 @@ When code is changed or refactored, update any affected docstrings to stay accur
 
 Inline comments should explain *why*, not restate *what* the code does. Keep them concise and follow PEP 8 (single space after `#`, sentence case).
 
+One exception: a short **signpost** — a noun/verb phrase, not a sentence — may mark the start of a multi-line phase in a function long enough that skimming it cold is hard. Signposts mark phases, not statements: if the block is a single self-documenting call (e.g. `_reject_negative_distances(df)`), a signpost just restates the function name and should be deleted, not shortened. One per phase. Rationale still belongs at the phase's own definition — a function's docstring — never repeated at the call site.
+
 ## Test-Driven Development
 
 All code must be written using TDD:
