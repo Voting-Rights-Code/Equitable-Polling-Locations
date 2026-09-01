@@ -312,7 +312,8 @@ def build_distance_matrix(*,
 def identify_unmatched_pairs(output_path, source_ids, dest_ids):
     '''Load an existing driving-distance CSV, if one exists, and identify the 
     (id_orig, id_dest) pairs from source_ids/dest_ids not yet present in it. 
-    Runs before the CLI queries ORS for the remaining pairs.
+    Presence is decided by the id columns only — a row with a blank
+    distance_m still counts as present. Runs before the CLI queries ORS for the remaining pairs.
 
     Args:
         output_path: Path to a possibly-existing CSV with columns
