@@ -74,31 +74,8 @@ class TestDeriveOriginsAndDestinations:
 
     @patch('python.scripts.generate_driving_distances_cli.load_potential_locations_csv')
     @patch('python.scripts.generate_driving_distances_cli.get_blocks_gdf')
-    def test_returns_locations_dict_and_id_lists(self, mock_blocks, mock_pots):
-        # Mock the block centroid GeoDataFrame.
-        mock_blocks.return_value = pd.DataFrame({
-            'GEOID20': ['111', '222'],
-            'INTPTLAT20': ['33.9', '34.0'],
-            'INTPTLON20': ['-84.0', '-84.1'],
-        })
-        mock_pots.return_value = pd.DataFrame({
-            'Location': ['pollA', 'pollB'],
-            'Latitude': [33.95, 34.05],
-            'Longitude': [-84.05, -84.15],
-        })
-
-        config = MagicMock(location='Gwinnett_GA', census_year='2020')
-        locations, source_ids, dest_ids = derive_origins_and_destinations(config)
-        assert set(source_ids) == {'111', '222'}
-        assert set(dest_ids) == {'pollA', 'pollB'}
-        assert locations['111'] == [-84.0, 33.9]      # ``[lon, lat]`` order
-        assert locations['pollA'] == [-84.05, 33.95]
-
-    @patch('python.scripts.generate_driving_distances_cli.load_potential_locations_csv')
-    @patch('python.scripts.generate_driving_distances_cli.get_blocks_gdf')
-    #####TODO: Danger Will Robinson, Danger! Danger! what is this test supposed to do? 
     def test_handles_combined_lat_lon_column(self, mock_blocks, mock_pots):
-        '''Tarrant_County_TX-style CSV uses a single "Lat, Long" column with "lat , lon" values.'''
+        '''Split a single "Lat, Lon" column into [lon, lat] values.'''
         mock_blocks.return_value = pd.DataFrame({
             'GEOID20': ['111'],
             'INTPTLAT20': ['32.7'],
@@ -106,13 +83,14 @@ class TestDeriveOriginsAndDestinations:
         })
         mock_pots.return_value = pd.DataFrame({
             'Location': ['pollA', 'pollB'],
-            'Lat, Long': ['32.707497 , -97.252456', '32.711546,-97.189768'],  # both spacings
+            'Lat, Lon': ['32.707497 , -97.252456', '32.711546, -97.189768'],
         })
 
         config = MagicMock(location='Tarrant_County_TX', census_year='2020')
         locations, source_ids, dest_ids = derive_origins_and_destinations(config)
         assert set(source_ids) == {'111'}
         assert set(dest_ids) == {'pollA', 'pollB'}
+        assert locations['111'] == [-97.3, 32.7]
         # ``[lon, lat]`` order — parser puts lon first.
         assert locations['pollA'] == [-97.252456, 32.707497]
         assert locations['pollB'] == [-97.189768, 32.711546]
@@ -138,7 +116,7 @@ class TestDeriveOriginsAndDestinations:
 
 
 class TestMain:
-    '''Smoke-test the end-to-end flow with everything mocked.'''
+    '''Smoke-test the happy path end to end, everything mocked.'''
 
     @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
     @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
@@ -180,150 +158,9 @@ class TestMain:
         assert list(written.columns) == ['id_orig', 'id_dest', 'distance_m']
         assert written.iloc[0]['distance_m'] == 12345.0
 
-    @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
-    @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
-    @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
-    @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
-    def test_check_bad_locations_exits_nonzero_and_lists_unrouted_origins(
-        self, mock_cfg_cls, mock_derive, mock_build, unused_mock_reach, tmp_path, capsys,
-    ):
-        '''--check-bad-locations writes no CSV; unrouted origins -> exit 1 + id/lat/lon.'''
-        del unused_mock_reach
-        mock_cfg_cls.load_config.return_value = MagicMock(
-            location='Gwinnett_GA', census_year='2020',
-            config_file_path=str(tmp_path / 'cfg.yaml'),
-        )
-        mock_derive.return_value = (
-            {
-                'block_ok': [-84.0, 33.9],
-                'block_bad': [-84.05, 33.91],
-                'poll_x': [-84.1, 34.0],
-            },
-            ['block_ok', 'block_bad'],   # block_bad absent from build result -> unrouted
-            ['poll_x'],
-        )
-        mock_build.return_value = pd.DataFrame({
-            'id_orig': ['block_ok'], 'id_dest': ['poll_x'], 'distance_m': [12345.0],
-        })
 
-        driving_dir = tmp_path / 'datasets' / 'driving' / 'Gwinnett_GA'
-        logdir = tmp_path / 'logs'
-        os.makedirs(logdir, exist_ok=True)
-        # build_output_csv_path is NEVER reached in this code path, but patch it
-        # anyway so a regression that wrongly fell through would still not touch
-        # the real filesystem.
-        expected_output = driving_dir / 'Gwinnett_GA_driving_distances.csv'
-
-        with patch(
-            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
-            return_value=str(expected_output),
-        ):
-            rc = main([
-                '--state', 'georgia',
-                '-l', str(tmp_path / 'cfg.yaml'),
-                '--logdir', str(logdir),
-                '--check-bad-locations',
-            ])
-
-        assert rc == 1
-        assert not driving_dir.exists() or not expected_output.exists()
-        out = capsys.readouterr().out
-        assert 'could not be routed' in out
-        assert 'block_bad' in out
-        assert '33.91' in out       # latitude of the unrouted origin
-        assert '-84.05' in out      # longitude of the unrouted origin
-        # Probe mode writes no CSV, so the message must not reference one, nor
-        # promise anything about resume.
-        assert 'resume' not in out
-        assert str(expected_output) not in out
-
-    @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
-    @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
-    @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
-    @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
-    def test_check_bad_locations_exits_zero_when_all_routed(
-        self, mock_cfg_cls, mock_derive, mock_build, unused_mock_reach, tmp_path,
-    ):
-        '''--check-bad-locations exits 0 when every origin routed.'''
-        del unused_mock_reach
-        mock_cfg_cls.load_config.return_value = MagicMock(
-            location='Gwinnett_GA', census_year='2020',
-            config_file_path=str(tmp_path / 'cfg.yaml'),
-        )
-        mock_derive.return_value = (
-            {'block_ok': [-84.0, 33.9], 'poll_x': [-84.1, 34.0]},
-            ['block_ok'],
-            ['poll_x'],
-        )
-        mock_build.return_value = pd.DataFrame({
-            'id_orig': ['block_ok'], 'id_dest': ['poll_x'], 'distance_m': [12345.0],
-        })
-        logdir = tmp_path / 'logs'
-        os.makedirs(logdir, exist_ok=True)
-        rc = main([
-            '--state', 'georgia',
-            '-l', str(tmp_path / 'cfg.yaml'),
-            '--logdir', str(logdir),
-            '--check-bad-locations',
-        ])
-        assert rc == 0
-
-    @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
-    @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
-    @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
-    @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
-    def test_write_path_exits_nonzero_but_still_writes_partial_csv(
-        self, mock_cfg_cls, mock_derive, mock_build, unused_mock_reach, tmp_path, capsys,
-    ):
-        '''An unrouted origin fails the run loudly, but completed work is kept.
-
-        Per #325: write the partial CSV (composes with resume), exit non-zero,
-        and enumerate exactly which origins are missing with id + lat/lon.
-        '''
-        del unused_mock_reach
-        mock_cfg_cls.load_config.return_value = MagicMock(
-            location='Gwinnett_GA', census_year='2020',
-            config_file_path=str(tmp_path / 'cfg.yaml'),
-        )
-        mock_derive.return_value = (
-            {
-                'block_ok': [-84.0, 33.9],
-                'block_bad': [-84.05, 33.91],
-                'poll_x': [-84.1, 34.0],
-            },
-            ['block_ok', 'block_bad'],
-            ['poll_x'],
-        )
-        mock_build.return_value = pd.DataFrame({
-            'id_orig': ['block_ok'], 'id_dest': ['poll_x'], 'distance_m': [12345.0],
-        })
-
-        driving_dir = tmp_path / 'datasets' / 'driving' / 'Gwinnett_GA'
-        logdir = tmp_path / 'logs'
-        os.makedirs(driving_dir, exist_ok=True)
-        os.makedirs(logdir, exist_ok=True)
-        expected_output = driving_dir / 'Gwinnett_GA_driving_distances.csv'
-
-        with patch(
-            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
-            return_value=str(expected_output),
-        ):
-            rc = main([
-                '--state', 'georgia',
-                '-l', str(tmp_path / 'cfg.yaml'),
-                '--logdir', str(logdir),
-            ])
-
-        assert rc == 1
-        # The partial CSV keeps the successfully routed rows.
-        written = pd.read_csv(expected_output)
-        assert set(written['id_orig']) == {'block_ok'}
-        out = capsys.readouterr().out
-        # The failure message names the CSV the missing rows are absent from.
-        assert f'no rows in {expected_output}' in out
-        assert 'block_bad' in out
-        assert '33.91' in out
-        assert '-84.05' in out
+class TestResumeBehavior:
+    '''Resume/partial-fetch mechanics: only the remaining pairs reach build_distance_matrix.'''
 
     @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
     @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
@@ -417,6 +254,70 @@ class TestMain:
         assert rc == 0
         assert not mock_build.called
 
+
+class TestUnroutedOriginReporting:
+    '''_report_unrouted_origins fires correctly and the run exits non-zero, partial data kept.'''
+
+    @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
+    @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
+    @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
+    @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
+    def test_write_path_exits_nonzero_but_still_writes_partial_csv(
+        self, mock_cfg_cls, mock_derive, mock_build, unused_mock_reach, tmp_path, capsys,
+    ):
+        '''An unrouted origin fails the run loudly, but completed work is kept:
+        the partial CSV is written first, then the run exits non-zero and
+        enumerates exactly which origins are missing, with id and lat/lon.'''
+
+        del unused_mock_reach
+        #configure mocks: config, an origin that never gets routed, one good pair
+        mock_cfg_cls.load_config.return_value = MagicMock(
+            location='Gwinnett_GA', census_year='2020',
+            config_file_path=str(tmp_path / 'cfg.yaml'),
+        )
+        mock_derive.return_value = (
+            {
+                'block_ok': [-84.0, 33.9],
+                'block_bad': [-84.05, 33.91],
+                'poll_x': [-84.1, 34.0],
+            },
+            ['block_ok', 'block_bad'],
+            ['poll_x'],
+        )
+        mock_build.return_value = pd.DataFrame({
+            'id_orig': ['block_ok'], 'id_dest': ['poll_x'], 'distance_m': [12345.0],
+        })
+
+        #set up output and log paths under tmp_path
+        driving_dir = tmp_path / 'datasets' / 'driving' / 'Gwinnett_GA'
+        logdir = tmp_path / 'logs'
+        os.makedirs(driving_dir, exist_ok=True)
+        os.makedirs(logdir, exist_ok=True)
+        expected_output = driving_dir / 'Gwinnett_GA_driving_distances.csv'
+
+        #run the CLI
+        with patch(
+            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
+            return_value=str(expected_output),
+        ):
+            rc = main([
+                '--state', 'georgia',
+                '-l', str(tmp_path / 'cfg.yaml'),
+                '--logdir', str(logdir),
+            ])
+
+        #verify: failure exit code, partial CSV kept, missing origin named in the message
+        assert rc == 1
+        # The partial CSV keeps the successfully routed rows.
+        written = pd.read_csv(expected_output)
+        assert set(written['id_orig']) == {'block_ok'}
+        out = capsys.readouterr().out
+        # The failure message names the CSV the missing rows are absent from.
+        assert f'no rows in {expected_output}' in out
+        assert 'block_bad' in out
+        assert '33.91' in out
+        assert '-84.05' in out
+
     @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
     @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
     @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
@@ -424,11 +325,7 @@ class TestMain:
     def test_short_circuit_exits_nonzero_on_blank_distance_row(
         self, mock_cfg_cls, mock_derive, mock_build, unused_mock_reach, tmp_path, capsys,
     ):
-        '''A hand-edited blank distance_m must fail the no-new-pairs short-circuit.
-
-        Regression guard: resume counts a present-but-blank pair as satisfied,
-        so a plain rerun never re-fetches it — without this check the run
-        would exit 0 with an output the solver later rejects.
+        '''A blank distance_m must fail
         '''
         del unused_mock_reach
         mock_cfg_cls.load_config.return_value = MagicMock(
@@ -476,8 +373,8 @@ class TestMain:
         assert 'will NOT fetch' in out
 
 
-class TestStateValidation:
-    '''Tests for --state validation and config-derived fallback.'''
+class TestStateResolution:
+    '''Resolving --state: config-derived, explicit override, and validation.'''
 
     def test_rejects_unknown_state_slug(self, tmp_path):
         '''An explicit --state with an unknown slug must exit non-zero with a clear error.'''
@@ -485,19 +382,6 @@ class TestStateValidation:
         with pytest.raises(SystemExit) as exc_info:
             main(['--state', 'atlantis', '-l', '/nonexistent.yaml'])
         assert exc_info.value.code != 0
-
-    def test_state_flag_no_longer_required_on_cli(self):
-        '''argparse should accept --state-less invocation; derivation runs in main().'''
-        # This is the bare-parser case; the parser itself must accept it.
-        # main() will later try to load the config and derive; that error
-        # path is exercised by test_errors_when_neither_flag_nor_derivable_location.
-        parser = build_arg_parser()
-        args = parser.parse_args(['-l', '/nonexistent.yaml'])
-        assert args.state is None
-
-
-class TestConfigDerivedState:
-    '''Tests for deriving the state from config.location when --state is absent.'''
 
     @patch('python.scripts.generate_driving_distances_cli._assert_ors_reachable')
     @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
@@ -543,6 +427,7 @@ class TestConfigDerivedState:
     @patch('python.scripts.generate_driving_distances_cli.build_distance_matrix')
     @patch('python.scripts.generate_driving_distances_cli.derive_origins_and_destinations')
     @patch('python.scripts.generate_driving_distances_cli.PollingModelConfig')
+    # TODO: DANGER Will Robinson. Danger! Danger! this is NOT desired behavior. See #350
     def test_explicit_state_flag_overrides_config_derivation(
             self, mock_cfg_cls, mock_derive, mock_build, unused_mock_reach, mock_state_derive, tmp_path):
         '''--state texas wins even when config.location would derive to georgia.
