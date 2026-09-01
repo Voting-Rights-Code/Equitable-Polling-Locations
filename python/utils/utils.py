@@ -13,7 +13,7 @@ from python.utils.directory_constants import (
   BLOCK_GROUP_FILE_SUFFIX, CENSUS_FOLDER_NAME, CENSUS_TIGER_DIR, 
   DATASETS_DIR, REDISTRICTING_FOLDER_NAME,
   DRIVING_DIR, POLLING_DIR, TABBLOCK_FILE_SUFFIX,
-  BLOCK_GROUP_GEO, BLOCK_GEO
+  BLOCK_GROUP_GEO, BLOCK_GEO, CVAP_FOLDER_NAME
 )
 
 @dataclass
@@ -105,21 +105,28 @@ def build_y_ede_summary_file_path(result_path: str, result_prefix: str) -> str:
 
 def build_distance_file_path(
         census_year: str,
+        census_data_type: str,
         location: str,
         driving: bool,
         log_distance: bool,
     ) -> str:
     ''' Returns the path to the locations files that includes distances for this config '''
     if log_distance:
-        extension = '_log.csv'
+        log_tag = '_log'
     else:
-        extension = '.csv'
+        log_tag = ''
 
     if driving:
-        distance_file_name = f'{location}_driving_distances_{census_year}{extension}'
+        driving_tag = '_driving'
     else:
-        distance_file_name = f'{location}_distances_{census_year}{extension}'
+        driving_tag = ''
 
+    if census_data_type != 'redistricting':
+        census_data_tag = f'_{census_data_type}'
+    else:
+        census_data_tag = ''
+    
+    distance_file_name = f'{location}{census_data_tag}{driving_tag}_distances_{census_year}{log_tag}.csv'
 
     distance_file_path = os.path.join(POLLING_DIR, location, distance_file_name)
 
@@ -148,28 +155,30 @@ def build_driving_distances_file_path(census_year: str, map_source_date: str, lo
     return driving_distances_file
 
 
-def build_decennial_dir_path(location: str, geo: str) -> str:
+def build_redistricting_dir_path(location: str, geo: str) -> str:
     "returns the directory for the decennial block or block group data"
     
-    decennial_dir = os.path.join(DATASETS_DIR, CENSUS_FOLDER_NAME, REDISTRICTING_FOLDER_NAME, location)
+    redistricting_dir = os.path.join(DATASETS_DIR, CENSUS_FOLDER_NAME, REDISTRICTING_FOLDER_NAME, location)
     if geo == BLOCK_GEO:
         pass
     elif geo == BLOCK_GROUP_GEO:
-        decennial_dir = os.path.join(decennial_dir, "block group demographics")
+        redistricting_dir = os.path.join(redistricting_dir, "block group demographics")
     else:
         raise ValueError(f'geo must be either block or block group')
 
-    return decennial_dir
+    return redistricting_dir
 
-def build_decennial_file_paths(census_year: str, geo: str, pnum: str, location: str, meta: bool) -> str:
+def build_redistricting_file_paths(census_year: str, geo: str, pnum: str, location: str, meta: bool) -> str:
     ''' Returns the path to Census data p3 or p4 table or metadata'''
     
-    decennial_dir = build_decennial_dir_path(location, geo)
+    redistricting_dir = build_redistricting_dir_path(location, geo)
     
     if meta == False:
         file_name = f'DECENNIALPL{census_year}.{pnum}-Data.csv'
     else: #meta == True
         file_name = f'DECENNIALPL{census_year}.{pnum}-Column-Metadata.csv'
+
+    return os.path.join(redistricting_dir, file_name)
 
     return os.path.join(decennial_dir, file_name)
 
@@ -177,6 +186,21 @@ def build_tiger_location_dir(location: str) -> str:
     ''' Returns the path to the Census Tiger data for this location '''
 
     return os.path.join(CENSUS_TIGER_DIR, location)
+
+def build_CVAP_dir_path(location: str) -> str:
+    "returns the directory for the CVAP block data"
+    CVAP_dir = os.path.join(DATASETS_DIR, CENSUS_FOLDER_NAME, CVAP_FOLDER_NAME, location)
+    return(CVAP_dir)
+
+def build_CVAP_source_file_path(census_year: str, location: str) -> str:
+    ''' Returns the path to CVAP table '''
+
+    file_name_cvap = f'CVAP_{census_year}-Data.csv'
+
+    CVAP_dir = build_CVAP_dir_path(location)
+
+    return os.path.join(CVAP_dir, file_name_cvap)
+
 
 def get_block_source_file_path(census_year, location: str) -> str:
     geography_dir = build_tiger_location_dir(location)

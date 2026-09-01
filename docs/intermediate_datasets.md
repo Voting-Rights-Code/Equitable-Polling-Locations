@@ -45,13 +45,13 @@ The columns of this data set are as follows:
 |source| type of distance, currently supported: (log) haversine, (log) driving | from log_distance and driving flag in config file |STRING |
 |Demographic fields|
 || 
-| population | total population of census block | 'P3_001N' of P3 data or 'P4_001N' of P4 data| INT |
-| hispanic | total hispanic population of census block | 'P4_002N' of P4 data| INT |
-| non_hispanic | total non-hispanic population of census block | 'P4_003N' of P4 data| INT |
-| white | single race white population of census block | 'P3_003N' of P3 data | INT |
-| black | single race black population of census block | 'P3_004N' of P3 data | INT |
-| native | single race native population of census block | 'P3_005N' of P3 data | INT |
-| asian | single race asian population of census block | 'P3_006N' of P3 data | INT |
-| pacific_islander | single race pacific_islander population of census block | 'P3_007N' of P3 data | INT |
-| multiple_races | total multi-racial population of census block | 'P3_009N' of P3 data | INT |
-| other | single race other population of census block | 'P3_008N' of P3 data | INT |
+| population | total population of census block | 'P3_001N' of P3 data or 'P4_001N' of P4 data, or TOT of CVAP data| INT |
+| hispanic | total hispanic population of census block, or HSP of CVAP data | 'P4_002N' of P4 data| INT |
+| non_hispanic | total non-hispanic population of census block, or NHS of CVAP data | 'P4_003N' of P4 data| INT |
+| white | single race white population of census block, or WHT of CVAP data | 'P3_003N' of P3 data | INT |
+| black | single race black population of census block, or BLK of CVAP data | 'P3_004N' of P3 data | INT |
+| native | single race native population of census block, or AIA of CVAP data | 'P3_005N' of P3 data | INT |
+| asian | single race asian population of census block, or ASN of CVAP data | 'P3_006N' of P3 data | INT |
+| pacific_islander | single race pacific_islander population of census block | 'P3_007N' of P3 data, or NHP of CVAP data | INT |
+| multiple_races | total multi-racial population of census block, or 2OM | 'P3_009N' of P3 data | INT |
+| other | single race other population of census block, always NA for CVAP | 'P3_008N' of P3 data | INT |

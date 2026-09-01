@@ -7,6 +7,8 @@ source('R/result_analysis/utility_functions/load_config_data.R')
 source('R/result_analysis/utility_functions/storage.R')
 source('R/result_analysis/utility_functions/tableau_theme.R')
 
+RDH_CITATION <- "Source: Redistricting Data Hub (redistrictingdatahub.org) — see their Terms and Conditions"
+
 ######
 #General process
 ######
@@ -26,7 +28,7 @@ source('R/result_analysis/utility_functions/tableau_theme.R')
 #	 * creates a base map associated census demographic data.
 #		* Only Census data used for this.
 #		* No optimization data involved
-#		* if map_type = boundary, then all boundaries that  
+#		* if map_type = boundary, then all boundaries that
 #	 * process_demographics puts together a single datatable of relevant P3 and P4 census data
 #	 * process_maps pulls out the block group level shape files
 #	 * These two get merged and written to file
@@ -49,7 +51,7 @@ source('R/result_analysis/utility_functions/tableau_theme.R')
 
 
 ###########
-#Adjoin shape and demographic data 
+#Adjoin shape and demographic data
 #needed for maps and regressions both
 ###########
 
@@ -75,7 +77,7 @@ get_map_file <- function(location, block_flag){
 	}else{
 		shp_pattern = 'bg20.shp$'
 	}
-	map_file <- paste0(map_folder, list.files(map_folder, pattern = shp_pattern))		
+	map_file <- paste0(map_folder, list.files(map_folder, pattern = shp_pattern))
 
 	return(map_file)
 }
@@ -84,7 +86,7 @@ results_with_area_geom<- function(location, result_df){
 	#takes a result df, and a location
 	#pulls the block level tiger data
 	#merges the area and geometry data into result data
-	
+
 	#get block level map name
 	map_file <- get_map_file(location, block_flag = TRUE)
 	#extract columns
@@ -109,7 +111,7 @@ bg_result_geom <- function(location, result_df){
 	#aggregate to block group level
 	#compute block level average distance
 	#Merge in block group centroid coordinate and geometry
-	
+
 	#block level results and geom
 	block_result_geom <- results_with_area_geom(location, result_df)
 
@@ -142,7 +144,7 @@ bg_result_geom <- function(location, result_df){
 	#merge.
 	#note, area not aggregated above but taken from bg_map
 	bg_result_with_geom <- merge(bg_demo_weight, bg_map_data, by.y = c('GEOID20'), by.x = c('bg_id'))
-	
+
 	return(bg_result_with_geom)
 }
 
@@ -156,7 +158,7 @@ bg_result_geom <- function(location, result_df){
 extract_unique_location <- function(df){
 	#extract location from data
 	location <- unique(df$location)
-	
+
 	if(length(location) >1){
 		stop(paste('Multiple locations in this result data from config set', df$config_set, 'with config name', df$config_name))
 		}
@@ -166,17 +168,17 @@ extract_unique_location <- function(df){
 merge_bg_demo_shp_data <- function(result_df){
 	#Merge map and result_df at block group level
 	#Note: This does it differently than before
-	#(see make_or_load_maps_old, where, if map_type = boundary, 
+	#(see make_or_load_maps_old, where, if map_type = boundary,
 	#the contained in data was
 	#used preferentially. Here, we use the appropriate block data
 	#in each case))
 
 	location <- extract_unique_location(result_df)
-	
+
 	#merge demo and geom data
 	bg_demo_shape <- bg_result_geom(location, result_df)
 
-	#add location back in 
+	#add location back in
 	bg_demo_shape <- bg_demo_shape[, location := location]
 
 	#get unique polling coordinates
@@ -188,12 +190,12 @@ merge_bg_demo_shp_data <- function(result_df){
 	bg_demo_shape_dest <- merge(bg_demo_shape, result_polls_coords, by = c('bg_id'), all.x = TRUE, allow.cartesian = TRUE)
 	return(bg_demo_shape_dest)
 }
-	
+
 
 prepare_outputs_for_bg_maps <- function(result_dt){
 
 	result_data <- copy(result_dt)
-	#if input NULL, and HISTORIC_FLAG return NULL 
+	#if input NULL, and HISTORIC_FLAG return NULL
 	if(check_historic_flag(result_data)){
 		return(NULL)
 	}
@@ -210,7 +212,7 @@ prepare_outputs_for_bg_maps <- function(result_dt){
 prepare_outputs_for_precinct_maps <- function(result_dt){
 
 	result_data <- copy(result_dt)
-	#if input NULL, and HISTORIC_FLAG return NULL 
+	#if input NULL, and HISTORIC_FLAG return NULL
 	if(check_historic_flag(result_data)){
 		return(NULL)
 	}
@@ -226,7 +228,7 @@ prepare_outputs_for_precinct_maps <- function(result_dt){
 
 	#make map data an sf object
 	sf_list <- lapply(result_with_geom, st_as_sf)
-	
+
 	return(sf_list)
 }
 
@@ -258,23 +260,23 @@ distance_bounds <- function(df){
 #Make block group maps
 ###############
 
-make_bg_maps <-function(prepped_data, demo_str = 'population', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, color_bounds = global_color_bounds, linear_color_gradient = LINEAR_COLOR_GRADIENT){ 
+make_bg_maps <-function(prepped_data, demo_str = 'population', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, color_bounds = global_color_bounds, linear_color_gradient = LINEAR_COLOR_GRADIENT, cvap_flag = CVAP_FLAG){
 	#use aggregated result data to color the map by distance to matched location, for population at large
 	#and plots the polling locations
-	
+
 	#transform for prepped data for mapping
 	prepped_demo <- prepped_data[demographic == demo_str, ]
 	bg_demo_sf <- st_as_sf(prepped_demo)
 
 	#make maps labels based on flags
 	flag_strs <- make_flag_strs(driving_flag, log_flag)
-	
+
 	title_str = paste0('Average', flag_strs$driving_str, 'distance to poll (', flag_strs$log_str, 'm)')
 	fill_str = paste0('Avg distance (', flag_strs$log_str, 'm)')
 
 	county = gsub('.{3}$','', unique(prepped_data$location))
 	descriptor = paste(county, unique(prepped_data$descriptor), sep ='_')
-	
+
 	#make maps
 	#color by bg avg distance
 	if(linear_color_gradient){
@@ -289,22 +291,23 @@ make_bg_maps <-function(prepped_data, demo_str = 'population', driving_flag = DR
 	}
 
 	#place polling locations
-	plotted = plotted +
+	plotted <- plotted +
 		geom_point(data = bg_demo_sf, aes(x = dest_lon, y = dest_lat, color = dest_type, shape = dest_type))+
 		scale_color_manual(values = MAP_POLL_TYPE_COLORS, name = 'Poll Type') +
 		scale_shape_manual(values = MAP_POLL_TYPE_SHAPES, name = 'Poll Type') + xlab('') + ylab('')
 	#add title
-	plotted = plotted + ggtitle(title_str, paste('Block group map', 'of', gsub('_', ' ', descriptor) )) + theme_tableau_map()
-	
+	plotted <- plotted + ggtitle(title_str, paste('Block group map', 'of', gsub('_', ' ', descriptor) )) + theme_tableau_map()
+
+	if (cvap_flag) plotted <- plotted + labs(caption = RDH_CITATION)
 	#write to file
 	graph_file_path = paste0('distance_', descriptor, '_','polls.png')
 	add_graph_to_graph_file_manifest(graph_file_path)
 	ggsave(graph_file_path, plotted)
 }
 
-make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, color_bounds = global_color_bounds, linear_color_gradient = LINEAR_COLOR_GRADIENT){
+make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, color_bounds = global_color_bounds, linear_color_gradient = LINEAR_COLOR_GRADIENT, cvap_flag = CVAP_FLAG){
 	#use demographic residence_distances to put a dot in  the map colored by distance and sized by population
-	
+
 	#transform for prepped data for mapping
 	prepped_demo <- prepped_data[demographic == demo_str, ]
 	#prepped_data <- unique(prepped_demo)
@@ -314,7 +317,7 @@ make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLA
 	bg_demo_sf$INTPTLON20 <- as.numeric(bg_demo_sf$INTPTLON20)
 	bg_demo_sf$INTPTLAT20 <- as.numeric(bg_demo_sf$INTPTLAT20)
 
-	
+
 	#plot map with a point at the centroid, colored by distance, sized by size
 	#set names
 	flag_strs <- make_flag_strs(driving_flag, log_flag)
@@ -324,7 +327,7 @@ make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLA
 
 	county = gsub('.{3}$','', unique(prepped_data$location))
 	descriptor = paste(county, unique(prepped_data$descriptor), sep ='_')
-	
+
 	#size limits (This should be the block group with greatest total population
 	#for ease of comparison across demographics)
 	max_pop <- max(prepped_data$demo_pop)
@@ -350,6 +353,7 @@ make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLA
 				theme_tableau_map()
 		}
 
+	if (cvap_flag) plotted <- plotted + labs(caption = RDH_CITATION)
 	#write to file
 	graph_file_path = paste0(demo_str, '_','pop_and_dist','_',descriptor, '_','polls.png')
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -361,7 +365,7 @@ make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLA
 #precinct map
 #NOTE: done at block level
 #############
-make_precinct_map_no_people <- function(df_sf){
+make_precinct_map_no_people <- function(df_sf, cvap_flag = CVAP_FLAG){
 
 	#set labeling constants
 	#NOTE: the way the matching works, blocks without populations are not assigned
@@ -372,20 +376,21 @@ make_precinct_map_no_people <- function(df_sf){
 
 	title_str = gsub("_", '', paste(location, 'precinct map; empty blocks indicated'))
 	subtitle_str = gsub("_", ' ', paste('Optimized for', descriptor))
-	
+
 	#make map where blocks with no people are in grey
-	plotted <- ggplot() +	
+	plotted <- ggplot() +
 		geom_sf(data = df_sf, aes(fill = id_dest), show.legend = FALSE)+
-        geom_point(data = df_sf, aes(x = dest_lon, y = dest_lat), show.legend = FALSE) + 
+        geom_point(data = df_sf, aes(x = dest_lon, y = dest_lat), show.legend = FALSE) +
 		ggtitle(title_str, subtitle_str) + xlab('') + ylab('')
-	
+
+	if (cvap_flag) plotted <- plotted + labs(caption = RDH_CITATION)
 	#write to file
 	graph_file_path = paste0(location, '_','precinct','_',descriptor, '_','indicate_0_population.png')
 	add_graph_to_graph_file_manifest(graph_file_path)
 	ggsave(graph_file_path, plotted)
 }
 
-make_precinct_map <- function(df_sf){
+make_precinct_map <- function(df_sf, cvap_flag = CVAP_FLAG){
 
 	#set labeling constants
 	#NOTE: the way the matching works, blocks without populations are not assigned
@@ -396,7 +401,7 @@ make_precinct_map <- function(df_sf){
 
 	title_str = gsub("_", ' ', paste(location, 'precinct map'))
 	subtitle_str = gsub("_", ' ', paste('Optimized for', descriptor))
-	
+
 	#separate out populated and unpopulated blocks
 	df_sf_pop <- df_sf[!is.na(df_sf$id_dest), ]
 	df_sf_unpop <- df_sf[is.na(df_sf$id_dest), ]
@@ -419,18 +424,17 @@ make_precinct_map <- function(df_sf){
 	unpop_narrow$precinct_geom <- st_cast(unpop_narrow$precinct_geom, 'MULTIPOLYGON') %>% st_make_valid()
 
 	#combine populated and unpopulated data
-	precincts_sf_all <- rbind(unpop_narrow, precincts_sf_pop) %>%group_by(id_dest, descriptor, dest_lat, dest_lon) %>% 
+	precincts_sf_all <- rbind(unpop_narrow, precincts_sf_pop) %>% group_by(id_dest, descriptor, dest_lat, dest_lon) %>%
 								summarize(precinct_geom = st_union(precinct_geom)) %>% ungroup()
 
 	#coarsen the fidelity of the map to drop odds and ends of leftover lines
 	area_thresh <- units::set_units(2, km^2)
-	#precincts_sf_valid <- precincts_sf_all %>%
-    #		st_make_valid()
-	plotted<- ggplot() +	
+	plotted <- ggplot() +
 		geom_sf(data = precincts_sf_all, aes(fill = id_dest), show.legend = FALSE)+
-		geom_point(data = precincts_sf_all, aes(x = dest_lon, y = dest_lat), show.legend = FALSE)+ 
+		geom_point(data = precincts_sf_all, aes(x = dest_lon, y = dest_lat), show.legend = FALSE)+
 		ggtitle(title_str, subtitle_str) + xlab('') + ylab('')
-	
+
+	if (cvap_flag) plotted <- plotted + labs(caption = RDH_CITATION)
 	#write to file
 	graph_file_path = paste0(location, '_','precinct','_',descriptor,'.png')
 	add_graph_to_graph_file_manifest(graph_file_path)
@@ -439,73 +443,6 @@ make_precinct_map <- function(df_sf){
 	shp_file_path = paste0(location, '_','precinct','_',descriptor,'.shp')
 	add_graph_to_graph_file_manifest(shp_file_path)
 	st_write(precincts_sf_all, shp_file_path, delete_layer = TRUE)
-}
-
-###################
-
-make_or_load_maps_old <- function(location, map_type, demographic = 'population'){
-	#Note: No longer supports cartograms. 
-	#All maps made on the fly.
-	#map data no longer stored
-
-	#makes the map by loading the census shape and demographic data
-	#and merging.
-	#1. set a name for a map
-	#2. make map
-	#2a. get block group level demographics
-	#2b. get block group shape files
-	#2c. merge shape file with demographics, assign projection
-	#2d. make map
-
-	#1. name the desired map
-	if (map_type == 'map'){
-		map_name<- paste0(location, "_", map_type, '.shp')
-	} else if (map_type == 'boundries'){
-		map_name<- paste0(location, "_", map_type, '.shp')
-	} else{
-		stop('map_type must be either map, or boundries')
-	}
-
-	#2. Make map
-	#2a. get block group demographics
-	if (map_type == 'boundries') { 
-		#associate block group demographics based on only on blocks included in boundary
-
-		#get block level demographics
-		block_demo <- process_demographics(paste0(here(), '/datasets/census/redistricting/', location))
-		#drop columns that cannot be aggregated (aren't numeric)
-		demo_names <- names(block_demo)[sapply(block_demo,is.integer) ==TRUE]
-		#aggregate up to block group level
-		bg_demo <- block_demo[ , Geography := gsub('.{3}$', '', Geography)
-							][ ,`Geographic Area Name` := gsub('^.{12}', '',`Geographic Area Name` )
-							][ , lapply(.SD, sum), by = c('Geography','Geographic Area Name'), .SDcols = demo_names]
-	} else { # get demographics from existing block groups data
-		bg_demo <- process_demographics(paste0(here(), '/datasets/census/redistricting/', location, "/block group demographics"))
-	}
-	#2b. get shape file
-	#Block group shape files
-	if (map_type == 'boundries') { #use the Intersecting data for both maps
-		bg_shape_file <- list.files(paste0(here(), '/datasets/census/tiger/',gsub('Contained_in', 'Intersecting', location) ), pattern = 'bg20.shp$')
-		#get processed map data
-		map_bg_dt <- process_maps(paste0(here(), '/datasets/census/tiger/', gsub('Contained_in', 'Intersecting', location) , '/', bg_shape_file))
-	} else {
-		bg_shape_file <- list.files(paste0(here(), '/datasets/census/tiger/', location ), pattern = 'bg20.shp$')
-		#get processed map data
-		map_bg_dt <- process_maps(paste0(here(), '/datasets/census/tiger/', location, '/', bg_shape_file))
-	}
-	#2c. merge the bg shape dt with the bg demo dt
-	bg_demo_shape <- merge(map_bg_dt, bg_demo, by.x = c('GEOID20'), by.y = c('Geography'))
-	#make it an sf object for mapping
-	bg_demo_sf <- st_as_sf(bg_demo_shape)
-	#assign it a projection
-	if (map_type %in% c('map','boundries')){
-		projection = 4326 #must use this projection if you want to add points to map
-	} else {
-		projection = 3857 #correct projection for merc
-	}
-	#4. make map 
-	map <- st_transform(bg_demo_sf, projection)	
-	return(map)
 }
 
 

@@ -14,8 +14,8 @@ source('R/result_analysis/utility_functions/tableau_theme.R')
 TABLES = c("edes", "precinct_distances", "residence_distances", "results")
 DEMO_COLS =  c("population", "hispanic","non_hispanic", "white", "black", "native", "asian", "pacific_islander", "other")
 
-PRINT_SQL = FALSE
 
+RDH_CITATION <- "Source: Redistricting Data Hub (redistrictingdatahub.org) — see their Terms and Conditions"
 
 
 
@@ -24,25 +24,31 @@ PRINT_SQL = FALSE
 #Get flags from the config folders or config file
 #########
 #get driving/ log flag from config data
-set_global_flag<- function(config_dt_list, flag_type){
+set_global_flag <- function(config_dt_list, flag_type, compare_to = NULL){
 	#takes a data.table of config data (where rows are different files)
-	#and checks that they all have the same driving or log flag in them
-	#If they do, this is the global driving flag. If not, returns an error
+	#and checks that they all have the same value for flag_type.
+	#If compare_to is NULL, coerces values to logical (for boolean fields).
+	#If compare_to is provided, tests equality against that string (for string fields).
+	#If all values agree, returns the global flag value. If not, returns an error.
 	if (flag_type %in% names(config_dt_list)){
-		flag_list <- sapply(config_dt_list[[flag_type]], as.logical)
-		if (length(unique(flag_list))==1){
-			global_driving_flag = unique(flag_list)
-		}else{
+		if (is.null(compare_to)){
+			flag_list <- sapply(config_dt_list[[flag_type]], as.logical)
+		} else {
+			flag_list <- sapply(config_dt_list[[flag_type]], function(x) x == compare_to)
+		}
+		if (length(unique(flag_list)) == 1){
+			global_flag <- unique(flag_list)
+		} else {
 			stop(paste0(flag_type, ' flags different in different files. Cannot set global value'))
 		}
 	} else{
-		global_driving_flag = FALSE
+		global_flag <- FALSE
 	}
-	return(global_driving_flag)
+	return(global_flag)
 }
 
 #If the config indicates that the analysis is for historical data only,
-#this function is used to make non-historical runs 
+#this function is used to make non-historical runs
 #(e.g. outputs derived from potential config folder) return null
 
 check_historic_flag<- function(null_arg, historic_flag = HISTORICAL_FLAG){
@@ -97,8 +103,8 @@ create_descriptor_field <- function(config_dt, field_of_interest){
 		#if there is only one row, and field of interest isn't specified, raise an error
 		if (field_of_interest == ''){
 			stop('only one config_name in config_set, but no field of interest specified')
-		} 
-		#1a) otherwise, check that that the field of interest is in the config data, 
+		}
+		#1a) otherwise, check that that the field of interest is in the config data,
 		#and create varying_dt. Else, throw error
 		if (field_of_interest %in% names(config_dt)){
 			varying_cols <- c(field_of_interest, 'config_name')
@@ -115,8 +121,7 @@ create_descriptor_field <- function(config_dt, field_of_interest){
 	varying_field<- names(varying_dt)[names(varying_dt) != 'config_name']
 	#paste the name of the varying field with its value
 	varying_dt <- varying_dt[, descriptor_pre:= varying_field
-						   ][, descriptor := do.call(paste, c(.SD, sep = '_')), .SDcols = c('descriptor_pre', varying_field)
-						   ][ , descriptor_pre:= NULL]
+						   ][, descriptor := do.call(paste, c(.SD, sep = '_')), .SDcols = c('descriptor_pre', varying_field)][ , descriptor_pre:= NULL]
 	return(varying_dt)
 }
 
@@ -125,7 +130,7 @@ change_descriptors <- function(df, descriptor_dict){
 	#if the descriptor dictionary is NULL, then do nothing
 	if(is.null(descriptor_dict)){return(df)}
 
-	#otherwise, there is data in the dictionary. Check that this is consisent with the 
+	#otherwise, there is data in the dictionary. Check that this is consisent with the
 	#descriptor data in the df
 	generated_descriptors <- unique(df$descriptor)
 	dict_descriptors <- names(descriptor_dict)
@@ -141,10 +146,10 @@ change_descriptors <- function(df, descriptor_dict){
 	}else{extra_str <- NULL}
 	#if either missing from dict or extra in dict are non-empty, stop
 	if (length(missing_from_dict) > 0 | length(extra_in_dict) >0){
-		stop(paste0('Missmatch between descriptor values given in config and generated algorithmically:\n', 
+		stop(paste0('Missmatch between descriptor values given in config and generated algorithmically:\n',
 					missing_str, '\n', extra_str))
 	}
-	
+
 	#assuming consistency, replace values in df
 	#1. turn dictionary into data.table
 	descriptor_dt <- data.table(old_descriptor = names(descriptor_dict), new_descriptor = descriptor_dict)
@@ -153,39 +158,6 @@ change_descriptors <- function(df, descriptor_dict){
 	df_renamed[ , descriptor := NULL]
 	setnames(df_renamed, c('new_descriptor'), c('descriptor'))
 return(df_renamed)
-}
-
-order_descriptors <- function(df) {
-	#set descriptors to ordered factors for graphs
-
-	#pull out unique descriptors
-    descriptors <- unique(df$descriptor)
-
-	#all descriptors must contain a underscore:
-	if (any(!grepl('_', descriptors))) {
-    bad <- descriptors[!grepl('_', descriptors)]
-    stop(paste('Descriptor values must contain at least one underscore. Missing in:',
-               paste(bad, collapse = ', ')))
-	}	
-	
-	#extract suffixes
-    suffixes <- sub('.*_', '', descriptors)
-    suffixes_numeric <- suppressWarnings(as.numeric(suffixes))
-	is_numeric <- !is.na(suffixes_numeric)
-		
-	#if they are all numeric, use the suffix to order, if they are all alphabetic use the full descriptor
-	#if they are mixed, throw an error
-    if (all(is_numeric)) {
-        ordered_levels <- descriptors[order(suffixes_numeric)]
-    } else if (!any(is_numeric)){
-        ordered_levels <- sort(descriptors)
-    } else {
-		stop(paste('Descriptor suffixes must be all numeric or all non-numeric. Mixed suffixes found:',
-               paste(suffixes, collapse = ', ')))
-	}
-	#impose the order
-    df[, descriptor := factor(descriptor, levels = ordered_levels)]
-    return(df)
 }
 
 ######
@@ -213,13 +185,13 @@ load_results_from_csv <-function(config_dt, result_type){
 	#put together to form a file path
 	file_path <- paste0(result_folder, files)
 	names(file_path) <- names(files)
-	
+
 	#read data, add config_set and config_name columns
 	#note, this needs a local function
 	dt_list <- lapply(file_path, fread)
 	names(dt_list) <- names(file_path)
 	dt_list_appended <- mapply(function(data, list_name){data[, config_name:=list_name][ , config_set := config_folder][ , location := location]}, dt_list, names(dt_list), SIMPLIFY = FALSE)
-	
+
 	#combine into one df
 	big_dt <- do.call(rbind, dt_list_appended)
 	return(big_dt)
@@ -262,13 +234,13 @@ assign_descriptor_to_result<- function(config_dt, result_type, field_of_interest
 	#result_type: in c((ede, precinct, residence, results)
 	#field_of_interest: string indicating the field to be used for a descriptor (in case the config folder has only 1 file)
 	#returns: list(ede_df, precinct_df, residence_df, result_df)
-	
+
 	#read in descriptor data
 	vary_dt <- create_descriptor_field(config_dt, field_of_interest)
 	#drop varying field (because this changes across config_set)
 	vary_dt <- vary_dt [ , .(config_name, descriptor)]
-	
-	
+
+
 	#read in output data
 	if (read_from_csv){
 		result_type_dt <- load_results_from_csv(config_dt, result_type)
@@ -278,15 +250,12 @@ assign_descriptor_to_result<- function(config_dt, result_type, field_of_interest
 
 		result_type_dt <- load_results_from_db(table_name=extras_table_name, model_run_ids)
 	}
-	
+
 	#merge output and descriptor data
 	complete_dt <- merge(vary_dt, result_type_dt, by = c('config_name'))
 
 	#change to custom descriptors if desired
 	complete_dt <- change_descriptors(complete_dt, descriptor_dict)
-
-	#order the descriptor fields as factors
-	complete_dt <- order_descriptors(complete_dt)
 
 	#fix data types (only needed for csv)
 	if ('id_dest' %in% names(complete_dt)){
@@ -297,7 +266,7 @@ assign_descriptor_to_result<- function(config_dt, result_type, field_of_interest
 	return(complete_dt)
 }
 
-read_result_data<- function(config_dt, field_of_interest = '', descriptor_dict = DESCRIPTOR_DICT, 
+read_result_data<- function(config_dt, field_of_interest = '', descriptor_dict = DESCRIPTOR_DICT,
 							tables = TABLES, read_from_csv = READ_FROM_CSV){
 	#read in and format all the results data associated to a
 	#given config data.
@@ -308,7 +277,7 @@ read_result_data<- function(config_dt, field_of_interest = '', descriptor_dict =
 	if(check_historic_flag(config_dt)){
 		return(NULL)
 	}
-	
+
 	#get a list of result data with a descriptor column attached to each data.table
 	df_list<- lapply(tables, function(x){assign_descriptor_to_result(config_dt, x, field_of_interest, read_from_csv, descriptor_dict)})
 	names(df_list) <- tables
@@ -345,7 +314,7 @@ make_flag_strs<- function(driving_flag, log_flag){
 	#make flag dependent labels
 	driving_str = ' straight line '
 	log_str = ''
-	if (driving_flag){driving_str = ' driving '} 
+	if (driving_flag){driving_str = ' driving '}
 	#if (log_flag){log_str = 'log '}
 	return(as.list(c(driving_str = driving_str, log_str = log_str)))
 }
@@ -389,56 +358,60 @@ ede_with_pop<- function(config_df_list){
 
 #makes a plot showing how y_EDEs change for each demographic group as the
 #number of polls is increased
-plot_poll_edes<-function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
+plot_poll_edes<-function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, cvap_flag = CVAP_FLAG){
 
 	flag_strs <- make_flag_strs(driving_flag, log_flag)
-	
+
 	title_str = paste0('Equity weighted', flag_strs$driving_str, 'distance to poll by demographic')
 	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
 
-	graph = ggplot(ede_df, aes(x = descriptor, y = y_EDE,
+	graph <- ggplot(ede_df, aes(x = num_polls, y = y_EDE,
 		group = demographic, color = demographic, shape = demographic)) +
 		geom_line()+ geom_point()+
-		labs(x = 'Optimization Run', y = y_str, title = title_str, color = 'Demographic', shape = 'Demographic')+
+		labs(x = 'Number of polls', y = y_str, title = title_str, color = 'Demographic', shape = 'Demographic')+
 		scale_color_tableau(labels = demographic_legend_dict) +
 		scale_shape(labels = demographic_legend_dict) +
 		theme_tableau()
+	#TODO: make this work
+	#if(log_flag){graph = graph + scale_y_continuous(trans="log2")
 
+	if (cvap_flag) graph <- graph + labs(caption = RDH_CITATION)
 	graph_file_path = 'demographic_edes.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
-	ggsave(graph_file_path)
+	ggsave(graph_file_path, graph)
 }
 
 #like plot_poll_edes, but plots just the y_edes for the
 # population as a whole, and not demographic groups
-plot_population_edes <- function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
+plot_population_edes <- function(ede_df, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, cvap_flag = CVAP_FLAG){
 	flag_strs <- make_flag_strs(driving_flag, log_flag)
 
 	title_str = paste0('Equity weighted', flag_strs$driving_str, 'distance to poll')
 	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
 
 
-	graph = ggplot(ede_df[demographic == 'population', ], aes(x = descriptor, y = y_EDE))+
+	graph <- ggplot(ede_df[demographic == 'population', ], aes(x =  num_polls, y = y_EDE))+
 		geom_line(color = TABLEAU_COLORS[1])+ geom_point(color = TABLEAU_COLORS[1])+
-		labs(x = 'Optimization Run', y = y_str, title = title_str) +
+		labs(x = 'Number of polls', y = y_str, title = title_str) +
 		theme_tableau()
 
+	if (cvap_flag) graph <- graph + labs(caption = RDH_CITATION)
 	graph_file_path = 'population_edes.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
-	ggsave(graph_file_path)
+	ggsave(graph_file_path, graph)
 }
 
-#makes a plot showing how the y_EDEs for multiple config_sets change 
-#as the number of polls is increased, for a specified demographic_group 
-plot_multiple_edes<-function(ede_list, demo_grp, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
+#makes a plot showing how the y_EDEs for multiple config_sets change
+#as the number of polls is increased, for a specified demographic_group
+plot_multiple_edes<-function(ede_list, demo_grp, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, cvap_flag = CVAP_FLAG){
 	ede_df <- do.call(rbind, ede_list)
 
 	flag_strs <- make_flag_strs(driving_flag, log_flag)
-	
+
 	title_str = paste0('Equity weighted', flag_strs$driving_str, 'distance to poll by demographic')
 	y_str = paste0('Equity weighted', flag_strs$driving_str, 'distance (', flag_strs$log_str, 'm)')
 
-	ggplot(ede_df[demographic == demo_grp, ], aes(x = num_polls, y = y_EDE,
+	graph <- ggplot(ede_df[demographic == demo_grp, ], aes(x = num_polls, y = y_EDE,
 		group = descriptor, color =  descriptor, shape = demo_grp)) +
 		geom_line()+ geom_point()+
 		labs(x = 'Number of polls', y = y_str, title = title_str, color = "Run Type", shape = 'Demographic')+
@@ -446,16 +419,17 @@ plot_multiple_edes<-function(ede_list, demo_grp, driving_flag = DRIVING_FLAG, lo
 		scale_color_manual(breaks = c('Intersecting', 'Contained'), values = c(TABLEAU_COLORS[3], TABLEAU_COLORS[7])) +
 		theme_tableau()
 
+	if (cvap_flag) graph <- graph + labs(caption = RDH_CITATION)
 	graph_file_path = paste0(demo_grp, '_compare_demographic_edes.png')
 	add_graph_to_graph_file_manifest(graph_file_path)
-	ggsave(graph_file_path)
+	ggsave(graph_file_path, graph)
 }
 
 #####historic and optimize edes ######
 
 #makes two plots, one showing the y_ede the other avg distance
 #showing how these variables change across the included runs
-plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
+plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, cvap_flag = CVAP_FLAG){
 
 	#set x axis label order
 	descriptor_order <- unique(orig_ede$descriptor)
@@ -468,7 +442,7 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 	#set point size
 	#does data contain scaling data
 	scale_bool = 'pct_demo_population' %in% names(orig_ede)
-	
+
 	flag_strs <- make_flag_strs(driving_flag, log_flag)
 
 	#labels for various types of data
@@ -491,6 +465,7 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 				scale_shape_discrete(labels = demographic_legend_dict) +
 				theme_tableau()
 
+	if (cvap_flag) y_EDE <- y_EDE + labs(caption = RDH_CITATION)
 	graph_file_path = paste('orig', suffix, 'y_EDE.png', sep = '_')
 	add_graph_to_graph_file_manifest(graph_file_path)
 	ggsave(graph_file_path, y_EDE)
@@ -511,6 +486,7 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 			scale_shape_discrete(labels = demographic_legend_dict) +
 			theme_tableau()
 
+	if (cvap_flag) avg <- avg + labs(caption = RDH_CITATION)
 	graph_file_path = paste('orig', suffix, 'avg.png', sep = '_')
 	add_graph_to_graph_file_manifest(graph_file_path)
 	ggsave(graph_file_path, avg)
@@ -519,64 +495,67 @@ plot_historic_edes <- function(orig_ede, suffix = '', driving_flag = DRIVING_FLA
 
 #compares optimized runs with historical runs having the same number of
 #polls (via plot_historical_edes)
-plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
+plot_original_optimized <- function(config_ede, orig_ede, suffix = '', driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, cvap_flag = CVAP_FLAG){
 	#select the relevant optimized runs
 	orig_num_polls <- unique(orig_ede$num_polls)
 	config_num_polls <- unique(config_ede$num_polls)
 	optimization_num_polls<- max(intersect(orig_num_polls, config_num_polls))
 	optimized_run_dfs <- config_ede[num_polls == optimization_num_polls]
 	orig_and_optimal <- rbind(orig_ede, optimized_run_dfs)
-	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), driving_flag, log_flag)
+	plot_historic_edes(orig_and_optimal, paste0('and_optimal', suffix), driving_flag, log_flag, cvap_flag)
 
 }
 
 
 #a plot showing which precincts are used for which number of polls
 #also makes a panel of graphs showing which demographics are assigned to each poll
-plot_precinct_persistence <- function(precinct_df){
-	ggplot(precinct_df[demographic == 'population',
-		], aes(x = descriptor, y = id_dest)) +
+plot_precinct_persistence <- function(precinct_df, cvap_flag = CVAP_FLAG){
+	graph1 <- ggplot(precinct_df[demographic == 'population',
+		], aes(x = num_polls, y = id_dest)) +
 		geom_point(aes(size = demo_pop), color = TABLEAU_COLORS[1], alpha = 0.7) +
-		labs(x = 'Optimization Run', y = 'EV location', size = paste(demographic_legend_dict['population'], 'population')) +
+		labs(x = 'Number of polls', y = 'EV location', size = paste(demographic_legend_dict['population'], 'population')) +
 		theme_tableau()
 
+	if (cvap_flag) graph1 <- graph1 + labs(caption = RDH_CITATION)
 	graph_file_path = 'precinct_persistence.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
-	ggsave(graph_file_path)
+	ggsave(graph_file_path, graph1)
 
-	ggplot(precinct_df[demographic != 'population',
-		], aes(x = descriptor, y = id_dest)) +
+	graph2 <- ggplot(precinct_df[demographic != 'population',
+		], aes(x = num_polls, y = id_dest)) +
 		geom_point(aes(size = demo_pop), color = TABLEAU_COLORS[1], alpha = 0.7) +
-		labs(x = 'Optimization Run', y = 'EV location', size = 'Population') + facet_wrap(~ demographic) +
+		labs(x = 'Number of polls', y = 'EV location', size = 'Population') + facet_wrap(~ demographic) +
 		theme_tableau() +
 		theme(legend.position = c(0.9, 0.2))
 
+	if (cvap_flag) graph2 <- graph2 + labs(caption = RDH_CITATION)
 	graph_file_path = 'precinct_persistence_demographic.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
-	ggsave(graph_file_path)
+	ggsave(graph_file_path, graph2)
 }
 
 #make boxplots of the average distances traveled and the y_edes at each run
-plot_boxplots <- function(residence_df,log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG){
+plot_boxplots <- function(residence_df,log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG, cvap_flag = CVAP_FLAG){
 	flag_strs <- make_flag_strs(driving_flag, log_flag)
- 
+
 	res_pop <- residence_df[demographic == 'population',
 		]
 	#avg distance
-	ggplot(res_pop, aes(x = num_polls, y = avg_dist, group = descriptor)) +
+	graph <- ggplot(res_pop, aes(x = num_polls, y = avg_dist, group = descriptor)) +
 		stat_boxplot(geom = "errorbar", color = "#555555")+
 		geom_boxplot(outlier.shape = NA, fill = TABLEAU_COLORS[1], color = "#333333", alpha = 0.7) +
 		scale_y_log10(limits = c(500,10500)) +
 		labs(x = 'Number of polls', y = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'), title = "Boxplot of distances by run") +
 		theme_tableau()
 
+	if (cvap_flag) graph <- graph + labs(caption = RDH_CITATION)
 	graph_file_path = 'avg_dist_distribution_boxplots.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
-	ggsave(graph_file_path)
+	ggsave(graph_file_path, graph)
 }
 
 #make histogram of the average distances traveled in the historical and ideal situations
-plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_num, log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG){
+plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_num, log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG, cvap_flag = CVAP_FLAG){
 	flag_strs <- make_flag_strs(driving_flag, log_flag)
 
 	orig_residence_df <- orig_residence_df[demographic == 'population', ]
@@ -585,33 +564,36 @@ plot_orig_ideal_hist <- function(orig_residence_df, config_residence_df, ideal_n
 
 	#avg_distance
 	title_str = paste0('Distribution of distances traveled by people by year and optimization')
-	ggplot(res_pop_orig_and_ideal, aes(x = avg_dist, fill = descriptor)) +
+	graph <- ggplot(res_pop_orig_and_ideal, aes(x = avg_dist, fill = descriptor)) +
 		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
 		labs(x = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'), y = 'Number of people', title =  title_str, fill = 'Optimization Run') +
 		scale_fill_tableau(labels = function(x) str_to_title(str_replace_all(x, '_', ' '))) +
 		theme_tableau()
+
+	if (cvap_flag) graph <- graph + labs(caption = RDH_CITATION)
 	graph_file_path = 'avg_dist_distribution_hist.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
-	ggsave(graph_file_path)
+	ggsave(graph_file_path, graph)
 }
 
-plot_demographic_hist<- function(df, demo, flag_strs){
+plot_demographic_hist<- function(df, demo, flag_strs, cvap_flag = CVAP_FLAG){
 
 	y_str = paste0('Number of ', demo, ' people')
 	title_str = paste0('Distribution of distances traveled by ', demo, ' people by year and optimization')
-	hist = ggplot(df[demographic == demo, ], aes(x = avg_dist, fill = descriptor)) +
+	hist <- ggplot(df[demographic == demo, ], aes(x = avg_dist, fill = descriptor)) +
 		geom_histogram(aes(weight = demo_pop), position = "dodge", alpha = 0.8)+
 		labs(x = paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'), y = y_str, title =  title_str, fill = 'Optimization Run') + scale_x_continuous(transform = 'log') +
 		scale_fill_tableau(labels = function(x) str_to_title(str_replace_all(x, '_', ' '))) +
 		theme_tableau()
 
+	if (cvap_flag) hist <- hist + labs(caption = RDH_CITATION)
 	graph_file_path = paste0(demo, ' avg_dist_distribution_hist.png')
 	add_graph_to_graph_file_manifest(graph_file_path)
-	ggsave(graph_file_path)
+	ggsave(graph_file_path, hist)
 	return(hist)
 }
 
-plot_original_optimized_demographic_hists <- function(config_residence_df, orig_residence_df, demographic_list = DEMOGRAPHIC_LIST, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG){
+plot_original_optimized_demographic_hists <- function(config_residence_df, orig_residence_df, demographic_list = DEMOGRAPHIC_LIST, driving_flag = DRIVING_FLAG, log_flag = LOG_FLAG, cvap_flag = CVAP_FLAG){
 	flag_strs <- make_flag_strs(driving_flag, log_flag)
 
 	#select the relevant optimized runs
@@ -622,29 +604,31 @@ plot_original_optimized_demographic_hists <- function(config_residence_df, orig_
 	orig_and_optimal <- rbind(orig_residence_df, optimized_run_dfs)
 	descriptor_list <- unique(orig_and_optimal$descriptor)
 
-	demographic_hists = lapply(demographic_list, function(x)plot_demographic_hist(orig_and_optimal, x, flag_strs))
+	demographic_hists = lapply(demographic_list, function(x)plot_demographic_hist(orig_and_optimal, x, flag_strs, cvap_flag))
 }
 
 
 #plot of population densities by block, ordered by density
-plot_population_densities <- function(density_df){
-	ggplot(density_df[population != 0, ]) +
+plot_population_densities <- function(density_df, cvap_flag = CVAP_FLAG){
+	graph <- ggplot(density_df[population != 0, ]) +
 	   geom_point(aes(reorder(id_orig, pop_density_km), y = pop_density_km), color = TABLEAU_COLORS[1], alpha = 0.7) +
 	   labs(title = 'Census Block Population Density', x = 'Density ordered Census Blocks', y = 'Population / km sq') +
 	   theme_tableau() +
 	   theme(
 		axis.text.x = element_blank(),
         axis.ticks.x = element_blank())
+
+	if (cvap_flag) graph <- graph + labs(caption = RDH_CITATION)
 	graph_file_path = 'population_density.png'
 	add_graph_to_graph_file_manifest(graph_file_path)
-	ggsave(graph_file_path)
+	ggsave(graph_file_path, graph)
 }
 
-#plot of average distances traveled by demographic groups, aggregated 
+#plot of average distances traveled by demographic groups, aggregated
 #at the block group level, ordered by population density
 #log / log scale, with best fit lines
-plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG){
-	
+plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, log_flag = LOG_FLAG, driving_flag = DRIVING_FLAG, cvap_flag = CVAP_FLAG){
+
 	#set graph y axis bounds. if min_distance == 0 m, make 1m
 	min_dist = min(bg_density_data[demographic %in% demo_list, ]$demo_avg_dist, na.rm = TRUE)
 	max_dist = max(bg_density_data[demographic %in% demo_list, ]$demo_avg_dist, na.rm = TRUE)
@@ -654,24 +638,25 @@ plot_density_v_distance_bg <- function(bg_density_data, county, demo_list, log_f
 	#trim log density outliers
 	trimmed <- bg_density_data[abs(z_score_log_density)<4, ]
 
-    descriptor_graph <- function(descriptor_str, demo_list, y_bounds){   
+    descriptor_graph <- function(descriptor_str, demo_list, y_bounds){
 		flag_strs <- make_flag_strs(driving_flag, log_flag)
-	
+
 		title_str = paste0('Average', flag_strs$driving_str, 'distance to poll by demographic and block group')
 		y_str = paste0(paste0("Avg",  flag_strs$driving_str, "distance (", flag_strs$log_str, ' m)'))
 
-        ggplot(trimmed[descriptor == descriptor_str & demographic %in% demo_list, ] , aes(x = pop_density_km, y = demo_avg_dist, group = demographic, color = demographic)) +
+		graph <- ggplot(trimmed[descriptor == descriptor_str & demographic %in% demo_list, ] , aes(x = pop_density_km, y = demo_avg_dist, group = demographic, color = demographic)) +
             geom_point(alpha = .7, aes(size = demo_pop )) + geom_smooth(method=lm, mapping = aes(weight = demo_pop), se= FALSE) + scale_x_continuous(trans = 'log10') + scale_y_log10(limits = y_bounds) +
             labs(title = title_str,
                 subtitle = gsub("_", " ", paste(county, descriptor_str)), y = y_str ,
 				x = "Block group population density (people/ km^2)", size = 'Population', color = 'Demographic') +
 				scale_color_tableau(labels = demographic_legend_dict[demo_list]) +
 				theme_tableau()
+
+		if (cvap_flag) graph <- graph + labs(caption = RDH_CITATION)
 		graph_file_path = paste(county, descriptor_str, "avg distance.png")
 		add_graph_to_graph_file_manifest(graph_file_path)
-		ggsave(graph_file_path)
+		ggsave(graph_file_path, graph)
     }
     descriptors = unique(trimmed$descriptor)
     sapply(descriptors, function(x){descriptor_graph(x, demo_list, y_bounds)})
     }
-

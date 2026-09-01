@@ -35,6 +35,7 @@ _TESTING_CONFIG_DIR = os.path.join(
 
 _SRC_POTENTIAL_LOCATIONS = os.path.join(_TESTING_POLLING_DIR, 'testing_potential_locations.csv')
 _SRC_DISTANCES = os.path.join(_TESTING_POLLING_DIR, 'testing_distances_2020.csv')
+_SRC_CVAP_DISTANCES = os.path.join(_TESTING_POLLING_DIR, 'testing_CVAP_distances_2020.csv')
 _SRC_DRIVING_DISTANCES = os.path.join(_TESTING_POLLING_DIR, 'testing_driving_2020.csv')
 _SRC_BASE_CONFIG = os.path.join(_TESTING_CONFIG_DIR, 'testing_config_no_bg.yaml')
 
@@ -95,6 +96,9 @@ CONFIG_VARIANTS = {
     'config_driving_log': {'driving': True, 'log_distance': True},
     'config_penalty': {'penalized_sites': ['College Campus - Potential', 'Fire Station - Potential']},
     'config_low_beta': {'beta': -1},
+    'config_capacity': {'capacity': 3},
+    'config_new_locations': {'maxpctnew': 0.5, 'minpctold': 0.75},
+    'config_CVAP': {'census_data_type': 'CVAP'},
     'config_low_capacity': {'capacity': 2.5, 'precincts_open': 4},
     'config_fixed_capacity': {'capacity': 2.5, 'precincts_open': 4, 'fixed_capacity_site_number': 3},
     'config_bad_types': {'bad_types': ['bg_centroid', 'Elec Day School - Potential']},
@@ -305,7 +309,8 @@ def e2e_test_data(e2e_session_id, pytestconfig):
             - ``driving_dir``: ``{DRIVING_DIR}/{sid}``
             - ``config_dir``: ``{CONFIG_BASE_DIR}/{sid}``
             - ``potential_locations``: path to the copied potential locations CSV
-            - ``distances``: path to the linear distances CSV
+            - ``distances``: path to the linear distances CSV (redistricting)
+            - ``cvap_distances``: path to the CVAP distances CSV
             - ``distances_log``: path to the log-transformed distances CSV
             - ``driving_distances``: path to the driving distances CSV (polling dir)
             - ``driving_distances_log``: path to the log-transformed driving CSV
@@ -338,8 +343,11 @@ def e2e_test_data(e2e_session_id, pytestconfig):
     driving_distances_log_path = os.path.join(polling_subdir, f'{sid}_driving_distances_2020_log.csv')
     driving_distances_import_path = os.path.join(driving_subdir, f'{sid}_driving_distances.csv')
 
+    cvap_distances_path = os.path.join(polling_subdir, f'{sid}_CVAP_distances_2020.csv')
+
     shutil.copy(_SRC_POTENTIAL_LOCATIONS, potential_locations_path)
     shutil.copy(_SRC_DISTANCES, distances_path)
+    shutil.copy(_SRC_CVAP_DISTANCES, cvap_distances_path)
     shutil.copy(_SRC_DRIVING_DISTANCES, driving_distances_path)
     # The db_import_driving_distances_cli only expects columns matching the
     # DrivingDistance model (id_orig, id_dest, distance_m) plus V1 (ignored).
@@ -419,6 +427,7 @@ def e2e_test_data(e2e_session_id, pytestconfig):
         'config_dir': config_subdir,
         'potential_locations': potential_locations_path,
         'distances': distances_path,
+        'cvap_distances': cvap_distances_path,
         'distances_log': distances_log_path,
         'driving_distances': driving_distances_path,
         'driving_distances_log': driving_distances_log_path,

@@ -5,6 +5,7 @@ config_name: 'config_template_example' #should match file name
 # Constants for the optimization function
 location: DeKalb_County_GA
 census_year: '2020'
+census_data_type: 'redistricting'
 year:
     - '2020'
 bad_types:

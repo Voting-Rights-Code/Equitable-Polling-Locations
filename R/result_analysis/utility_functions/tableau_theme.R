@@ -87,6 +87,12 @@ theme_tableau <- function(base_size = 11, base_family = "sans",
             strip.text       = element_text(face = "bold", size = base_size - 1,
                                             color = "#333333"),
 
+            # Caption: left-aligned to full plot width to prevent clipping
+            plot.caption          = element_text(size = base_size - 2,
+                                                 color = "#666666", hjust = 0,
+                                                 margin = margin(t = 6)),
+            plot.caption.position = "plot",
+
             # Margins
             plot.margin = margin(12, 16, 12, 12)
         )

@@ -19,5 +19,6 @@ precincts_open: null
 time_limit: 360000
 limits_gap: 0.0
 census_year: 2020
+census_data_type: 'redistricting'
 year:
 - '2024'

@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 from sqlalchemy import Column, String, Integer, Float
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 from python.database import imports, models
 
