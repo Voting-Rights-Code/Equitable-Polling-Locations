@@ -113,7 +113,7 @@ Both Gwinnett_G**A**_configs/Gwinnett* and Gwinnett_G**a**_configs/Gwinnett* wil
 
 ## Generating driving distances
 
-The solver consumes driving-distance CSVs at `datasets/driving/<Loc>_<ST>/<Loc>_<ST>_driving_distances.csv`. The `generate_driving_distances_cli` script builds those CSVs from existing project data (TIGER block centroids + the `<Loc>_<ST>_potential_locations.csv` already used by the solver) by routing every origin × destination pair through a locally-hosted OpenRouteService (ORS) container. **USAGE NOTE:** This CLI is designed to only take local config, `<Loc>_<ST>_potential_locations` and census files, not to read from the database or make census pulls. See [input_files.md](input_files.md)for more information on generating or obtaining these files.
+The solver consumes driving-distance CSVs at `datasets/driving/<Loc>_<ST>/<Loc>_<ST>_driving_distances.csv`. The `generate_driving_distances_cli` script builds those CSVs from existing project data (TIGER block centroids + the `<Loc>_<ST>_potential_locations.csv` already used by the solver) by routing every origin × destination pair through a locally-hosted OpenRouteService (ORS) container. **USAGE NOTE:** This CLI is designed to only take local config, `<Loc>_<ST>_potential_locations` and census files, not to read from the database or make census pulls. See [input_files.md](input_files.md) for more information on generating or obtaining these files.
 
 ```bash
 python3 run.py generate_driving_distances_cli \
