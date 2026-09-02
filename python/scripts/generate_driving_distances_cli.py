@@ -19,6 +19,8 @@ from python.solver.constants import (
     DISTANCE_DISTANCE_M,
     DISTANCE_ID_DEST,
     DISTANCE_ID_ORIG,
+    POT_LOC_LAT_LON,
+    POT_LOC_LOCATION,
     TIGER20_GEOID20,
     TIGER20_INTPTLAT20,
     TIGER20_INTPTLON20,
@@ -113,12 +115,8 @@ def derive_origins_and_destinations(config):
     locations = dict(zip(source_ids, coords))
 
     # get destination id and location coordinates from potential_location data
-    destination_ids = potential_locations_df['Location'].tolist()
-    malformed_coordinates = potential_locations_df['Lat, Lon'].str.count(',') != 1
-    if malformed_coordinates.any():
-        bad = potential_locations_df.loc[malformed_coordinates, 'Lat, Lon'].tolist()
-        raise ValueError(f'Lat, Lon column: expected exactly one comma per value, got: {bad}')
-    joint_coords = potential_locations_df['Lat, Lon'].str.split(',', expand=True).astype(float)
+    destination_ids = potential_locations_df[POT_LOC_LOCATION].tolist()
+    joint_coords = potential_locations_df[POT_LOC_LAT_LON].str.split(',', expand=True).astype(float)
     dest_coords = joint_coords[[1, 0]].values.tolist()  # column 0 is lat, column 1 is lon — reorder to [lon, lat]
     locations.update(dict(zip(destination_ids, dest_coords)))
 

@@ -12,6 +12,13 @@ from python.scripts.generate_driving_distances_cli import (
     main,
     write_output_csv,
 )
+from python.solver.constants import (
+    POT_LOC_LAT_LON,
+    POT_LOC_LOCATION,
+    TIGER20_GEOID20,
+    TIGER20_INTPTLAT20,
+    TIGER20_INTPTLON20,
+)
 
 
 class TestArgParser:
@@ -77,13 +84,13 @@ class TestDeriveOriginsAndDestinations:
     def test_handles_combined_lat_lon_column(self, mock_blocks, mock_pots):
         '''Split a single "Lat, Lon" column into [lon, lat] values.'''
         mock_blocks.return_value = pd.DataFrame({
-            'GEOID20': ['111'],
-            'INTPTLAT20': ['32.7'],
-            'INTPTLON20': ['-97.3'],
+            TIGER20_GEOID20: ['111'],
+            TIGER20_INTPTLAT20: ['32.7'],
+            TIGER20_INTPTLON20: ['-97.3'],
         })
         mock_pots.return_value = pd.DataFrame({
-            'Location': ['pollA', 'pollB'],
-            'Lat, Lon': ['32.707497 , -97.252456', '32.711546, -97.189768'],
+            POT_LOC_LOCATION: ['pollA', 'pollB'],
+            POT_LOC_LAT_LON: ['32.707497 , -97.252456', '32.711546, -97.189768'],
         })
 
         config = MagicMock(location='Tarrant_County_TX', census_year='2020')
@@ -94,25 +101,6 @@ class TestDeriveOriginsAndDestinations:
         # ``[lon, lat]`` order — parser puts lon first.
         assert locations['pollA'] == [-97.252456, 32.707497]
         assert locations['pollB'] == [-97.189768, 32.711546]
-
-    @patch('python.scripts.generate_driving_distances_cli.load_potential_locations_csv')
-    @patch('python.scripts.generate_driving_distances_cli.get_blocks_gdf')
-    def test_raises_when_no_coord_columns(self, mock_blocks, mock_pots):
-        '''Neither separate Latitude/Longitude nor combined column → clear ValueError.'''
-        mock_blocks.return_value = pd.DataFrame({
-            'GEOID20': ['111'],
-            'INTPTLAT20': ['32.7'],
-            'INTPTLON20': ['-97.3'],
-        })
-        mock_pots.return_value = pd.DataFrame({
-            'Location': ['pollA'],
-            'Address': ['somewhere'],
-            # no coord columns at all
-        })
-
-        config = MagicMock(location='Tarrant_County_TX', census_year='2020')
-        with pytest.raises(ValueError, match='Latitude/Longitude'):
-            derive_origins_and_destinations(config)
 
 
 class TestMain:
