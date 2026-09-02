@@ -1,10 +1,14 @@
 '''Orchestrate the building of a driving-distance matrix via ORS.
 
-This module batches ORS matrix calls, retries individual sources via the
-directions endpoint when a batch fails, and reshapes the ORS response into
-the project's canonical long-form CSV shape. Origins ORS cannot route are
-dropped from the result — never estimated — so callers can detect and fail
-loud on them (see #325).
+This module contains the batching and retry-on-failure protocols. 
+Batching and retries occur by source, not destination, for three reasons:
+there are more sources than destinations; sources are census block
+centroids that may not sit on a road; and destinations are already
+real, road-valid addresses. Each failed source is retried one
+origin/destination pair at a time. Furthermore, it drops unroutable
+rows, to avoid silent passing of these errors downstream. Finally,
+it reshapes the response to the desired long-form output.
+
 
 External callers should use ``build_distance_matrix``. The other functions
 are exposed for testing and for ad-hoc reuse.
@@ -50,7 +54,7 @@ def _emit(message: str, level: int, log_fh: TextIO, verbosity: int) -> None:
         print(message)
 
 
-def get_missing_origins(df: pd.DataFrame) -> set:
+def get_origins_with_blank_distances(df: pd.DataFrame) -> set:
     '''Return the set of origin ids that have any null driving distance.
 
     Args:
@@ -93,12 +97,9 @@ def matrix_response_to_long_df(source_names, dest_names, distances) -> pd.DataFr
 def _reject_negative_distances(df: pd.DataFrame) -> None:
     '''Raise if any ``distance_m`` is negative.
 
-    A negative driving distance is physically impossible, so it can only
-    signal a routing-backend error. Per the #294 decision, such a value fails
-    the run loudly here, at data generation, rather than being silently
-    recovered. A genuine "no route" arrives from ORS as null (NaN), not a
-    negative, and is left untouched; ``0`` is a valid distance (a residence at
-    its own polling place) and is also kept.
+    Guards against a negative driving distance appearing in the data matrix, 
+    which is a documented feature of some ORS versions. A "no route" response 
+    from ORS, represented as null (NaN), and a 0 distance are both kept.
 
     Args:
         df: Long-form DataFrame with a ``distance_m`` column.
@@ -250,10 +251,10 @@ def build_distance_matrix(*,
            cells (sources x dests).
         2. On batch failure (``OrsMatrixError``), defer the entire batch to
            per-source single-pair retries via the directions endpoint.
-        3. Pairs ORS still cannot route are dropped from the result — never
-           estimated. Callers detect dropped origins by comparing the
-           requested ``source_ids`` against the returned ``id_orig`` values
-           and must fail loud on any gap (see #325).
+        3. A pair ORS cannot route is dropped. This function does not raise or 
+        fail on a drop — the CLI compares requested source_ids against returned 
+        id_orig values and fails on any gap. see #338
+
 
     Args:
         locations: Mapping from id to ``[longitude, latitude]``.
@@ -274,6 +275,7 @@ def build_distance_matrix(*,
     source_ids = list(dict.fromkeys(source_ids))   # Dedup, preserve order.
     dest_ids = list(dict.fromkeys(dest_ids))
 
+    #run batches and concatenate
     batch_size = _batch_size(len(dest_ids))
     failed_sources = []
     batch_dfs = []
@@ -292,6 +294,7 @@ def build_distance_matrix(*,
         columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
     )
 
+    #retry failed sources and concatenate
     if failed_sources:
         retry_df = _retry_sources_individually(
             failed_sources, dest_ids, locations, matrix_url,
@@ -299,28 +302,18 @@ def build_distance_matrix(*,
         )
         df = pd.concat([df, retry_df], ignore_index=True)
 
-    # Fail loud on negative distances (a routing-backend error) before any
-    # further processing, per the #294 decision. ORS signals a genuine
-    # no-route as null, never as a negative.
+    # Fail loud on negative distances
     _reject_negative_distances(df)
 
-    # Drop null (no-route) rows with no fabricated fallback (#325): a distance
-    # this code invented would be indistinguishable from a real route in the
-    # output. The caller compares requested source_ids against the returned
-    # id_orig values and fails loud so a human fixes the root cause.
+    # Drop null (no-route) rows
     return df.dropna(subset=[DISTANCE_DISTANCE_M]).reset_index(drop=True)
 
 
-def resume_from_partial_output(output_path, source_ids, dest_ids):
-    '''Return ``(existing_df, remaining_pairs)`` for resuming from a previous run's partial output CSV.
-
-    Loads an existing output CSV (if any) as a warm-start cache and computes
-    the ``(id_orig, id_dest)`` pairs not yet present in it. This lets a rerun
-    fetch only the delta when the origin/destination set has grown between
-    runs (e.g. a new potential polling location was added), and recognizes
-    rows a human hand-patched into the CSV (e.g. for a previously unrouted
-    origin) as satisfied instead of re-querying or clobbering them — the
-    prescribed recovery path after a fail-loud unrouted-origin run (#325).
+def identify_unmatched_pairs(output_path, source_ids, dest_ids):
+    '''Load an existing driving-distance CSV, if one exists, and identify the 
+    (id_orig, id_dest) pairs from source_ids/dest_ids not yet present in it. 
+    Presence is decided by the id columns only — a row with a blank
+    distance_m still counts as present. Runs before the CLI queries ORS for the remaining pairs.
 
     Args:
         output_path: Path to a possibly-existing CSV with columns

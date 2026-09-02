@@ -15,14 +15,22 @@ from python.utils.driving_distance_matrix import (
     _emit,
     _reject_negative_distances,
     build_distance_matrix,
-    get_missing_origins,
+    get_origins_with_blank_distances,
     matrix_response_to_long_df,
-    resume_from_partial_output,
+    identify_unmatched_pairs,
 )
 from python.utils.ors_client import OrsMatrixError
 
+# Two origins, one destination — coordinates are arbitrary; not exercised
+# by anything using this constant.
+SAMPLE_LOCATIONS = {
+    's0': [-84.0000, 33.9500],
+    's1': [-84.0000, 33.9510],
+    'd':  [-84.1000, 34.0000],
+}
 
-class TestGetMissingOrigins:
+
+class TestGetOriginsWithBlankDistances:
     '''Identify origins with any null driving distance.'''
 
     def test_returns_origins_with_at_least_one_null(self):
@@ -31,7 +39,7 @@ class TestGetMissingOrigins:
             'id_dest': ['x', 'y', 'x', 'y', 'x'],
             'distance_m': [10.0, None, 20.0, 30.0, None],
         })
-        assert get_missing_origins(df) == {'a', 'c'}
+        assert get_origins_with_blank_distances(df) == {'a', 'c'}
 
     def test_returns_empty_set_when_none_missing(self):
         df = pd.DataFrame({
@@ -39,7 +47,7 @@ class TestGetMissingOrigins:
             'id_dest': ['x', 'x'],
             'distance_m': [10.0, 20.0],
         })
-        assert get_missing_origins(df) == set()
+        assert get_origins_with_blank_distances(df) == set()
 
 
 class TestMatrixResponseToLongDf:
@@ -139,27 +147,15 @@ class TestBuildDistanceMatrix:
 
 
 class TestUnroutableOriginsAreDropped:
-    '''An unroutable origin yields no rows — never a fabricated estimate (#325).'''
+    '''An unroutable origin yields no rows — never a fabricated estimate.'''
 
     @patch('python.utils.driving_distance_matrix.query_matrix')
     def test_unroutable_origin_rows_are_dropped_not_fabricated(self, mock_query):
-        '''Even with a routable origin ~111 m away, no distance is invented.
-
-        The haversine snap fallback was removed per #325: a fabricated
-        distance is indistinguishable from a real route in the output.
-        Callers detect dropped origins by comparing requested source_ids
-        against the returned id_orig values and must fail loud.
-        '''
-        # s1 is ~111 m north of s0 — the old snap path would have borrowed
-        # s0's route and fabricated a row for s1.
-        mock_query.return_value = [[100.0], [np.nan]]
+        '''An origin ORS cannot route gets no row at all — not null, not estimated.'''
+        mock_query.return_value = [[100.0], [np.nan]] # s0 routes, s1 doesn't
         log_fh = io.StringIO()
         df = build_distance_matrix(
-            locations={
-                's0': [-84.0000, 33.9500],
-                's1': [-84.0000, 33.9510],
-                'd':  [-84.1000, 34.0000],
-            },
+            locations=SAMPLE_LOCATIONS,
             source_ids=['s0', 's1'],
             dest_ids=['d'],
             matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
@@ -167,11 +163,10 @@ class TestUnroutableOriginsAreDropped:
         )
         assert set(df['id_orig']) == {'s0'}
         assert df['distance_m'].notna().all()
-        assert 'snapped' not in log_fh.getvalue()
 
 
-class TestResumeFromPartialOutput:
-    '''Partial-CSV resume: keep pairs already populated, fetch only the delta.'''
+class TestIdentifyUnmatchedPairs:
+    '''Identify (id_orig, id_dest) pairs missing from an existing output CSV.'''
 
     def test_returns_existing_pairs_unchanged_and_remaining_pairs_to_fetch(self, tmp_path):
         existing_csv = tmp_path / 'partial.csv'
@@ -181,7 +176,7 @@ class TestResumeFromPartialOutput:
             'distance_m': [100.0, 200.0],
         }).to_csv(existing_csv, index=False)
 
-        existing_df, remaining_pairs = resume_from_partial_output(
+        existing_df, remaining_pairs = identify_unmatched_pairs(
             existing_csv,
             source_ids=['a', 'b'],
             dest_ids=['x', 'y'],
@@ -191,7 +186,7 @@ class TestResumeFromPartialOutput:
         assert set(remaining_pairs) == {('b', 'x'), ('b', 'y')}
 
     def test_returns_empty_existing_when_file_absent(self, tmp_path):
-        existing_df, remaining_pairs = resume_from_partial_output(
+        existing_df, remaining_pairs = identify_unmatched_pairs(
             tmp_path / 'absent.csv',
             source_ids=['a'],
             dest_ids=['x'],
@@ -200,13 +195,9 @@ class TestResumeFromPartialOutput:
         assert set(remaining_pairs) == {('a', 'x')}
 
     def test_numeric_geoids_already_present_are_recognized(self, tmp_path):
-        '''Numeric-looking GEOIDs must match str source_ids so resume skips them.
-
-        Regression for #305: pd.read_csv infers id_orig as int64 for numeric
-        census-block GEOIDs, so the present-pair check never matched the str
-        source_ids built by the CLI. Every pair looked "remaining" and got
-        re-fetched, then survived drop_duplicates as a duplicate row (one int
-        key from the old file, one str key freshly fetched).
+        '''Numeric-looking GEOIDs must match str source_ids so they're recognized as already present.
+        pd.read_csv infers id_orig as int64 for numeric census-block GEOIDs, silently preventing a match
+        due to type mismatch.
         '''
         existing_csv = tmp_path / 'partial.csv'
         pd.DataFrame({
@@ -215,7 +206,7 @@ class TestResumeFromPartialOutput:
             'distance_m': [100.0, 200.0],
         }).to_csv(existing_csv, index=False)
 
-        existing_df, remaining_pairs = resume_from_partial_output(
+        existing_df, remaining_pairs = identify_unmatched_pairs(
             existing_csv,
             source_ids=['540610120004019'],
             dest_ids=['University High School', 'Triune-Halleck VFD'],
@@ -352,11 +343,7 @@ class TestBuildMatrixNegativeHandling:
         mock_query.return_value = [[100.0], [-1.0]]
         with pytest.raises(ValueError, match='negative'):
             build_distance_matrix(
-                locations={
-                    's0': [-84.0000, 33.9500],
-                    's1': [-84.0000, 33.9510],  # ~111m north of s0
-                    'd':  [-84.1000, 34.0000],
-                },
+                locations=SAMPLE_LOCATIONS,
                 source_ids=['s0', 's1'],
                 dest_ids=['d'],
                 matrix_url='http://ors:8082/ors/v2/matrix/driving-car',

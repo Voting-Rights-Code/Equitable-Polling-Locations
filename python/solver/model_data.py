@@ -470,10 +470,11 @@ def insert_driving_distances(
 
     Raises
     ValueError - if driving_distances_df is missing any of the id_orig, id_dest, or
-        distance_m COLUMNS. Row-level completeness (every populated block having a
-        valid distance) is NOT checked here — the left join leaves nulls for absent
-        pairs; filter_distance_data enforces completeness at model-run time, raising
-        'Some distances are missing or invalid (negative) for current config setting.'
+        distance_m COLUMNS. 
+    
+    Notes
+    This function does not check for for row level completeness. filter_distance_data enforces 
+    completeness at model-run time
 
     Returns
     The original dataframe with the distance_m column populated with the driving distances.
@@ -697,8 +698,7 @@ def filter_dest_type(distance_df: pd.DataFrame, year_list: list[str]):
     )
 
 
-# pylint: disable-next=unused-argument
-def filter_distance_data(config: PollingModelConfig, distance_df: pd.DataFrame, for_alpha: bool, log: bool):
+def filter_distance_data(config: PollingModelConfig, distance_df: pd.DataFrame, for_alpha: bool):
     '''
     Reads the intermediate data frame from file, and pull the relevant rows.
     Notes:
@@ -752,11 +752,7 @@ def filter_distance_data(config: PollingModelConfig, distance_df: pd.DataFrame, 
     if any(pop_df>1):
         raise ValueError(f'Some id_orig has multiple associated populations from {config.config_file_path}')
 
-    # Raise error if any distance is missing or invalid. A distance is invalid
-    # if it is null or negative. 0 is a legitimate same-point distance and stays
-    # valid; a negative distance is never a real-world value, and because the KP
-    # objective minimizes distance the solver would treat it as more attractive
-    # than 0 -- so reject it like a missing value.
+    # Raise error if any distance is missing or negative.
     invalid_mask = (
         pd.isnull(filtered_distance_df.distance_m)
         | (filtered_distance_df.distance_m < 0)
