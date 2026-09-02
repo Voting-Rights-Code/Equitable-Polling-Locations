@@ -97,9 +97,10 @@ def matrix_response_to_long_df(source_names, dest_names, distances) -> pd.DataFr
 def _reject_negative_distances(df: pd.DataFrame) -> None:
     '''Raise if any ``distance_m`` is negative.
 
-    Guards against a negative driving distance appearing in the data matrix, 
-    which is a documented feature of some ORS versions. A "no route" response 
-    from ORS, represented as null (NaN), and a 0 distance are both kept.
+    A negative driving distance is never valid: ORS returns null for an unroutable
+    cell (verified on v8.0.0, #225), so a negative can only be a routing-backend
+    error and fails the run here, at generation, per the #294 decision. A "no route"
+    null (NaN) and a 0 distance are both kept.
 
     Args:
         df: Long-form DataFrame with a ``distance_m`` column.
