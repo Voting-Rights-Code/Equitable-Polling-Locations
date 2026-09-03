@@ -113,7 +113,7 @@ Both Gwinnett_G**A**_configs/Gwinnett* and Gwinnett_G**a**_configs/Gwinnett* wil
 
 ## Generating driving distances
 
-The solver consumes driving-distance CSVs at `datasets/driving/<Loc>_<ST>/<Loc>_<ST>_driving_distances.csv`. The `generate_driving_distances_cli` script builds those CSVs from existing project data (TIGER block centroids + the `<Loc>_<ST>_potential_locations.csv` already used by the solver) by routing every origin × destination pair through a locally-hosted OpenRouteService (ORS) container.
+The solver consumes driving-distance CSVs at `datasets/driving/<Loc>_<ST>/<Loc>_<ST>_driving_distances.csv`. The `generate_driving_distances_cli` script builds those CSVs from existing project data (TIGER block centroids + the `<Loc>_<ST>_potential_locations.csv` already used by the solver) by routing every origin × destination pair through a locally-hosted OpenRouteService (ORS) container. **USAGE NOTE:** This CLI is designed to only take local config, `<Loc>_<ST>_potential_locations` and census files, not to read from the database or make census pulls. See [input_files.md](input_files.md) for more information on generating or obtaining these files.
 
 ```bash
 python3 run.py generate_driving_distances_cli \
@@ -133,6 +133,11 @@ python3 run.py generate_driving_distances_cli --state georgia \
 The first driving run for a state is slow: it downloads a one-time ~13 GB full-US OpenStreetMap extract, clips a state+50 km buffered extract from it (`osmium`), then ORS builds its routing graph (~20-30 min for a large state). Subsequent runs reuse the cached extract and graph (~30s startup). The CLI auto-spawns ORS at the start and tears it down at the end; pass `--keep-ors-running` to leave it up across multiple invocations.
 
 State slugs are full Geofabrik names (`georgia`, `new-york`, `district-of-columbia`); see `python/utils/ors_setup.py` for the full list.
+
+### Unroutable origins fail the run
+
+Every populated census block needs a real driving distance for the solver to run, so an origin ORS cannot route is an error, not a warning. When any origin is unrouted, the CLI still writes the CSV with everything that was successfully computed (completed work is never lost), then **exits non-zero** and prints each missing origin with its id and lat/lon. Fix the underlying data (typically a bad block centroid) and rerun — the resume logic reads the existing CSV and fetches only the missing pairs. Rows patched into the CSV by hand are likewise recognized as satisfied on the next run. Note the check is origin-level: an origin that routes to some destinations but not others is not flagged here; that gap is caught downstream at model-run time. TODO: update after #338 is implemented.
+
 
 ### Manual lifecycle (debugging / repeated experiments)
 
