@@ -121,12 +121,11 @@ python3 run.py generate_driving_distances_cli \
 ```
 
 The state is derived automatically from the config's `location:` field
-(`<Name>_<ST>` convention, e.g. `Gwinnett_County_GA` → `georgia`). For
-synthetic configs whose location doesn't end in a 2-letter postal code
-(e.g. the `testing` fixture), pass an explicit `--state` override:
+(`<Name>_<ST>` convention, e.g. `Gwinnett_County_GA` → `georgia`). When using
+the `testing` fixture pass an explicit `--testing` override:
 
 ```bash
-python3 run.py generate_driving_distances_cli --state georgia \
+python3 run.py generate_driving_distances_cli --testing \
   -l datasets/configs/testing/testing_config_driving.yaml
 ```
 
