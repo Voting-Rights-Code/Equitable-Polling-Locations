@@ -275,7 +275,7 @@ def _config_path_from_passthrough(passthrough: list[str]) -> str | None:
 
     Args:
         passthrough: The argv tail that survived the orchestrator's
-            parse_known_args (i.e. everything other than --state /
+            parse_known_args (i.e. everything other than --testing /
             --keep-ors-running).
 
     Returns:
@@ -364,11 +364,9 @@ def main():
     ):
         # Peel out orchestrator-only flags with parse_known_args; everything
         # else (-l, --server, --logdir, etc.) is forwarded to the in-container
-        # script's own argparse via `passthrough`. Watch-out: argparse
-        # prefix-matches --state against any future --state-* flag; allow-list
-        # if a collision ever appears.
+        # script's own argparse via `passthrough`.
         orchestrator_parser = argparse.ArgumentParser(add_help=False)
-        orchestrator_parser.add_argument("--state", default=None)
+        orchestrator_parser.add_argument("--testing", action="store_true")
         orchestrator_parser.add_argument(
             "--keep-ors-running", action="store_true", default=False,
         )
@@ -376,8 +374,9 @@ def main():
             sys.argv[2:]
         )
 
-        state = orchestrator_args.state
-        if state is None:
+        if orchestrator_args.testing:
+            state = "georgia"
+        else:
             # Derive from the -l/--location-config that the in-container script
             # will receive. Read the YAML on the host (stdlib only) to avoid
             # importing PollingModelConfig (would pull numpy via python/__init__).
@@ -385,10 +384,10 @@ def main():
             if config_path is None:
                 print(
                     "usage: python3 run.py generate_driving_distances_cli "
-                    "[--state <slug>] -l <config> [options]\n"
-                    "  --state and -l/--location-config are both effectively required: "
-                    "either pass --state, or pass -l so the state can be derived "
-                    "from the config's location.",
+                    "[--testing] -l <config> [options]\n"
+                    "  -l/--location-config is required so state can be derived "
+                    "from the config's location — unless --testing is passed for "
+                    "the testing fixture.",
                     file=sys.stderr,
                 )
                 sys.exit(2)
@@ -400,11 +399,8 @@ def main():
                 state = state_slug_from_location(location)
             except ValueError as exc:
                 print(
-                    f"Couldn't derive state from {config_path}: {exc}.\n"
-                    f"Either rename the location to end in _<ST> "
-                    f"or pass an explicit override:\n"
-                    f"  python3 run.py generate_driving_distances_cli "
-                    f"--state georgia -l {config_path}",
+                    f"Couldn't derive state from config (location={location}; {exc}).\n"
+                    f"Fix the _<ST> suffix in the config.",
                     file=sys.stderr,
                 )
                 sys.exit(2)
@@ -431,19 +427,14 @@ def main():
             except subprocess.CalledProcessError as e:
                 sys.exit(e.returncode)
 
-            # Matrix step: forward the resolved state to the in-container
-            # script via --state. This covers both the explicit-override case
-            # (user passed --state for a synthetic config like `testing` whose
-            # location can't be derived) and the derived case (we resolved
-            # state from config.location above) — in both, the in-container
-            # script should NOT re-derive. Its own derivation logic stays as
-            # the fallback for direct-in-container invocations that bypass
-            # run.py.
+            # Forward --testing only; the container re-derives state from -l itself so
+            # no resolved value (and no override path) crosses the host/container line.
             run_command(
-                ["python", "-m", "python.scripts.generate_driving_distances_cli",
-                 "--state", state]
+                ["python", "-m", "python.scripts.generate_driving_distances_cli"]
+                + (["--testing"] if orchestrator_args.testing else [])
                 + passthrough
             )
+
         finally:
             if not orchestrator_args.keep_ors_running and not ors_was_already_up:
                 ors_down_script = REPO_ROOT / "python" / "scripts" / "ors_down_cli.py"

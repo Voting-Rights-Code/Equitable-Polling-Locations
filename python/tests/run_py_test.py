@@ -47,7 +47,7 @@ class TestGenerateDrivingDistancesOrchestration:
         '''Default path: bring ORS up, run the matrix, then bring ORS down.'''
         del unused_mock_healthy
         with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
-                                '--state', 'georgia', '-l', 'cfg.yaml']):
+                                '--testing', '-l', 'cfg.yaml']):
             run_module.main()
         ors_up_calls = [
             c for c in mock_subprocess_run.call_args_list
@@ -70,12 +70,10 @@ class TestGenerateDrivingDistancesOrchestration:
         matrix_argv = matrix_calls[0].args[0]
         assert matrix_argv[:3] == ['python', '-m',
                                    'python.scripts.generate_driving_distances_cli']
-        assert '--state' in matrix_argv, (
-            'The orchestrator must forward the resolved state to the in-container '
-            'script so synthetic-config invocations (--state override on configs '
-            'whose location is undeerivable) work end-to-end.'
+        assert '--testing' in matrix_argv, (
+            'The orchestrator must forward --testing so the synthetic testing '
+            'config (whose location is underivable) works end-to-end.'
         )
-        assert 'georgia' in matrix_argv
         assert '-l' in matrix_argv
         assert 'cfg.yaml' in matrix_argv
 
@@ -88,7 +86,7 @@ class TestGenerateDrivingDistancesOrchestration:
         '''--keep-ors-running should leave ORS up after the matrix completes.'''
         del unused_mock_healthy, mock_run_command
         with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
-                                '--state', 'georgia', '-l', 'cfg.yaml',
+                                '--testing', '-l', 'cfg.yaml',
                                 '--keep-ors-running']):
             run_module.main()
         ors_down_calls = [
@@ -106,7 +104,7 @@ class TestGenerateDrivingDistancesOrchestration:
         '''If ORS was already running, the orchestration must not tear it down.'''
         del unused_mock_healthy, mock_run_command
         with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
-                                '--state', 'georgia', '-l', 'cfg.yaml']):
+                                '--testing', '-l', 'cfg.yaml']):
             run_module.main()
         ors_down_calls = [
             c for c in mock_subprocess_run.call_args_list
@@ -129,7 +127,7 @@ class TestGenerateDrivingDistancesOrchestration:
 
         mock_run_command.side_effect = fail_on_matrix
         with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
-                                '--state', 'georgia', '-l', 'cfg.yaml']):
+                                '--testing', '-l', 'cfg.yaml']):
             with pytest.raises(SystemExit):
                 run_module.main()
         ors_down_calls = [
@@ -155,7 +153,7 @@ class TestGenerateDrivingDistancesOrchestration:
 
         mock_subprocess_run.side_effect = fake_subprocess_run
         with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
-                                '--state', 'georgia', '-l', 'cfg.yaml']):
+                                '--testing', '-l', 'cfg.yaml']):
             with pytest.raises(SystemExit):
                 run_module.main()
         ors_down_calls = [
@@ -175,7 +173,7 @@ class TestGenerateDrivingDistancesOrchestration:
         '''Inside the container, host-side orchestration is skipped.'''
         del mock_subprocess_run
         with patch('sys.argv', ['run.py', 'generate_driving_distances_cli',
-                                '--state', 'georgia', '-l', 'cfg.yaml']):
+                                '--testing', '-l', 'cfg.yaml']):
             run_module.main()
         # run_command should have been invoked exactly once with the normal
         # python -m wrapper form (no ORS lifecycle subprocesses).
@@ -187,10 +185,11 @@ class TestGenerateDrivingDistancesOrchestration:
     @patch('run.run_command')
     def test_derives_state_from_config_when_orchestrating(
             self, mock_run_command, mock_subprocess_run, unused_mock_healthy, tmp_path):
-        '''No --state on argv -> orchestrator derives slug from config.location.
+        '''No --testing on argv -> orchestrator derives slug from config.location.
 
-        Verifies the derived slug reaches BOTH the ors_up_cli subprocess
-        and the in-container matrix step (via --state forwarding).
+        Verifies the derived slug reaches the ors_up_cli subprocess. The
+        in-container matrix step gets nothing forwarded — it re-derives
+        the same state itself from the same -l config.
         '''
         del unused_mock_healthy
         cfg = tmp_path / 'cfg.yaml'
@@ -215,9 +214,9 @@ class TestGenerateDrivingDistancesOrchestration:
         ]
         assert len(matrix_calls) == 1, 'matrix step should fire exactly once'
         matrix_argv = matrix_calls[0].args[0]
-        assert '--state' in matrix_argv and 'georgia' in matrix_argv, (
-            f'Expected derived state forwarded to matrix step as --state georgia; '
-            f'got argv {matrix_argv}'
+        assert '--testing' not in matrix_argv, (
+            f'A normal derived run should forward no state flag — the container '
+            f're-derives from the same -l config instead; got argv {matrix_argv}'
         )
 
     @patch('run.IN_CONTAINER', False)
@@ -226,7 +225,8 @@ class TestGenerateDrivingDistancesOrchestration:
     @patch('run.run_command')
     def test_errors_before_docker_when_state_not_derivable(
             self, mock_run_command, mock_subprocess_run, unused_mock_healthy, tmp_path):
-        '''No --state, location='testing' -> exit 2 before any docker activity.'''
+        '''No --testing, location='testing'. Therefore no state can be read from location 
+        and none supplied. -> exit 2 before any docker activity.'''
         del unused_mock_healthy, mock_run_command
         cfg = tmp_path / 'cfg.yaml'
         cfg.write_text('config_set: testing\nlocation: testing\n')
