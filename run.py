@@ -275,7 +275,7 @@ def _config_path_from_passthrough(passthrough: list[str]) -> str | None:
 
     Args:
         passthrough: The argv tail that survived the orchestrator's
-            parse_known_args (i.e. everything other than --state /
+            parse_known_args (i.e. everything other than --testing /
             --keep-ors-running).
 
     Returns:

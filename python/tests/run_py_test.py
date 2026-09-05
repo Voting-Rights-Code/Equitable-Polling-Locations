@@ -225,7 +225,8 @@ class TestGenerateDrivingDistancesOrchestration:
     @patch('run.run_command')
     def test_errors_before_docker_when_state_not_derivable(
             self, mock_run_command, mock_subprocess_run, unused_mock_healthy, tmp_path):
-        '''No --state, location='testing' -> exit 2 before any docker activity.'''
+        '''No --testing, location='testing'. Therefore no state can be read from location 
+        and none supplied. -> exit 2 before any docker activity.'''
         del unused_mock_healthy, mock_run_command
         cfg = tmp_path / 'cfg.yaml'
         cfg.write_text('config_set: testing\nlocation: testing\n')
