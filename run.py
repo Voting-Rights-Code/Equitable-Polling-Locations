@@ -394,8 +394,8 @@ def main():
             state_slug_from_location, location_from_config_file = (
                 _load_ors_setup_helpers()
             )
+            location = location_from_config_file(config_path)
             try:
-                location = location_from_config_file(config_path)
                 state = state_slug_from_location(location)
             except ValueError as exc:
                 print(
