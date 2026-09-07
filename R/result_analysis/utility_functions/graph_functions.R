@@ -161,6 +161,7 @@ order_descriptors <- function(df, descriptor_dict){
 	#pull out unique descriptors
     descriptors <- unique(df$descriptor)
 
+	#if descriptor_dict is NULL, order by suffixes (if all numeric) 
 	if (is.null(descriptor_dict)){
 		#all descriptors must contain a underscore:
 		if (any(!grepl('_', descriptors))) {
@@ -184,7 +185,7 @@ order_descriptors <- function(df, descriptor_dict){
 			stop(paste('Descriptor suffixes must be all numeric or all non-numeric. Mixed suffixes found:',
 				paste(suffixes, collapse = ', ')))
 		} 
-	} else {
+	} else { #descriptor_dict is not NULL, order by the values 
 		ordered_levels <- sort(unname(descriptor_dict))
 	}
 	#impose the order
