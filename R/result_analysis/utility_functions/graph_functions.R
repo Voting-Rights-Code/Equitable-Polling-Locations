@@ -155,33 +155,37 @@ change_descriptors <- function(df, descriptor_dict){
 return(df_renamed)
 }
 
-order_descriptors <- function(df) {
+order_descriptors <- function(df, descriptor_dict){ 
 	#set descriptors to ordered factors for graphs
 
 	#pull out unique descriptors
     descriptors <- unique(df$descriptor)
 
-	#all descriptors must contain a underscore:
-	if (any(!grepl('_', descriptors))) {
-    bad <- descriptors[!grepl('_', descriptors)]
-    stop(paste('Descriptor values must contain at least one underscore. Missing in:',
-               paste(bad, collapse = ', ')))
-	}	
-	
-	#extract suffixes
-    suffixes <- sub('.*_', '', descriptors)
-    suffixes_numeric <- suppressWarnings(as.numeric(suffixes))
-	is_numeric <- !is.na(suffixes_numeric)
+	if (is.null(descriptor_dict)){
+		#all descriptors must contain a underscore:
+		if (any(!grepl('_', descriptors))) {
+		bad <- descriptors[!grepl('_', descriptors)]
+		stop(paste('Descriptor values must contain at least one underscore. Missing in:',
+				paste(bad, collapse = ', ')))
+		}	
 		
-	#if they are all numeric, use the suffix to order, if they are all alphabetic use the full descriptor
-	#if they are mixed, throw an error
-    if (all(is_numeric)) {
-        ordered_levels <- descriptors[order(suffixes_numeric)]
-    } else if (!any(is_numeric)){
-        ordered_levels <- sort(descriptors)
-    } else {
-		stop(paste('Descriptor suffixes must be all numeric or all non-numeric. Mixed suffixes found:',
-               paste(suffixes, collapse = ', ')))
+		#extract suffixes
+		suffixes <- sub('.*_', '', descriptors)
+		suffixes_numeric <- suppressWarnings(as.numeric(suffixes))
+		is_numeric <- !is.na(suffixes_numeric)
+			
+		#if they are all numeric, use the suffix to order, if they are all alphabetic use the full descriptor
+		#if they are mixed, throw an error
+		if (all(is_numeric)) {
+			ordered_levels <- descriptors[order(suffixes_numeric)]
+		} else if (!any(is_numeric)){
+			ordered_levels <- sort(descriptors)
+		} else {
+			stop(paste('Descriptor suffixes must be all numeric or all non-numeric. Mixed suffixes found:',
+				paste(suffixes, collapse = ', ')))
+		} 
+	} else {
+		ordered_levels <- sort(unname(descriptor_dict))
 	}
 	#impose the order
     df[, descriptor := factor(descriptor, levels = ordered_levels)]
@@ -286,7 +290,7 @@ assign_descriptor_to_result<- function(config_dt, result_type, field_of_interest
 	complete_dt <- change_descriptors(complete_dt, descriptor_dict)
 
 	#order the descriptor fields as factors
-	complete_dt <- order_descriptors(complete_dt)
+	complete_dt <- order_descriptors(complete_dt, descriptor_dict)
 
 	#fix data types (only needed for csv)
 	if ('id_dest' %in% names(complete_dt)){
