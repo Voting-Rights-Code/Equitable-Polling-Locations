@@ -61,6 +61,13 @@ def load_configs(config_paths: list[str], logdir: str) -> tuple[bool, list[Polli
             print(f'Config folder "{config_folder}" name does not match config_set field "{config.config_set}" for config file {config_abs_path}')
             valid = False
 
+        # Return invalid if the config_name does not match the config's filename stem (case insensitive)
+        config_file_stem = os.path.splitext(os.path.basename(config_abs_path))[0]
+        if config and config_file_stem.upper() != config.config_name.upper():
+            print(f'Config filename stem "{config_file_stem}" does not match config_name field '
+                  f'"{config.config_name}" for config file {config_abs_path}')
+            valid = False
+
     return (valid, results)
 
 
