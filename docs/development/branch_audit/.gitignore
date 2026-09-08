@@ -1,0 +1,8 @@
+# The root .gitignore excludes *.csv (this repo stores large datasets). This
+# audit CSV is a document, not data, so re-include it explicitly.
+!branch_audit.csv
+
+# Working spreadsheet — binary, churns on every save. The CSV is the tracked,
+# diffable source of truth; export to .ods locally if you prefer a spreadsheet UI.
+*.ods
+.~lock.*#
