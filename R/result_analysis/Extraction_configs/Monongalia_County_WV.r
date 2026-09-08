@@ -47,6 +47,11 @@ BLOCK_GEOMETRY_FILES <- "tl_2020_54061_tabblock20"
 ########
 OPTIMIZATION_RESULTS <- 'datasets/results/Monongalia_County_WV_results/Monongalia_County_WV_driving_original_configs.Monongalia_County_WV_metric_driving_time_results.csv'
 
+# solver-optimized precinct shapefile, written by make_precinct_map() as part
+# of Basic_analysis.r's workflow -- rerun that script for this county/config
+# if OPTIMIZATION_RESULTS changes, to keep this in sync.
+SOLVER_PRECINCT_SHAPEFILE <- "result_analysis_outputs/Monongalia_County_WV_driving_original_configs/Monongalia_County_WV_precinct_metric_driving_time.shp"
+
 ########
 # Demographic groups for density-vs-distance graphs
 ########
