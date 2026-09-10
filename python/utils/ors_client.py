@@ -1,7 +1,7 @@
 '''Thin HTTP wrapper around the OpenRouteService matrix and directions endpoints.
 
 This module exposes only the wire-level interactions with ORS. Higher-level
-concerns (batching, retries, snapping) live in driving_distance_matrix.py.
+concerns (batching, retries) live in driving_distance_matrix.py.
 '''
 import json
 

@@ -1,9 +1,14 @@
 '''Orchestrate the building of a driving-distance matrix via ORS.
 
-This module batches ORS matrix calls, retries individual sources via the
-directions endpoint when a batch fails, snaps origins that cannot be routed
-to nearest haversine neighbors, and reshapes the ORS response into the
-project's canonical long-form CSV shape.
+This module contains the batching and retry-on-failure protocols. 
+Batching and retries occur by source, not destination, for three reasons:
+there are more sources than destinations; sources are census block
+centroids that may not sit on a road; and destinations are already
+real, road-valid addresses. Each failed source is retried one
+origin/destination pair at a time. Furthermore, it drops unroutable
+rows, to avoid silent passing of these errors downstream. Finally,
+it reshapes the response to the desired long-form output.
+
 
 External callers should use ``build_distance_matrix``. The other functions
 are exposed for testing and for ad-hoc reuse.
@@ -13,7 +18,6 @@ from typing import TextIO
 
 import pandas as pd
 import requests
-from haversine import haversine, Unit
 
 from python.solver.constants import (
     DISTANCE_DISTANCE_M, DISTANCE_ID_DEST, DISTANCE_ID_ORIG,
@@ -22,7 +26,6 @@ from python.utils.ors_client import OrsMatrixError, query_directions, query_matr
 from python.utils.ors_url import directions_url_from_matrix_url
 
 
-HAVERSINE_SNAP_RADIUS_METERS = 1000
 MATRIX_CELL_LIMIT = 2500          # Below ORS's 3500 hard cap, with margin.
 MAX_SOURCES_PER_BATCH = 10        # Conservative even for small destination sets.
 PER_SOURCE_RETRY_SLEEP_S = 0.1
@@ -51,7 +54,7 @@ def _emit(message: str, level: int, log_fh: TextIO, verbosity: int) -> None:
         print(message)
 
 
-def get_missing_origins(df: pd.DataFrame) -> set:
+def get_origins_with_blank_distances(df: pd.DataFrame) -> set:
     '''Return the set of origin ids that have any null driving distance.
 
     Args:
@@ -91,63 +94,29 @@ def matrix_response_to_long_df(source_names, dest_names, distances) -> pd.DataFr
     )
 
 
-def _coerce_negative_distances_to_null(df: pd.DataFrame) -> pd.DataFrame:
-    '''Replace any negative ``distance_m`` with NaN, in place.
+def _reject_negative_distances(df: pd.DataFrame) -> None:
+    '''Raise if any ``distance_m`` is negative.
 
-    ORS signals "no route" with null, which becomes NaN and is recovered by the
-    snap/retry path. A negative distance is never a valid real-world value; if a
-    routing backend ever emits one, treat it as no-route so it flows through the
-    same recovery and never reaches the output CSV. ``0`` is left untouched.
+    Guards against a negative driving distance appearing in the data matrix, 
+    which is a documented feature of some ORS versions. A "no route" response 
+    from ORS, represented as null (NaN), and a 0 distance are both kept.
 
     Args:
         df: Long-form DataFrame with a ``distance_m`` column.
 
-    Returns:
-        The same DataFrame, with any ``distance_m < 0`` set to NaN.
+    Raises:
+        ValueError: If any row has a negative ``distance_m``.
     '''
-    df.loc[df[DISTANCE_DISTANCE_M] < 0, DISTANCE_DISTANCE_M] = float('nan')
-    return df
-
-
-def estimate_origin(origin: str, df: pd.DataFrame, locations: dict) -> pd.DataFrame:
-    '''Estimate distances for an unroutable origin by snapping to a nearby neighbor.
-
-    For each destination, look at all known sources within
-    ``HAVERSINE_SNAP_RADIUS_METERS`` haversine of ``origin``. For each such
-    source, compute ``distance_m + distance_to_mid`` (haversine offset from
-    ``origin`` to that source). Take the minimum over those candidates.
-
-    Args:
-        origin: The id of the origin to estimate distances for.
-        df: A DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``
-            of already-known driving distances.
-        locations: Mapping from id to ``[longitude, latitude]``.
-
-    Returns:
-        A DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``,
-        holding the best snapped estimate per destination. Empty if no
-        in-range neighbor exists.
-    '''
-    candidates = df.rename(columns={DISTANCE_ID_ORIG: 'midpoint'}).copy()
-    candidates[DISTANCE_ID_ORIG] = origin
-
-    origin_latlon = tuple(reversed(locations[origin]))
-    candidates['distance_to_mid'] = candidates['midpoint'].apply(
-        lambda mid: haversine(origin_latlon, tuple(reversed(locations[mid])), unit=Unit.METERS)
-    )
-
-    in_range = candidates[candidates['distance_to_mid'] < HAVERSINE_SNAP_RADIUS_METERS].copy()
-    if in_range.empty:
-        return in_range[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M]]
-
-    in_range['estimated_m'] = in_range[DISTANCE_DISTANCE_M] + in_range['distance_to_mid']
-    best = (in_range
-            .sort_values('estimated_m')
-            .groupby([DISTANCE_ID_ORIG, DISTANCE_ID_DEST])
-            .first()
-            .reset_index())
-    best[DISTANCE_DISTANCE_M] = best['estimated_m']
-    return best[[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M]]
+    negative_mask = df[DISTANCE_DISTANCE_M] < 0
+    if negative_mask.any():
+        offender = df[negative_mask].iloc[0]
+        raise ValueError(
+            f'{int(negative_mask.sum())} routed pair(s) have a negative distance_m, '
+            f'which is never a valid driving distance (first: '
+            f'{offender[DISTANCE_ID_ORIG]} -> {offender[DISTANCE_ID_DEST]}, '
+            f'distance_m={offender[DISTANCE_DISTANCE_M]}). A negative value signals '
+            f'a routing-backend error; regenerate the driving matrix.'
+        )
 
 
 def _build_locations_payload(locations, source_ids, dest_ids):
@@ -268,64 +237,6 @@ def _retry_sources_individually(failed_sources: list[str],
     )
 
 
-def _snap_unroutable_origins(df: pd.DataFrame,
-                             source_ids: list[str],
-                             locations: dict[str, list[float]],
-                             *,
-                             log_fh: TextIO,
-                             verbosity: int) -> pd.DataFrame:
-    '''Replace null rows for unroutable origins with snapped haversine estimates.
-
-    For each origin ORS could not route, calls ``estimate_origin`` to find an
-    in-range haversine neighbor whose driving distance can be reused. Origins
-    with no in-range neighbor are dropped (emit at ``_LEVEL_DEFAULT``); origins
-    that snap successfully also emit at ``_LEVEL_DEFAULT``.
-
-    Args:
-        df: Long-form driving-distance DataFrame with column ``distance_m``.
-        source_ids: All requested origin ids.
-        locations: Mapping from id to ``[longitude, latitude]``.
-        log_fh: Open writable text file handle. Snap events are written here.
-        verbosity: Screen-output ceiling. Snap events emit at ``_LEVEL_DEFAULT``
-            so they appear on screen regardless of this value.
-
-    Returns:
-        A new DataFrame with nulls dropped and snapped rows appended for any
-        origin ORS could not route.
-    '''
-    if df.empty:
-        null_origins = set()
-        routed_origins = set()
-    else:
-        null_origins = get_missing_origins(df)
-        routed_origins = set(df.loc[~pd.isnull(df[DISTANCE_DISTANCE_M]), DISTANCE_ID_ORIG])
-    missing = null_origins | (set(source_ids) - routed_origins)
-    if not missing:
-        return df
-
-    df = df.dropna(subset=[DISTANCE_DISTANCE_M])
-    if df.empty:
-        return pd.DataFrame(
-            columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
-        )
-
-    snapped_parts = []
-    for origin in missing:
-        snapped = estimate_origin(origin, df, locations)
-        if snapped.empty:
-            _emit(f'unroutable origin {origin}: no neighbor within 1km, dropped',
-                  _LEVEL_DEFAULT, log_fh, verbosity)
-            continue
-        _emit(f'unroutable origin {origin}: snapped to nearest haversine neighbor within 1km',
-              _LEVEL_DEFAULT, log_fh, verbosity)
-        snapped_parts.append(snapped)
-
-    snapped_df = pd.concat(snapped_parts, ignore_index=True) if snapped_parts else pd.DataFrame(
-        columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
-    )
-    return pd.concat([df, snapped_df], ignore_index=True)
-
-
 def build_distance_matrix(*,
                           locations: dict[str, list[float]],
                           source_ids: list[str],
@@ -333,31 +244,38 @@ def build_distance_matrix(*,
                           matrix_url: str,
                           log_fh: TextIO,
                           verbosity: int = 0) -> pd.DataFrame:
-    '''Build a long-form driving-distance DataFrame for every source x dest pair.
+    '''Build a long-form driving-distance DataFrame for every routable source x dest pair.
 
     Strategy:
         1. Batch sources into ORS matrix calls capped at ``MATRIX_CELL_LIMIT``
            cells (sources x dests).
         2. On batch failure (``OrsMatrixError``), defer the entire batch to
            per-source single-pair retries via the directions endpoint.
-        3. Origins ORS cannot route at all are snapped to their nearest
-           in-range haversine neighbor via ``estimate_origin``.
+        3. A pair ORS cannot route is dropped. This function does not raise or 
+        fail on a drop — the CLI compares requested source_ids against returned 
+        id_orig values and fails on any gap. see #338
+
 
     Args:
         locations: Mapping from id to ``[longitude, latitude]``.
         source_ids: Iterable of origin ids.
         dest_ids: Iterable of destination ids.
         matrix_url: ORS matrix endpoint URL.
-        log_fh: Open writable text file handle for the run log. Per-batch progress,
-            snap events, and retry detail are written here regardless of verbosity.
+        log_fh: Open writable text file handle for the run log. Per-batch progress
+            and retry detail are written here regardless of verbosity.
         verbosity: Screen-output ceiling (0 = quiet default, 1 = ``-v``, 2 = ``-vv``).
 
     Returns:
-        A long-form DataFrame with columns ``id_orig``, ``id_dest``, ``distance_m``.
+        A long-form DataFrame with columns ``id_orig``, ``id_dest``,
+        ``distance_m``, holding only successfully routed pairs.
+
+    Raises:
+        ValueError: If the routing backend returns a negative distance.
     '''
     source_ids = list(dict.fromkeys(source_ids))   # Dedup, preserve order.
     dest_ids = list(dict.fromkeys(dest_ids))
 
+    #run batches and concatenate
     batch_size = _batch_size(len(dest_ids))
     failed_sources = []
     batch_dfs = []
@@ -376,6 +294,7 @@ def build_distance_matrix(*,
         columns=[DISTANCE_ID_ORIG, DISTANCE_ID_DEST, DISTANCE_DISTANCE_M],
     )
 
+    #retry failed sources and concatenate
     if failed_sources:
         retry_df = _retry_sources_individually(
             failed_sources, dest_ids, locations, matrix_url,
@@ -383,22 +302,18 @@ def build_distance_matrix(*,
         )
         df = pd.concat([df, retry_df], ignore_index=True)
 
-    # Treat any negative distance as no-route before snapping, so it flows
-    # through the same recovery as a real ORS null and never reaches the CSV.
-    df = _coerce_negative_distances_to_null(df)
+    # Fail loud on negative distances
+    _reject_negative_distances(df)
 
-    return _snap_unroutable_origins(
-        df, source_ids, locations,
-        log_fh=log_fh, verbosity=verbosity,
-    )
+    # Drop null (no-route) rows
+    return df.dropna(subset=[DISTANCE_DISTANCE_M]).reset_index(drop=True)
 
 
-def resume_from_partial_output(output_path, source_ids, dest_ids):
-    '''Return ``(existing_df, remaining_pairs)`` for resuming a partial run.
-
-    Fixes the upstream geolib bug where an existing partial output caused the
-    CLI to return without writing anything. Instead, treat the existing file
-    as a warm-start cache and compute the pairs still to fetch.
+def identify_unmatched_pairs(output_path, source_ids, dest_ids):
+    '''Load an existing driving-distance CSV, if one exists, and identify the 
+    (id_orig, id_dest) pairs from source_ids/dest_ids not yet present in it. 
+    Presence is decided by the id columns only — a row with a blank
+    distance_m still counts as present. Runs before the CLI queries ORS for the remaining pairs.
 
     Args:
         output_path: Path to a possibly-existing CSV with columns

@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from python.utils.driving_distance_matrix import (
     MATRIX_CELL_LIMIT,
@@ -11,18 +12,25 @@ from python.utils.driving_distance_matrix import (
     _LEVEL_DEFAULT,
     _LEVEL_V,
     _LEVEL_VV,
-    _coerce_negative_distances_to_null,
     _emit,
+    _reject_negative_distances,
     build_distance_matrix,
-    estimate_origin,
-    get_missing_origins,
+    get_origins_with_blank_distances,
     matrix_response_to_long_df,
-    resume_from_partial_output,
+    identify_unmatched_pairs,
 )
 from python.utils.ors_client import OrsMatrixError
 
+# Two origins, one destination — coordinates are arbitrary; not exercised
+# by anything using this constant.
+SAMPLE_LOCATIONS = {
+    's0': [-84.0000, 33.9500],
+    's1': [-84.0000, 33.9510],
+    'd':  [-84.1000, 34.0000],
+}
 
-class TestGetMissingOrigins:
+
+class TestGetOriginsWithBlankDistances:
     '''Identify origins with any null driving distance.'''
 
     def test_returns_origins_with_at_least_one_null(self):
@@ -31,7 +39,7 @@ class TestGetMissingOrigins:
             'id_dest': ['x', 'y', 'x', 'y', 'x'],
             'distance_m': [10.0, None, 20.0, 30.0, None],
         })
-        assert get_missing_origins(df) == {'a', 'c'}
+        assert get_origins_with_blank_distances(df) == {'a', 'c'}
 
     def test_returns_empty_set_when_none_missing(self):
         df = pd.DataFrame({
@@ -39,7 +47,7 @@ class TestGetMissingOrigins:
             'id_dest': ['x', 'x'],
             'distance_m': [10.0, 20.0],
         })
-        assert get_missing_origins(df) == set()
+        assert get_origins_with_blank_distances(df) == set()
 
 
 class TestMatrixResponseToLongDf:
@@ -73,46 +81,8 @@ class TestMatrixResponseToLongDf:
         assert b_y == 40.0
 
 
-class TestEstimateOrigin:
-    '''Snap an unroutable origin to its nearest routable haversine neighbor.
-
-    The neighbor must be within 1000 m haversine; the estimated driving distance
-    is (neighbor's driving distance) + (haversine offset).
-    '''
-
-    def test_snaps_to_nearest_within_1km(self):
-        # Coordinates: ``[longitude, latitude]``.
-        locations = {
-            'bad': [-84.000, 33.9500],
-            'good1': [-84.000, 33.9510],   # ~111 m north of bad
-            'good2': [-84.005, 34.0000],   # ~5.5 km away - out of range
-        }
-        known_df = pd.DataFrame({
-            'id_orig': ['good1', 'good1', 'good2', 'good2'],
-            'id_dest': ['dest1', 'dest2', 'dest1', 'dest2'],
-            'distance_m': [100.0, 200.0, 9999.0, 9998.0],
-        })
-        result = estimate_origin('bad', known_df, locations)
-        assert set(result.columns) >= {'id_orig', 'id_dest', 'distance_m'}
-        assert set(result['id_dest']) == {'dest1', 'dest2'}
-        # Only good1 is in range; estimate ~ 100 + ~111 = ~211 for dest1.
-        dest1_row = result[result['id_dest'] == 'dest1'].iloc[0]
-        assert 200 < dest1_row['distance_m'] < 250
-
-    def test_returns_empty_when_no_neighbor_in_range(self):
-        locations = {
-            'bad': [-84.000, 33.9500],
-            'far_only': [-83.000, 34.5000],   # ~80 km away
-        }
-        known_df = pd.DataFrame({
-            'id_orig': ['far_only'], 'id_dest': ['dest1'], 'distance_m': [5000.0],
-        })
-        result = estimate_origin('bad', known_df, locations)
-        assert len(result) == 0
-
-
 class TestBuildDistanceMatrix:
-    '''Top-level orchestration: batch, retry, snap, reshape.'''
+    '''Top-level orchestration: batch, retry, reshape.'''
 
     @patch('python.utils.driving_distance_matrix.query_matrix')
     def test_returns_long_form_for_single_batch(self, mock_query):
@@ -176,12 +146,27 @@ class TestBuildDistanceMatrix:
             assert call.args[2] == expected_directions_url
 
 
-class TestResumeFromPartialOutput:
-    '''Partial-CSV resume: skip pairs already populated, do not silently exit.
+class TestUnroutableOriginsAreDropped:
+    '''An unroutable origin yields no rows — never a fabricated estimate.'''
 
-    Fixes the upstream geolib bug where an existing partial output caused
-    get_all_distances to return after printing missing origins (no work done).
-    '''
+    @patch('python.utils.driving_distance_matrix.query_matrix')
+    def test_unroutable_origin_rows_are_dropped_not_fabricated(self, mock_query):
+        '''An origin ORS cannot route gets no row at all — not null, not estimated.'''
+        mock_query.return_value = [[100.0], [np.nan]] # s0 routes, s1 doesn't
+        log_fh = io.StringIO()
+        df = build_distance_matrix(
+            locations=SAMPLE_LOCATIONS,
+            source_ids=['s0', 's1'],
+            dest_ids=['d'],
+            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
+            log_fh=log_fh, verbosity=0,
+        )
+        assert set(df['id_orig']) == {'s0'}
+        assert df['distance_m'].notna().all()
+
+
+class TestIdentifyUnmatchedPairs:
+    '''Identify (id_orig, id_dest) pairs missing from an existing output CSV.'''
 
     def test_returns_existing_pairs_unchanged_and_remaining_pairs_to_fetch(self, tmp_path):
         existing_csv = tmp_path / 'partial.csv'
@@ -191,7 +176,7 @@ class TestResumeFromPartialOutput:
             'distance_m': [100.0, 200.0],
         }).to_csv(existing_csv, index=False)
 
-        existing_df, remaining_pairs = resume_from_partial_output(
+        existing_df, remaining_pairs = identify_unmatched_pairs(
             existing_csv,
             source_ids=['a', 'b'],
             dest_ids=['x', 'y'],
@@ -201,7 +186,7 @@ class TestResumeFromPartialOutput:
         assert set(remaining_pairs) == {('b', 'x'), ('b', 'y')}
 
     def test_returns_empty_existing_when_file_absent(self, tmp_path):
-        existing_df, remaining_pairs = resume_from_partial_output(
+        existing_df, remaining_pairs = identify_unmatched_pairs(
             tmp_path / 'absent.csv',
             source_ids=['a'],
             dest_ids=['x'],
@@ -210,13 +195,9 @@ class TestResumeFromPartialOutput:
         assert set(remaining_pairs) == {('a', 'x')}
 
     def test_numeric_geoids_already_present_are_recognized(self, tmp_path):
-        '''Numeric-looking GEOIDs must match str source_ids so resume skips them.
-
-        Regression for #305: pd.read_csv infers id_orig as int64 for numeric
-        census-block GEOIDs, so the present-pair check never matched the str
-        source_ids built by the CLI. Every pair looked "remaining" and got
-        re-fetched, then survived drop_duplicates as a duplicate row (one int
-        key from the old file, one str key freshly fetched).
+        '''Numeric-looking GEOIDs must match str source_ids so they're recognized as already present.
+        pd.read_csv infers id_orig as int64 for numeric census-block GEOIDs, silently preventing a match
+        due to type mismatch.
         '''
         existing_csv = tmp_path / 'partial.csv'
         pd.DataFrame({
@@ -225,7 +206,7 @@ class TestResumeFromPartialOutput:
             'distance_m': [100.0, 200.0],
         }).to_csv(existing_csv, index=False)
 
-        existing_df, remaining_pairs = resume_from_partial_output(
+        existing_df, remaining_pairs = identify_unmatched_pairs(
             existing_csv,
             source_ids=['540610120004019'],
             dest_ids=['University High School', 'Triune-Halleck VFD'],
@@ -276,7 +257,7 @@ class TestEmitHelper:
 
 
 class TestVerbosityGating:
-    '''build_distance_matrix writes per-batch + snap + retry events at the right levels.'''
+    '''build_distance_matrix writes per-batch + retry events at the right levels.'''
 
     @patch('python.utils.driving_distance_matrix.query_matrix')
     def test_per_batch_in_log_but_not_screen_at_default(self, mock_query, capsys):
@@ -330,81 +311,42 @@ class TestVerbosityGating:
         )
         assert 'retrying source a' in capsys.readouterr().out
 
-    @patch('python.utils.driving_distance_matrix.query_matrix')
-    def test_snap_success_emits_at_default_level(self, mock_query, capsys):
-        '''When ORS routes some pairs but a source has none, snap emits at default level.'''
-        # Two sources, one dest. Second source returns NaN -> 'missing'.
-        mock_query.return_value = [[100.0], [np.nan]]
-        # The two sources are within 1km haversine so snap finds a neighbor.
-        log_fh = io.StringIO()
-        build_distance_matrix(
-            locations={
-                's0': [-84.0000, 33.9500],
-                's1': [-84.0000, 33.9510],  # ~111m north of s0
-                'd':  [-84.1000, 34.0000],
-            },
-            source_ids=['s0', 's1'],
-            dest_ids=['d'],
-            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
-            log_fh=log_fh, verbosity=0,
-        )
-        assert 'snapped to nearest haversine neighbor' in log_fh.getvalue()
-        assert 'snapped to nearest haversine neighbor' in capsys.readouterr().out
 
-    @patch('python.utils.driving_distance_matrix.query_matrix')
-    def test_snap_fail_emits_at_default_level(self, mock_query, capsys):
-        '''When no in-range neighbor exists, the fail message emits at default level.'''
-        mock_query.return_value = [[100.0], [np.nan]]
-        # The second source is ~80km away — no in-range neighbor.
-        log_fh = io.StringIO()
-        build_distance_matrix(
-            locations={
-                's0': [-84.0000, 33.9500],
-                's1': [-83.0000, 34.5000],
-                'd':  [-84.1000, 34.0000],
-            },
-            source_ids=['s0', 's1'],
-            dest_ids=['d'],
-            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
-            log_fh=log_fh, verbosity=0,
-        )
-        assert 'no neighbor within 1km, dropped' in log_fh.getvalue()
-        assert 'no neighbor within 1km, dropped' in capsys.readouterr().out
+class TestRejectNegativeDistances:
+    '''A negative distance_m fails loudly at generation (#294); 0 and NaN pass.'''
 
-
-class TestCoerceNegativeDistancesToNull:
-    '''Negative distances are mapped to NaN so they behave like no-route.'''
-
-    def test_negative_becomes_nan_zero_and_positive_untouched(self):
+    def test_negative_distance_raises_value_error(self):
         df = pd.DataFrame({
-            'id_orig': ['a', 'b', 'c'],
-            'id_dest': ['x', 'x', 'x'],
-            'distance_m': [-1.0, 0.0, 50.0],
+            'id_orig': ['a', 'b'],
+            'id_dest': ['x', 'x'],
+            'distance_m': [100.0, -1.0],
         })
-        result = _coerce_negative_distances_to_null(df)
-        assert pd.isnull(result.loc[0, 'distance_m'])
-        assert result.loc[1, 'distance_m'] == 0.0
-        assert result.loc[2, 'distance_m'] == 50.0
+        with pytest.raises(ValueError, match='negative'):
+            _reject_negative_distances(df)
+
+    def test_zero_and_nan_are_left_untouched(self):
+        df = pd.DataFrame({
+            'id_orig': ['a', 'b'],
+            'id_dest': ['x', 'x'],
+            'distance_m': [0.0, np.nan],
+        })
+        _reject_negative_distances(df)   # Must not raise.
+        assert df.loc[0, 'distance_m'] == 0.0
+        assert pd.isnull(df.loc[1, 'distance_m'])
 
 
 class TestBuildMatrixNegativeHandling:
-    '''A negative matrix cell is treated as unroutable, never emitted.'''
+    '''A negative matrix cell from the routing backend fails the whole run.'''
 
     @patch('python.utils.driving_distance_matrix.query_matrix')
-    def test_negative_distance_treated_as_unroutable_and_snapped(self, mock_query):
-        # s1's cell is negative -> must be coerced to NaN and snapped to s0.
+    def test_negative_distance_from_backend_raises(self, mock_query):
         mock_query.return_value = [[100.0], [-1.0]]
-        log_fh = io.StringIO()
-        df = build_distance_matrix(
-            locations={
-                's0': [-84.0000, 33.9500],
-                's1': [-84.0000, 33.9510],  # ~111m north of s0, within 1km
-                'd':  [-84.1000, 34.0000],
-            },
-            source_ids=['s0', 's1'],
-            dest_ids=['d'],
-            matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
-            log_fh=log_fh, verbosity=0,
-        )
-        assert (df['distance_m'] >= 0).all()
-        assert 'snapped to nearest haversine neighbor' in log_fh.getvalue()
+        with pytest.raises(ValueError, match='negative'):
+            build_distance_matrix(
+                locations=SAMPLE_LOCATIONS,
+                source_ids=['s0', 's1'],
+                dest_ids=['d'],
+                matrix_url='http://ors:8082/ors/v2/matrix/driving-car',
+                log_fh=io.StringIO(),
+                verbosity=0,
+            )
