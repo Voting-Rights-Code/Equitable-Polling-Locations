@@ -33,7 +33,7 @@ from python.utils.driving_distance_matrix import (
     get_origins_with_blank_distances,
     identify_unmatched_pairs,
 )
-from python.utils.ors_setup import GEOFABRIK_STATE_SLUGS, state_slug_from_location
+from python.utils.ors_setup import state_slug_from_location
 from python.utils.ors_url import resolve_ors_url
 from python.utils.utils import build_potential_locations_file_path, log_date_prefix
 
@@ -47,15 +47,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         'relevant config files and potential_locations data to be stored locally (not on the DB) '
         'and that the relevant TIGER files are already on disk.',
     )
-    # testing fixtures are a sample of Gwinnett County, 2020 data
-    # these have no state (_<ST>) suffix
-    # this flag accommodates this anomaly.
+    # testing fixtures
     parser.add_argument(
-        '--state', default=None,
-        help='Geofabrik state slug override (e.g. "georgia", "new-york"). '
-             'When omitted, derived by parsing the trailing _<ST> postal code '
-             'from the config location.',
+        '--testing', action='store_true',
+        help='Use the testing fixture\'s state (georgia) instead of deriving from config.location.',
     )
+
     #path to config argument
     parser.add_argument(
         '-l', '--location-config', required=True,
@@ -245,22 +242,6 @@ def _report_unrouted_origins(df: pd.DataFrame,
     _tee('\n'.join(lines), log_fh)
     return unrouted
 
-
-def _reject_unknown_slug(state: str) -> None:
-    '''Exit with code 2 if state is not a known Geofabrik state slug.
-
-    Args:
-        state: The candidate Geofabrik state slug to validate.
-    '''
-    if state not in GEOFABRIK_STATE_SLUGS:
-        print(
-            f'Unknown state slug: {state!r}. Use the full Geofabrik slug, '
-            f'e.g. "georgia", "new-york", "district-of-columbia". See '
-            f'python/utils/ors_setup.py for the full list.'
-        )
-        sys.exit(2)
-
-
 def main(argv=None):
     '''CLI entry point.
 
@@ -275,10 +256,6 @@ def main(argv=None):
     '''
     args = build_arg_parser().parse_args(argv)
 
-    # Validate an explicit --state for testing fixtures
-    if args.state is not None:
-        _reject_unknown_slug(args.state)
-
     #check url
     matrix_url = resolve_ors_url(args.server)
     _assert_ors_reachable(matrix_url)
@@ -286,22 +263,16 @@ def main(argv=None):
     #load config
     config = PollingModelConfig.load_config(args.location_config)
 
-    #check state validity before ORS run
-    state = args.state
-    if state is None:
+    #check state validity
+    if not args.testing:
         try:
-            state = state_slug_from_location(config.location)
+            _ = state_slug_from_location(config.location)
         except ValueError as exc:
-            # Expected exception for the 'testing' fixture
             print(
-                f'Couldn\'t derive state from config (location={config.location!r}; {exc}).\n'
-                f'Either rename the location to end in _<ST> '
-                f'(e.g. {config.location}_GA) or pass an explicit override:\n'
-                f'  python3 run.py generate_driving_distances_cli --state georgia '
-                f'-l {args.location_config}'
+                f'Couldn\'t derive state from config (location={config.location}; {exc}).\n'
+                f'Fix the _<ST> suffix in the config.'
             )
             sys.exit(2)
-    _reject_unknown_slug(state)
 
     #begin logging.
     log_fh, log_path = _open_log_file(args.logdir, config.config_file_path)
