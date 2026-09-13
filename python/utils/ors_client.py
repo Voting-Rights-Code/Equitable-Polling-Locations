@@ -1,7 +1,20 @@
-'''Thin HTTP wrapper around the OpenRouteService matrix and directions endpoints.
+'''HTTP client for the OpenRouteService (ORS) matrix and directions endpoints.
 
-This module exposes only the wire-level interactions with ORS. Higher-level
-concerns (batching, retries, snapping) live in driving_distance_matrix.py.
+ORS is an open-source routing engine. This project runs it in a local Docker
+container on an OpenStreetMap extract for one state (see ors_up_cli). ORS
+computes the driving distance between two points on the roads in that extract.
+
+This project uses two ORS endpoints:
+
+- Matrix: many origins to many destinations in one request. Returns the
+  distance in meters for each pair. Returns null for a pair that has no route.
+  A county run uses this endpoint for almost all pairs.
+- Directions: one origin to one destination. Returns the route and its
+  distance. The retry step uses it for the pairs that failed in a matrix
+  request.
+
+This module sends the HTTP requests and returns the response fields. The
+batching and the retry step are in driving_distance_matrix.py.
 '''
 import json
 

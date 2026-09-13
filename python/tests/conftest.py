@@ -147,11 +147,11 @@ def polling_locations_df(testing_config_base):
 
 @pytest.fixture(scope='module')
 def clean_distances_df(testing_config_base, polling_locations_df):
-    yield model_data.filter_distance_data(testing_config_base, polling_locations_df, False, False)
+    yield model_data.filter_distance_data(testing_config_base, polling_locations_df, False)
 
 @pytest.fixture(scope='module')
 def alpha_min(testing_config_base, polling_locations_df):
-    alpha_df = model_data.filter_distance_data(testing_config_base, polling_locations_df, True, False)
+    alpha_df = model_data.filter_distance_data(testing_config_base, polling_locations_df, True)
     yield model_data.alpha_min(alpha_df)
 
 @pytest.fixture(scope='module')

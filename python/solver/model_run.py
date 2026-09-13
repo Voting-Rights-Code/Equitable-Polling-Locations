@@ -184,10 +184,10 @@ class ModelRun():
         distance_df = distance_data.distance_df
 
         # get main data frame
-        dist_df = filter_distance_data(self._config, distance_df, False, self._log)
+        dist_df = filter_distance_data(self._config, distance_df, False)
 
         # get alpha
-        alpha_df = filter_distance_data(self._config, distance_df, True, self._log)
+        alpha_df = filter_distance_data(self._config, distance_df, True)
         alpha = alpha_min(alpha_df)
 
         # build model
