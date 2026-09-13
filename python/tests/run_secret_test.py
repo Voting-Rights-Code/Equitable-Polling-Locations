@@ -10,6 +10,13 @@ import run
 class TestSecretHandlers:
     """Tests for the secret_set, secret_get, and secret_clear command handlers."""
 
+    @pytest.fixture(autouse=True)
+    def _clear_env(self, monkeypatch):
+        # secret_get resolves the env var before the file. run.py injects the
+        # host's real CENSUS_API_KEY into the container, so without this the
+        # three get tests read that value instead of the file each test writes.
+        monkeypatch.delenv("CENSUS_API_KEY", raising=False)
+
     def _secret(self, tmp_path):
         return secret_store.Secret(
             name="census", keyring_service="svc", keyring_username="user",
