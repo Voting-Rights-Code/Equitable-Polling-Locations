@@ -8,6 +8,7 @@
        1. In the Windows Subsystem for Linux set the memory to at least 8gb in the ```.wslconfig``` in the ```%USERPROFILE%``` directory.
     1. MacOS:
        1. In the docker desktop app, under resources set the memory to at least 8gb.
+    1. Driving-distance generation has a larger footprint than the solver: the first run for a state downloads a one-time ~13 GB OpenStreetMap extract (ensure ~20 GB free disk) and builds a routing graph that needs more memory — set Docker to ≥ 16 GB (and pass `ORS_XMX=16g`) for large/high-border states such as Texas. See "Generating driving distances → Resource budget" in `docs/to_run.md`.
 1. Environment settings file `settings.yaml`
     1.  The settings file allows you to configure different environments to connect to such as dev or prod, and have each environment connect to a different database or dataset.
     1.  Copy the ```settings_example.yaml``` to ```settings.yaml```

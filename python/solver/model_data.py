@@ -264,7 +264,9 @@ def get_demographics_block(census_year: str, location: str) -> pd.DataFrame:
     # Consistency check for the data pull
     demographics[TIGER20_POP_DIFF] = demographics[CEN20_P4_TOTAL_POPULATION] - demographics[CEN20_P3_TOTAL_POPULATION]
     if demographics.loc[demographics[TIGER20_POP_DIFF] != 0].shape[0] != 0:
-        raise ValueError(f'Populations different in {P3_NAME} and {P4_NAME}. Are both pulled from the voting age universe?')
+        raise ValueError(
+            f'Populations different in {P3_NAME} and {P4_NAME}. Are both pulled from the voting age universe?'
+        )
 
     # Change column names
     demographics.drop([CEN20_P4_TOTAL_POPULATION, TIGER20_POP_DIFF], axis=1, inplace=True)
@@ -467,7 +469,12 @@ def insert_driving_distances(
     driving_distances_df: driving distance data frame with id_orig, id_dest, and distance_m columns
 
     Raises
-    ValueError - if anything goes wrong (missing file, bad format, missing data)
+    ValueError - if driving_distances_df is missing any of the id_orig, id_dest, or
+        distance_m COLUMNS. 
+    
+    Notes
+    This function does not check for for row level completeness. filter_distance_data enforces 
+    completeness at model-run time
 
     Returns
     The original dataframe with the distance_m column populated with the driving distances.
@@ -691,8 +698,7 @@ def filter_dest_type(distance_df: pd.DataFrame, year_list: list[str]):
     )
 
 
-# pylint: disable-next=unused-argument
-def filter_distance_data(config: PollingModelConfig, distance_df: pd.DataFrame, for_alpha: bool, log: bool):
+def filter_distance_data(config: PollingModelConfig, distance_df: pd.DataFrame, for_alpha: bool):
     '''
     Reads the intermediate data frame from file, and pull the relevant rows.
     Notes:
@@ -746,21 +752,27 @@ def filter_distance_data(config: PollingModelConfig, distance_df: pd.DataFrame, 
     if any(pop_df>1):
         raise ValueError(f'Some id_orig has multiple associated populations from {config.config_file_path}')
 
-    # Raise error if there are any missing distances
-    if len(filtered_distance_df[pd.isnull(filtered_distance_df.distance_m)]) > 0:
-        # indicate destinations and origins that are missing driving distances
+    # Raise error if any distance is missing or negative.
+    invalid_mask = (
+        pd.isnull(filtered_distance_df.distance_m)
+        | (filtered_distance_df.distance_m < 0)
+    )
+    if invalid_mask.any():
+        # indicate destinations and origins lacking a valid driving distance
         all_orig = set(filtered_distance_df.id_orig)
         all_dest = set(filtered_distance_df.id_dest)
-        notna_df = filtered_distance_df[pd.notna(filtered_distance_df.distance_m)]
-        notna_orig = set(notna_df.id_orig)
-        notna_dest = set(notna_df.id_dest)
-        missing_origs = all_orig - notna_orig
-        missing_dests = all_dest - notna_dest
+        valid_df = filtered_distance_df[
+            pd.notna(filtered_distance_df.distance_m) & (filtered_distance_df.distance_m >= 0)
+        ]
+        valid_orig = set(valid_df.id_orig)
+        valid_dest = set(valid_df.id_dest)
+        missing_origs = all_orig - valid_orig
+        missing_dests = all_dest - valid_dest
         if len(missing_dests) > 0:
-            print(f'distances missing for {len(missing_dests)} destination(s): {missing_dests}')
+            print(f'distances missing or invalid (negative) for {len(missing_dests)} destination(s): {missing_dests}')
         if len(missing_origs) > 0:
-            print(f'distances missing for {len(missing_origs)} origin(s): {missing_origs}')
-        raise ValueError('Some distances are missing for current config setting.')
+            print(f'distances missing or invalid (negative) for {len(missing_origs)} origin(s): {missing_origs}')
+        raise ValueError('Some distances are missing or invalid (negative) for current config setting.')
 
     # Create other useful columns
     filtered_distance_df[DISTANCE_WEIGHTED_DIST] = (
