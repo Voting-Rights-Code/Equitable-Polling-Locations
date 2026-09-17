@@ -36,6 +36,8 @@ def _write_config(config_dir: Path, filename: str, config_set: str, config_name:
 def test_config_name_mismatch_is_invalid(tmp_path):
     ''' A config whose config_name differs from its filename stem is rejected. '''
     config_dir = tmp_path / 'testing'
+    # The filename stem 'mismatch' and config_name 'something_else' differ on purpose.
+    # The config is otherwise valid, so that mismatch is the only reason for rejection.
     config_path = _write_config(config_dir, 'mismatch.yaml', 'testing', 'something_else')
 
     valid, unused_configs = load_configs([str(config_path)], str(tmp_path))
