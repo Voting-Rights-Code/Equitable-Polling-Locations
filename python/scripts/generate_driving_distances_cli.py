@@ -155,9 +155,9 @@ def _assert_ors_reachable(matrix_url: str) -> None:
         pass
     print(
         f'ORS is not reachable at {health_url}. From the host, run\n'
-        f'  python3 run.py generate_driving_distances_cli -l <config>\n'
-        f'which auto-orchestrates the ORS lifecycle. To start ORS manually:\n'
-        f'  python3 run.py ors_up_cli <state>'
+        '  python3 run.py generate_driving_distances_cli -l <config>\n'
+        'which auto-orchestrates the ORS lifecycle. To start ORS manually:\n'
+        '  python3 run.py ors_up_cli <state>'
     )
     sys.exit(1)
 
@@ -266,7 +266,7 @@ def main(argv=None):
         except ValueError as exc:
             print(
                 f'Couldn\'t derive state from config (location={config.location}; {exc}).\n'
-                f'Fix the _<ST> suffix in the config.'
+                'Fix the _<ST> suffix in the config.'
             )
             sys.exit(2)
 
