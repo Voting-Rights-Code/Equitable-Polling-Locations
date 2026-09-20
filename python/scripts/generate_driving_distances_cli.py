@@ -27,7 +27,6 @@ from python.solver.constants import (
 )
 from python.solver.model_config import PollingModelConfig
 from python.solver.model_data import get_blocks_gdf, load_potential_locations_csv
-from python.utils.directory_constants import DRIVING_DIR
 from python.utils.driving_distance_matrix import (
     build_distance_matrix,
     get_origins_with_blank_distances,
@@ -35,7 +34,11 @@ from python.utils.driving_distance_matrix import (
 )
 from python.utils.ors_setup import state_slug_from_location
 from python.utils.ors_url import resolve_ors_url
-from python.utils.utils import build_potential_locations_file_path, log_date_prefix
+from python.utils.utils import (
+    build_driving_distances_file_path,
+    build_potential_locations_file_path,
+    log_date_prefix,
+)
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -77,13 +80,6 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help='Increase screen verbosity (-v or -vv). The log file captures everything regardless.',
     )
     return parser
-
-
-def build_output_csv_path(location: str) -> str:
-    '''Return the canonical output CSV path for a location.'''
-    out_dir = os.path.join(DRIVING_DIR, location)
-    os.makedirs(out_dir, exist_ok=True)
-    return os.path.join(out_dir, f'{location}_driving_distances.csv')
 
 
 def derive_origins_and_destinations(config):
@@ -289,7 +285,10 @@ def main(argv=None):
         ###create and write distance matrix###
 
         #identify missing data if any
-        output_path = build_output_csv_path(config.location)
+        output_path = build_driving_distances_file_path(
+            config.census_year, config.map_source_date, config.location,
+        )
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
         existing_df, remaining_pairs = identify_unmatched_pairs(
             output_path, source_ids, dest_ids,
         )

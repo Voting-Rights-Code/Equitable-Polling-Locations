@@ -133,7 +133,7 @@ class TestMain:
         # The CLI writes to datasets/driving/<Loc>/<Loc>_driving_distances.csv —
         # patch the output-path builder so the test stays inside tmp_path.
         with patch(
-            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
+            'python.scripts.generate_driving_distances_cli.build_driving_distances_file_path',
             return_value=str(driving_dir / 'testing_driving_distances.csv'),
         ):
             main([
@@ -183,7 +183,7 @@ class TestResumeBehavior:
         logdir = tmp_path / 'logs'
         os.makedirs(logdir, exist_ok=True)
         with patch(
-            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
+            'python.scripts.generate_driving_distances_cli.build_driving_distances_file_path',
             return_value=str(expected_output),
         ):
             main([
@@ -230,7 +230,7 @@ class TestResumeBehavior:
         logdir = tmp_path / 'logs'
         os.makedirs(logdir, exist_ok=True)
         with patch(
-            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
+            'python.scripts.generate_driving_distances_cli.build_driving_distances_file_path',
             return_value=str(expected_output),
         ):
             rc = main([
@@ -285,7 +285,7 @@ class TestUnroutedOriginReporting:
 
         #run the CLI
         with patch(
-            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
+            'python.scripts.generate_driving_distances_cli.build_driving_distances_file_path',
             return_value=str(expected_output),
         ):
             rc = main([
@@ -344,7 +344,7 @@ class TestUnroutedOriginReporting:
         logdir = tmp_path / 'logs'
         os.makedirs(logdir, exist_ok=True)
         with patch(
-            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
+            'python.scripts.generate_driving_distances_cli.build_driving_distances_file_path',
             return_value=str(expected_output),
         ):
             rc = main([
@@ -394,7 +394,7 @@ class TestStateResolution:
         os.makedirs(driving_dir, exist_ok=True)
         os.makedirs(logdir, exist_ok=True)
         with patch(
-            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
+            'python.scripts.generate_driving_distances_cli.build_driving_distances_file_path',
             return_value=str(driving_dir / 'Gwinnett_County_GA_driving_distances.csv'),
         ):
             rc = main([
@@ -433,7 +433,7 @@ class TestStateResolution:
         os.makedirs(driving_dir, exist_ok=True)
         os.makedirs(logdir, exist_ok=True)
         with patch(
-            'python.scripts.generate_driving_distances_cli.build_output_csv_path',
+            'python.scripts.generate_driving_distances_cli.build_driving_distances_file_path',
             return_value=str(driving_dir / 'testing_driving_distances.csv'),
         ):
             rc = main([
