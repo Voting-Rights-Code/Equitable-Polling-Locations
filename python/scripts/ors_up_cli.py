@@ -141,7 +141,7 @@ def poll_health(url: str, *, timeout_s: int = HEALTH_POLL_TIMEOUT_S,
     return False
 
 
-def _tee(message: str, log_fh: typing.IO[str]) -> None:
+def _log_and_print(message: str, log_fh: typing.IO[str]) -> None:
     '''Print ``message`` to stdout and append it to ``log_fh`` with a flush.
 
     Args:
@@ -202,8 +202,8 @@ def main(argv=None):
     log_path = os.path.join(args.logdir, f'{datetime.now().strftime("%Y%m%d%H%M%S")}_ors_up.log')
     log_fh = open(log_path, 'a', encoding='utf-8')  # pylint: disable=consider-using-with  # closed in finally
     try:
-        _tee(f'[{datetime.now().isoformat(timespec="seconds")}] starting ORS for {args.state}', log_fh)
-        _tee(f'compose file: {COMPOSE_FILE}', log_fh)
+        _log_and_print(f'[{datetime.now().isoformat(timespec="seconds")}] starting ORS for {args.state}', log_fh)
+        _log_and_print(f'compose file: {COMPOSE_FILE}', log_fh)
 
         buffered_path = buffered_pbf_path(args.state)
         if not os.path.exists(buffered_path):
@@ -213,21 +213,21 @@ def main(argv=None):
                 f'(the generate_driving_distances_cli orchestrator does this automatically).'
             )
             sys.exit(2)
-        _tee(f'pbf: {buffered_path}', log_fh)
+        _log_and_print(f'pbf: {buffered_path}', log_fh)
 
         # Pre-create the ORS files dir (bind-mounted at /home/ors/files) so the
         # root ORS container never auto-creates it root-owned. A root-owned
         # datasets/openrouteservice/ blocks git from unlinking the tracked
         # .gitkeep there for anyone who has run ORS. See #320.
         os.makedirs(ORS_DATA_DIR, exist_ok=True)
-        _tee(f'files dir: {ORS_DATA_DIR}', log_fh)
+        _log_and_print(f'files dir: {ORS_DATA_DIR}', log_fh)
 
         # Pre-create the per-state buffered graph cache dir so the compose
         # bind mount resolves to a user-owned directory (Docker would otherwise
         # auto-create it as root, which then can't be modified without sudo).
         state_graphs_dir = os.path.join(ORS_GRAPHS_DIR, f'{args.state}-buffered')
         os.makedirs(state_graphs_dir, exist_ok=True)
-        _tee(f'graphs dir: {state_graphs_dir}', log_fh)
+        _log_and_print(f'graphs dir: {state_graphs_dir}', log_fh)
 
         env = os.environ.copy()
         env['ORS_STATE'] = args.state
@@ -236,27 +236,27 @@ def main(argv=None):
             env=env,
             check=True,
         )
-        _tee(f'polling {args.health_url} ...', log_fh)
-        _tee('graph build can take 5-15 min for state-sized data; watch the size grow:', log_fh)
+        _log_and_print(f'polling {args.health_url} ...', log_fh)
+        _log_and_print('graph build can take 5-15 min for state-sized data; watch the size grow:', log_fh)
 
         def _heartbeat(elapsed_s: int) -> None:
             '''Per-poll progress line showing elapsed time + bytes on disk.'''
             minutes, seconds = divmod(elapsed_s, 60)
             megabytes = _dir_size_bytes(state_graphs_dir) // (1024 * 1024)
             if megabytes > 0:
-                _tee(f'  [{minutes:02d}:{seconds:02d}] building... ({megabytes} MB)', log_fh)
+                _log_and_print(f'  [{minutes:02d}:{seconds:02d}] building... ({megabytes} MB)', log_fh)
             else:
-                _tee(f'  [{minutes:02d}:{seconds:02d}] building...', log_fh)
+                _log_and_print(f'  [{minutes:02d}:{seconds:02d}] building...', log_fh)
 
         if not poll_health(args.health_url, on_iteration=_heartbeat):
-            _tee('TIMEOUT waiting for ORS health endpoint', log_fh)
+            _log_and_print('TIMEOUT waiting for ORS health endpoint', log_fh)
             subprocess.run(
                 ['docker', 'compose', '-f', COMPOSE_FILE, 'logs', '--tail=50', 'ors'],
                 check=False,
             )
             sys.exit(1)
 
-        _tee('ORS is up and routing.', log_fh)
+        _log_and_print('ORS is up and routing.', log_fh)
         return 0
     finally:
         log_fh.close()

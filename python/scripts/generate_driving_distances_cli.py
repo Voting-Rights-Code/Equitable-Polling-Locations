@@ -131,7 +131,7 @@ def _open_log_file(logdir: str, config_file_path: str):
     return log_fh, log_path
 
 
-def _tee(message: str, log_fh, *, to_screen: bool = True) -> None:
+def _log_and_print(message: str, log_fh, *, to_screen: bool = True) -> None:
     '''Write ``message`` to screen (optionally) and to ``log_fh``, flushing.'''
     if to_screen:
         print(message)
@@ -235,7 +235,7 @@ def _report_unrouted_origins(df: pd.DataFrame,
                         'delete the row so resume re-fetches it — rerunning without a '
                         'change will NOT fetch these pairs:')
         lines.extend(_origin_lines(blank_origins, locations))
-    _tee('\n'.join(lines), log_fh)
+    _log_and_print('\n'.join(lines), log_fh)
     return unrouted
 
 def main(argv=None):
@@ -273,14 +273,14 @@ def main(argv=None):
     #begin logging.
     log_fh, log_path = _open_log_file(args.logdir, config.config_file_path)
     try:
-        _tee(f'[{datetime.now().isoformat(timespec="seconds")}] starting for '
-             f'{config.location} ({config.census_year})', log_fh)
-        _tee(f'log: {log_path}', log_fh)
+        _log_and_print(f'[{datetime.now().isoformat(timespec="seconds")}] starting for '
+                       f'{config.location} ({config.census_year})', log_fh)
+        _log_and_print(f'log: {log_path}', log_fh)
 
         locations, source_ids, dest_ids = derive_origins_and_destinations(config)
-        _tee(f'origins: {len(source_ids)}, destinations: {len(dest_ids)}', log_fh)
+        _log_and_print(f'origins: {len(source_ids)}, destinations: {len(dest_ids)}', log_fh)
 
-        _tee(f'ORS matrix URL: {matrix_url}', log_fh)
+        _log_and_print(f'ORS matrix URL: {matrix_url}', log_fh)
 
         ###create and write distance matrix###
 
@@ -292,7 +292,7 @@ def main(argv=None):
         existing_df, remaining_pairs = identify_unmatched_pairs(
             output_path, source_ids, dest_ids,
         )
-        _tee(
+        _log_and_print(
             f'resume: {len(existing_df)} rows present, '
             f'{len(remaining_pairs)} pairs to fetch', 
             log_fh,
@@ -300,7 +300,7 @@ def main(argv=None):
         #if all origins destination pairs are in the dataset
         if not remaining_pairs:
             write_output_csv(existing_df, output_path)
-            _tee(
+            _log_and_print(
                 f'no new pairs to fetch; rewrote {len(existing_df)} rows to {output_path}',
                 log_fh,
             )
@@ -330,7 +330,7 @@ def main(argv=None):
 
         #write outputs and report missing data
         write_output_csv(combined, output_path)
-        _tee(f'wrote {len(combined)} rows to {output_path}', log_fh)
+        _log_and_print(f'wrote {len(combined)} rows to {output_path}', log_fh)
         if _report_unrouted_origins(combined, source_ids, locations, log_fh,
                                     output_path=output_path):
             return 1
