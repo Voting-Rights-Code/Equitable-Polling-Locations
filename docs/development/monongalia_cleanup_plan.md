@@ -138,10 +138,13 @@ that already landed.
    should hold the outputs, the geojson, `sources/`, and `analysis_manifest.yaml`.
    Do not start step 7 until this is confirmed.
 
-7. **Cleanup PR** (new ticket, below):
-   - narrow the `.gitignore` rule `!precinct_analysis_outputs/**/*` to
-     `location_precinct_mismatches.csv`, the one output whose git history is its
-     record;
+7. **Cleanup PR** (the second part of the #340 follow-up, below):
+   - narrow the `.gitignore` rule `!precinct_analysis_outputs/**/*` to the two
+     reconciliation files, which hold human decisions rather than plain run
+     output: `location_precinct_mismatches.csv` (hand-reviewed each round; its git
+     history is the only record of past rounds) and
+     `precinct_polling_location_crosswalk.csv` (built from the mismatches by
+     `Monongalia_reconciliation.r` and read back by `extract_precincts.r`);
    - `git rm --cached` the other outputs, including the geojson;
    - delete this plan file.
 
@@ -161,14 +164,16 @@ Why this order:
 
 ## Tickets
 
-- **Geojson into the upload: a follow-up on #340.** #340 defines what a precinct
-  run uploads ("its outputs plus the input files it used"), and its follow-up
-  section is still open. Today the geojson comes from a separate script run by
-  hand after `extract_precincts.r`, so it misses the upload. The follow-up: have
-  `extract_precincts.r` run the route fetch after writing the 20-minute CSV, behind
-  a per-county config switch because it needs ORS, and register the geojson so it
-  uploads with everything else. Not yet posted.
-- **Outputs out of git: a new ticket.** #335 lists "long-term home of county-level
-  reconciliation artifacts (curated data vs run outputs)" as out of scope and
-  tracked separately, but no such ticket exists. It covers step 7 and links to
-  #335 and #340. Not yet filed.
+- **#340 holds both halves of the outputs work**, as a follow-up after #343
+  ([comment, 2026-09-21](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/issues/340#issuecomment-5768195389)).
+  Chad has been asked whether he'd rather split it into its own ticket.
+  - *Geojson into the upload* (step 2): `extract_precincts.r` runs the route fetch
+    after writing the 20-minute CSV, behind a per-county config switch because it
+    needs ORS, and registers the geojson so it uploads with everything else.
+  - *Outputs out of git* (step 7): after a verified upload, narrow the
+    `.gitignore` rule to the two reconciliation files and untrack the rest.
+- **#335's "tracked separately" items are not tracked anywhere**
+  ([note, 2026-09-21](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/issues/335#issuecomment-5768193087)):
+  the long-term home of the reconciliation files, spaces in output filenames, and
+  `deprecated/` path modernization. Each needs chasing down. None of them blocks
+  this plan; the reconciliation files simply stay tracked where they are.
