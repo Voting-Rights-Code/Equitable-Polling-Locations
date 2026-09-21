@@ -85,7 +85,31 @@ dt_pop_polls_2025 <- dt_2025_pop[ , dropped_2026 := TRUE
 combined <- rbind(dt_2024, dt_2025, dt_2026, dt_2026prop, fill = TRUE)
 precinct_persistence_demographics <- dcast(combined, id_dest + demographic ~ descriptor, value.var = 'demo_pop')
 precinct_persistence_demographics[ , pct_change_24_to_26 := as.character(round((`2026`-`2024`)/`2024`, 2))
-                ][is.na(`2024`), pct_change_24_to_26 := 'New']
+                ][is.na(`2024`), pct_change_24_to_26 := 'New'
+                ][is.na(`2026`), pct_change_24_to_26 := 'Closed'
+                ][is.na(`2024`) & is.na(`2026`), pct_change_24_to_26 := 'enacted_2025_only'
+                ]
+
+#csv of distances traveled by census block by year and population of each, and to which destination.
+results_dt <- orig_output_df_list$results
+three_years_results <- results_dt[descriptor %in% c('2024', '2025', '2026')
+                    ][ , descriptor := droplevels(descriptor)
+                    ][, pct_hispanic := hispanic/population]
+
+#melt the wide demographic columns into long form
+demographic_cols <- c('population', 'hispanic', 'white', 'black', 'native', 'asian')
+three_years_long <- melt(three_years_results,
+                  id.vars = c('id_orig', 'descriptor', 'id_dest', 'distance_m', 'pct_hispanic'),
+                  measure.vars = demographic_cols,
+                  variable.name = 'demographic',
+                  value.name = 'demo_pop')
+
+#one column per year for both destination and distance
+block_distance_by_year <- dcast(three_years_long,
+                  id_orig + demographic + demo_pop + pct_hispanic ~ descriptor,
+                  value.var = c('id_dest', 'distance_m'))
+block_distance_by_year[ , pct_change_24_to_26 := round((`distance_m_2026`-`distance_m_2024`)/`distance_m_2024`, 2)
+                ]
 
 ######## run models ############
 
@@ -137,6 +161,9 @@ plot_white_latine_interation(dt_pop_polls_2025, "dropped_2026prop", "2025", "202
 add_graph_to_graph_file_manifest('precinct_demographics_by_year.csv')
 fwrite(precinct_persistence_demographics, 'precinct_demographics_by_year.csv')
 
+#block distance data
+add_graph_to_graph_file_manifest('block_distance_by_year.csv')
+fwrite(block_distance_by_year, 'block_distance_by_year.csv')
 
 ###Optimized runs
 setwd(file.path(here(), "result_analysis_outputs/Tarrant_County_TX_fair_capacity_2"))
