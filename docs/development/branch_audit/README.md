@@ -195,22 +195,40 @@ regenerate the outputs.
    `feature/optimization_output_maps`. Deleting the base branch of an open PR can
    close that PR.
 2. **Delete `port-pr330-cleanup`.** It is an exact copy of #330's branch.
-3. **Merge the small PRs leaves-first into 276.** The chain goes #343 → #341 →
-   #332; #330 and #334 can go in any order. All are clean, with 1–3 commits each.
-   Leaves-first matters because this repo squash-merges: merging #329 first
-   would retarget the children to the epic, where they would replay all 18 of
-   276's commits and likely conflict.
-4. **Merge the epic into 276** and resolve as described above.
-5. **Review and merge #329** into the epic. This is the bottleneck: Daniel has not
-   started the review, so it is worth starting in parallel with steps 1–3.
+3. **Merge the epic into 276** and resolve as described above, so the review in
+   the next step sees the real merged state.
+4. **Review and merge #329** into the epic, with a merge commit. This is the
+   bottleneck: Daniel has not started the review.
+5. **Then the children, parent first, each with a merge commit.** When 276 merges
+   and its branch is deleted, GitHub retargets #330, #332 and #334 to the epic.
+   Merge #332, then #341, then #343 (the order #341 and #343 ask for); #330 and
+   #334 can go in any order.
 6. **Later, epic → `dev`.** No PR exists yet, which is normal for an epic. The
    epic is 22 commits behind `dev`, so expect a sync.
 
+Why parent first, with merge commits:
+
+- **Parent first keeps each PR's merged diff equal to its reviewed diff.** Merging
+  a child first lands it *inside the parent's branch*, so the parent's PR
+  silently grows to include the child's changes after it was reviewed.
+- **Merge commits make parent-first safe for the children.** After the parent
+  merges, a retargeted child still shows only its own commits. After a squash,
+  the child would replay the parent's original commits on top of the squashed
+  copy: duplicate changes, and often conflicts.
+
+The underlying rule is "don't change a PR's content after it has been reviewed."
+If Daniel would rather review the whole stack as one diff, merging the children
+into 276 *before* he starts on #329 also satisfies it.
+
 ## How to tell whether a branch's work landed
 
-**Git alone cannot tell you, because this repo squash-merges.** A squash-merged
-branch never becomes an ancestor of its target, so `git branch --no-merged`
-reports it as outstanding forever. GitHub PR history is the authoritative source.
+**This repo has no default merge strategy.** Some PRs are merged with a merge
+commit, and some people sometimes squash. That mix is why git alone cannot tell
+you whether work landed: a squash-merged branch never becomes an ancestor of its
+target, so `git branch --no-merged` reports it as outstanding forever, while a
+branch merged with a merge commit next to it looks fine. An earlier pass of this
+audit was thrown off by exactly this and misread several branches' lineage.
+GitHub PR history is the authoritative source.
 
 Before marking a branch safe to delete, run two tests. Either one passing is
 enough; a branch that fails both has commits that exist nowhere else.
