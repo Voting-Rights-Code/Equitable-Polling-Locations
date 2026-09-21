@@ -1,0 +1,5 @@
+# The root .gitattributes stores every *.csv in Git LFS (this repo keeps large
+# datasets). This audit CSV is a small document, not data: store it as a normal
+# blob so each edit shows up as a readable row-level diff.
+# `!attr` resets to git's default; `-diff` would instead mark the file binary.
+branch_audit.csv !filter !diff !merge text

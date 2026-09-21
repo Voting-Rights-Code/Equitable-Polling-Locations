@@ -1,3 +1,66 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:31b0bb2b1e3ddab31222fd08aba57963a37d8be27a2072a82b041fc5b123cedd
-size 5697
+Branch Name,Associated Milestone,Status,Merge notes,Author,Final action
+ARCHIVE/original_code,,merged,dev/main,Susama Agarwala,Keep
+OSM_GMaps_Compare,,not merged,open PR #56,jmlar,Keep
+chore/tarrant-distance-upload-script,,not merged,one off script,Amasus,Delete
+delivery/Bartow_County_GA,,merged,dev/main,Amasus,Delete
+delivery/Monongalia_County,Monongalia County precinct extraction & distance flagging,epic branch,,Amasus,Keep
+dev,,TRUNK,dev,-,Keep
+feature/208-cleanup-redundant-tests,epic-e2e-followup,merged,dev,abd1tus,Delete
+feature/209-driving-vs-haversine,epic-e2e-followup,merged,dev,abd1tus,Delete
+feature/210-bad-types-absent,epic-e2e-followup,merged,dev,abd1tus,Delete
+feature/211-year-tests,epic-e2e-followup,merged,dev,abd1tus,Delete
+feature/213-fixed-capacity,epic-e2e-followup,merged,dev,abd1tus,Delete
+feature/248-predicted-vap-test-fixtures,RDH block-level population data: evaluation and integration,merged,feature/RDH-pop,DashaU3,Delete
+feature/249-predicted-vap-docs,RDH block-level population data: evaluation and integration,merged,feature/RDH-pop,DashaU3,Delete
+feature/276-R-clean-up,Monongalia County precinct extraction & distance flagging,not merged,open PR #329,Amasus,Keep
+feature/279-distance-data-census-type,CVAP integration,not merged,,abd1tus,Keep
+feature/308-devcontainer-bind-mounts,,merged,dev,Susama,Delete
+feature/340-precinct-snapshot-upload,Monongalia County precinct extraction & distance flagging,not merged,open PR #343,abd1tus,Keep
+feature/CVAP,CVAP integration,epic branch,open PR #198,Amasus,Keep
+feature/OSM_GMaps_compare,,not merged,,Susama,Keep
+feature/RDH-pop,RDH block-level population data: evaluation and integration,not merged,,Amasus,Keep
+feature/RDH-population-directory-structure,RDH block-level population data: evaluation and integration,not merged,Redone on feature/245,DashaU3,Delete
+feature/RDH-population-get-demographics,RDH block-level population data: evaluation and integration,not merged,Redone on feature/246,DashaU3,Delete
+feature/add_config,epic-driving-time-metric,not merged,,Amasus,Keep
+feature/add_regression_Tarrant_County,,not merged,superseded on dev/main,antisocialscientist,Delete
+feature/census_pull_standardization,,merged,dev/main,Amasus,Delete
+feature/contributing,,not merged,stale,Amasus,Delete
+feature/db_import,,merged,dev/main,abd1tus,Delete
+feature/devcontainer,,merged,dev,abd1tus,Delete
+feature/docker-backup,,not merged,backup of feature/docker,Susama,DECIDE
+feature/driving-distance-tools,epic-driving-distance-tools,epic branch,open PR #321,abd1tus,Keep
+feature/driving-time-metric,epic-driving-time-metric,epic branch,,Amasus,Keep
+feature/e2e-test-SA-edits,,merged,dev/main,Amasus,Delete
+feature/environments2,,merged,dev/main,abd1tus,Delete
+feature/fix_map_logic,Monongalia County precinct extraction & distance flagging,merged,fix/anomally_flagging,Amasus,Delete
+feature/generalize_storage.R,Monongalia County precinct extraction & distance flagging,not merged,open PR #332,Amasus,Keep
+feature/log_comparison,,merged,dev/main,Susama Agarwala,Delete
+feature/log_distance_access_regressions,,merged,dev/main,Susama Agarwala,Delete
+feature/log_distances,,merged,dev/main,Susama Agarwala,Delete
+feature/model-run-cleanup2,,merged,dev/main,Chad Rosenberg,Delete
+feature/modular-distance-calculations,,not merged,open PR #54,orthorhombic,Keep
+feature/more_penalty_tests,,merged,dev/main,Susama Agarwala,Delete
+feature/name-matching,Monongalia County precinct extraction & distance flagging,merged,delivery/Monongalia_County,Amasus,Delete
+feature/optimization_output_maps,Monongalia County precinct extraction & distance flagging,merged,delivery/Monongalia_County,Amasus,Delete
+feature/penalty_test_fixes,,not merged,superseded on dev/main,Susama,Delete
+feature/pretty_graphs,,merged,dev/main,Amasus,Delete
+feature/readme_clarification,,merged,dev/main,Amasus,Delete
+feature/save_regressions,,not merged,superseded on dev/main,Amasus,Delete
+feature/state_data_governance,Monongalia County precinct extraction & distance flagging,merged,delivery/Monongalia_County,Amasus,Delete
+feature/test-fixes-sa,,merged,dev/main,Susama Agarwala,Delete
+feature/verify-precincts-block-groups,Monongalia County precinct extraction & distance flagging,merged,delivery/Monongalia_County,Amasus,Delete
+fix/335-manifest-tree-relative,Monongalia County precinct extraction & distance flagging,not merged,open PR #341,abd1tus,Keep
+fix/anomally_flagging,Monongalia County precinct extraction & distance flagging,merged,delivery/Monongalia_County,Amasus,Delete
+fix/make_325_branch_comments_readable,epic-driving-distance-tools,merged,fix/325-unrouted-origin-handling,Amasus,Delete
+fix/model_data_import_bug,,merged,dev/main,abd1tus,Delete
+fix/na-blank-normalization,Monongalia County precinct extraction & distance flagging,not merged,open PR #334,antisocialscientist,Keep
+fix/precinct-nearest-neighbor-drift,Monongalia County precinct extraction & distance flagging,not merged,open PR #330,antisocialscientist,Keep
+fix/secret-tests-env-isolation,,not merged,open PR #363,abd1tus,Keep
+fix/validate-distances-before-log,epic-driving-time-metric,merged,feature/driving-time-metric,abd1tus,Delete
+main,,TRUNK,main,-,Keep
+port-pr330-cleanup,Monongalia County precinct extraction & distance flagging,not merged,duplicate,GitHub Copilot,Delete
+revert-197-feature/census_pull_standardization,,not merged,stale,Chad Rosenberg,Delete
+revert/pr-344-tarrant-2026,,merged,dev/main,Amasus,Delete
+scratch-Bartow-driving,,not merged,,Susama,Delete
+scratch/fixed_capacity_tests,epic-e2e-followup,not merged,,Susama,Delete
+testing/config_settings,,merged,dev/main,Amasus,Delete
