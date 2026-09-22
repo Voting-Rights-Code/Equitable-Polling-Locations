@@ -1,4 +1,4 @@
-'''Build a state-plus-buffer OSM extract for cross-border-correct routing (#226).
+'''Build a state-plus-buffer OSM extract for cross-border-correct routing.
 
 Runs IN-CONTAINER (imports geopandas and shells out to osmium). Produces a
 `<state>-buffered.osm.pbf` clipped from a cached full-US source using a 50 km

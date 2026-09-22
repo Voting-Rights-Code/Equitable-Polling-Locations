@@ -255,7 +255,7 @@ def build_distance_matrix(*,
            per-source single-pair retries via the directions endpoint.
         3. A pair ORS cannot route is dropped. This function does not raise or 
         fail on a drop — the CLI compares requested source_ids against returned 
-        id_orig values and fails on any gap. see #338
+        id_orig values and fails on any gap.
 
 
     Args:
@@ -331,7 +331,7 @@ def identify_unmatched_pairs(output_path, source_ids, dest_ids):
     try:
         # Force the id columns to str: numeric-looking GEOIDs otherwise load as
         # int64, so the present-pair check below (and the CLI's later
-        # drop_duplicates) never match the str source/dest ids. See #305.
+        # drop_duplicates) never match the str source/dest ids.
         existing_df = pd.read_csv(
             output_path,
             dtype={DISTANCE_ID_ORIG: str, DISTANCE_ID_DEST: str},

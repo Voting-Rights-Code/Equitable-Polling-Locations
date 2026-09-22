@@ -188,13 +188,14 @@ def _report_unrouted_origins(df: pd.DataFrame,
                              output_path: str) -> set[str]:
     '''Detects origins that have not been properly filled by previous runs and provides
     instructions on next steps. TODO: flagging only happens at origin level, not pair level. 
-    See docs/to_run.md (section "Unroutable origins fail the run") for details. see #338
+    See docs/to_run.md (section "Unroutable origins fail the run") for details.
 
     Two failure shapes are distinguished: absent origins with no rows at all recorded in the df
     on file and blank origins whose rows carry a blank ``distance_m``. 
     
     Blank origins are caused by human editing of unroutable origins that need
-    to be entered manually or have the row deleted TODO: see #338.
+    to be entered manually or have the row deleted. A guided retry-and-correct
+    procedure is planned; until then this is a manual step.
     
     The absent origins are either due to an aborted run on generate_driving_distances_cli
     or the existence of unroutable origins that cannot be automatically routed. These need 

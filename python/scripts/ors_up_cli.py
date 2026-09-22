@@ -218,7 +218,7 @@ def main(argv=None):
         # Pre-create the ORS files dir (bind-mounted at /home/ors/files) so the
         # root ORS container never auto-creates it root-owned. A root-owned
         # datasets/openrouteservice/ blocks git from unlinking the tracked
-        # .gitkeep there for anyone who has run ORS. See #320.
+        # .gitkeep there for anyone who has run ORS.
         os.makedirs(ORS_DATA_DIR, exist_ok=True)
         _log_and_print(f'files dir: {ORS_DATA_DIR}', log_fh)
 

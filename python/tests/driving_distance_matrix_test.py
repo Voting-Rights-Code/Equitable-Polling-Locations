@@ -313,7 +313,7 @@ class TestVerbosityGating:
 
 
 class TestRejectNegativeDistances:
-    '''A negative distance_m fails loudly at generation (#294); 0 and NaN pass.'''
+    '''A negative distance_m fails loudly at generation; 0 and NaN pass.'''
 
     def test_negative_distance_raises_value_error(self):
         df = pd.DataFrame({

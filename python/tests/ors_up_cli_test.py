@@ -182,7 +182,7 @@ class TestMainOrchestration:
         self, unused_mock_host, unused_mock_run, unused_mock_poll, tmp_path,
     ):
         '''main must mkdir the ORS files dir before docker compose up so the root
-        ORS container never auto-creates it root-owned (breaks git). See #320.'''
+        ORS container never auto-creates it root-owned (breaks git).'''
         del unused_mock_host, unused_mock_run, unused_mock_poll
         buffered = tmp_path / 'georgia-buffered.osm.pbf'
         buffered.touch()
