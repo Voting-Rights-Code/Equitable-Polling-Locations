@@ -98,6 +98,9 @@ solver_precinct_shapes <- get_solver_precinct_shapes(
   SOLVER_PRECINCT_SHAPEFILE, OPTIMIZATION_RESULTS
 )
 
+# polling-location points, for context on the heat maps below.
+polling_locations <- get_polling_locations(LOCATION)
+
 
 ####
 #change directories -- everything from here reads or write to output folder
@@ -166,6 +169,16 @@ duration_color_bounds <- c(15, max(flagged_duration_values, na.rm = TRUE))
 #extend past the precinct line drawn on top for the state-precinct maps
 #but not the optimized maps below.
 
+#note, the heat maps use data where the blocks have been clipped
+#to the state precinct by dominant area.
+#Therefore, some of the blocks in the precinct maps are trimmed to
+#the precinct lines. Portions of blocks that lie in non-assigned
+#precincts will appear as holes.
+#In the optimized maps, the same clipped blocks are used, but the
+#precinct lines are drawn the full blocks. Missing block pieces will
+#still appear as holes, but in the same precinct as the drawn portion
+#of the block.
+
 # Make maps for 15 minutes
 
 # choropleth mode
@@ -200,6 +213,14 @@ make_demo_distance_heat_map(
 # written by Basic_analysis.r's make_precinct_map()) instead of the
 # state-provided precincts, since these maps show the solver's assignment,
 # not the as-provided precincts. (solver_precinct_shapes was read in Step 3.)
+
+# use the solver's own grouping of blocks (dissolved precinct-like outlines,
+# written by Basic_analysis.r's make_precinct_map()) instead of the
+# state-provided precincts, since these maps show the solver's assignment,
+# not the as-provided precincts.
+solver_precinct_shapes <- get_solver_precinct_shapes(
+  SOLVER_PRECINCT_SHAPEFILE, OPTIMIZATION_RESULTS
+)
 
 # 15 min
 make_demo_distance_heat_map(

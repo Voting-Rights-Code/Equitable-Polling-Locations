@@ -146,7 +146,7 @@ if(!HISTORICAL_FLAG){
     plot_original_optimized(potential_output_df_list$edes, orig_output_df_list$edes)
     plot_original_optimized(potential_pop_scaled_edes, orig_pop_scaled_edes, '_scaled')
 
-    #Plot which precincts are used for each number of polls
+    #Plot which precincts are used for each run
     plot_precinct_persistence(potential_output_df_list$precinct_distances)
 
     #Boxplots of the average distances traveled and the y_edes at each run in folder
@@ -195,6 +195,10 @@ orig_pop_scaled_edes <- ede_with_pop(orig_output_df_list)
 plot_historic_edes(orig_pop_scaled_edes, '_scaled')
 
 plot_population_densities(orig_regression_data)
+
+#Plot which precincts are used for each run
+plot_precinct_persistence(orig_output_df_list$precinct_distances)
+
 
 ###maps####
 sapply(orig_list_prepped, function(x)make_bg_maps(x))

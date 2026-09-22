@@ -3,6 +3,8 @@ library(sf)
 library(dplyr)
 library(ggplot2)
 
+source("R/result_analysis/utility_functions/tableau_theme.R")
+
 source("R/result_analysis/utility_functions/city_shape_functions.r")
 source("R/result_analysis/utility_functions/tableau_theme.R")
 
@@ -30,6 +32,55 @@ build_driving_distances_file_path <- function(location, driving_folder = DRIVING
   return(file.path(
     driving_folder, location, paste0(location, driving_distance_suffix)
   ))
+}
+
+# read a location's potential-locations CSV and split its combined
+# "Lat, Lon" column into separate numeric lat/lon columns, for plotting
+# polling-location points on a map.
+get_polling_locations <- function(location) {
+  polling_locations <- fread(build_potential_locations_file_path(location))
+  lat_lon_column <- polling_locations[["Lat, Lon"]]
+  polling_locations[, c("lat", "lon") := tstrsplit(
+    lat_lon_column, ", ", fixed = TRUE, type.convert = TRUE
+  )]
+  return(polling_locations)
+}
+
+# wrap a digit-only id (e.g. a census block GEOID) as an Excel/Sheets
+# formula-text literal before writing it to CSV. CSV carries no column-type
+# metadata, so a bare digit string is silently reinterpreted as a number
+# (losing precision/leading zeros) by any spreadsheet app that opens it --
+# ="<value>" forces both Excel and Google Sheets to evaluate it as text
+# on open, with no new file-writing dependency required.
+force_text_for_spreadsheet <- function(id_column) {
+  paste0('="', id_column, '"')
+}
+
+# read the solver-optimized precinct shapefile (written by make_precinct_map()
+# as part of Basic_analysis.r's workflow) for use as a heat map's precinct
+# outline. Errors loudly instead of silently plotting stale precinct
+# boundaries if the shapefile is missing, or older than the solver results
+# it's supposed to reflect.
+get_solver_precinct_shapes <- function(solver_precinct_shapefile,
+                                       results_file) {
+  if (!file.exists(solver_precinct_shapefile)) {
+    stop(
+      "Solver-optimized precinct shapefile not found at ",
+      solver_precinct_shapefile,
+      ". Run Basic_analysis.r for this county/config to generate it before ",
+      "running extract_precincts.r's Step 5."
+    )
+  }
+  shapefile_mtime <- file.info(solver_precinct_shapefile)$mtime
+  results_mtime <- file.info(results_file)$mtime
+  if (shapefile_mtime < results_mtime) {
+    stop(
+      solver_precinct_shapefile, " is older than ", results_file, ". ",
+      "The solver results have changed since this shapefile was generated -- ",
+      "rerun Basic_analysis.r for this county/config before running Step 5."
+    )
+  }
+  return(st_read(solver_precinct_shapefile))
 }
 
 # wrap a digit-only id so that a csv reader (e.g. excel) loads it as text
@@ -744,7 +795,7 @@ get_polling_locations <- function(location) {
 # In both modes, zero-population blocks get a distinct gray fill.
 # Blocks with no assigned polling location get a dashed blue outline.
 make_demo_distance_heat_map <- function(
-    block_shapes, distance_flagged_blocks, precinct_shapes, polling_locations, demographic,
+    block_shapes, distance_flagged_blocks, precinct_shapes, demo_pop,
     duration_threshold_min, location = LOCATION,
     crs_projection = TIGER_CRS, map_label = NULL, color_bounds = NULL) {
   # reproject to a plain lat/lon CRS so the graticule comes out
@@ -845,6 +896,10 @@ make_demo_distance_heat_map <- function(
   heat_map <- heat_map +
     geom_sf(
       data = precinct_shapes, fill = NA, color = "black", linewidth = 0.4
+    ) +
+    geom_point(
+      data = polling_locations, aes(x = lon, y = lat),
+      color = MAP_POLL_TYPE_COLORS[["polling"]], shape = MAP_POLL_TYPE_SHAPES[["polling"]]
     ) +
     geom_point(
       data = polling_locations, aes(x = lon, y = lat),
