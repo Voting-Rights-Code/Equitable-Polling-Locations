@@ -142,7 +142,7 @@ class TestGenerateDrivingDistancesOrchestration:
     @patch('run.run_command')
     def test_still_tears_down_when_ors_up_fails(
             self, mock_run_command, mock_subprocess_run, unused_mock_healthy):
-        '''An ors_up_cli failure must still trigger ors_down cleanup (#223).'''
+        '''An ors_up_cli failure must still trigger ors_down cleanup.'''
         del unused_mock_healthy, mock_run_command
 
         def fake_subprocess_run(cmd, *args, **kwargs):
@@ -162,7 +162,7 @@ class TestGenerateDrivingDistancesOrchestration:
         ]
         assert len(ors_down_calls) == 1, (
             'Expected ors_down_cli to fire even when ors_up_cli failed; '
-            'this regression test guards #223 fix.'
+            'this regression test guards the try/finally teardown.'
         )
 
     @patch('run.IN_CONTAINER', True)
