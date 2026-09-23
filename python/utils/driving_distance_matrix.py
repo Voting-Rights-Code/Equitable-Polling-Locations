@@ -9,6 +9,10 @@ origin/destination pair at a time. Furthermore, it drops unroutable
 rows, to avoid silent passing of these errors downstream. Finally,
 it reshapes the response to the desired long-form output.
 
+The batching, per-source retry, and partial-CSV resume design follows the
+driving-distance tooling in dxwils3/geolib (Apache-2.0,
+https://github.com/dxwils3/geolib). This module is a reimplementation in
+this project's layered structure, not a copy of that code.
 
 External callers should use ``build_distance_matrix``. The other functions
 are exposed for testing and for ad-hoc reuse.
