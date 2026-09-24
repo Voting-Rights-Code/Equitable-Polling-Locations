@@ -1,36 +1,24 @@
 library(data.table)
 library(sf)
-library(here)
 library(dplyr)
 library(ggplot2)
 
 source("R/result_analysis/utility_functions/tableau_theme.R")
 
-######## Set constants########
-TIGER_FOLDER <- "datasets/census/tiger"
-REDISTRICTING_FOLDER <- "datasets/census/redistricting"
-DEMO_BG_FOLDER <- "block group demographics"
+source("R/result_analysis/utility_functions/city_shape_functions.r")
+source("R/result_analysis/utility_functions/tableau_theme.R")
+
+
+######## Constants ########
 POLLING_FOLDER <- "datasets/polling"
 POTENTIAL_LOCATIONS_SUFFIX <- "_potential_locations.csv"
 DRIVING_FOLDER <- "datasets/driving"
 DRIVING_DISTANCE_SUFFIX <- "_driving_distances.csv"
-
-
-CRS_PROJECTION <- 4326
 AREA_CRS <- 5070
-###### Functions#######
+TIGER_CRS <- 4269
+######## Path / IO helpers ########
 
-# read a shapefile from an explicit path and reproject it
-get_shape_data <- function(shape_file_path, crs_projection=CRS_PROJECTION) {
-  shape_data <- st_read(shape_file_path)
-  shape_data <- st_transform(shape_data, crs_projection)
-  return(shape_data)
-}
-
-# path to a location's potential-locations CSV (the file the solver reads
-# polling locations from, and the source generate_driving_distances_cli.py
-# geocodes into the driving-distances matrix). Mirrors
-# python/utils/utils.py's build_potential_locations_file_path().
+# path to a location's potential-locations CSV
 build_potential_locations_file_path <- function(location, polling_folder = POLLING_FOLDER,
                                                 potential_locations_suffix = POTENTIAL_LOCATIONS_SUFFIX) {
   return(file.path(
@@ -95,91 +83,180 @@ get_solver_precinct_shapes <- function(solver_precinct_shapefile,
   return(st_read(solver_precinct_shapefile))
 }
 
+# wrap a digit-only id so that a csv reader (e.g. excel) loads it as text
+force_text_for_spreadsheet <- function(id_column) {
+  paste0('="', id_column, '"')
+}
 
-# select a county's precincts from a statewide precinct shapefile, by county
-# name. 
+######## Shared: precinct extraction (Step 1 of both flag_state_provided_precincts.r and extract_precincts.r) ########
+
+# extract county's precincts from a statewide precinct shapefile, by county name.
 # Note for future projects: This is custom built for the WV precinct shapefile and may need
 # generalization.
 extract_county_precincts <- function(precinct_source_file, county_name,
-                                     crs_projection = CRS_PROJECTION) {
+                                     crs_projection = TIGER_CRS) {
+  #read state data
   statewide_precincts <- get_shape_data(
     precinct_source_file,
     crs_projection
   )
+
+  #select relevant rows
   state_precincts <- statewide_precincts[
-    which(statewide_precincts$County_Nam == county_name),
-  ]
+    which(statewide_precincts$County_Nam == county_name), ]
+
+  #check that county name is as expected
+  if(nrow(state_precincts) == 0){
+    stop(paste(county_name, ' not a valid county in state precinct data.'))
+  }
   return(state_precincts)
 }
 
-# select intersecting or contained shape data from a county, given a boundary
-get_shapes_in_boundary <- function(boundary_shape_data, county_shape_data,
-                                   intersection_flag) {
-  # make data planar. Otherwise the following line throws an error
-  #TODO: This is causing issues. Fix before closing issue 267.
-  sf_use_s2(FALSE)
+######## flag_state_provided_precincts.r: block/precinct assignment & flagging (Steps 3-6) ########
 
-  # choose intersecting or contained data
-  if (intersection_flag) {
-    indices <- st_intersects(boundary_shape_data, county_shape_data,
-      sparse = TRUE
-    )
-  } else {
-    indices <- st_contains(boundary_shape_data, county_shape_data,
-      sparse = TRUE
-    )
+# intersect every census block against every precinct. Report overlap
+# area, percent of the block's area outside the precinct.
+# One row per (block, precinct) pair that overlap at all -- a
+# block touching 3 precincts produces 3 rows.
+compute_block_precinct_overlaps <- function(county_precincts,
+                county_blocks, p3_population, area_crs = AREA_CRS,
+                crs_projection = TIGER_CRS) {
+
+  #transform to an equal-area projection for area calculations.
+  #5070 is NAD83 / Conus Albers.
+  county_precincts <- st_transform(county_precincts, area_crs)
+  county_blocks <- st_transform(county_blocks, area_crs)
+
+  #select desired columns
+  county_blocks <- county_blocks[, c("GEOID20", "INTPTLAT20", "INTPTLON20")]
+
+  #merge in population data
+  p3_population <- data.table(p3_population)[
+    , .(GEOID20 = sub("^1000000US", "", GEO_ID), population)
+  ]
+  county_blocks <- merge(county_blocks, p3_population, by = "GEOID20")
+
+  #calculate block area in square meters
+  county_blocks$block_area <- as.numeric(st_area(county_blocks$geometry))
+
+  #intersect blocks with precincts to measure overlap
+  block_precinct_intersection <- st_intersection(county_blocks, county_precincts)
+  block_precinct_intersection$overlap_area <- as.numeric(st_area(block_precinct_intersection$geometry))
+
+  #How much of the block is outside of the precinct.
+  block_precinct_intersection$percent_outside_precinct <- 1-
+    block_precinct_intersection$overlap_area /
+    block_precinct_intersection$block_area
+
+  #swap in each block's full shape in place of the precinct-clipped piece
+  st_geometry(block_precinct_intersection) <- county_blocks$geometry[
+    match(block_precinct_intersection$GEOID20, county_blocks$GEOID20)
+  ]
+
+  # return to project's standard projection
+  block_precinct_intersection <- st_transform(block_precinct_intersection, crs_projection)
+
+  #check that all blocks are accounted for
+  if (length(unique(block_precinct_intersection$GEOID20)) < length(county_blocks$GEOID20)){
+    stop(paste('The following blocks do not intersect any precinct: ',
+        paste0(setdiff(county_blocks$GEOID20, unique(block_precinct_intersection$GEOID20)),
+        collapse = ', ')))
   }
-  all_indices <- Reduce(union, indices)
-  relevant_shapes <- county_shape_data[all_indices, ]
-  return(relevant_shapes)
+  return(block_precinct_intersection)
 }
 
-# crop the shapes to be within the boundary, and assign new interior points
-crop_to_boundary <- function(boundary_shape_data, county_shape_data) {
-  # crop shapes
-  cropped_shapes <- st_intersection(boundary_shape_data, county_shape_data)
+# associate each census block with its dominant (largest-overlap) precinct.
+# flag for blocks whose dominant precinct holds between 50% and 90% of the
+# block. One row per block
+assign_block_to_dominant_precinct <- function(block_precinct_intersection) {
 
-  # in case of multiple connected components make each component unique
-  cropped_shapes$GEOID20 <- gsub("X", "", make.names(cropped_shapes$GEOID20, unique = TRUE))
+  # keep only each block's dominant (largest-overlap) precinct(s). No ties.
+  block_precinct_intersection <- block_precinct_intersection %>%
+              group_by(GEOID20) %>%
+              slice_max(overlap_area, n = 1, with_ties = FALSE) %>%
+              ungroup()
 
-  # create interior point for cropped shapes
-  interior_pt <- st_point_on_surface(cropped_shapes)
-  # calculate a new INTPTLAT20/INTPTLON20 column
-  interior_pt$INTPTLAT20 <- st_coordinates(interior_pt)[, 2]
-  interior_pt$INTPTLON20 <- st_coordinates(interior_pt)[, 1]
+  # flag blocks whose dominant precinct holds between 50% and 90% of the block
+  block_precinct_intersection <- block_precinct_intersection %>%
+    mutate(flagged = percent_outside_precinct > 0.1 & percent_outside_precinct < 0.5)
 
-  # Keep the shape data for joining
-  df_shape <- cropped_shapes[c("GEOID20", "geometry")]
-  # drop the geometry from the point data for joining
-  interior_pt$geometry <- NULL
+  st_write(
+  block_precinct_intersection, "block_precinct_assignment.gpkg", append = FALSE
+)
 
-  # Join the data and remove columns created by intersection
-  df <- merge(df_shape, interior_pt, by = "GEOID20", how = left)
-  extra_columns <- c("OBJECTID", "SHAPESTAre", "SHAPESTLen")
-  df <- df[, !(names(df) %in% extra_columns)]
-  return(df)
+st_write(
+  block_precinct_intersection %>% filter(flagged == TRUE),
+  "flagged_assigned_blocks.gpkg", append = FALSE
+)
+
+  return(block_precinct_intersection)
 }
 
+# Flag every block and precinct that significantly
+# overlaps: one row per (block, precinct) pair where the precinct holds between
+# min_percent_overlap and 1- min_percent_overlap of the block's area. A block with
+# significant overlap in 3 precincts produces 3 rows.
+flag_overlapping_blocks <- function(block_precinct_intersection, min_percent_overlap = 0.05) {
 
-##### reconcile a county-provided precinct/polling-location file
-##### against the state-extracted state_precincts #####
+  #How much of the block is inside of the precinct.
+  block_precinct_intersection$percent_in_precinct <- 1-
+    block_precinct_intersection$percent_outside_precinct
 
-# compute the folder-name prefix for the NEXT state-file correction step
-# by finding the highest existing v<N> sibling folder under the
-# state precinct file's parent directory (if any) and returning v<N+1> 
-next_correction_step_prefix <- function(state_precinct_source_file, location) {
-  state_folder <- dirname(state_precinct_source_file)
-  state_folder_basename <- basename(state_folder)
-  precincts_root <- dirname(state_folder)
+  #flag blocks with significant overlap
+  block_precinct_intersection <- block_precinct_intersection %>%
+    mutate(flagged = percent_outside_precinct > min_percent_overlap &
+    percent_outside_precinct < 1-min_percent_overlap)
 
-  version_pattern <- paste0("^", state_folder_basename, "_", location, "_v([0-9]+)_.*$")
-  sibling_folders <- list.dirs(precincts_root, full.names = FALSE, recursive = FALSE)
-  matching_folders <- sibling_folders[grepl(version_pattern, sibling_folders)]
-  existing_versions <- as.integer(sub(version_pattern, "\\1", matching_folders))
+  #write to file
+  st_write(
+    block_precinct_intersection %>% filter(flagged == TRUE),
+    "flagged_overlapping_blocks.gpkg", append = FALSE
+  )
 
-  next_version <- ifelse(length(existing_versions) == 0, 1, max(existing_versions) + 1)
-  return(paste0(state_folder_basename, "_", location, "_v", next_version))
+  return(block_precinct_intersection)
 }
+
+# flag precincts with zero total population, using the raw as-provided
+# precinct shapes (not the block-level geometries) so the output geometry
+# matches what a human reviewer expects to see. Writes
+# flagged_unpopulated_precincts.gpkg.
+flag_unpopulated_precincts <- function(as_provided_precincts, block_precinct_assignment) {
+  precinct_population <- data.table(st_drop_geometry(block_precinct_assignment))[
+    , .(total_population = sum(population), assigned_blocks = .N), by = Precinct_I
+  ]
+
+  precincts_with_zero_population <- merge(
+    as_provided_precincts, precinct_population,
+    by = "Precinct_I", all.x = TRUE, sort = FALSE
+  )
+  precincts_with_zero_population <- precincts_with_zero_population %>%
+    mutate(unpopulated_precinct = is.na(total_population) | total_population == 0)
+
+  #write to file
+  st_write(
+    precincts_with_zero_population %>% filter(unpopulated_precinct == TRUE),
+    "flagged_unpopulated_precincts.gpkg", append = FALSE
+  )
+
+  return(precincts_with_zero_population)
+}
+
+# flag populated blocks whose dominant precinct has no assigned polling
+# location
+flag_populated_unassigned_blocks <- function(block_precinct_assignment) {
+  unassigned_populated_blocks <- block_precinct_assignment %>%
+    mutate(unassigned_populated = population > 0 & (is.na(USER_POLL_) | USER_POLL_ == ""))
+
+  #write to file
+  st_write(
+    unassigned_populated_blocks %>% filter(unassigned_populated == TRUE),
+    "flagged_unassigned_populated_blocks.gpkg", append = FALSE
+  )
+
+  return(unassigned_populated_blocks)
+}
+
+######## extract_precincts.r: reconcile county-provided precinct data (Step 2) ########
 
 # reshape a county-provided precinct/polling-location table from one row per
 # polling place (with one or more columns listing the precincts it serves) to
@@ -207,12 +284,13 @@ add_precinct_id <- function(precincts_long, county_name) {
   return(precincts_long)
 }
 
-
-# The actual check that county-provided (polling location, precinct) data agrees with
-# state data. Error if any (polling location, precinct) pair appears only on one side.
-# Treat county provided data as correct and change state to match.
+# Check that county-provided and state-provided (polling location, precinct)
+# pairs agree everywhere. Identifies mismatches, creates a correction
+# table documenting mismatches and prompts the user to enter reconciliation
+# data. extract_precincts.r applies the reviewed record automatically on its 
+# next run, via apply_corrections().
 check_poll_precinct_agreement <- function(county_precincts_long, state_precincts,
-                                          state_precinct_source_file, location) {
+                                          location = LOCATION, output_folder = precinct_analysis_output_folder) {
 
   # rename the state's USER_POLL_ to make merged columns clear
   state_precincts_dt <- data.table(st_drop_geometry(state_precincts))
@@ -225,17 +303,15 @@ check_poll_precinct_agreement <- function(county_precincts_long, state_precincts
   )
 
   # a pair mismatches if the precinct is missing from either side (NA), or
-  # present on both sides but the names disagree 
+  # present on both sides but the names disagree
   mismatched_rows <- comparison_data[
     is.na(state_USER_POLL_) | is.na(USER_POLL_) | state_USER_POLL_ != USER_POLL_
   ]
 
   if (nrow(mismatched_rows) > 0) {
-    # County_Nam only comes from state_precincts_dt, USER_POLL_ only comes
-    # from county_precincts_long -- NA in either marks which side the row
-    # didn't originate from. Checking state_USER_POLL_/USER_POLL_'s values
-    # here (instead of row-origin columns) would mislabel a real state
-    # precinct with a blank name field as "county_only".
+    # Some state_USER_POLL_ entries are legitimately blank. County_Nam is
+    # not. Therefore, we use County_Nam (state column) and USER_POLL_ 
+    # (containing county data) to identify missing information.
     mismatched_rows[
       , mismatch_source := fcase(
         is.na(County_Nam), "county_only",
@@ -251,35 +327,38 @@ check_poll_precinct_agreement <- function(county_precincts_long, state_precincts
       )
     ]
 
-    mismatches_path <- file.path(precinct_analysis_output_folder, "location_precinct_mismatches.csv")
+    # write mismatches to file.
+    # This is a record of reconciliation between the state and the county.
+    # version controlled via git-lfs
+    mismatches_path <- file.path(output_folder, "location_precinct_mismatches.csv")
     fwrite(mismatched_rows, mismatches_path)
 
-    next_step_prefix <- next_correction_step_prefix(state_precinct_source_file, location)
-
     stop(
-      "Found ", nrow(mismatched_rows), " precinct(s) that disagree between ",
-      "the state shapefile and the county file. Full list written to ",
-      mismatches_path, " -- see its mismatch_source column: 'state_only' means ",
-      "the precinct is in the state shapefile but not the county file; ",
-      "'county_only' is the reverse; 'name_mismatch' means the precinct is in ",
-      "both but state_USER_POLL_ and USER_POLL_ disagree.\n",
-      "Check that the COUNTY_PRECINCT_COLUMN_NAMES are correct. Furthermore, ",
-      "investigate with the county/state. For each row, fill in:\n",
-      "  - USER_POLL_: the correct polling place name.\n",
-      "  - resolution_type: one of 'rename' (same precinct, name only), ",
-      "'split' (this county precinct is an administrative division of ",
-      "an existing state precinct), or 'drop' (this precinct is not ",
-      "recognized by the county).\n",
-      "  - geometry_source_precinct_I: for 'split' rows only, the ",
-      "state provided ",
-      "Precinct_I whose geometry this row should reuse. Blank for 'rename' ",
-      "and 'drop'.\n",
-      "DO NOT remove rows -- a 'drop' decision belongs in resolution_type, ",
-      "not in deleting the row.\n",
-      "Document the decision in a new script under ",
-      "R/result_analysis/WV_state_file_corrections/ named ",
-      next_step_prefix, "_reconciliation.r that calls apply_corrections(), ",
-      "then re-run extract_precincts.r."
+      "Found ", nrow(mismatched_rows), " precinct(s) that disagree between the 
+      state shapefile and the county file. Full list written to ", 
+      mismatches_path, ".\n
+      See its mismatch_source column: 'state_only' means the precinct is in the 
+      state shapefile but not the county file; 'county_only' is the reverse; 
+      'name_mismatch' means the precinct is in both but state_USER_POLL_ and 
+      USER_POLL_ disagree.\n
+      Check that the COUNTY_PRECINCT_COLUMN_NAMES are correct. Furthermore, 
+      investigate with the county/state. For each unreviewed row, fill in:\n
+        - USER_POLL_: the correct polling place name.\n
+        - resolution_type: one of 'rename' (same precinct, name only), 
+            'split' (this county precinct is an administrative division of an 
+                    existing state precinct), 
+            or 'drop' (this precinct is not recognized by the county).\n
+        - geometry_source_precinct_I: for 'split' rows, the state provided 
+                Precinct_I whose geometry this row should reuse. 
+                Leave blank for 'rename' and 'drop'.\n
+      DO NOT remove rows -- a 'drop' decision belongs in resolution_type, not in
+      deleting the row.\n
+      Re-run extract_precincts.r once every row is filled in -- it applies this 
+      file automatically. If 
+      R/result_analysis/WV_state_file_corrections/", location, "_reconciliation.r 
+      doesn't exist yet, create it (see an existing one for the pattern) to build 
+      the polling-location crosswalk from this file; re-run it whenever new rows are 
+      added here."
     )
   }
 
@@ -288,14 +367,12 @@ check_poll_precinct_agreement <- function(county_precincts_long, state_precincts
   return(state_precincts)
 }
 
-
 # load a county-provided precinct/polling-location CSV, normalize its
 # (possibly repeated) precinct slot column names against precinct_column_names,
 # and return state_precincts once verified to agree with it.
 reconcile_state_precinct_data <- function(precinct_file, precinct_column_names,
                                            location_name_col, address_col,
-                                           state_precincts, county_name,
-                                           state_precinct_source_file, location) {
+                                           state_precincts, county_name, location) {
   #read in county provided data
   provided_polls <- fread(precinct_file)
 
@@ -319,39 +396,41 @@ reconcile_state_precinct_data <- function(precinct_file, precinct_column_names,
   #clean to match state precinct format
   precincts_long <- add_precinct_id(precincts_long, county_name)
   precincts_long <- precincts_long[, USER_POLL_ := toupper(get(location_name_col))]
-    
+
   #check if polling location, precinct assignmentsmatch. Flag for manual review.
   #County assignments correct. State precinct list correct.
   #If county does not assign a precinct, use state assignment.
   corrected_state_data <- check_poll_precinct_agreement(
-    precincts_long, state_precincts, state_precinct_source_file, location
+    precincts_long, state_precincts, location
   )
 
 return(corrected_state_data)
 }
 
+##### one-off WV_state_file_corrections/*.r scripts: apply a human-reviewed correction #####
+
+# block_precinct_assignments.csv is created before the state data is adjusted
 # build a (Precinct_I, resolved_polling_location) crosswalk from a reviewed
 # mismatches table. One row per state provided Precinct_I that needed a
-# correction; resolved_polling_location is NA where no real destination
-# exists. 
-# This is used to add dropped rows back into block precinct_assignments
-build_precinct_crosswalk <- function(reviewed_corrections) {  
+# correction; resolved_polling_location is NA for precincts that legitimately
+# lack destinations.
+build_precinct_crosswalk <- function(reviewed_corrections) {
   #check that resolution type has correct entries.
   unsupported <- reviewed_corrections[
     !(resolution_type %in% c("rename", "split", "drop"))]
 
   if(nrow(unsupported) != 0){
-      stop(paste0(unique(unsupported$resolution_type), 
+      stop(paste0(unique(unsupported$resolution_type),
       " is not a supported resolution type"))
   }
 
-  # pull out dropped  or renamed rows 
+  # pull out dropped or renamed rows from the corrections data
   # use the name from the (user corrected) USER_POLL_ column
-  # non-entries are kept as NAs
+  # unassigned polling locations are kept as NAs
   crosswalk <- reviewed_corrections[ , resolved_polling_location := USER_POLL_
-                ][is.na(USER_POLL_) | USER_POLL_ == "", 
+                ][is.na(USER_POLL_) | USER_POLL_ == "",
                 resolved_polling_location := NA_character_
-                ][resolution_type == "rename" | resolution_type ==  "drop" , 
+                ][resolution_type == "rename" | resolution_type ==  "drop" ,
                 .(Precinct_I, resolved_polling_location) ]
 
   # verify that the rows labeled "split" have the correct data
@@ -367,8 +446,8 @@ build_precinct_crosswalk <- function(reviewed_corrections) {
       "A split's target rows resolve to more than one polling location." =
         all(destination_counts$distinct_destinations == 1)
     )
-    
-    # every split row points to a valid Precinct_I 
+
+    # every split row points to a valid Precinct_I
     split_sources <- unique(split_rows[
       , .(Precinct_I = geometry_source_precinct_I,
           split_destination = USER_POLL_)
@@ -378,7 +457,7 @@ build_precinct_crosswalk <- function(reviewed_corrections) {
         all(split_sources$Precinct_I %in% crosswalk$Precinct_I)
     )
 
-    # every split row's destination matches it's assigned Precinct destination 
+    # every split row's destination matches it's assigned Precinct destination
     matched <- crosswalk[split_sources, on = "Precinct_I"]
     stopifnot(
       "A split source's own recorded destination disagrees with where its \
@@ -390,21 +469,26 @@ build_precinct_crosswalk <- function(reviewed_corrections) {
   return(crosswalk)
 }
 
-# read a human-reviewed location_precinct_mismatches.csv and mechanically
-# apply every row's resolution_type to state_precincts. 
-apply_corrections <- function(state_precincts, mismatches_csv_path) {
-  #read in mismatch data
-  #error if resolution types aren't filled in.
-  reviewed_corrections <- fread(mismatches_csv_path)
+# apply a human-reviewed correction data's resolution_type to state_precincts.
+# check that data entered correctly
+apply_corrections <- function(state_precincts, reviewed_corrections) {
   stopifnot(
     "location_precinct_mismatches.csv has unfilled resolution_type rows -- \
     every row must be reviewed and assigned rename/split/drop before this \
     can run" =
       all(!is.na(reviewed_corrections$resolution_type))
   )
-  
+
+  # Check that every renamed or split precinct has an assigned polling location
+  rename_split_poll <- reviewed_corrections[resolution_type %in% c("rename", "split"), USER_POLL_]
+  stopifnot(
+    "reviewed_corrections has a rename/split row with a blank USER_POLL_ -- \
+    every rename/split needs a real destination filled in before this can run" =
+    all(!is.na(rename_split_poll) & rename_split_poll != "")
+  )
+
   # renames: relabel in place, geometry untouched
-  rename_targets <- reviewed_corrections[resolution_type == "rename", 
+  rename_targets <- reviewed_corrections[resolution_type == "rename",
                         .(Precinct_I, USER_POLL_)]
   stopifnot(
     "Every rename's Precinct_I must exist in state_precincts" =
@@ -416,15 +500,15 @@ apply_corrections <- function(state_precincts, mismatches_csv_path) {
     select(-USER_POLL_.new)
 
   # splits: duplicate the source row once per target, drop the source
-  split_targets <- reviewed_corrections[resolution_type == "split", 
+  split_targets <- reviewed_corrections[resolution_type == "split",
               .(Precinct_I, geometry_source_precinct_I, USER_POLL_)]
 
   if (nrow(split_targets) > 0) {
     stopifnot(
       "A split's geometry_source_precinct_I must exist in state_precincts" =
-        all(split_targets$geometry_source_precinct_I %in% 
+        all(split_targets$geometry_source_precinct_I %in%
         state_precincts$Precinct_I))
-    
+
 
     split_sources <- state_precincts %>% select(-USER_POLL_) %>%
             rename(geometry_source_precinct_I = Precinct_I)
@@ -446,90 +530,18 @@ apply_corrections <- function(state_precincts, mismatches_csv_path) {
   return(state_precincts)
 }
 
-# intersect every census block against every precinct. Report each overlap
-# area and the percent of the block's area that overlap leaves outside the
-# precinct. One row per (block, precinct) pair that overlaps at all -- a
-# block touching 3 precincts produces 3 rows. 
-compute_block_precinct_overlaps <- function(county_precincts, 
-                county_blocks, p3_population, area_crs = AREA_CRS) {
-
-  ####clean precinct and block data ####
-  #transform to an equal-area projection for area calculations.
-  #5070 is NAD83 / Conus Albers.
-  county_precincts <- st_transform(county_precincts, area_crs)
-  county_blocks <- st_transform(county_blocks, area_crs)
-
-  #select desired columns
-  county_blocks <- county_blocks[, c("GEOID20", "INTPTLAT20", "INTPTLON20")]
-
-  #merge in population data
-  p3_population <- data.table(p3_population)[
-    , .(GEOID20 = sub("^1000000US", "", GEO_ID), population)
-  ]
-  county_blocks <- merge(county_blocks, p3_population, by = "GEOID20")
-
-  #caluculate block area in square meters
-  county_blocks$block_area <- as.numeric(st_area(county_blocks$geometry))
-
-  # intersect blocks with precincts and compute the overlap area and percent overlap
-  block_precinct_intersection <- st_intersection(county_blocks, county_precincts)
-  block_precinct_intersection$overlap_area <- as.numeric(st_area(block_precinct_intersection$geometry))
-
-  block_precinct_intersection$percent_outside_precinct <- 1-
-    block_precinct_intersection$overlap_area /
-    block_precinct_intersection$block_area
-
-  return(block_precinct_intersection)
-}
-
-# associate each census block with its dominant
-# (largest-overlap) precinct.
-# also report the percent of the block's area outside that precinct, and a
-# flag for blocks whose dominant precinct holds between 50% and 90% of the
-# block.
-assign_block_to_dominant_precinct <- function(block_precinct_intersection) {
-
-  # keep only each block's dominant (largest-overlap) precinct(s).
-  # with_ties = TRUE deliberately keeps every tied precinct, not just one
-  # in the case of duplicate precinct geometries needed to reconcile
-  #state and county data.
-  block_precinct_intersection <- block_precinct_intersection %>%
-              group_by(GEOID20) %>%
-              slice_max(overlap_area, n = 1, with_ties = TRUE) %>%
-              ungroup()
-
-  # flag blocks whose dominant precinct holds between 50% and 90% of the block
-  block_precinct_intersection <- block_precinct_intersection %>%
-    mutate(flagged = percent_outside_precinct > 0.1 & percent_outside_precinct < 0.5)
-  return(block_precinct_intersection)
-}
-
-# Flag every block and precinct that significantly 
-# overlaps: one row per (block, precinct) pair where the precinct holds more
-# than min_percent_overlap of the block's area. A block with significant
-# overlap in 3 precincts produces 3 rows. 
-flag_overlapping_blocks <- function(block_precinct_intersection, min_percent_overlap = 0.05) {
-
-  block_precinct_intersection$percent_overlap <- 1 -
-    block_precinct_intersection$percent_outside_precinct
-
-  block_precinct_intersection <- block_precinct_intersection %>% 
-    mutate(flagged = percent_outside_precinct > min_percent_overlap & 
-    percent_outside_precinct < 1-min_percent_overlap)
-  return(block_precinct_intersection)
-}
-
+######## extract_precincts.r: reshape precinct data into *_result format (Steps 3-4) ########
+# The precinct matching data and the solver outputs need to have the same
+# shape so that various maps can be made using either.
 
 # read block-level P3 (race) and P4 (hispanic) redistricting tables and
-# combine them into one row-per-block demographic breakdown. Output to 
-# mirror the demographic information represented in the *_results.csv 
-# solver outputs.
+# combine them into one row-per-block demographic breakdown.
 get_block_demographics <- function(p3_file_path, p4_file_path) {
-  
-  ###Read P3 and P4 data #####
+
+  # read P3 and P4 data
   # row 1 holds the real census column codes (GEO_ID, NAME, P3_001N, ...) <- keep;
-  # row 2 holds long descriptive labels <- drop; 
-  # data starts at row 3. 
+  # row 2 holds long descriptive labels <- drop;
+  # data starts at row 3.
   p3_header <- names(fread(p3_file_path, nrows = 0))
   p3_raw <- fread(p3_file_path, header = FALSE, skip = 2, col.names = p3_header)
   p3_demographics <- p3_raw[, .(
@@ -545,10 +557,10 @@ get_block_demographics <- function(p3_file_path, p4_file_path) {
     non_hispanic = P4_003N
   )]
 
-  #### Merge by block to get all desired demographics
+  # Merge by block to get all desired demographics
   block_demographics <- merge(p3_demographics, p4_demographics, by = "GEO_ID")
 
-  ### Check that the populations match (i.e. that the tables are both pulled for the same data)
+  # Check that the populations match (i.e. that the tables are both pulled for the same data)
   stopifnot(
     "P3 and P4 total population disagree for at least one block" =
       all(block_demographics$population == block_demographics$population_p4)
@@ -563,88 +575,101 @@ get_block_demographics <- function(p3_file_path, p4_file_path) {
 }
 
 # resolve every block's final polling-place destination by joining the
-# block precinct assignment with the cross walk of maually edited inconsistencies.
+# block precinct assignment with the crosswalk of manually edited inconsistencies.
 resolve_block_destinations <- function(block_precinct_assignment, state_county_crosswalk) {
   #get block precinct assignment, drop geometry
   all_blocks <- data.table(st_drop_geometry(block_precinct_assignment))
 
-  # merge wtih cross walk for correct precinct names: if its as-provided
+  # merge with crosswalk for correct precinct names: if its as-provided
   # Precinct_I has a crosswalk entry, use that
   # entry as-is (including a real NA). Only fall back to the
   # as-provided USER_POLL_ when the precinct never appears in the crosswalk at
   # all, meaning no correction was ever needed.
   resolved <- merge(all_blocks, state_county_crosswalk, by = "Precinct_I", all.x = TRUE, sort = FALSE)
-  resolved[ , resolved_destination := USER_POLL_][Precinct_I %in% state_county_crosswalk$Precinct_I, 
+  resolved[ , resolved_destination := USER_POLL_][Precinct_I %in% state_county_crosswalk$Precinct_I,
                           resolved_destination := resolved_polling_location ]
-  
+
   resolved[, resolved_polling_location := NULL]
   return(resolved)
 }
 
-# join each populated census block to its resolved polling location's
-# driving distance/duration, extend with demographic data, and flag blocks
-# whose drive time exceeds duration_threshold_min. Writes the result to
-# precinct_analysis_output_folder as distance_flagged_blocks_<N>min.csv.
-flag_distant_blocks <- function(block_precinct_assignment, state_county_crosswalk, block_demographics,
-                                driving_distances_file, duration_threshold_min) {
+# get driving distances to resolved polling locations
+# Stop if there are missing distances.
+get_driving_distances <- function(block_precinct_assignment, state_county_crosswalk,
+                                driving_distances) {
   #get resolved blocks precinct assignments
   resolved_blocks <- resolve_block_destinations(block_precinct_assignment,
             state_county_crosswalk)
-
-
-  #get driving distances
-  driving_distances <- fread(driving_distances_file)
-  driving_distances[, id_orig := as.character(id_orig)]
-  driving_distances[, id_dest_upper := toupper(id_dest)]
 
   #merge in driving distances
   distance_blocks <- merge(
     resolved_blocks, driving_distances, by.x = c("GEOID20", "resolved_destination"),
     by.y = c("id_orig", "id_dest_upper"), all.x = TRUE)
-  distance_blocks[is.na(distance_m), distance_m := 0]
-  distance_blocks[is.na(duration_s), duration_s := 0]
+
+  #alert if there are missing distances or times for blocks with associated polling locations
+  missing_distances <- distance_blocks[(is.na(distance_m) | is.na(duration_s)) & !(is.na(resolved_destination) | resolved_destination == ''), ]
+  if (nrow(missing_distances)>0){
+    stop(paste('The following blocks do not have driving distances: ', paste(missing_distances$GEOID20, collapse = ', ')))
+  }
+
+  #convert time to minutes
   distance_blocks[, duration_min := duration_s / 60]
 
-  # drop block_demographics' population (duplicate) before merging
-  demographic_columns <- setdiff(names(block_demographics), c("GEOID20", "population"))
-  demographic_blocks <- merge(
-    distance_blocks, block_demographics[, c("GEOID20", demographic_columns), with = FALSE],
-    by = "GEOID20"
-  )
-  stopifnot(
-    "Some distance-joined blocks' GEOID20 had no matching row in block_demographics
-    -- block_demographics may be incomplete or out of sync with the block/precinct assignment, or vice versa" =
-      nrow(demographic_blocks) == nrow(distance_blocks)
-  )
+  return(distance_blocks)
+}
 
-  demographic_blocks[, weighted_dist := population * distance_m]
-  demographic_blocks[, flagged_distance := duration_min > duration_threshold_min]
+#combine driving and demographic data to get *_result shaped output
+result_shaped_output <- function(block_demographics, block_precinct_assignment,
+            state_county_crosswalk, driving_distances){
 
-  setnames(demographic_blocks, "GEOID20", "id_orig")
+  #get driving distances
+  distance_blocks <- get_driving_distances(block_precinct_assignment,
+            state_county_crosswalk, driving_distances)
+
+  #merge. drop distance_blocks population (duplicate) first
+  distance_blocks[, population := NULL]
+  distance_demographic_blocks <- merge( distance_blocks, block_demographics,
+    by = "GEOID20")
+  
+  distance_demographic_blocks[, weighted_dist := population * distance_m]
+
+  setnames(distance_demographic_blocks, "GEOID20", "id_orig")
   output_columns <- c(
     "id_orig", "id_dest", "distance_m", "duration_min", "Precinct_I", "population",
     "white", "black", "native", "asian", "pacific_islander", "other",
-    "multiple_races", "hispanic", "non_hispanic", "weighted_dist", "flagged_distance"
-  )
-  demographic_blocks <- demographic_blocks[, ..output_columns]
+    "multiple_races", "hispanic", "non_hispanic", "weighted_dist")
+  distance_demographic_blocks <- distance_demographic_blocks[, ..output_columns]
 
-  distance_flagged_blocks_path <- file.path(
-    precinct_analysis_output_folder,
-    paste0("distance_flagged_blocks_", duration_threshold_min, "_min.csv")
+  return(distance_demographic_blocks)
+}
+
+######## extract_precincts.r: distance flagging & heat maps (Steps 5-7) ########
+
+# flag blocks whose drive time exceeds duration_threshold_min. Writes
+# distance_flagged_blocks_<N>_min.csv.
+flag_distant_blocks <- function(distance_demographic_blocks, duration_threshold_min) {
+
+  flagged_data <- copy(distance_demographic_blocks)
+  flagged_data[, flagged_distance := duration_min > duration_threshold_min]
+
+  #write to file
+  distance_flagged_blocks_path <- paste0(
+    "distance_flagged_blocks_", duration_threshold_min, "_min.csv"
   )
   # write a copy with id_orig text-wrapped for spreadsheet display --
   # demographic_blocks itself stays unwrapped since it's merged on GEOID20
-  # downstream (Step 4/5 heat maps).
-  demographic_blocks_for_csv <- copy(demographic_blocks)
+  # downstream (Step 6/7 heat maps).
+  demographic_blocks_for_csv <- copy(flagged_data)
   demographic_blocks_for_csv[, id_orig := force_text_for_spreadsheet(id_orig)]
+
   fwrite(demographic_blocks_for_csv, distance_flagged_blocks_path)
 
-  return(demographic_blocks)
+  return(flagged_data)
 }
 
 # human-readable labels for flag_distant_blocks()'s demographic columns, for
-# consistent map/legend naming. 
-demo_pop_legend_dict <- c(
+# consistent map/legend naming.
+demographic_legend_dict <- c(
   population = "Total",
   white = "White",
   black = "African American",
@@ -657,12 +682,42 @@ demo_pop_legend_dict <- c(
   non_hispanic = "Non-Latine"
 )
 
+#TODO: given how the st_nearest_feature seems to assign blocks differently every run, 
+#is this the right thing to do?
+# read the solver-optimized precinct shapefile. Error if data is stale or missing
+get_solver_precinct_shapes <- function(solver_precinct_shapefile,
+                                       results_file) {
+  # check if file missing
+  if (!file.exists(solver_precinct_shapefile)) {
+    stop(
+      "Solver-optimized precinct shapefile not found at ",
+      solver_precinct_shapefile,
+      ". Run Basic_analysis.r for this county/config to generate it before ",
+      "running extract_precincts.r's Step 7."
+    )
+  }
+
+  # get timestamp of precinct file and the result file it should be derived from
+  # error if stale
+  shapefile_mtime <- file.info(solver_precinct_shapefile)$mtime
+  results_mtime <- file.info(results_file)$mtime
+  if (shapefile_mtime < results_mtime) {
+    stop(
+      solver_precinct_shapefile, " is older than ", results_file, ". ",
+      "The solver results have changed since this shapefile was generated -- ",
+      "rerun Basic_analysis.r for this county/config before running Step 7."
+    )
+  }
+  return(st_read(solver_precinct_shapefile))
+}
+
 # reshape the results from the optimization run to fit the heat maps
-# flag distant columns
-flagged_optimized_distant_blocks <- function(block_shapes, results_file, duration_threshold_min) {
-  
-  #read in optimization results 
-  results <- fread(results_file, colClasses = list(character = "id_orig"))
+# flag distant columns. optimization_results is copied since this is called
+# once per duration threshold on the same shared table, and data.table's
+# `:=` mutates by reference.
+flagged_optimized_distant_blocks <- function(block_shapes, optimization_results, duration_threshold_min) {
+
+  results <- copy(optimization_results)
   #TODO: until the bug where distance_m has data in seconds for certain runs, this
   #is going to be broken. This will be wired through as part of that bug
   results[, duration_min := distance_m / 60]
@@ -677,7 +732,7 @@ flagged_optimized_distant_blocks <- function(block_shapes, results_file, duratio
     "multiple_races", "hispanic", "non_hispanic", "weighted_dist", "flagged_distance"
   )
   results <- results[, ..output_columns]
-  
+
   #determine which blocks the solver never assigned (zero population, by design)
   all_blocks <- data.table(st_drop_geometry(block_shapes))[, .(GEOID20, population)]
   missing_blocks <- all_blocks[!GEOID20 %in% results$id_orig]
@@ -697,7 +752,7 @@ flagged_optimized_distant_blocks <- function(block_shapes, results_file, duratio
 
   #fill in the rest of the data for missing blocks
   zero_fill_columns <- setdiff(output_columns, c("id_orig", "id_dest", "population", "flagged_distance"))
-  
+
   missing_rows <- missing_blocks[, id_orig := GEOID20
               ][, (zero_fill_columns) := 0
               ][, flagged_distance := FALSE
@@ -706,12 +761,11 @@ flagged_optimized_distant_blocks <- function(block_shapes, results_file, duratio
   results <- rbind(results, missing_rows)
 
   #write to file
-  distance_flagged_blocks_path <- file.path(
-    precinct_analysis_output_folder,
-    paste0("optimized_distance_flagged_blocks_", duration_threshold_min, "_min.csv")
+  distance_flagged_blocks_path <- paste0(
+    "optimized_distance_flagged_blocks_", duration_threshold_min, "_min.csv"
   )
   # write a copy with id_orig text-wrapped for spreadsheet display -- results
-  # itself stays unwrapped since it's merged on GEOID20 downstream (Step 4/5
+  # itself stays unwrapped since it's merged on GEOID20 downstream (Step 6/7
   # heat maps).
   results_for_csv <- copy(results)
   results_for_csv[, id_orig := force_text_for_spreadsheet(id_orig)]
@@ -720,19 +774,30 @@ flagged_optimized_distant_blocks <- function(block_shapes, results_file, duratio
   return(results)
 }
 
+# read a potential-locations CSV and split its combined
+# "Lat, Lon" column into two for plotting
+get_polling_locations <- function(location) {
+  polling_locations <- fread(build_potential_locations_file_path(location))
+  lat_lon_column <- polling_locations[["Lat, Lon"]]
+  polling_locations[, c("lat", "lon") := tstrsplit(
+    lat_lon_column, ", ", fixed = TRUE, type.convert = TRUE
+  )]
+  return(polling_locations)
+}
+
 # build a county-level map of census blocks by drive time to their assigned
 # polling location, with precinct boundaries and polling-location points
 # drawn on top for context.
-# Two modes, chosen by demo_pop:
-# - demo_pop = NULL: choropleth.
-# - demo_pop = a demographic column name. Only
+# Two modes, chosen by demographic:
+# - demographic = NULL: choropleth.
+# - demographic = a demographic column name. Only
 #   flagged (over-threshold) blocks get a dot
 # In both modes, zero-population blocks get a distinct gray fill.
 # Blocks with no assigned polling location get a dashed blue outline.
 make_demo_distance_heat_map <- function(
-    block_shapes, distance_flagged_blocks, precinct_shapes, polling_locations, demo_pop,
+    block_shapes, distance_flagged_blocks, precinct_shapes, demo_pop,
     duration_threshold_min, location = LOCATION,
-    crs_projection = CRS_PROJECTION, map_label = NULL, color_bounds = NULL) {
+    crs_projection = TIGER_CRS, map_label = NULL, color_bounds = NULL) {
   # reproject to a plain lat/lon CRS so the graticule comes out
   # horizontal/vertical
   block_shapes <- st_transform(block_shapes, crs_projection)
@@ -740,7 +805,7 @@ make_demo_distance_heat_map <- function(
 
   #select relevant columns.
   distance_columns <- setdiff(
-    c("id_orig", "id_dest", "distance_m", "duration_min", "flagged_distance", demo_pop),
+    c("id_orig", "id_dest", "distance_m", "duration_min", "flagged_distance", demographic),
     "population"
   )
   block_distances <- merge(
@@ -757,22 +822,22 @@ make_demo_distance_heat_map <- function(
   not_assigned <- block_distances[is.na(block_distances$id_dest), ]
 
   #title string
-  if (is.null(demo_pop)) {
-      demo_pop_label <- NULL
-      title_str <- gsub( "_", " ", paste(location, "choropleth: driving times to", map_label, 
+  if (is.null(demographic)) {
+      demographic_label <- NULL
+      title_str <- gsub( "_", " ", paste(location, "choropleth: driving times to", map_label,
                             "polling location"))
   } else {
-      demo_pop_label <- demo_pop_legend_dict[[demo_pop]]
-      title_str <- gsub( "_", " ", paste(location, "driving distances to", map_label, 
-                            "polling location:", demo_pop_label))
+      demographic_label <- demographic_legend_dict[[demographic]]
+      title_str <- gsub( "_", " ", paste(location, "driving distances to", map_label,
+                            "polling location:", demographic_label))
   }
 
   # caption: gray indicates no population block; dashed blue outline indicates no
-  # assigned polling location 
+  # assigned polling location
   caption_str <- paste0( "White = under ", duration_threshold_min,
                         " min threshold; Gray = no population;\n",
                         "Dashed blue outline = no assigned polling location")
-  
+
   # base layers shared by both modes: no-data/under-threshold context and
   # precinct boundaries.
   heat_map <- ggplot() +
@@ -785,7 +850,7 @@ make_demo_distance_heat_map <- function(
       linewidth = 0.1
     )
 
-  if (is.null(demo_pop)) {
+  if (is.null(demographic)) {
     heat_map <- heat_map +
       geom_sf(
         data = over_threshold_blocks, aes(fill = duration_min),
@@ -795,7 +860,7 @@ make_demo_distance_heat_map <- function(
         low = "#fcbba1", high = "#67000d", name = "Duration (min)", limits = color_bounds
       )
   } else {
-    # dot mode: place a dot at each flagged block's centroid, sized by demo_pop's population
+    # dot mode: place a dot at each flagged block's centroid, sized by demographic's population
     # and colored by duration_min. blocks drawn for context
     over_threshold_blocks$INTPTLON20 <-
       as.numeric(over_threshold_blocks$INTPTLON20)
@@ -811,13 +876,13 @@ make_demo_distance_heat_map <- function(
         data = over_threshold_blocks,
         aes(
           x = INTPTLON20, y = INTPTLAT20,
-          size = .data[[demo_pop]], color = duration_min
+          size = .data[[demographic]], color = duration_min
         )
       ) +
       scale_color_gradient(
         low = "#fcbba1", high = "#67000d", name = "Duration (min)", limits = color_bounds
       ) +
-      labs(size = paste(demo_pop_label, 'population'))
+      labs(size = paste(demographic_label, 'population'))
   }
 
   # drawn last among the fill layers so the dashed outline is visible while
@@ -836,69 +901,20 @@ make_demo_distance_heat_map <- function(
       data = polling_locations, aes(x = lon, y = lat),
       color = MAP_POLL_TYPE_COLORS[["polling"]], shape = MAP_POLL_TYPE_SHAPES[["polling"]]
     ) +
+    geom_point(
+      data = polling_locations, aes(x = lon, y = lat),
+      color = MAP_POLL_TYPE_COLORS[["polling"]], shape = MAP_POLL_TYPE_SHAPES[["polling"]]
+    ) +
     labs(title = title_str, caption = caption_str) +
     xlab("") + ylab("") +
     theme_minimal()
 
+  #write to file
   file_name <- paste(
-    c(paste0(duration_threshold_min, "_min"), demo_pop, map_label, "distance_heat_map.png"),
+    c(paste0(duration_threshold_min, "_min"), demographic, map_label, "distance_heat_map.png"),
     collapse = "_"
   )
-  distance_heat_map_path <- file.path(
-    precinct_analysis_output_folder, file_name
-  )
-  ggsave(distance_heat_map_path, heat_map, width = 10, height = 8)
+  ggsave(file_name, heat_map, width = 10, height = 8)
 
   return()
-}
-
-write_to_file <- function(shape_data, location_folder, file_name) {
-  # check if requisite folder exists, or create it
-  shape_folder <- paste0(TIGER_FOLDER, "/", location_folder)
-  if (!file.exists(file.path(here(), shape_folder))) {
-    dir.create(file.path(here(), shape_folder))
-  }
-
-  # write to file
-  st_write(shape_data, paste0(shape_folder, "/", file_name, ".shp"), append = FALSE)
-}
-
-subset_and_write_demo_data <- function(boundary_shape_data, demo_type, location, bg_flag, containing_county) {
-  # read county demo data, skipping first header
-  if (bg_flag) {
-    county_demo_folder <- paste0(REDISTRICTING_FOLDER, "/", containing_county, "/", DEMO_BG_FOLDER)
-    boundary_demo_folder <- paste0(REDISTRICTING_FOLDER, "/", location, "/", DEMO_BG_FOLDER)
-  } else {
-    county_demo_folder <- paste0(REDISTRICTING_FOLDER, "/", containing_county)
-    boundary_demo_folder <- paste0(REDISTRICTING_FOLDER, "/", location)
-  }
-  # get header rows. We will append these later
-  headers <- fread(paste0(county_demo_folder, "/", demo_type), nrow = 2)
-
-  # read in county data
-  county_demo <- fread(paste0(county_demo_folder, "/", demo_type), skip = 1, header = TRUE)
-
-  # extract prefix from Geography column for merging
-  prefix <- sub("(US).*", "\\1", county_demo$Geography[1])
-
-  # get unique elements of boundary_shape data
-  boundary_ids <- data.table(GEOID20 = boundary_shape_data$GEOID20)
-
-  # reformat ids for merging
-  boundary_ids[
-    , GEOID20 := paste0(prefix, boundary_ids$GEOID20) # add prefix in
-  ][, GEOID20DUP := gsub("\\..*", "", GEOID20)] # remove suffix for merge
-
-  # merge
-  boundary_demo <- merge(boundary_ids, county_demo, by.x = "GEOID20DUP", by.y = "Geography", how = "left")
-  boundary_demo$GEOID20DUP <- NULL
-  # write to file, check if it exists first
-  if (!file.exists(file.path(here(), boundary_demo_folder))) {
-    dir.create(file.path(here(), boundary_demo_folder))
-  }
-
-  # replace the names and add header rows before writing
-  names(boundary_demo) <- names(headers)
-  boundary_demo <- rbind(headers, boundary_demo)
-  fwrite(boundary_demo, paste0(boundary_demo_folder, "/", demo_type), append = FALSE, col.names = FALSE)
 }

@@ -8,20 +8,18 @@ COUNTY_NAME <- sub("\\_.*", "", LOCATION)
 ######
 #data set locations
 ######
-STATE_PRECINCT_STABLE_FILE <- "datasets/precincts/West_Virginia_20260424_wmA84/VotingPrecincts_20260424_wmA84.shp"
-STATE_PRECINCT_AS_PROVIDED_FILE <- "datasets/precincts/West_Virginia_20260424_wmA84_as_provided/VotingPrecincts_20260424_wmA84.shp"
-
+STATE_PRECINCT_FILE <- "datasets/precincts/West_Virginia_20260424_wmA84_as_provided/VotingPrecincts_20260424_wmA84.shp"
 
 ########
 # County-provided precinct/polling-location reconciliation
 ########
 #Did the county provide precinct <-> polling location data
-COUNTY_PROVIDES_PRECINCT_DATA <- FALSE
-COUNTY_PROVIDED_PRECINCT_FILE <- NULL #cannnot be null if COUNTY_PROVIDES_PRECINCT_DATA is TRUE
+COUNTY_PROVIDES_PRECINCT_DATA <- TRUE 
+COUNTY_PROVIDED_PRECINCT_FILE <- "temp/Precincts_by_Location.csv" #cannnot be null if COUNTY_PROVIDES_PRECINCT_DATA is TRUE
 #details specific to the file
-COUNTY_POLLING_LOCATION_NAME_COL <- NULL #cannnot be null if COUNTY_PROVIDES_PRECINCT_DATA is TRUE
-COUNTY_POLLING_LOCATION_ADDRESS_COL <- NULL #cannnot be null if COUNTY_PROVIDES_PRECINCT_DATA is TRUE
-COUNTY_PRECINCT_COLUMN_NAMES <- NULL #cannnot be null if COUNTY_PROVIDES_PRECINCT_DATA is TRUE
+COUNTY_POLLING_LOCATION_NAME_COL <- "Polling Place Name" #cannnot be null if COUNTY_PROVIDES_PRECINCT_DATA is TRUE
+COUNTY_POLLING_LOCATION_ADDRESS_COL <- "Polling Location Address"#cannnot be null if COUNTY_PROVIDES_PRECINCT_DATA is TRUE
+COUNTY_PRECINCT_COLUMN_NAMES <- c("Prec", "Prec", "Prec", "Prec", "Prec", "Prec") #cannnot be null if COUNTY_PROVIDES_PRECINCT_DATA is TRUE
 
 #check that proper file / columns names are added if and only if the county provides data
 county_provided_data_names <- list(COUNTY_PROVIDED_PRECINCT_FILE, COUNTY_POLLING_LOCATION_NAME_COL,
@@ -39,11 +37,6 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
 }
 
 ########
-# For testing
-########
-#EXPECTED_PRECINCT_COUNT <- 44
-
-########
 # Block geometry, for Step 2  
 ########
 BLOCK_GEOMETRY_FILES <- "tl_2020_54061_tabblock20"
@@ -52,6 +45,11 @@ BLOCK_GEOMETRY_FILES <- "tl_2020_54061_tabblock20"
 # Optimization output
 ########
 OPTIMIZATION_RESULTS <- 'datasets/results/Monongalia_County_WV_results/Monongalia_County_WV_driving_original_configs.Monongalia_County_WV_metric_driving_time_results.csv'
+
+# solver-optimized precinct shapefile, written by make_precinct_map() as part
+# of Basic_analysis.r's workflow -- rerun that script for this county/config
+# if OPTIMIZATION_RESULTS changes, to keep this in sync.
+SOLVER_PRECINCT_SHAPEFILE <- "result_analysis_outputs/Monongalia_County_WV_driving_original_configs/Monongalia_County_WV_precinct_metric_driving_time.shp"
 
 ########
 # Demographic groups for density-vs-distance graphs

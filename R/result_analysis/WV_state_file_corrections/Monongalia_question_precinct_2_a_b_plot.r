@@ -3,15 +3,21 @@ library(here)
 library(ggplot2)
 
 setwd(here())
-source("R/result_analysis/utility_functions/shape_extraction_functions.r")
-source("R/result_analysis/Extraction_configs/Monongalia_County_WV.r")
+source("R/result_analysis/utility_functions/precinct_shape_functions.r")
+source("R/result_analysis/precinct_configs/Monongalia_County_WV.r")
+
+# One off script to highlight mapping / precinct question that 
+# arose while reconciling county and state data
+# preserved because it is associated to a tracked file delivered 
+# to the customer
+
 
 ########
 # Constants
 ########
 CRS_PROJECTION <- 4326
 
-county_precincts <- extract_county_precincts(STATE_PRECINCT_STABLE_FILE, COUNTY_NAME, CRS_PROJECTION)
+county_precincts <- extract_county_precincts(STATE_PRECINCT_FILE, COUNTY_NAME, CRS_PROJECTION)
 county_precincts <- county_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
 
 # plot Monongalia_2, Monongalia_A, and Monongalia_B from the state shapefile

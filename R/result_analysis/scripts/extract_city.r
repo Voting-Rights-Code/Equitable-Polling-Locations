@@ -4,7 +4,7 @@ library(ggplot2)
 
 
 setwd(here())
-source("R/result_analysis/utility_functions/shape_extraction_functions.r")
+source("R/result_analysis/utility_functions/city_shape_functions.r")
 
 ######## Set constants########
 # global
@@ -19,7 +19,7 @@ P4 <- "DECENNIALPL2020.P4-Data.csv"
 # extraction to be run: BLOCK_GEOMETRY_FILES, BG_GEOMETRY_FILES,
 # LOCATION_BASE, LOCATION_SUP, LOCATION_SUB, CITY_LIMIT_FOLDER,
 # CONTAINING_COUNTY, CITY_LIMIT_FILE. To extract a new city, add a new
-# config file under R/result_analysis/Extraction_configs/ instead of
+# config file under R/result_analysis/city_configs/ instead of
 # editing this file.
 #######
 
@@ -27,14 +27,14 @@ args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 1) {
   stop("Must enter exactly one config file")
 } else {
-  config_path <- paste0("R/result_analysis/Extraction_configs/", args[1])
+  config_path <- paste0("R/result_analysis/city_configs/", args[1])
   source(config_path)
 }
 
 ###
 # For inline testing only
 ###
-# source("R/result_analysis/Extraction_configs/Savannah_City_of_GA.r")
+# source("R/result_analysis/city_configs/Savannah_City_of_GA.r")
 
 ###### Get shape data#######
 county_blocks <- get_shape_data(

@@ -252,6 +252,10 @@ datasets/ors_graphs/*
 !datasets/precincts/**/*
 !datasets/driving/testing/*
 !datasets/polling/testing/*
+# location_precinct_mismatches.csv (under precinct_analysis_outputs/) is the
+# reconciliation record check_poll_precinct_agreement() overwrites on every
+# run -- git history here is the only record of past correction rounds. Keep
+# this un-ignored.
 !precinct_analysis_outputs/**/*
 !datasets/results/testing_results/*
 !python/tests/test_kp_factor.csv
