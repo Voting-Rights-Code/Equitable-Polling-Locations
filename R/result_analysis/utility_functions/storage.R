@@ -7,7 +7,9 @@ library(googleCloudStorageR)
 
 
 .result_analysis_dir = paste0(here(), "/result_analysis_outputs")
+.precinct_analysis_dir = paste0(here(), "/precinct_analysis_outputs")
 
+valid_directories <- c(.result_analysis_dir, .precinct_analysis_dir)
 .graph_file_manifest = NULL
 
 STORAGE_BUCKET = NULL
@@ -123,12 +125,16 @@ add_graph_to_graph_file_manifest <- function(graph_file) {
 		stop(paste0("add_graph_to_graph_file_manifest got an invalid graph_file_path ", graph_file))
 	}
     graph_file_path <- file.path(getwd(), graph_file)
-    
-    if (startsWith(graph_file_path, .result_analysis_dir)) {
-        # Strip off ../result_analysis graph_file_path
-        # but keep any subsequent sub-directories after it.
-        graph_file_path <- substring(graph_file_path, nchar(.result_analysis_dir) + 2)
+
+    parent_dir <- valid_directories[startsWith(graph_file_path, valid_directories)]
+    if (length(parent_dir) == 0) {
+        stop('trying to upload a file in an unsupported directory')
     }
+
+    # Strip off the root directory from graph_file_path
+    # but keep any subsequent sub-directories after it.
+    root_dir <- here()
+    graph_file_path <- substring(graph_file_path, nchar(root_dir) + 2)
 
     # Init .graph_file_manifest if it doesn't already exist
 	get_graph_file_manifest()
@@ -163,16 +169,25 @@ upload_graph_files_to_cloud_storage <- function() {
     cloud_storage_base_path <- paste(STORAGE_BASE_DIR, CLOUD_STORAGE_ANALYSIS_NAME, date_stamp, sep="/")
 
     # Upload each graph file found in the manifest
-    for (graph_file in manifest$graph_files) {
-        local_file_path <- paste(.result_analysis_dir, graph_file, sep="/")
-        cloud_storage_file_name <- paste(cloud_storage_base_path, graph_file, sep="/")
+    for (graph_file in manifest$graph_files) { 
+        
+        # define further file name strings for uploads and checks
+        local_file_path <- paste(here(), graph_file, sep="/")
 
+        #check that the parent directory is in the group of valid directories
+        parent_dir <- valid_directories[startsWith(local_file_path, valid_directories)]
+
+        file_name <- substring(local_file_path, nchar(parent_dir) + 2)
+        cloud_storage_file_name <- paste(cloud_storage_base_path, file_name, sep="/")
+
+        #Check that the path still exists and upload
         if (file.exists(local_file_path)) {
             print(paste0("Uploading file ", local_file_path, " -> ", STORAGE_BUCKET, ":", cloud_storage_file_name))
             gcs_upload(file=local_file_path, bucket=STORAGE_BUCKET, name=cloud_storage_file_name, predefinedAcl=STORAGE_PREDEFINED_ACL)
         } else {
             stop(paste0("upload_graph_files_to_cloud_storage cannot find file ", local_file_path))
         }
+    
     }
 
     # Upload the manifest of this analysis to cloud storage
