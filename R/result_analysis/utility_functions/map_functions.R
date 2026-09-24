@@ -96,6 +96,18 @@ results_with_area_geom<- function(location, result_df){
 	return(results_with_geom)
 }
 
+# build a single fallback shape for each destination from the populated blocks
+# that were already assigned so empty blocks that were never assigned by the solver
+# can use the same precinct geometry.
+build_destination_fallback_precincts <- function(populated_geom, destination_id_column = "id_dest") {
+	input_geometry_column <- attr(populated_geom, "sf_column")
+
+	populated_geom %>%
+		group_by(across(all_of(destination_id_column))) %>%
+		summarize(geometry = st_union(.data[[input_geometry_column]])) %>%
+		ungroup()
+}
+
 demographically_weighted_distances <- function(result_df){
 	#takes a result df and calculates the weighted distance for each demographic group
 	#in block
