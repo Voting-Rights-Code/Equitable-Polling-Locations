@@ -64,7 +64,7 @@ setwd(precinct_analysis_output_folder)
 
 #read in correction data
 RECONCILIATION_CSV <- "location_precinct_mismatches.csv"
-reconciliation_data <- fread(RECONCILIATION_CSV)
+reconciliation_data <- safe_fread(RECONCILIATION_CSV)
 
 #build crosswalk
 crosswalk <- build_precinct_crosswalk(reconciliation_data)
