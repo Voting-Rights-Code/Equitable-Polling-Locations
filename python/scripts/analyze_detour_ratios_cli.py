@@ -1,8 +1,8 @@
 '''CLI: report per-county detour-ratio (driving / haversine) distribution.
 
-Diagnostic for issue #226 Phase 1. Reads one or more combined driving-distance
-CSVs and prints distribution statistics so border-truncation exposure can be
-sized per county. Thin wrapper over python/utils/detour_ratio.py.
+Diagnostic for cross-border distance inflation. Reads one or more combined
+driving-distance CSVs and prints distribution statistics so border-truncation
+exposure can be sized per county. Thin wrapper over python/utils/detour_ratio.py.
 '''
 
 import argparse
@@ -27,7 +27,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(
         prog='analyze_detour_ratios_cli',
-        description='Report per-county driving/haversine detour-ratio distribution (#226 diagnostic).',
+        description='Report per-county driving/haversine detour-ratio distribution '
+        'to size cross-border distance inflation.',
     )
     parser.add_argument('paths', nargs='+',
                         help='Combined distances CSV file(s) from a driving run.')

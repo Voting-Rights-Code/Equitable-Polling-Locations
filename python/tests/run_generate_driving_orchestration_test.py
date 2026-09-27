@@ -30,7 +30,7 @@ def test_buffer_prep_runs_before_ors_up(monkeypatch):
         "run",
         lambda cmd, **k: calls.append(("subprocess", tuple(cmd))),
     )
-    # _load_ors_setup_helpers is only called when --state is absent; provide a
+    # _load_ors_setup_helpers is only called when --testing is absent; provide a
     # stub anyway so the test is robust if control flow ever changes.
     monkeypatch.setattr(
         run_module,
@@ -40,7 +40,7 @@ def test_buffer_prep_runs_before_ors_up(monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["run.py", "generate_driving_distances_cli", "--state", "georgia",
+        ["run.py", "generate_driving_distances_cli", "--testing",
          "-l", "cfg.yaml"],
     )
     run_module.main()

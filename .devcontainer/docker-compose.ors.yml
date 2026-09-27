@@ -12,7 +12,7 @@
 # which ors_up_cli sets when invoking `docker compose up -d`. Compose derives
 # both the source .pbf filename and the per-state graph cache directory from
 # ORS_STATE. Per-state graph dirs sidestep the failure mode where a cached
-# graph from a previous state is silently reused (see issue #223).
+# graph from a previous state is silently reused.
 services:
   ors:
     image: openrouteservice/openrouteservice:v8.0.0

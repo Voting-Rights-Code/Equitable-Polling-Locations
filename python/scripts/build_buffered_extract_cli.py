@@ -1,4 +1,4 @@
-'''CLI: build a state-plus-50km buffered OSM extract (issue #226, in-container).
+'''CLI: build a state-plus-50km buffered OSM extract (in-container).
 
 Internal plumbing the host orchestrator runs before booting ORS; it ensures
 <state>-buffered.osm.pbf exists. Not meant for day-to-day use; thin wrapper over
@@ -23,7 +23,7 @@ def main(argv: list[str] | None = None) -> int:
     '''
     parser = argparse.ArgumentParser(
         prog='build_buffered_extract_cli',
-        description='Build a <state>-buffered.osm.pbf from the full-US source (#226).',
+        description='Build a <state>-buffered.osm.pbf from the full-US source.',
     )
     parser.add_argument('state', help='Geofabrik state slug, e.g. georgia.')
     args = parser.parse_args(argv)
