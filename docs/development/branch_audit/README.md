@@ -42,11 +42,11 @@ it is not tracked.
 | `Branch Name` | One row per branch on `origin`. The CSV mirrors the remote: when a branch is deleted, its row is removed. `chore/branch-audit` is left out on purpose, since it is this audit's own branch and a different kind of work. |
 | `Associated Milestone` | The [GitHub Milestone](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/milestones) the work belongs to. Blank if none. One exception: **`CVAP integration` is not a GitHub milestone.** It is a project that predates the milestone convention, added by hand so `feature/CVAP` and `feature/279-distance-data-census-type` are grouped. |
 | `Status` | `merged` (the work landed, even where git still calls the branch unmerged; see below), `not merged`, `epic branch`, or `TRUNK` (`main`, `dev`). |
-| `Merge notes` | Where it merged (`dev`, `dev/main`, or the epic it merged into), its open PR, or why it is being retired (`superseded on dev/main`, `stale`, `duplicate`, `one off script`). |
+| `Merge notes` | Where it merged (`dev`, `dev/main`, or the epic it merged into), its open PR, or why it is being retired (`superseded on dev/main`, `stale`, `duplicate`, `one off script`, `scratch branch`). |
 | `Author` | Who owns the branch. |
 | `Final action` | `Keep`, `Delete`, or `DECIDE` (still needs a call). |
 
-Totals on 2026-09-27: **28 rows** (29 branches on `origin`, minus this audit's
+Totals on 2026-09-27: **20 rows** (21 branches on `origin`, minus this audit's
 branch).
 
 | Status | Keep | Delete | DECIDE |
@@ -54,16 +54,25 @@ branch).
 | `TRUNK` | 2 | | |
 | `epic branch` | 3 | | |
 | `merged` | 1 | | |
-| `not merged` | 13 | 8 | 1 |
+| `not merged` | 13 | | 1 |
 
-The one `merged` branch marked Keep is `ARCHIVE/original_code`. It is now the
-only `merged` row: SA deleted all 33 `merged` / Delete branches on 2026-09-27,
-along with three `not merged` / Delete rows whose successors had already landed
-(`feature/RDH-population-directory-structure` and
-`feature/RDH-population-get-demographics`, redone as #290 and #291 into
-`feature/RDH-pop`; `feature/contributing`, whose commits are drafts superseded
-by the CONTRIBUTING.md history on `main`). Their rows were removed from the CSV
-in the same pass, taking it from 64 rows to 28.
+**There are no Delete rows left.** SA cleared the whole backlog on 2026-09-27,
+in two passes, taking the CSV from 64 rows to 20:
+
+- All 33 `merged` / Delete branches, plus three `not merged` / Delete rows whose
+  successors had already landed: `feature/RDH-population-directory-structure`
+  and `feature/RDH-population-get-demographics`, redone as #290 and #291 into
+  `feature/RDH-pop`, and `feature/contributing`, whose commits are drafts
+  superseded by the CONTRIBUTING.md history on `main`.
+- The remaining 8 `not merged` / Delete branches: two scratch branches, three
+  superseded on `dev`/`main`, one stale revert, one one-off script, and
+  `port-pr330-cleanup`, whose tip `6b98f54c` is shared with
+  `fix/precinct-nearest-neighbor-drift` and so stays reachable.
+
+Every branch was checked for open-PR dependents first (see "Before deleting,
+check for dependents"); none had any, and all 9 open PRs survived the sweep.
+`ARCHIVE/original_code` is the only `merged` row left, and
+`feature/docker-backup` is the only open question.
 
 ## Where things stand
 

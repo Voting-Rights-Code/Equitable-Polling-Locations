@@ -1,7 +1,6 @@
 Branch Name,Associated Milestone,Status,Merge notes,Author,Final action
 ARCHIVE/original_code,,merged,dev/main,Susama Agarwala,Keep
 OSM_GMaps_Compare,,not merged,open PR #56,jmlar,Keep
-chore/tarrant-distance-upload-script,,not merged,one off script,Amasus,Delete
 delivery/Monongalia_County,Monongalia County precinct extraction & distance flagging,epic branch,,Amasus,Keep
 delivery/Tarrant_County_2026,,not merged,commits after #364 merged to main,Amasus,Keep
 dev,,TRUNK,dev,-,Keep
@@ -11,19 +10,12 @@ feature/CVAP,CVAP integration,epic branch,open PR #198,Amasus,Keep
 feature/OSM_GMaps_compare,,not merged,,Susama,Keep
 feature/RDH-pop,RDH block-level population data: evaluation and integration,not merged,,Amasus,Keep
 feature/add_config,epic-driving-time-metric,not merged,,Amasus,Keep
-feature/add_regression_Tarrant_County,,not merged,superseded on dev/main,antisocialscientist,Delete
 feature/docker-backup,,not merged,backup of feature/docker,Susama,DECIDE
 feature/driving-time-metric,epic-driving-time-metric,epic branch,,Amasus,Keep
 feature/generalize_storage.R,Monongalia County precinct extraction & distance flagging,not merged,open PR #332,Amasus,Keep
 feature/modular-distance-calculations,,not merged,open PR #54,orthorhombic,Keep
-feature/penalty_test_fixes,,not merged,superseded on dev/main,Susama,Delete
-feature/save_regressions,,not merged,superseded on dev/main,Amasus,Delete
 fix/335-manifest-tree-relative,Monongalia County precinct extraction & distance flagging,not merged,open PR #341,abd1tus,Keep
 fix/na-blank-normalization,Monongalia County precinct extraction & distance flagging,not merged,open PR #334,antisocialscientist,Keep
 fix/precinct-nearest-neighbor-drift,Monongalia County precinct extraction & distance flagging,not merged,open PR #330,antisocialscientist,Keep
 fix/secret-tests-env-isolation,,not merged,open PR #363,abd1tus,Keep
 main,,TRUNK,main,-,Keep
-port-pr330-cleanup,Monongalia County precinct extraction & distance flagging,not merged,duplicate,GitHub Copilot,Delete
-revert-197-feature/census_pull_standardization,,not merged,stale,Chad Rosenberg,Delete
-scratch-Bartow-driving,,not merged,,Susama,Delete
-scratch/fixed_capacity_tests,epic-e2e-followup,not merged,,Susama,Delete
