@@ -21,7 +21,7 @@ tip is conflict-free.
 ```
 dev
 └── delivery/Monongalia_County            epic · no PR to dev · 132 ahead / 0 behind dev · last commit 2026-09-27
-    ├── #330 fix/precinct-nearest-neighbor-drift   clean · 3 commits · assigned Susama · follow-up ticket #333
+    ├── fix/333-share-block-destination-resolution  no PR yet · ADR 0003 committed · ticket #333
     ├── #334 fix/na-blank-normalization            clean · 1 commit · assigned Susama
     └── #332 feature/generalize_storage.R          clean · 1 commit · assigned Chad · ticket: none
         └── #341 fix/335-manifest-tree-relative    clean · 1 commit · ticket #335
@@ -77,31 +77,31 @@ took a branch restore, a reopen, and a manual retarget of each.
    - Merge #343.
    - The geojson follow-up (below), as a new PR under #340.
 
-2. **The rest into the epic.** #330, #332 and #334 already base the epic, so
-   nothing needs retargeting. Merge #332, which now carries the whole storage
-   chain, and #330 and #334 in any order.
+2. **The rest into the epic.** #332 and #334 already base the epic, so nothing
+   needs retargeting. Merge #332, which now carries the whole storage chain, then
+   #334.
 
-   **#330 needs a full read before it is merged — start from the timeline comment
-   on the PR**
-   ([#330, 2026-09-27](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/pull/330#issuecomment-5857142852)).
-   Reconstructing it took an afternoon; do not do that again. In short:
+   **#330 is closed, not merged.** It shared the empty-block fallback as a
+   *function*; that cannot close the divergence if `st_nearest_feature` assigns
+   differently between runs, so the fallback has to be computed once and shared as
+   data. The replacement plan is on
+   [#333](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/issues/333#issuecomment-5860131935)
+   and is being built on `fix/333-share-block-destination-resolution`. Its first
+   step, ADR 0003, is already committed there.
 
-   - The review by Susama (2026-08-02) was submitted against `52b48124`, a commit
-     **force-pushed out of the branch** on 2026-08-05. Nothing currently in the PR
-     has been reviewed. That review said the work sat on stale architecture and
-     needed to be on 276; the rewrite answers it, sitting on `6b0e5b3f`.
-   - **The summary is stale, not wrong.** It accurately describes `52b48124`,
-     which wired *both* fallback call sites to one shared helper, and was never
-     updated after the force-push. The surviving commits keep only the
-     `flagged_optimized_distant_blocks()` half — `make_precinct_map()` still runs
-     its own inline dissolve and `st_join(..., join = st_nearest_feature)`. So
-     #330 as it stands narrows the divergence it found without closing it.
-   - **It cannot run as written.** `merge(all_blocks, results, ...)` collides on
-     `population`, yielding `population.x`/`population.y`, so the closing
-     `results_full[, ..output_columns]` raises
-     `column not found: [population]`. Present in `52b48124` too, so not a
-     rewrite regression. Only `parse()` was ever run against this branch.
-   - No ticket described the task before the PR was opened; #333 came afterwards.
+   How #330 got into the state it did is recorded in a
+   [timeline comment](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/pull/330#issuecomment-5857142852)
+   on the PR — read that rather than reconstructing it, which took an afternoon.
+   The short version: its only review was submitted against `52b48124`, a commit
+   force-pushed out of the branch, so nothing in the PR was ever reviewed; its
+   summary accurately describes that vanished commit; and it could not run, because
+   `merge(all_blocks, results, ...)` collides on `population` and the closing
+   `results_full[, ..output_columns]` raises `column not found: [population]`.
+
+   #333's work changes a delivered output — the solver-assignment heat map outlines
+   — so it is not a drop-in replacement for #330 in this sequence. Decide whether
+   it lands before the final run below or after, since the run regenerates those
+   maps either way.
 
    #334 removes the defensive `| x == ""` guards on the strength of its new
    `safe_fread`, but leaves plain `fread()` at `precinct_shape_functions.r:42`
@@ -110,9 +110,10 @@ took a branch restore, a reopen, and a manual retarget of each.
 
 3. **Final run.** Run `extract_precincts.r` for Monongalia on the epic, with ORS
    up. Every change above affects what this run produces: the R cleanup
-   reorganized the scripts, #330 and #334 change what the outputs contain, and
-   the storage chain does the uploading. This is the first real upload to the
-   bucket.
+   reorganized the scripts, #334 changes what the outputs contain, and the storage
+   chain does the uploading. This is the first real upload to the bucket. If #333
+   lands first, this run also regenerates the solver-assignment heat maps with the
+   new outline semantics — see ADR 0003.
 
 4. **Verify the bucket.** The run's folder under `precinct-distance-analyses/`
    should hold the outputs, the geojson, `sources/`, and `analysis_manifest.yaml`.
@@ -152,24 +153,27 @@ Why this order:
     needs ORS, and registers the geojson so it uploads with everything else.
   - *Outputs out of git* (step 5): after a verified upload, narrow the
     `.gitignore` rule to the two reconciliation files and untrack the rest.
-- **#333 finishes what #330 starts**, and is open and assigned to Daniel. #330
-  was meant to make both fallback paths share *logic*, and as it stands only the
-  flagging path uses the shared helper; #333 makes them share *data*, on the
-  grounds that shared logic gives identical results only if both callers are fed
-  identical geometry. Its two "already landed" items are on this epic via 276
-  (`6b0e5b3f`): geometry standardized on TIGER's native NAD83 (`TIGER_CRS`), and
-  a real "all blocks accounted for" check in
-  `compute_block_precinct_overlaps()`. Its six remaining steps are **not
-  started** — `extract_precincts.r` does not source `map_functions.R`, and
-  `make_precinct_map()` does not return a per-block table.
+- **#333 replaces #330**, is assigned to Susama, and has a
+  [revised plan](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/issues/333#issuecomment-5860131935)
+  that supersedes the ticket body. It factors the empty-block fallback into a
+  `resolve` step and a `dissolve` step, computes the fallback once, and builds Step
+  7's outline from the flagging assignment instead of reading
+  `Basic_analysis.r`'s shapefile — so fill and outline become two views of one
+  result and cannot disagree. `get_solver_precinct_shapes()` and
+  `SOLVER_PRECINCT_SHAPEFILE` go away with it.
 
-  Two consequences for this plan. Merging #330 at step 2 does not close the
-  drift, so do not treat #333 as done when #330 lands. And #333's step 6 wants a
-  regression check that `optimized_distance_flagged_blocks_*.csv`'s
-  block→destination assignments match `make_precinct_map()`'s polygons exactly,
-  spot-checking blocks near precinct boundaries — that is the same run as step 3,
-  so decide before the final run whether #333 lands first or the check is
-  deferred to a later run.
+  Its two "already landed" items are on this epic via 276 (`6b0e5b3f`): geometry
+  standardized on TIGER's native NAD83 (`TIGER_CRS`), and a real "all blocks
+  accounted for" check in `compute_block_precinct_overlaps()`. Step 1 of the
+  revised plan, ADR 0003, is committed on
+  `fix/333-share-block-destination-resolution`. Steps 2–7 are not started.
+
+  Two consequences for this plan. **This changes a delivered output** — the four
+  `*_optimized_*` heat maps under `precinct_analysis_outputs/Monongalia_County_WV/`
+  get outlines built from clipped rather than full block geometry. ADR 0003 records
+  why, which artifacts, and how to tell which behaviour a revision produces. And
+  #333's regression check is the same run as step 3 below, so decide before the
+  final run whether #333 lands first or the check waits for a later run.
 - **#339 — `buffered_extract` test failure is expected, and is not ours.**
   `pytest` fails one unit test on this epic:
   `buffered_extract_test.py::test_buffer_polygon_contains_and_grows_state`,
