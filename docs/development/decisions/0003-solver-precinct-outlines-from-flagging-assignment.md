@@ -177,10 +177,45 @@ of dates. Identify it by whether the cross-script read still exists:
 - **Current behaviour, outline from the flagging assignment.** Any revision where those two
   are absent. `extract_precincts.r` runs on its own.
 
-The delivered PNGs remain in git history regardless, so the artifacts are recoverable
-without rerunning anything. Prefer retrieving them over attempting a reproduction — the old
-behaviour depends on run order and file mtimes, which makes it awkward to recreate faithfully
-and is itself part of why this decision was taken.
+### Reference point for the delivered outputs
+
+**`8f4096cc`** — "more refactoring. state-county mismatch logging changed.", 2026-07-31
+05:45 UTC. It is the last commit to write both the four `*_optimized_*` PNGs and
+`optimized_distance_flagged_blocks_*.csv`, so the artifacts committed there are the
+delivered outputs, and the code at that commit is the reference for how they were produced.
+`get_solver_precinct_shapes()` and `SOLVER_PRECINCT_SHAPEFILE` are both present at it, which
+confirms the old, shapefile-reading behaviour.
+
+The file layout differs from today's and will not match current paths: `extract_precincts.r`
+is at `R/result_analysis/extract_precincts.r` rather than under `scripts/`, the county
+config is at `R/result_analysis/Extraction_configs/Monongalia_County_WV.r` rather than
+`precinct_configs/`, and both `shape_extraction_functions.r` and
+`precinct_shape_functions.r` exist, since 276's rename was mid-flight.
+
+Two caveats on precision. The run that produced the artifacts necessarily preceded the
+commit that recorded them, and that commit also changed code, so `8f4096cc` is the closest
+available anchor rather than proof of the exact code path. And it is an ancestor of
+`delivery/Monongalia_County` but not yet of `main`; it will reach `main` through the epic's
+merge, but if this needs citing long-term, tag it rather than relying on branch
+reachability. The SHA recorded here is the durable reference either way.
+
+### Rerunning will not reproduce byte-identical output, even at that commit
+
+This is a property of the old code, not of the change. The empty-block fallback uses
+`st_nearest_feature`, and the TODO quoted above records that it "seems to assign blocks
+differently every run." Any block the solver skipped can therefore be attributed to a
+different destination on a second run of the same code against the same inputs, which moves
+both the fill colour of that block and the outline it falls inside.
+
+So for verification purposes, treat the committed artifacts as the authoritative record of
+what was delivered, and treat `8f4096cc` as the reference for inspecting and running the
+code that produced them. Expect agreement on the populated blocks, the drive-time values,
+and the flagged counts — the parts that do not depend on the fallback. Do not expect byte
+equality on the PNGs or exact agreement on the destination assigned to a zero-population
+block.
+
+Settling that non-determinism is part of the current work (see Consequences), which will
+make future outputs reproducible in a way the delivered ones are not.
 
 ## Consequences
 
