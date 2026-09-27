@@ -46,7 +46,7 @@ it is not tracked.
 | `Author` | Who owns the branch. |
 | `Final action` | `Keep`, `Delete`, or `DECIDE` (still needs a call). |
 
-Totals on 2026-09-27: **20 rows** (21 branches on `origin`, minus this audit's
+Totals on 2026-09-27: **21 rows** (22 branches on `origin`, minus this audit's
 branch).
 
 | Status | Keep | Delete | DECIDE |
@@ -54,10 +54,15 @@ branch).
 | `TRUNK` | 2 | | |
 | `epic branch` | 3 | | |
 | `merged` | 1 | | |
-| `not merged` | 13 | | 1 |
+| `not merged` | 13 | 1 | 1 |
 
-**There are no Delete rows left.** SA cleared the whole backlog on 2026-09-27,
-in two passes, taking the CSV from 64 rows to 20:
+The one Delete row is `fix/precinct-nearest-neighbor-drift`, whose PR #330 was
+closed unmerged on 2026-09-27 and superseded by #333. The replacement branch,
+`fix/333-share-block-destination-resolution`, is the new row alongside it. Nothing
+open depends on either.
+
+The earlier backlog was cleared the same day, in two passes, taking the CSV from 64
+rows to 20:
 
 - All 33 `merged` / Delete branches, plus three `not merged` / Delete rows whose
   successors had already landed: `feature/RDH-population-directory-structure`
@@ -76,14 +81,13 @@ check for dependents"); none had any, and all 9 open PRs survived the sweep.
 
 ## Where things stand
 
-### Open PRs — 10
+### Open PRs — 9
 
 | PR | Branch → base | Author | Notes |
 |---|---|---|---|
 | #54 | `feature/modular-distance-calculations` → `main` | orthorhombic | draft, opened 2024-09 |
 | #56 | `OSM_GMaps_Compare` → `main` | jmlar | outside contributor, opened 2024-10 |
 | #198 | `feature/CVAP` → `main` | Amasus | epic |
-| #330 | `fix/precinct-nearest-neighbor-drift` → `delivery/Monongalia_County` | antisocialscientist | R stack |
 | #332 | `feature/generalize_storage.R` → `delivery/Monongalia_County` | Amasus | R stack |
 | #334 | `fix/na-blank-normalization` → `delivery/Monongalia_County` | antisocialscientist | R stack |
 | #341 | `fix/335-manifest-tree-relative` → `feature/generalize_storage.R` | abd1tus | R stack |
@@ -143,9 +147,14 @@ Delivery branches can deliberately skip `dev`: `delivery/*` branches are
 sometimes cut straight from `main` so a client delivery isn't tied to unrelated
 `dev` work.
 
-### Kept, not merged, no open PR — 4
+### Kept, not merged, no open PR — 5
 
-Marked Keep in the CSV. All four are parked work:
+Marked Keep in the CSV. The first is live work; the rest are parked:
+
+- `fix/333-share-block-destination-resolution` — ticket #333, replaces the closed
+  #330. Holds ADR 0003; no PR yet.
+
+Parked work:
 
 - `feature/279-distance-data-census-type` (CVAP integration)
 - `feature/add_config` (`epic-driving-time-metric`)
