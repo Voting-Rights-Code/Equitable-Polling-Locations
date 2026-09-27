@@ -21,7 +21,7 @@ tip is conflict-free.
 ```
 dev
 └── delivery/Monongalia_County            epic · no PR to dev · 132 ahead / 0 behind dev · last commit 2026-09-27
-    ├── #330 fix/precinct-nearest-neighbor-drift   clean · 3 commits · assigned Susama
+    ├── #330 fix/precinct-nearest-neighbor-drift   clean · 3 commits · assigned Susama · follow-up ticket #333
     ├── #334 fix/na-blank-normalization            clean · 1 commit · assigned Susama
     └── #332 feature/generalize_storage.R          clean · 1 commit · assigned Chad · ticket: none
         └── #341 fix/335-manifest-tree-relative    clean · 1 commit · ticket #335
@@ -83,7 +83,19 @@ took a branch restore, a reopen, and a manual retarget of each.
 
    #330's only review is a comment from Susama dated 2026-08-02, which predates
    all three of its commits (2026-08-05). It needs a fresh review, not a
-   rubber stamp on that comment.
+   rubber stamp on that comment. That comment said the work was built on stale
+   architecture and needed to sit on 276; the three commits answer it, sitting on
+   `6b0e5b3f`, which is a 276 commit.
+
+   **Read #330's diff, not its summary.** The summary says it extracts
+   `dissolve_by_destination()` as "the single shared computation both now call".
+   Neither half is accurate: the helper is called
+   `build_destination_fallback_precincts()` after two renames, and only
+   `flagged_optimized_distant_blocks()` calls it. `make_precinct_map()` still runs
+   its own inline dissolve and its own `st_join(..., join = st_nearest_feature)`,
+   and groups by `id_dest, descriptor, dest_lat, dest_lon` where the helper groups
+   by `id_dest` alone. #330 narrows the divergence it found; it does not close it.
+   See #333.
 
    #334 removes the defensive `| x == ""` guards on the strength of its new
    `safe_fread`, but leaves plain `fread()` at `precinct_shape_functions.r:42`
@@ -134,6 +146,23 @@ Why this order:
     needs ORS, and registers the geojson so it uploads with everything else.
   - *Outputs out of git* (step 5): after a verified upload, narrow the
     `.gitignore` rule to the two reconciliation files and untrack the rest.
+- **#333 finishes what #330 starts**, and is open and assigned to Daniel. #330
+  makes both fallback paths share *logic*; #333 makes them share *data*, on the
+  grounds that shared logic gives identical results only if both callers are fed
+  identical geometry. Its two "already landed" items are on this epic via 276
+  (`6b0e5b3f`): geometry standardized on TIGER's native NAD83 (`TIGER_CRS`), and
+  a real "all blocks accounted for" check in
+  `compute_block_precinct_overlaps()`. Its six remaining steps are **not
+  started** — `extract_precincts.r` does not source `map_functions.R`, and
+  `make_precinct_map()` does not return a per-block table.
+
+  Two consequences for this plan. Merging #330 at step 2 does not close the
+  drift, so do not treat #333 as done when #330 lands. And #333's step 6 wants a
+  regression check that `optimized_distance_flagged_blocks_*.csv`'s
+  block→destination assignments match `make_precinct_map()`'s polygons exactly,
+  spot-checking blocks near precinct boundaries — that is the same run as step 3,
+  so decide before the final run whether #333 lands first or the check is
+  deferred to a later run.
 - **#339 — `buffered_extract` test failure is expected, and is not ours.**
   `pytest` fails one unit test on this epic:
   `buffered_extract_test.py::test_buffer_polygon_contains_and_grows_state`,
