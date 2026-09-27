@@ -2,7 +2,7 @@ Branch Name,Associated Milestone,Status,Merge notes,Author,Final action
 ARCHIVE/original_code,,merged,dev/main,Susama Agarwala,Keep
 OSM_GMaps_Compare,,not merged,open PR #56,jmlar,Keep
 delivery/Monongalia_County,Monongalia County precinct extraction & distance flagging,epic branch,,Amasus,Keep
-delivery/Tarrant_County_2026,,not merged,commits after #364 merged to main,Amasus,Keep
+delivery/Tarrant_County_2026,,not merged,open PR #366,Amasus,Keep
 dev,,TRUNK,dev,-,Keep
 feature/279-distance-data-census-type,CVAP integration,not merged,,abd1tus,Keep
 feature/340-precinct-snapshot-upload,Monongalia County precinct extraction & distance flagging,not merged,open PR #343,abd1tus,Keep

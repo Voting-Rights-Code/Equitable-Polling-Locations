@@ -76,7 +76,7 @@ check for dependents"); none had any, and all 9 open PRs survived the sweep.
 
 ## Where things stand
 
-### Open PRs — 9
+### Open PRs — 10
 
 | PR | Branch → base | Author | Notes |
 |---|---|---|---|
@@ -89,6 +89,7 @@ check for dependents"); none had any, and all 9 open PRs survived the sweep.
 | #341 | `fix/335-manifest-tree-relative` → `feature/generalize_storage.R` | abd1tus | R stack |
 | #343 | `feature/340-precinct-snapshot-upload` → `fix/335-manifest-tree-relative` | abd1tus | R stack |
 | #363 | `fix/secret-tests-env-isolation` → `dev` | abd1tus | |
+| #366 | `delivery/Tarrant_County_2026` → `main` | Amasus | delivery remainder after #364; assigned to antisocialscientist |
 
 The R stack's root moved twice in four days. The two moves worked differently,
 and the difference is the whole lesson:
@@ -142,15 +143,9 @@ Delivery branches can deliberately skip `dev`: `delivery/*` branches are
 sometimes cut straight from `main` so a client delivery isn't tied to unrelated
 `dev` work.
 
-### Kept, not merged, no open PR — 5
+### Kept, not merged, no open PR — 4
 
-Marked Keep in the CSV. The first is live work, not parked:
-
-- `delivery/Tarrant_County_2026` — PRs #344, #356 and #364 all merged to `main`,
-  but `e631aeb1` ("add location_capacity_change") was committed after #364 and
-  is not in `main`.
-
-Parked work:
+Marked Keep in the CSV. All four are parked work:
 
 - `feature/279-distance-data-census-type` (CVAP integration)
 - `feature/add_config` (`epic-driving-time-metric`)
