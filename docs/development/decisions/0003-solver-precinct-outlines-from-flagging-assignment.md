@@ -106,17 +106,68 @@ implementation exist in the codebase, composed differently by each pipeline.
 config entry are removed. That value is read nowhere but `extract_precincts.r`, and there
 at lines 98 and 222, which are a redundant double read of the same thing.
 
+## Why delivered output and pipeline output diverge
+
+This change makes the pipeline produce a different image from the one already delivered
+for Monongalia County, for the same input data. That is intended, but it means a rerun is
+not a reproduction, and anyone checking the delivery against a fresh run needs to know
+which behaviour they are looking at.
+
+What differs is the outline only. The fill — which block is which colour, and which blocks
+are flagged — is unchanged, because it always came from
+`solver_distance_flagged_blocks_*`. What changes is the precinct-like boundary drawn on
+top of it, and only on the solver-assignment maps. The as-provided precinct maps from Step
+6 are untouched, because nothing in that pipeline ever did a spatial fallback.
+
+Before this change, the outline was drawn from full, unclipped TIGER blocks, so it covered
+the holes left by clipping. After it, the outline is dissolved from the same clipped
+geometry as the fill, so those holes are cut out of the outline too. The note at the top of
+Step 6 records the old behaviour:
+
+> In the optimized maps, the same clipped blocks are used, but the precinct lines are drawn
+> the full blocks. Missing block pieces will still appear as holes, but in the same precinct
+> as the drawn portion of the block.
+
+A second, smaller difference: any block whose fill and outline previously disagreed — the
+defect this decision exists to fix — moves. Those blocks were being drawn inside the wrong
+precinct's boundary, and will now be enclosed by the one matching their fill. So some of
+the change is the bug being corrected, not a change in convention.
+
+Affected delivered artifacts, all tracked in the repository under
+`precinct_analysis_outputs/Monongalia_County_WV/`:
+`15_min_optimized_distance_heat_map.png`,
+`15_min_population_optimized_distance_heat_map.png`,
+`20_min_optimized_distance_heat_map.png`, and
+`20_min_population_optimized_distance_heat_map.png`. Their non-`optimized` counterparts are
+not affected.
+
+## Which version produces which output
+
+Do not identify the behaviour by date or by branch — this work sits on a delivery epic
+whose history includes several merges. Identify it by whether the shapefile read still
+exists:
+
+- **Delivered behaviour (outline from full blocks).** Any revision where
+  `get_solver_precinct_shapes()` is present in
+  `R/result_analysis/utility_functions/precinct_shape_functions.r` and
+  `SOLVER_PRECINCT_SHAPEFILE` is defined in the county config. Reproducing a delivered map
+  additionally requires running `Basic_analysis.r` for that county and config *first*, so
+  the shapefile exists and is newer than the results file; otherwise the mtime guard stops
+  the run.
+- **Current behaviour (outline from the flagging assignment).** Any revision where those
+  two are absent. `extract_precincts.r` can be run on its own.
+
+The delivered PNGs themselves remain in git history regardless, so the artifacts are
+recoverable even without rerunning. Prefer retrieving them over attempting a
+reproduction.
+
+A fresh run differing from the delivered map in the outline is therefore expected, and is
+not a regression. A fresh run differing in the *fill*, or in either
+`optimized_distance_flagged_blocks_*.csv`, is not explained by this decision and should be
+investigated.
+
 ## Consequences
 
-- The delivered outline changes. It is now built from clipped block geometry where it was
-  previously drawn from full blocks. The note at the top of Step 6 records the old
-  behaviour: "In the optimized maps, the same clipped blocks are used, but the precinct
-  lines are drawn the full blocks. Missing block pieces will still appear as holes, but in
-  the same precinct as the drawn portion of the block." Previously the outline covered
-  those holes; now they are cut out of the outline as well. This is a visible difference
-  from maps already delivered for Monongalia County. It is accepted as the cost of having
-  outline and fill describe the same thing, and it is the reason this decision is recorded
-  here rather than left in a working plan.
 - `extract_precincts.r` no longer depends on `Basic_analysis.r` having been run for the
   same county and config. The two pipelines share functions but no files, no state, and no
   run ordering. This also simplifies the precinct-analysis upload work, since the script no
@@ -125,11 +176,15 @@ at lines 98 and 222, which are a redundant double read of the same thing.
   independently, so its standalone precinct map can disagree with Step 7's outlines. The
   divergence moves out of a single image and into two separate outputs. This is a known
   limit, not engineered around; it matters only if the two are compared directly.
-- The `st_nearest_feature` non-determinism is not resolved. It is reduced to a single call
-  site, which makes it testable for the first time, and is tracked separately. The
-  end-to-end regression check for this work depends on runs being reproducible, so it is a
-  prerequisite for trusting that check rather than an unrelated cleanup.
-- These R scripts have no automated test coverage. Verification is a full rerun of
-  `extract_precincts.r` for Monongalia, confirming that the block-to-destination
-  assignments in `optimized_distance_flagged_blocks_*.csv` match the Step 7 outlines
-  exactly, with blocks near precinct boundaries spot-checked.
+- The `st_nearest_feature` non-determinism has to be settled as part of this work, not
+  deferred. Reducing it to one call site makes it answerable, but with no test suite the
+  only verification available here is a rerun, and a rerun proves nothing while the
+  fallback can move between runs. It is a prerequisite for the check below, not a
+  follow-up.
+- These R scripts have no automated test coverage, so verification is a full rerun of both
+  pipelines. From `extract_precincts.r`: the block-to-destination assignments in
+  `optimized_distance_flagged_blocks_*.csv` match the Step 7 outlines exactly, with blocks
+  near precinct boundaries spot-checked. From `Basic_analysis.r`: the refactored
+  `make_precinct_map()` still produces its precinct map and shapefile, since it is rewritten
+  here to call resolve and dissolve instead of its own inline versions, and it remains the
+  only consumer of its own output.
