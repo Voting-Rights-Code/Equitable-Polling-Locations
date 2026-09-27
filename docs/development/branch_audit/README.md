@@ -4,7 +4,7 @@ A working record of every branch on `origin`: what happened to its work, and
 whether to keep or delete it. It lives on `chore/branch-audit` and is not meant
 for `main`.
 
-Current as of **2026-09-26**, checked against `origin` after `git fetch --prune`
+Current as of **2026-09-27**, checked against `origin` after `git fetch --prune`
 and against GitHub's open PR list.
 
 ## How we work on this
@@ -46,7 +46,7 @@ it is not tracked.
 | `Author` | Who owns the branch. |
 | `Final action` | `Keep`, `Delete`, or `DECIDE` (still needs a call). |
 
-Totals on 2026-09-26: **65 rows** (66 branches on `origin`, minus this audit's
+Totals on 2026-09-27: **64 rows** (65 branches on `origin`, minus this audit's
 branch).
 
 | Status | Keep | Delete | DECIDE |
@@ -54,7 +54,7 @@ branch).
 | `TRUNK` | 2 | | |
 | `epic branch` | 3 | | |
 | `merged` | 1 | 33 | |
-| `not merged` | 14 | 11 | 1 |
+| `not merged` | 13 | 11 | 1 |
 
 The one `merged` branch marked Keep is `ARCHIVE/original_code`.
 
@@ -67,18 +67,28 @@ The one `merged` branch marked Keep is `ARCHIVE/original_code`.
 | #54 | `feature/modular-distance-calculations` → `main` | orthorhombic | draft, opened 2024-09 |
 | #56 | `OSM_GMaps_Compare` → `main` | jmlar | outside contributor, opened 2024-10 |
 | #198 | `feature/CVAP` → `main` | Amasus | epic |
-| #330 | `fix/precinct-nearest-neighbor-drift` → `feature/optimization_output_maps` | antisocialscientist | R stack |
-| #332 | `feature/generalize_storage.R` → `feature/optimization_output_maps` | Amasus | R stack |
-| #334 | `fix/na-blank-normalization` → `feature/optimization_output_maps` | antisocialscientist | R stack |
+| #330 | `fix/precinct-nearest-neighbor-drift` → `delivery/Monongalia_County` | antisocialscientist | R stack |
+| #332 | `feature/generalize_storage.R` → `delivery/Monongalia_County` | Amasus | R stack |
+| #334 | `fix/na-blank-normalization` → `delivery/Monongalia_County` | antisocialscientist | R stack |
 | #341 | `fix/335-manifest-tree-relative` → `feature/generalize_storage.R` | abd1tus | R stack |
 | #343 | `feature/340-precinct-snapshot-upload` → `fix/335-manifest-tree-relative` | abd1tus | R stack |
 | #363 | `fix/secret-tests-env-isolation` → `dev` | abd1tus | |
 
-The R stack's root moved on 2026-09-24: #329 merged `feature/276-R-clean-up`
-into `feature/optimization_output_maps` (merge commit `f8ba9a66`) and that branch
-was deleted, so the three PRs that were based on it now base on
-`feature/optimization_output_maps`. The Monongalia plan lives on the epic,
-`delivery/Monongalia_County`.
+The R stack's root moved twice in four days, and both moves were GitHub
+retargeting open PRs when their base branch was deleted:
+
+1. **2026-09-23** — #329 merged `feature/276-R-clean-up` into
+   `feature/optimization_output_maps` (merge commit `f8ba9a66`), and the head
+   branch was deleted, so #330, #332 and #334 retargeted from it to
+   `feature/optimization_output_maps`.
+2. **2026-09-27** — `feature/optimization_output_maps` fast-forwarded into
+   `delivery/Monongalia_County` and was deleted, so the same three PRs
+   retargeted again, to the epic. They now go straight to the epic, which is
+   where the R stack was always meant to land.
+
+The three PRs were each cut from the original root and are behind the epic by
+the R cleanup; expect to merge the epic into them before they go green. The
+Monongalia plan lives on the epic.
 
 ### Epic branches — 3
 
@@ -103,14 +113,10 @@ Delivery branches can deliberately skip `dev`: `delivery/*` branches are
 sometimes cut straight from `main` so a client delivery isn't tied to unrelated
 `dev` work.
 
-### Kept, not merged, no open PR — 6
+### Kept, not merged, no open PR — 5
 
-Marked Keep in the CSV. The first two are live work, not parked:
+Marked Keep in the CSV. The first is live work, not parked:
 
-- `feature/optimization_output_maps` (Monongalia) — the R stack's base since
-  #329 merged into it. Its own work already reached
-  `delivery/Monongalia_County`, but the post-merge commits have not, so its tip
-  `f8ba9a66` is not an ancestor of the epic.
 - `delivery/Tarrant_County_2026` — PRs #344, #356 and #364 all merged to `main`,
   but `e631aeb1` ("add location_capacity_change") was committed after #364 and
   is not in `main`.
@@ -161,6 +167,34 @@ Three more checks that each prevented a wrong conclusion:
 - **Take parent branches from PR base refs.** Guessing parents from merge-base
   proximity was tried and gave confidently wrong answers. Where there is no PR,
   ask a human.
+
+## Delete a branch when its work lands, not later
+
+A branch that has delivered but still exists stays a valid PR base, and anything
+merged into it afterwards is stranded one hop short of where it was headed.
+`feature/optimization_output_maps` is the worked example:
+
+- **2026-07-29** — #312 merged it into `delivery/Monongalia_County`. It was not
+  deleted.
+- **2026-07-31 to 08-05** — #329, #330, #332 and #334 were opened against it, by
+  then an already-delivered branch.
+- **2026-08-02** — #323 and #326 merged into it, reaching the epic only via the
+  local merge `9242535f` on 09-08.
+- **2026-09-23** — #329 merged into it, putting 20 reviewed commits on a branch
+  with nothing to carry them onward. The 09-21 audit pass had marked the branch
+  `merged` / Delete, which was true of its tip that day.
+- **2026-09-27** — merged to the epic and deleted, which retargeted the three
+  open PRs to the epic.
+
+Deleting it at the first step would have prevented all of it: GitHub retargets
+open PRs when a base branch is deleted, but only when that branch had a merged
+PR of its own, and it retargets them to *that* PR's base. #312 satisfied the
+condition from 07-29 onward, so any deletion after that date would have sent
+#329 to `delivery/Monongalia_County` on its own.
+
+The audit consequence: a row saying `merged` is a statement about the tip on the
+day it was checked, not a promise about the branch name. Re-check the tip of any
+`merged` branch that still exists before acting on a Delete.
 
 ## Sources of truth
 

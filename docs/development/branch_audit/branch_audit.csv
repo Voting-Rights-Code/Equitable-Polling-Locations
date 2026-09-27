@@ -41,7 +41,6 @@ feature/model-run-cleanup2,,merged,dev/main,Chad Rosenberg,Delete
 feature/modular-distance-calculations,,not merged,open PR #54,orthorhombic,Keep
 feature/more_penalty_tests,,merged,dev/main,Susama Agarwala,Delete
 feature/name-matching,Monongalia County precinct extraction & distance flagging,merged,delivery/Monongalia_County,Amasus,Delete
-feature/optimization_output_maps,Monongalia County precinct extraction & distance flagging,not merged,R stack root; #329 merged in after it went to delivery/Monongalia_County,Amasus,Keep
 feature/penalty_test_fixes,,not merged,superseded on dev/main,Susama,Delete
 feature/pretty_graphs,,merged,dev/main,Amasus,Delete
 feature/readme_clarification,,merged,dev/main,Amasus,Delete
