@@ -4,7 +4,7 @@ A working record of every branch on `origin`: what happened to its work, and
 whether to keep or delete it. It lives on `chore/branch-audit` and is not meant
 for `main`.
 
-Current as of **2026-09-21**, checked against `origin` after `git fetch --prune`
+Current as of **2026-09-26**, checked against `origin` after `git fetch --prune`
 and against GitHub's open PR list.
 
 ## How we work on this
@@ -46,37 +46,41 @@ it is not tracked.
 | `Author` | Who owns the branch. |
 | `Final action` | `Keep`, `Delete`, or `DECIDE` (still needs a call). |
 
-Totals on 2026-09-21: **65 rows** (66 branches on `origin`, minus this audit's
+Totals on 2026-09-26: **65 rows** (66 branches on `origin`, minus this audit's
 branch).
 
 | Status | Keep | Delete | DECIDE |
 |---|---|---|---|
 | `TRUNK` | 2 | | |
-| `epic branch` | 4 | | |
+| `epic branch` | 3 | | |
 | `merged` | 1 | 33 | |
-| `not merged` | 13 | 11 | 1 |
+| `not merged` | 14 | 11 | 1 |
 
 The one `merged` branch marked Keep is `ARCHIVE/original_code`.
 
 ## Where things stand
 
-### Open PRs — 11
+### Open PRs — 9
 
 | PR | Branch → base | Author | Notes |
 |---|---|---|---|
 | #54 | `feature/modular-distance-calculations` → `main` | orthorhombic | draft, opened 2024-09 |
 | #56 | `OSM_GMaps_Compare` → `main` | jmlar | outside contributor, opened 2024-10 |
 | #198 | `feature/CVAP` → `main` | Amasus | epic |
-| #321 | `feature/driving-distance-tools` → `dev` | abd1tus | epic; in review |
-| #329 | `feature/276-R-clean-up` → `feature/optimization_output_maps` | Amasus | root of the Monongalia R stack; plan in `docs/development/monongalia_cleanup_plan.md` on `delivery/Monongalia_County` |
-| #330 | `fix/precinct-nearest-neighbor-drift` → `feature/276-R-clean-up` | antisocialscientist | R stack |
-| #332 | `feature/generalize_storage.R` → `feature/276-R-clean-up` | Amasus | R stack |
-| #334 | `fix/na-blank-normalization` → `feature/276-R-clean-up` | antisocialscientist | R stack |
+| #330 | `fix/precinct-nearest-neighbor-drift` → `feature/optimization_output_maps` | antisocialscientist | R stack |
+| #332 | `feature/generalize_storage.R` → `feature/optimization_output_maps` | Amasus | R stack |
+| #334 | `fix/na-blank-normalization` → `feature/optimization_output_maps` | antisocialscientist | R stack |
 | #341 | `fix/335-manifest-tree-relative` → `feature/generalize_storage.R` | abd1tus | R stack |
 | #343 | `feature/340-precinct-snapshot-upload` → `fix/335-manifest-tree-relative` | abd1tus | R stack |
 | #363 | `fix/secret-tests-env-isolation` → `dev` | abd1tus | |
 
-### Epic branches — 4
+The R stack's root moved on 2026-09-24: #329 merged `feature/276-R-clean-up`
+into `feature/optimization_output_maps` (merge commit `f8ba9a66`) and that branch
+was deleted, so the three PRs that were based on it now base on
+`feature/optimization_output_maps`. The Monongalia plan lives on the epic,
+`delivery/Monongalia_County`.
+
+### Epic branches — 3
 
 The repo's hierarchy is `main <- dev <- epic <- feature`. An epic collects
 feature branches until the whole piece of work is ready, then goes to `dev` as
@@ -87,16 +91,31 @@ an epic with no PR of its own is not stalled for that reason alone.
 |---|---|---|
 | `delivery/Monongalia_County` | Monongalia County precinct extraction & distance flagging | none yet |
 | `feature/CVAP` | CVAP integration (not a GitHub milestone, see above) | #198 → `main` |
-| `feature/driving-distance-tools` | `epic-driving-distance-tools` | #321 → `dev` |
 | `feature/driving-time-metric` | `epic-driving-time-metric` | none yet |
+
+`feature/driving-distance-tools` was the fourth epic. It merged to `dev` as #321
+on 2026-09-26 (merge commit `96649feb`) and was deleted on `origin`, so it and
+its last feature branch, `chore/321-drop-ticket-numbers`, are no longer epic or
+open-PR rows. `chore/321-drop-ticket-numbers` still exists on `origin`; its tip
+`6c7bc5d6` is an ancestor of `dev`, so it is safe to delete.
 
 Delivery branches can deliberately skip `dev`: `delivery/*` branches are
 sometimes cut straight from `main` so a client delivery isn't tied to unrelated
 `dev` work.
 
-### Kept, not merged, no open PR — 4
+### Kept, not merged, no open PR — 6
 
-Parked work, marked Keep in the CSV:
+Marked Keep in the CSV. The first two are live work, not parked:
+
+- `feature/optimization_output_maps` (Monongalia) — the R stack's base since
+  #329 merged into it. Its own work already reached
+  `delivery/Monongalia_County`, but the post-merge commits have not, so its tip
+  `f8ba9a66` is not an ancestor of the epic.
+- `delivery/Tarrant_County_2026` — PRs #344, #356 and #364 all merged to `main`,
+  but `e631aeb1` ("add location_capacity_change") was committed after #364 and
+  is not in `main`.
+
+Parked work:
 
 - `feature/279-distance-data-census-type` (CVAP integration)
 - `feature/add_config` (`epic-driving-time-metric`)
