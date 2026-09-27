@@ -14,12 +14,13 @@ delete this file.
 ## The stack
 
 These come from PR base refs, and git agrees: each child contains its parent's
-tip. All five are behind the epic by the R cleanup (31–32 commits), which does
-not block them — all five are `MERGEABLE`/`CLEAN` against their bases.
+tip. All five are behind the epic by the R cleanup and the `dev` merge (75–76
+commits), which does not block them — a local test merge of each onto the epic
+tip is conflict-free.
 
 ```
 dev
-└── delivery/Monongalia_County            epic · no PR to dev · 130 ahead / 42 behind dev · last commit 2026-09-23
+└── delivery/Monongalia_County            epic · no PR to dev · 132 ahead / 0 behind dev · last commit 2026-09-27
     ├── #330 fix/precinct-nearest-neighbor-drift   clean · 3 commits · assigned Susama
     ├── #334 fix/na-blank-normalization            clean · 1 commit · assigned Susama
     └── #332 feature/generalize_storage.R          clean · 1 commit · assigned Chad · ticket: none
@@ -33,10 +34,12 @@ defects by merging *into* #332's branch. #343 then adds the precinct snapshot
 upload, which is the first half of #340. So **#332 is not ready to merge on its
 own**; it goes last in its chain, carrying all three.
 
-**New since 2026-09-21:** the epic is 42 commits behind `dev`, which it was not
-before. `dev` has since taken the driving-distance tools (#321) and the Tarrant
-2026 work. It needs merging into the epic before the final run, so the run
-happens on what will actually reach `dev` — this is step 3 below.
+**`dev` is merged in** as of `c0f61da2` (2026-09-27), bringing the
+driving-distance tools (#321) and the Tarrant 2026 work, so the final run will
+happen on what actually reaches `dev`. Two conflicts came with it, both resolved:
+`python/tests/ors_up_cli_test.py` took `dev`'s version wholesale, and
+`python/CLAUDE.md` took the union. Re-merge `dev` if much time passes before the
+final run.
 
 ## Order of work
 
@@ -87,20 +90,17 @@ took a branch restore, a reopen, and a manual retarget of each.
    and `:782` and `extract_precincts.r:87`. Confirm blanks cannot reach those
    three reads, or convert them too.
 
-3. **Merge `dev` into the epic.** 42 commits behind as of 2026-09-27. Do this
-   before the final run, so the run reflects what will reach `dev`.
-
-4. **Final run.** Run `extract_precincts.r` for Monongalia on the epic, with ORS
+3. **Final run.** Run `extract_precincts.r` for Monongalia on the epic, with ORS
    up. Every change above affects what this run produces: the R cleanup
    reorganized the scripts, #330 and #334 change what the outputs contain, and
    the storage chain does the uploading. This is the first real upload to the
    bucket.
 
-5. **Verify the bucket.** The run's folder under `precinct-distance-analyses/`
+4. **Verify the bucket.** The run's folder under `precinct-distance-analyses/`
    should hold the outputs, the geojson, `sources/`, and `analysis_manifest.yaml`.
-   Do not start step 6 until this is confirmed.
+   Do not start step 5 until this is confirmed.
 
-6. **Cleanup PR** (the second part of the #340 follow-up, below):
+5. **Cleanup PR** (the second part of the #340 follow-up, below):
    - narrow the `.gitignore` rule `!precinct_analysis_outputs/**/*` to the two
      reconciliation files, which hold human decisions rather than plain run
      output: `location_precinct_mismatches.csv` (hand-reviewed each round; its git
@@ -110,7 +110,7 @@ took a branch restore, a reopen, and a manual retarget of each.
    - `git rm --cached` the other outputs, including the geojson;
    - delete this plan file.
 
-7. **Epic → `dev`.** The cleanup lands first, so the outputs never reach `dev`'s
+6. **Epic → `dev`.** The cleanup lands first, so the outputs never reach `dev`'s
    tree.
 
 Why this order:
@@ -132,8 +132,28 @@ Why this order:
   - *Geojson into the upload* (step 1): `extract_precincts.r` runs the route fetch
     after writing the 20-minute CSV, behind a per-county config switch because it
     needs ORS, and registers the geojson so it uploads with everything else.
-  - *Outputs out of git* (step 6): after a verified upload, narrow the
+  - *Outputs out of git* (step 5): after a verified upload, narrow the
     `.gitignore` rule to the two reconciliation files and untrack the rest.
+- **#339 — `buffered_extract` test failure is expected, and is not ours.**
+  `pytest` fails one unit test on this epic:
+  `buffered_extract_test.py::test_buffer_polygon_contains_and_grows_state`,
+  with `Permission denied` writing
+  `datasets/openrouteservice/georgia-buffer.geojson`. Nothing in the Monongalia
+  work causes it, and nothing here fixes it — the three files involved are
+  byte-identical to `dev`.
+
+  The test patches `buffered_extract.ORS_DATA_DIR`, but the output path comes
+  from `buffer_polygon_path()`, which reads `ors_setup.ORS_DATA_DIR` — a
+  separate binding the patch never touches. So the write escapes `tmp_path` and
+  lands in the real directory. On a writable checkout it passes silently and
+  just rewrites that file with byte-identical content and a fresh mtime, which
+  is how it went unnoticed; where the directory is root-owned (an ORS container
+  created it that way), the same bug fails hard instead.
+
+  Do not chase it during the final run, and do not confuse it with the separate
+  `dev` pytest failures Chad traced to the test database being ahead of `dev`'s
+  migrations. Chad's fix is folded into #338, not a standalone PR.
+  `sudo chown -R vscode datasets/openrouteservice` clears the local symptom.
 - **#335's "tracked separately" items are not tracked anywhere**
   ([note, 2026-09-21](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/issues/335#issuecomment-5768193087)):
   the long-term home of the reconciliation files, spaces in output filenames, and
