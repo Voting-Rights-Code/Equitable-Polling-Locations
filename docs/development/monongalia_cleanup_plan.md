@@ -81,21 +81,27 @@ took a branch restore, a reopen, and a manual retarget of each.
    nothing needs retargeting. Merge #332, which now carries the whole storage
    chain, and #330 and #334 in any order.
 
-   #330's only review is a comment from Susama dated 2026-08-02, which predates
-   all three of its commits (2026-08-05). It needs a fresh review, not a
-   rubber stamp on that comment. That comment said the work was built on stale
-   architecture and needed to sit on 276; the three commits answer it, sitting on
-   `6b0e5b3f`, which is a 276 commit.
+   **#330 needs a full read before it is merged — start from the timeline comment
+   on the PR**
+   ([#330, 2026-09-27](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/pull/330#issuecomment-5857142852)).
+   Reconstructing it took an afternoon; do not do that again. In short:
 
-   **Read #330's diff, not its summary.** The summary says it extracts
-   `dissolve_by_destination()` as "the single shared computation both now call".
-   Neither half is accurate: the helper is called
-   `build_destination_fallback_precincts()` after two renames, and only
-   `flagged_optimized_distant_blocks()` calls it. `make_precinct_map()` still runs
-   its own inline dissolve and its own `st_join(..., join = st_nearest_feature)`,
-   and groups by `id_dest, descriptor, dest_lat, dest_lon` where the helper groups
-   by `id_dest` alone. #330 narrows the divergence it found; it does not close it.
-   See #333.
+   - The review by Susama (2026-08-02) was submitted against `52b48124`, a commit
+     **force-pushed out of the branch** on 2026-08-05. Nothing currently in the PR
+     has been reviewed. That review said the work sat on stale architecture and
+     needed to be on 276; the rewrite answers it, sitting on `6b0e5b3f`.
+   - **The summary is stale, not wrong.** It accurately describes `52b48124`,
+     which wired *both* fallback call sites to one shared helper, and was never
+     updated after the force-push. The surviving commits keep only the
+     `flagged_optimized_distant_blocks()` half — `make_precinct_map()` still runs
+     its own inline dissolve and `st_join(..., join = st_nearest_feature)`. So
+     #330 as it stands narrows the divergence it found without closing it.
+   - **It cannot run as written.** `merge(all_blocks, results, ...)` collides on
+     `population`, yielding `population.x`/`population.y`, so the closing
+     `results_full[, ..output_columns]` raises
+     `column not found: [population]`. Present in `52b48124` too, so not a
+     rewrite regression. Only `parse()` was ever run against this branch.
+   - No ticket described the task before the PR was opened; #333 came afterwards.
 
    #334 removes the defensive `| x == ""` guards on the strength of its new
    `safe_fread`, but leaves plain `fread()` at `precinct_shape_functions.r:42`
@@ -147,7 +153,8 @@ Why this order:
   - *Outputs out of git* (step 5): after a verified upload, narrow the
     `.gitignore` rule to the two reconciliation files and untrack the rest.
 - **#333 finishes what #330 starts**, and is open and assigned to Daniel. #330
-  makes both fallback paths share *logic*; #333 makes them share *data*, on the
+  was meant to make both fallback paths share *logic*, and as it stands only the
+  flagging path uses the shared helper; #333 makes them share *data*, on the
   grounds that shared logic gives identical results only if both callers are fed
   identical geometry. Its two "already landed" items are on this epic via 276
   (`6b0e5b3f`): geometry standardized on TIGER's native NAD83 (`TIGER_CRS`), and
