@@ -46,17 +46,24 @@ it is not tracked.
 | `Author` | Who owns the branch. |
 | `Final action` | `Keep`, `Delete`, or `DECIDE` (still needs a call). |
 
-Totals on 2026-09-27: **64 rows** (65 branches on `origin`, minus this audit's
+Totals on 2026-09-27: **28 rows** (29 branches on `origin`, minus this audit's
 branch).
 
 | Status | Keep | Delete | DECIDE |
 |---|---|---|---|
 | `TRUNK` | 2 | | |
 | `epic branch` | 3 | | |
-| `merged` | 1 | 33 | |
-| `not merged` | 13 | 11 | 1 |
+| `merged` | 1 | | |
+| `not merged` | 13 | 8 | 1 |
 
-The one `merged` branch marked Keep is `ARCHIVE/original_code`.
+The one `merged` branch marked Keep is `ARCHIVE/original_code`. It is now the
+only `merged` row: SA deleted all 33 `merged` / Delete branches on 2026-09-27,
+along with three `not merged` / Delete rows whose successors had already landed
+(`feature/RDH-population-directory-structure` and
+`feature/RDH-population-get-demographics`, redone as #290 and #291 into
+`feature/RDH-pop`; `feature/contributing`, whose commits are drafts superseded
+by the CONTRIBUTING.md history on `main`). Their rows were removed from the CSV
+in the same pass, taking it from 64 rows to 28.
 
 ## Where things stand
 
@@ -74,21 +81,34 @@ The one `merged` branch marked Keep is `ARCHIVE/original_code`.
 | #343 | `feature/340-precinct-snapshot-upload` → `fix/335-manifest-tree-relative` | abd1tus | R stack |
 | #363 | `fix/secret-tests-env-isolation` → `dev` | abd1tus | |
 
-The R stack's root moved twice in four days, and both moves were GitHub
-retargeting open PRs when their base branch was deleted:
+The R stack's root moved twice in four days. The two moves worked differently,
+and the difference is the whole lesson:
 
-1. **2026-09-23** — #329 merged `feature/276-R-clean-up` into
+1. **2026-09-24** — #329 merged `feature/276-R-clean-up` into
    `feature/optimization_output_maps` (merge commit `f8ba9a66`), and the head
    branch was deleted, so #330, #332 and #334 retargeted from it to
-   `feature/optimization_output_maps`.
-2. **2026-09-27** — `feature/optimization_output_maps` fast-forwarded into
-   `delivery/Monongalia_County` and was deleted, so the same three PRs
-   retargeted again, to the epic. They now go straight to the epic, which is
-   where the R stack was always meant to land.
+   `feature/optimization_output_maps`. This was GitHub's automatic retarget.
+2. **2026-09-27** — `feature/optimization_output_maps` was deleted, and #330,
+   #332 and #334 **closed unmerged** (`closedAt` 00:43:20–22Z, `mergedAt`
+   null). They did *not* retarget. Recovering them took three manual steps:
+   push the branch back at `f8ba9a66`, `gh pr reopen` each PR, then
+   `gh pr edit <n> --base delivery/Monongalia_County`. They now go straight to
+   the epic, which is where the R stack was always meant to land.
 
-The three PRs were each cut from the original root and are behind the epic by
-the R cleanup; expect to merge the epic into them before they go green. The
-Monongalia plan lives on the epic.
+Why the second delete closed them instead of retargeting: the automatic
+retarget keys off a *merged PR whose head was the deleted branch*. The branch's
+own PR, #312, had merged on 07-29, but the branch then kept taking work (#323,
+#326, #329) that no merged PR from it ever covered, so by 09-27 the deletion
+was disconnected from any merge and the dependents simply closed. Do not rely
+on the automatic retarget for a branch that has kept moving since its own PR
+merged. Retarget the dependents by hand first — see "Before deleting, check for
+dependents" below.
+
+All three PRs merge cleanly onto the epic as of 2026-09-27: GitHub reports
+`MERGEABLE`/`CLEAN`, and a local test merge of all three stacked in one
+worktree produced no conflicts. They are ~31 commits behind the epic, but being
+behind is not blocking them; they do not need the epic merged into them first.
+The Monongalia plan lives on the epic.
 
 ### Epic branches — 3
 
@@ -106,8 +126,8 @@ an epic with no PR of its own is not stalled for that reason alone.
 `feature/driving-distance-tools` was the fourth epic. It merged to `dev` as #321
 on 2026-09-26 (merge commit `96649feb`) and was deleted on `origin`, so it and
 its last feature branch, `chore/321-drop-ticket-numbers`, are no longer epic or
-open-PR rows. `chore/321-drop-ticket-numbers` still exists on `origin`; its tip
-`6c7bc5d6` is an ancestor of `dev`, so it is safe to delete.
+open-PR rows. `chore/321-drop-ticket-numbers` was deleted in the 09-27 sweep;
+its tip `6c7bc5d6` was an ancestor of `dev`.
 
 Delivery branches can deliberately skip `dev`: `delivery/*` branches are
 sometimes cut straight from `main` so a client delivery isn't tied to unrelated
@@ -186,11 +206,42 @@ merged into it afterwards is stranded one hop short of where it was headed.
 - **2026-09-27** — merged to the epic and deleted, which retargeted the three
   open PRs to the epic.
 
-Deleting it at the first step would have prevented all of it: GitHub retargets
-open PRs when a base branch is deleted, but only when that branch had a merged
-PR of its own, and it retargets them to *that* PR's base. #312 satisfied the
-condition from 07-29 onward, so any deletion after that date would have sent
-#329 to `delivery/Monongalia_County` on its own.
+Deleting it at the first step would have prevented all of it, but not by
+retargeting anything: #330, #332 and #334 were opened on 07-31 and 08-05, so a
+deletion on 07-29 would have meant they were never based on a delivered branch
+in the first place. Nothing would have needed rescuing.
+
+Do not read that as "a later deletion would have retargeted them instead." The
+09-27 deletion is the counter-example: #312 had merged back on 07-29, yet the
+deletion closed the three PRs rather than retargeting them, because the branch
+had taken #323, #326 and #329 in the meantime and no merged PR from it covered
+that work. The automatic retarget is a convenience that fires on a narrow
+condition, not a guarantee.
+
+### Before deleting, check for dependents
+
+A branch that is the base of an open PR must never be deleted outright,
+whatever its `Status` says. Run this first, on every branch about to be
+deleted:
+
+```bash
+gh pr list --state open --json number,headRefName,baseRefName \
+  --jq '.[]|select(.baseRefName=="<branch>")'
+```
+
+- **Empty output** — no open PR depends on it; safe to delete.
+- **Any rows** — retarget each one *before* deleting:
+  `gh pr edit <n> --base <where the branch merged>`. Editing the base of an
+  open PR is lossless and keeps reviews and comments.
+
+Do this rather than trusting a note in the CSV: the answer changes every time
+a PR merges or retargets, so a recorded value goes stale while the query cannot.
+The `Merge notes` column is not the place for it.
+
+If a PR has already closed this way, it is recoverable: push the deleted base
+branch back at the SHA it was deleted at, `gh pr reopen <n>`, then retarget.
+Reopening is refused while the base branch is missing, which is why the branch
+has to come back first.
 
 The audit consequence: a row saying `merged` is a statement about the tip on the
 day it was checked, not a promise about the branch name. Re-check the tip of any
