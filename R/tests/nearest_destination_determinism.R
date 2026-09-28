@@ -16,10 +16,16 @@
 # against a previous one -- the zero-population blocks could be attributed
 # differently each time, moving both a block's fill colour and the outline it
 # falls inside. That would make the whole pipeline unverifiable, so #333
-# treated settling it as a prerequisite rather than a follow-up. It did not
-# reproduce: 25 runs across two implementations, with and without shuffled
-# inputs, gave one answer. The TODO was removed with the function that carried
-# it, and this script is the record.
+# treated settling it as a prerequisite rather than a follow-up.
+#
+# It did not reproduce: 25 runs, across the current search and a reconstruction
+# of the older per-block one, with and without shuffled inputs, gave one answer.
+# That is a statement about the current pipeline on current library versions.
+# It says nothing about the run that produced the delivered artifacts in July
+# 2026, whose sf/GEOS/s2/PROJ versions cannot be reconstructed -- a tie broken
+# by feature index is exactly the kind of thing that can move with a library
+# version. The TODO was removed along with the function that carried it, and
+# this script is what replaces it.
 #
 # It runs each trial in its own R process, so nothing is carried over between
 # them -- fresh memory layout, fresh RNG state, fresh GEOS/s2 state. It also

@@ -72,11 +72,13 @@ different candidates gives different answers, and on Monongalia it gives 55 of t
 "Measured, for Monongalia" below). Sharing the code without also fixing what it is fed
 leaves the defect in place.
 
-A stronger objection was considered and dropped. A TODO in `precinct_shape_functions.r`
+A stronger objection was considered and set aside. A TODO in `precinct_shape_functions.r`
 recorded that `st_nearest_feature` "seems to assign blocks differently every run" — if that
 held, one shared function called twice could disagree with itself and no amount of care
-would help. It does not hold; see "Rerunning does reproduce the assignment" below. The
-decision does not rest on it.
+would help. It does not hold in the current pipeline, on the data and library versions
+tested; see "Rerunning still will not reproduce the delivered output" below for what that
+does and does not cover. Either way the decision does not rest on it: the 55-block
+disagreement above is systematic, and is reason enough on its own.
 
 Having `make_precinct_map()` hand its per-block assignment to the flagging path is blocked
 by the function's own internals. The block identifier is destroyed before the fallback runs:
@@ -220,30 +222,38 @@ available anchor rather than proof of the exact code path. And it is an ancestor
 merge, but if this needs citing long-term, tag it rather than relying on branch
 reachability. The SHA recorded here is the durable reference either way.
 
-### Rerunning does reproduce the assignment — the TODO's warning did not hold up
+### Rerunning still will not reproduce the delivered output — but not because the search wanders
 
 The TODO quoted above said `st_nearest_feature` "seems to assign blocks differently every
 run." If that were true, nothing here could be verified: any block the solver skipped could
 be attributed to a different destination on a second run of the same code against the same
-inputs, moving both that block's fill colour and the outline it falls inside. So it was
-tested before the rest of the work was trusted.
+inputs. So it was tested before the rest of this work was trusted.
 
-It does not reproduce. Across 25 runs on Monongalia — the old per-block search and the new
-dissolved-polygon search, each in its own R process, half of them with the block and result
-rows shuffled to expose any index-order tie-breaking — every run produced the same
-assignment. The check is kept as
-`R/tests/nearest_destination_determinism.R`, so the claim can be re-tested on other counties
-rather than taken on trust.
+**What was tested.** On Monongalia, today's data and today's library versions: the current
+search, ten runs; and a reconstruction of the pre-`4ff64a8b` per-block search, lifted from
+that commit's parent, fifteen runs. Each run in its own R process, and rows shuffled on
+some runs to expose index-order tie-breaking. All 25 agreed. The check is kept as
+`R/tests/nearest_destination_determinism.R` so it can be re-run on other counties.
 
-That is evidence, not proof: one county, one machine, one sf/GEOS/PROJ build. Whatever
-prompted the original note may have involved data or a library version that cannot be
-reconstructed. But there is no live instability, and reruns can be compared.
+**What was not tested.** The code at `8f4096cc`. That is the commit the delivered artifacts
+came from, and it is a different arrangement from the reconstruction above: the flagging
+path and the map path read their geometry separately, the file layout differs, and — the
+part that cannot be reconstructed at all — the run happened in whatever sf, GEOS, s2 and
+PROJ versions were installed in July 2026. A tie broken by feature index is exactly the
+kind of thing that can change with a library version.
 
-So for verification purposes, treat the committed artifacts as the authoritative record of
-what was delivered, and treat `8f4096cc` as the reference for inspecting and running the
-code that produced them. Expect agreement on the populated blocks, the drive-time values,
-and the flagged counts. Expect the 55 zero-population blocks measured above to differ, and
-the PNGs not to be byte-identical as a result.
+So the conclusion is narrow: the search in the current pipeline is stable, and reruns of it
+can be compared against each other. That is what step 6 needed to establish. It is not a
+claim that the July run was reproducible, and nothing here licenses treating a fresh run as
+a reproduction of a delivered map.
+
+For verification purposes, then: treat the committed artifacts as the authoritative record
+of what was delivered, and treat `8f4096cc` as the reference for inspecting the code that
+produced them. Expect agreement on the populated blocks, the drive-time values and the
+flagged counts. Expect the 55 zero-population blocks measured above to differ, expect the
+possibility of further movement among the empty blocks that no longer has a live cause but
+cannot be ruled out for the original run, and do not expect the PNGs to be byte-identical —
+image output depends on graphics-device and ggplot versions regardless of any of this.
 
 ## Consequences
 
@@ -257,9 +267,10 @@ the PNGs not to be byte-identical as a result.
   divergence moves out of a single image and into two separate outputs. This is a known
   limit, not engineered around; it matters only if the two are compared directly.
 - The `st_nearest_feature` non-determinism was settled as part of this work rather than
-  deferred, because a rerun proves nothing while the fallback can move between runs.
-  Reducing it to one call site made it answerable, and the answer is that it does not move:
-  see "Rerunning does reproduce the assignment" above, and
+  deferred, because a rerun proves nothing while the fallback can move between runs. The
+  answer is that it does not move in the current pipeline, which is what makes future
+  reruns comparable; it is not a statement about the run that produced the delivered
+  artifacts. See "Rerunning still will not reproduce the delivered output" above, and
   `R/tests/nearest_destination_determinism.R`.
 - These R scripts have no automated test coverage, so verification is a full rerun of both
   pipelines. From `extract_precincts.r`: the block-to-destination assignments in
