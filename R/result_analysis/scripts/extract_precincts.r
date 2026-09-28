@@ -169,16 +169,6 @@ duration_color_bounds <- c(15, max(flagged_duration_values, na.rm = TRUE))
 #extend past the precinct line drawn on top for the state-precinct maps
 #but not the optimized maps below.
 
-#note, the heat maps use data where the blocks have been clipped
-#to the state precinct by dominant area.
-#Therefore, some of the blocks in the precinct maps are trimmed to
-#the precinct lines. Portions of blocks that lie in non-assigned
-#precincts will appear as holes.
-#In the optimized maps, the same clipped blocks are used, but the
-#precinct lines are drawn the full blocks. Missing block pieces will
-#still appear as holes, but in the same precinct as the drawn portion
-#of the block.
-
 # Make maps for 15 minutes
 
 # choropleth mode

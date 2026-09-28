@@ -35,20 +35,18 @@ in sync."
 
 ### Why that was a problem
 
-The two halves never described the same blocks, and could not, because each derived its
-geometry from a different source.
+The two halves answered the same question separately, and nothing made them agree.
 
-`extract_precincts.r` works from `block_precinct_assignment`, whose geometry comes from
-`st_intersection(county_blocks, county_precincts)` — every block **clipped** to its dominant
-precinct. `make_precinct_map()` works from `results_with_area_geom()`, which reads **full,
-unclipped** TIGER blocks. So the fill described clipped blocks while the outline was drawn
-around full ones. The note at the top of Step 6 records this as understood behaviour:
+Both work from full, unclipped TIGER block geometry, so the halves are at least comparable.
+`extract_precincts.r` works from `block_precinct_assignment`: `compute_block_precinct_overlaps()`
+runs `st_intersection(county_blocks, county_precincts)` to measure each block's overlap with
+each precinct, but swaps the block's own full shape back in afterward, so `overlap_area` and
+`percent_outside_precinct` are measured on the clipped piece while the geometry carried
+downstream is the whole block. `make_precinct_map()` works from `results_with_area_geom()`,
+which reads the same TIGER blocks. The difference between the halves is not the shape of a
+block; it is which destination each half decided that block belongs to.
 
-> In the optimized maps, the same clipped blocks are used, but the precinct lines are drawn
-> the full blocks. Missing block pieces will still appear as holes, but in the same precinct
-> as the drawn portion of the block.
-
-On top of that, each half had to invent data the solver never produced. The solver emits one
+Each half had to invent data the solver never produced. The solver emits one
 row per block it assigned, which excludes zero-population blocks by design, but the maps
 draw every block in the county. So every skipped block needed a destination invented for it
 purely so it could be coloured and enclosed — and each half invented it separately.
@@ -70,9 +68,10 @@ something about that structure rather than on effort.
 Sharing the fallback as a common function — the shape of PR #330 — does not work, because a
 TODO in `precinct_shape_functions.r` recorded that `st_nearest_feature` "seems to assign
 blocks differently every run." If that holds, one shared function called twice can disagree
-with itself, so sharing code is not sufficient at any level of care. It also leaves the
-clipped-versus-unclipped mismatch untouched: the two callers are fed different geometry even
-when they run identical code.
+with itself, so sharing code is not sufficient at any level of care. It also leaves the two
+callers searching against different candidate geometry — individual assigned blocks on one
+side, already-dissolved per-destination polygons on the other — even when they run identical
+code.
 
 Having `make_precinct_map()` hand its per-block assignment to the flagging path is blocked
 by the function's own internals. The block identifier is destroyed before the fallback runs:
@@ -84,9 +83,9 @@ routine responsible for returning data.
 Reconciling after the fact — having the flagging path infer assignments by containment
 against the written shapefile — is closer, and cheap, since `make_precinct_map()` computes
 an `area_thresh` but never applies it, so the shapefile is the exact union of its blocks.
-But it still tests clipped geometry against a union of unclipped blocks, so a block trimmed
-across a boundary can land in the wrong polygon — exactly the blocks at risk. And it keeps
-the cross-script, cross-run dependency that made the problem possible.
+But it derives the answer from a picture of the answer, which only works while the shapefile
+is current, and it keeps the cross-script, cross-run dependency that made the problem
+possible.
 
 The common thread is that the delivered arrangement is not one pipeline with a bug in it.
 It is two pipelines, each deriving its own geometry and inventing its own answers, joined by
@@ -114,52 +113,56 @@ inside `make_precinct_map()` are factored out into `map_functions.R`, sourced fr
 `precinct_shape_functions.r` — they are map and geometry operations, and the precinct
 pipeline is a consumer:
 
-- `dissolve_blocks_by_destination()` — a per-block table plus geometry to one polygon per
+- `combine_blocks_by_destination()` — a per-block table plus geometry to one polygon per
   destination. Pure and deterministic. Grouping columns are parameterized, because
   `make_precinct_map()` needs `dest_lat` and `dest_lon` carried through for its points layer
   while the outline needs the destination alone.
-- `resolve_solver_block_destinations()` — every block to a destination, including the
+- `associate_destinations_to_all_blocks()` — every block to a destination, including the
   fallback for blocks the solver skipped.
 
-Dissolve is the primitive and resolve is layered on it, because the better nearest-neighbour
-search is against dissolved per-destination polygons rather than individual blocks. That was
-the substantive finding of PR #330 and it is kept. `make_precinct_map()` becomes resolve,
-dissolve, plot. `flagged_optimized_distant_blocks()` becomes resolve, then distances and
-flagging. Step 7's outline is a dissolve of the already-resolved flagging table. One
-nearest-neighbour implementation and one union implementation exist, composed differently by
-each pipeline.
+Combining is the primitive and associating is layered on it, because the better
+nearest-neighbour search is against combined per-destination polygons rather than individual
+blocks. That was the substantive finding of PR #330 and it is kept. `make_precinct_map()`
+becomes associate, combine, plot. `flagged_optimized_distant_blocks()` becomes associate,
+then distances and flagging. Step 7's outline combines the already-associated flagging
+table. One nearest-neighbour implementation and one union implementation exist, composed
+differently by each pipeline.
 
 ## What this means for the delivered maps
 
-The pipeline now produces a different image from the one already delivered, for the same
+The pipeline can produce a different image from the one already delivered, for the same
 input data. **A rerun is therefore not a reproduction**, and anyone checking a delivered map
 against a fresh run needs to know which behaviour produced which.
 
-Two things differ, and they differ for different reasons.
-
-**The outline convention changed.** It is now dissolved from the same clipped geometry as
-the fill, where it was previously drawn from full blocks. Holes left by clipping were
-covered by the old outline; they are now cut out of it. This is a deliberate change of
-convention, and it is the price of having outline and fill describe the same thing.
+The difference is narrow. Both the old and the new outline are built from the same full,
+unclipped block geometry, so no drawing convention changes: no block is trimmed, and no hole
+appears or disappears. What changes is which outline a block falls inside.
 
 **Some blocks were simply wrong before.** Any block whose fill and outline disagreed — the
 defect this decision exists to fix — was being drawn inside the wrong precinct's boundary.
-Those blocks move, and that part of the difference is a correction, not a convention change.
-The two are not separable by inspection, which is why the whole difference has to be treated
-as expected rather than audited map-by-map.
+Those blocks move, and that is a correction. Only blocks the solver skipped can move, since
+every block the solver assigned had the same destination in both halves already.
 
-Affected delivered artifacts, all tracked under
+That makes the expected difference specific enough to check: a zero-population block may sit
+inside a different outline than it did before, and no other block may. A populated block
+whose outline changed is not explained by this decision and should be investigated.
+
+Potentially affected delivered artifacts, all tracked under
 `precinct_analysis_outputs/Monongalia_County_WV/`:
 `15_min_optimized_distance_heat_map.png`,
 `15_min_population_optimized_distance_heat_map.png`,
 `20_min_optimized_distance_heat_map.png`, and
 `20_min_population_optimized_distance_heat_map.png`.
 
-Nothing else changes. The fill values, the flagged CSVs, and the as-provided precinct maps
-from Step 6 are all untouched — Step 6's pipeline never did a spatial fallback, so it never
-had this problem. A fresh run differing from a delivered map **in the outline** is expected.
-A fresh run differing in the **fill**, or in `optimized_distance_flagged_blocks_*.csv`, is
-not explained by this decision and should be investigated.
+The as-provided precinct maps from Step 6 are untouched — that pipeline never did a spatial
+fallback, so it never had this problem.
+
+One column of `optimized_distance_flagged_blocks_*.csv` can also change: `id_dest` for the
+blocks the solver skipped, since the flagging path's fallback now searches against dissolved
+per-destination polygons rather than individual assigned blocks. Those blocks' distances and
+demographics are zero either way, so the fill values the maps draw do not change. A fresh
+run differing in a populated block's `id_dest`, or in any **fill** value, is not explained by
+this decision and should be investigated.
 
 ## Which version produces which output
 
@@ -223,8 +226,9 @@ make future outputs reproducible in a way the delivered ones are not.
   county and config. The two pipelines share functions but no files, no state, and no run
   ordering. This also simplifies the precinct-analysis upload work, since the script no
   longer consumes an artifact produced by another script's run.
-- `Basic_analysis.r` still writes its own precinct shapefile and still resolves
-  independently, so its standalone precinct map can disagree with Step 7's outlines. The
+- `Basic_analysis.r` still writes its own precinct shapefile and still associates
+  destinations independently, so its standalone precinct map can disagree with Step 7's
+  outlines. The
   divergence moves out of a single image and into two separate outputs. This is a known
   limit, not engineered around; it matters only if the two are compared directly.
 - The `st_nearest_feature` non-determinism has to be settled as part of this work, not
@@ -236,4 +240,5 @@ make future outputs reproducible in a way the delivered ones are not.
   `optimized_distance_flagged_blocks_*.csv` match the Step 7 outlines exactly, with blocks
   near precinct boundaries spot-checked. From `Basic_analysis.r`: the refactored
   `make_precinct_map()` still produces its precinct map and shapefile, since it is rewritten
-  here to call resolve and dissolve instead of its own inline versions.
+  here to call `associate_destinations_to_all_blocks()` and
+  `combine_blocks_by_destination()` instead of its own inline versions.
