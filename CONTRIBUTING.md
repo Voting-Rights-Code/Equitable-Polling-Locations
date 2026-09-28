@@ -599,7 +599,7 @@ To run the DB E2E tests:
 
 DB tests do not auto-clean their data — `e2e_`-prefixed rows accumulate in the test dataset across runs so they're available for manual inspection and feature-development work. Run an on-demand purge when the dataset gets bulky (no script ships with the repo today; a `bq query` against your test dataset filtered by `WHERE config_set LIKE 'e2e_%'` is the simplest interim approach).
 
-**One test dataset per schema.** The `test` dataset must match the migrations on the branch you test. A branch that adds an Alembic migration must not run `alembic upgrade head` against the dataset that `dev` uses; the extra columns make `dev`'s import tests fail with `Column mismatch`. Create a separate dataset for that branch (`bq mk --dataset <project>:<name>`), add it to `settings.yaml` under its own environment name, migrate it from the branch, and point `test` at it only while you work on that branch.
+**One test dataset per schema.** The dataset your `test` environment points at must match the migrations on the branch you test. The shared dataset for `dev` is `tests_dev`. Do not run migrations from a feature branch against it: the extra columns make `dev`'s import tests fail with `Column mismatch`. For a branch that adds a migration, create a dataset of its own (`bq mk --dataset <project>:<name>`) and add it to `settings.yaml` under its own environment name. Alembic picks its dataset from the `ENV` variable, so migrate with `ENV=<name> alembic upgrade head` from that branch. Point `test` at the new dataset while you work on the branch, and back at `tests_dev` when you are done.
 
 ### Pre-Merge Checklist
 
