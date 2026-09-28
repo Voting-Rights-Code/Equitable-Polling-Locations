@@ -4,7 +4,7 @@ How to land the open Monongalia work into `delivery/Monongalia_County`, move the
 delivery outputs out of git and into the analyses bucket, and then take the epic
 to `dev`.
 
-Checked against `origin` on **2026-09-27**. Re-check before acting if much time
+Checked against `origin` on **2026-09-28**. Re-check before acting if much time
 has passed.
 
 **This is a working plan, not documentation.** It lives on the epic so the people
@@ -14,14 +14,15 @@ delete this file.
 ## The stack
 
 These come from PR base refs, and git agrees: each child contains its parent's
-tip. All five are behind the epic by the R cleanup and the `dev` merge (75–76
-commits), which does not block them — a local test merge of each onto the epic
-tip is conflict-free.
+tip. The storage chain and #334 are behind the epic by the R cleanup and the `dev`
+merge (75–76 commits), which does not block them — a local test merge of each onto
+the epic tip is conflict-free. #368 is behind only by the epic's own edits to
+this plan.
 
 ```
 dev
-└── delivery/Monongalia_County            epic · no PR to dev · 132 ahead / 0 behind dev · last commit 2026-09-27
-    ├── fix/333-share-block-destination-resolution  no PR yet · ADR 0003 committed · ticket #333
+└── delivery/Monongalia_County            epic · no PR to dev · 137 ahead / 0 behind dev · last commit 2026-09-28
+    ├── #368 fix/333-share-block-destination-resolution  mergeable · 13 commits · assigned Daniel · ticket #333
     ├── #334 fix/na-blank-normalization            clean · 1 commit · assigned Susama
     └── #332 feature/generalize_storage.R          clean · 1 commit · assigned Chad · ticket: none
         └── #341 fix/335-manifest-tree-relative    clean · 1 commit · ticket #335
@@ -77,17 +78,22 @@ took a branch restore, a reopen, and a manual retarget of each.
    - Merge #343.
    - The geojson follow-up (below), as a new PR under #340.
 
-2. **The rest into the epic.** #332 and #334 already base the epic, so nothing
-   needs retargeting. Merge #332, which now carries the whole storage chain, then
-   #334.
+2. **The rest into the epic.** #332, #334 and #368 already base the epic, so
+   nothing needs retargeting. Merge #332, which now carries the whole storage
+   chain, then #334, and #368 before the final run (below).
 
    **#330 is closed, not merged.** It shared the empty-block fallback as a
    *function*; that cannot close the divergence if `st_nearest_feature` assigns
    differently between runs, so the fallback has to be computed once and shared as
-   data. The replacement plan is on
-   [#333](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/issues/333#issuecomment-5860131935)
-   and is being built on `fix/333-share-block-destination-resolution`. Its first
-   step, ADR 0003, is already committed there.
+   data. The replacement is #368, built to the revised plan on
+   [#333](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/issues/333#issuecomment-5860131935).
+   All seven steps of that plan are done, including the regression check of both
+   pipelines; results are on #333.
+
+   **#368 has to land before the final run.** Besides #333's work, it repairs merge
+   `b6104a0b`, which left `make_demo_distance_heat_map()` with a signature its
+   callers do not match. On the epic as it stands, `extract_precincts.r` stops at
+   Step 6.
 
    How #330 got into the state it did is recorded in a
    [timeline comment](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/pull/330#issuecomment-5857142852)
@@ -98,22 +104,23 @@ took a branch restore, a reopen, and a manual retarget of each.
    `merge(all_blocks, results, ...)` collides on `population` and the closing
    `results_full[, ..output_columns]` raises `column not found: [population]`.
 
-   #333's work changes a delivered output — the solver-assignment heat map outlines
-   — so it is not a drop-in replacement for #330 in this sequence. Decide whether
-   it lands before the final run below or after, since the run regenerates those
-   maps either way.
+   #368 changes a delivered output, the solver-assignment heat maps: on Monongalia,
+   55 zero-population blocks change destination, and nothing else moves. ADR 0003
+   records why and which artifacts. The final run regenerates those maps.
 
    #334 removes the defensive `| x == ""` guards on the strength of its new
    `safe_fread`, but leaves plain `fread()` at `precinct_shape_functions.r:42`
    and `:782` and `extract_precincts.r:87`. Confirm blanks cannot reach those
-   three reads, or convert them too.
+   three reads, or convert them too. The first two are the same function,
+   `get_polling_locations()`, defined twice by merge `b6104a0b`; #368 removes the
+   duplicate, leaving one to convert.
 
 3. **Final run.** Run `extract_precincts.r` for Monongalia on the epic, with ORS
    up. Every change above affects what this run produces: the R cleanup
    reorganized the scripts, #334 changes what the outputs contain, and the storage
-   chain does the uploading. This is the first real upload to the bucket. If #333
-   lands first, this run also regenerates the solver-assignment heat maps with the
-   new outline semantics — see ADR 0003.
+   chain does the uploading. This is the first real upload to the bucket. With
+   #368 in, this run also regenerates the solver-assignment heat maps with outlines
+   built from the flagging assignment — see ADR 0003.
 
 4. **Verify the bucket.** The run's folder under `precinct-distance-analyses/`
    should hold the outputs, the geojson, `sources/`, and `analysis_manifest.yaml`.
@@ -155,25 +162,27 @@ Why this order:
     `.gitignore` rule to the two reconciliation files and untrack the rest.
 - **#333 replaces #330**, is assigned to Susama, and has a
   [revised plan](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/issues/333#issuecomment-5860131935)
-  that supersedes the ticket body. It factors the empty-block fallback into a
-  `resolve` step and a `dissolve` step, computes the fallback once, and builds Step
-  7's outline from the flagging assignment instead of reading
+  that supersedes the ticket body. It factors the empty-block fallback into
+  `associate_destinations_to_all_blocks()` and `combine_blocks_by_destination()`,
+  and builds Step 7's outline from the flagging assignment instead of reading
   `Basic_analysis.r`'s shapefile — so fill and outline become two views of one
   result and cannot disagree. `get_solver_precinct_shapes()` and
   `SOLVER_PRECINCT_SHAPEFILE` go away with it.
 
   Its two "already landed" items are on this epic via 276 (`6b0e5b3f`): geometry
   standardized on TIGER's native NAD83 (`TIGER_CRS`), and a real "all blocks
-  accounted for" check in `compute_block_precinct_overlaps()`. Step 1 of the
-  revised plan, ADR 0003, is committed on
-  `fix/333-share-block-destination-resolution`. Steps 2–7 are not started.
+  accounted for" check in `compute_block_precinct_overlaps()`. All seven steps of
+  the revised plan are done, and are in PR #368, assigned to Daniel.
 
   Two consequences for this plan. **This changes a delivered output** — the four
-  `*_optimized_*` heat maps under `precinct_analysis_outputs/Monongalia_County_WV/`
-  get outlines built from clipped rather than full block geometry. ADR 0003 records
-  why, which artifacts, and how to tell which behaviour a revision produces. And
-  #333's regression check is the same run as step 3 below, so decide before the
-  final run whether #333 lands first or the check waits for a later run.
+  `*_optimized_*` heat maps under `precinct_analysis_outputs/Monongalia_County_WV/`,
+  where 55 zero-population blocks change destination. ADR 0003 records why, which
+  artifacts, and how to tell which behaviour a revision produces. And #368 also
+  carries the repair without which the final run cannot get past Step 6 (step 2
+  above), so it lands before step 3. Its regression check was run locally, without
+  uploading the precinct outputs, and does not replace the final run.
+  One follow-up stays open on #333: the 20-minute maps' fill comes from its own
+  association, separate from the outline's. The two agree today.
 - **#339 — `buffered_extract` test failure is expected, and is not ours.**
   `pytest` fails one unit test on this epic:
   `buffered_extract_test.py::test_buffer_polygon_contains_and_grows_state`,
