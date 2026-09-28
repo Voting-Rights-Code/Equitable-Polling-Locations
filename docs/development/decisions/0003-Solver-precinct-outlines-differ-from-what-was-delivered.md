@@ -72,13 +72,17 @@ different candidates gives different answers, and on Monongalia it gives 55 of t
 "Measured, for Monongalia" below). Sharing the code without also fixing what it is fed
 leaves the defect in place.
 
-A stronger objection was considered and set aside. A TODO in `precinct_shape_functions.r`
-recorded that `st_nearest_feature` "seems to assign blocks differently every run" — if that
-held, one shared function called twice could disagree with itself and no amount of care
-would help. It does not hold in the current pipeline, on the data and library versions
-tested; see "Rerunning still will not reproduce the delivered output" below for what that
-does and does not cover. Either way the decision does not rest on it: the 55-block
-disagreement above is systematic, and is reason enough on its own.
+Furthermore, in previous implementations, `st_nearest_feature` had some non-determinism in
+it, which led to a now removed comment in `precinct_shape_functions.r` recording that
+`st_nearest_feature` "seems to assign blocks differently every run". This is likely the
+root cause of why using `st_nearest_feature` in the pipeline that writes
+`precinct_analysis_outputs/` led to precincts that differed by non-populated blocks. There
+is also undocumented evidence of this variation in deliveries to Bartow county. However,
+this new pipeline for precinct maps seems to have removed this non-determinism in both the
+precinct map generation and the assignment needed for Monongalia county. There is now a
+55-block systematic disagreement between what the old pipeline produced and what is
+currently produced. Note, the cause of the old pipeline's non-determinism has not been
+tested or verified.
 
 Having `make_precinct_map()` hand its per-block assignment to the flagging path is blocked
 by the function's own internals. The block identifier is destroyed before the fallback runs:
@@ -162,10 +166,11 @@ the solver assigned 2,071 and skipped 701:
 - 15 destinations lose blocks and 20 gain them. Between them that is all 24 destinations,
   so every precinct outline shifts somewhere along its boundary.
 
-The difference is stable, not noise: it reproduces exactly on every run. That makes it an
-expectation a rerun can be held to rather than a caveat. A rerun that moves a populated
-block, or that moves a materially different number of empty ones, is not explained by this
-decision and should be investigated.
+The current pipeline's assignments and outlines are stable under the tests for run-to-run
+stability in `R/tests/nearest_destination_determinism.R`, including with inputs in a
+different order, on Monongalia data stored locally (no BigQuery) with current libraries.
+Two runs of the current pipeline under similar conditions should produce the same maps.
+I.e. there should be consistency in how non-populated blocks are assigned.
 
 Potentially affected delivered artifacts, all tracked under
 `precinct_analysis_outputs/Monongalia_County_WV/`:
@@ -217,43 +222,18 @@ config is at `R/result_analysis/Extraction_configs/Monongalia_County_WV.r` rathe
 
 Two caveats on precision. The run that produced the artifacts necessarily preceded the
 commit that recorded them, and that commit also changed code, so `8f4096cc` is the closest
-available anchor rather than proof of the exact code path. And it is an ancestor of
-`delivery/Monongalia_County` but not yet of `main`; it will reach `main` through the epic's
-merge, but if this needs citing long-term, tag it rather than relying on branch
-reachability. The SHA recorded here is the durable reference either way.
-
-### Rerunning still will not reproduce the delivered output — but not because the search wanders
-
-The TODO quoted above said `st_nearest_feature` "seems to assign blocks differently every
-run." If that were true, nothing here could be verified: any block the solver skipped could
-be attributed to a different destination on a second run of the same code against the same
-inputs. So it was tested before the rest of this work was trusted.
-
-**What was tested.** On Monongalia, today's data and today's library versions: the current
-search, ten runs; and a reconstruction of the pre-`4ff64a8b` per-block search, lifted from
-that commit's parent, fifteen runs. Each run in its own R process, and rows shuffled on
-some runs to expose index-order tie-breaking. All 25 agreed. The check is kept as
-`R/tests/nearest_destination_determinism.R` so it can be re-run on other counties.
-
-**What was not tested.** The code at `8f4096cc`. That is the commit the delivered artifacts
-came from, and it is a different arrangement from the reconstruction above: the flagging
-path and the map path read their geometry separately, the file layout differs, and — the
-part that cannot be reconstructed at all — the run happened in whatever sf, GEOS, s2 and
-PROJ versions were installed in July 2026. A tie broken by feature index is exactly the
-kind of thing that can change with a library version.
-
-So the conclusion is narrow: the search in the current pipeline is stable, and reruns of it
-can be compared against each other. That is what step 6 needed to establish. It is not a
-claim that the July run was reproducible, and nothing here licenses treating a fresh run as
-a reproduction of a delivered map.
+available anchor rather than proof of the exact code path. If the old maps need citing
+long-term, use the above commit. The maps produced have diverged. Note that in the old
+architecture, there was some variation in how the maps were produced run over run,
+recorded only in a code comment. Therefore, even rerunning from that commit may not produce the exact
+same precinct maps as before. However, they will differ only by non-populated blocks.
 
 For verification purposes, then: treat the committed artifacts as the authoritative record
 of what was delivered, and treat `8f4096cc` as the reference for inspecting the code that
 produced them. Expect agreement on the populated blocks, the drive-time values and the
-flagged counts. Expect the 55 zero-population blocks measured above to differ, expect the
-possibility of further movement among the empty blocks that no longer has a live cause but
-cannot be ruled out for the original run, and do not expect the PNGs to be byte-identical —
-image output depends on graphics-device and ggplot versions regardless of any of this.
+flagged counts. Expect the 55 zero-population blocks measured above to differ in a run of
+the current pipeline, and do not expect the PNGs to be byte-identical — image output depends on graphics-device and ggplot
+versions regardless of any of this.
 
 ## Consequences
 
@@ -263,15 +243,16 @@ image output depends on graphics-device and ggplot versions regardless of any of
   longer consumes an artifact produced by another script's run.
 - `Basic_analysis.r` still writes its own precinct shapefile and still associates
   destinations independently, so its standalone precinct map can disagree with Step 7's
-  outlines. The
-  divergence moves out of a single image and into two separate outputs. This is a known
-  limit, not engineered around; it matters only if the two are compared directly.
-- The `st_nearest_feature` non-determinism was settled as part of this work rather than
-  deferred, because a rerun proves nothing while the fallback can move between runs. The
-  answer is that it does not move in the current pipeline, which is what makes future
-  reruns comparable; it is not a statement about the run that produced the delivered
-  artifacts. See "Rerunning still will not reproduce the delivered output" above, and
-  `R/tests/nearest_destination_determinism.R`.
+  outlines. The divergence moves out of a single image and into two separate outputs. This
+  is a known limit, not engineered around; it matters only if the two are compared
+  directly.
+- The TODO recording that `st_nearest_feature` "seems to assign blocks differently every
+  run" sat on `get_solver_precinct_shapes()`, questioning whether to rely on a shapefile
+  from another run. It is removed with that function: the outline no longer comes from
+  another run, so the question it raised no longer applies. Why the old pipeline varied
+  was not investigated. The current pipeline's run-to-run stability is
+  checked by `R/tests/nearest_destination_determinism.R`, which can be re-run on other
+  counties.
 - These R scripts have no automated test coverage, so verification is a full rerun of both
   pipelines. From `extract_precincts.r`: the block-to-destination assignments in
   `optimized_distance_flagged_blocks_*.csv` match the Step 7 outlines exactly, with blocks
