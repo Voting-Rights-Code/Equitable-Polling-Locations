@@ -14,7 +14,7 @@ feature/docker-backup,,not merged,backup of feature/docker,Susama,DECIDE
 feature/driving-time-metric,epic-driving-time-metric,epic branch,,Amasus,Keep
 feature/generalize_storage.R,Monongalia County precinct extraction & distance flagging,not merged,open PR #332,Amasus,Keep
 feature/modular-distance-calculations,,not merged,open PR #54,orthorhombic,Keep
-fix/333-share-block-destination-resolution,Monongalia County precinct extraction & distance flagging,not merged,ticket #333; replaces #330,Amasus,Keep
+fix/333-share-block-destination-resolution,Monongalia County precinct extraction & distance flagging,not merged,open PR #368,Amasus,Keep
 fix/335-manifest-tree-relative,Monongalia County precinct extraction & distance flagging,not merged,open PR #341,abd1tus,Keep
 fix/na-blank-normalization,Monongalia County precinct extraction & distance flagging,not merged,open PR #334,antisocialscientist,Keep
 fix/precinct-nearest-neighbor-drift,Monongalia County precinct extraction & distance flagging,not merged,PR #330 closed unmerged; superseded by #333,antisocialscientist,Delete

@@ -4,7 +4,7 @@ A working record of every branch on `origin`: what happened to its work, and
 whether to keep or delete it. It lives on `chore/branch-audit` and is not meant
 for `main`.
 
-Current as of **2026-09-27**, checked against `origin` after `git fetch --prune`
+Current as of **2026-09-28**, checked against `origin` after `git fetch --prune`
 and against GitHub's open PR list.
 
 ## How we work on this
@@ -46,7 +46,7 @@ it is not tracked.
 | `Author` | Who owns the branch. |
 | `Final action` | `Keep`, `Delete`, or `DECIDE` (still needs a call). |
 
-Totals on 2026-09-27: **21 rows** (22 branches on `origin`, minus this audit's
+Totals on 2026-09-28: **21 rows** (22 branches on `origin`, minus this audit's
 branch).
 
 | Status | Keep | Delete | DECIDE |
@@ -58,8 +58,8 @@ branch).
 
 The one Delete row is `fix/precinct-nearest-neighbor-drift`, whose PR #330 was
 closed unmerged on 2026-09-27 and superseded by #333. The replacement branch,
-`fix/333-share-block-destination-resolution`, is the new row alongside it. Nothing
-open depends on either.
+`fix/333-share-block-destination-resolution`, is the row alongside it, and now has
+its own PR, #368. No open PR is based on either branch.
 
 The earlier backlog was cleared the same day, in two passes, taking the CSV from 64
 rows to 20:
@@ -81,7 +81,7 @@ check for dependents"); none had any, and all 9 open PRs survived the sweep.
 
 ## Where things stand
 
-### Open PRs — 9
+### Open PRs — 10
 
 | PR | Branch → base | Author | Notes |
 |---|---|---|---|
@@ -94,6 +94,7 @@ check for dependents"); none had any, and all 9 open PRs survived the sweep.
 | #343 | `feature/340-precinct-snapshot-upload` → `fix/335-manifest-tree-relative` | abd1tus | R stack |
 | #363 | `fix/secret-tests-env-isolation` → `dev` | abd1tus | |
 | #366 | `delivery/Tarrant_County_2026` → `main` | Amasus | delivery remainder after #364; assigned to antisocialscientist |
+| #368 | `fix/333-share-block-destination-resolution` → `delivery/Monongalia_County` | Amasus | R stack; ticket #333, replaces closed #330; assigned to antisocialscientist |
 
 The R stack's root moved twice in four days. The two moves worked differently,
 and the difference is the whole lesson:
@@ -147,14 +148,9 @@ Delivery branches can deliberately skip `dev`: `delivery/*` branches are
 sometimes cut straight from `main` so a client delivery isn't tied to unrelated
 `dev` work.
 
-### Kept, not merged, no open PR — 5
+### Kept, not merged, no open PR — 4
 
-Marked Keep in the CSV. The first is live work; the rest are parked:
-
-- `fix/333-share-block-destination-resolution` — ticket #333, replaces the closed
-  #330. Holds ADR 0003; no PR yet.
-
-Parked work:
+Marked Keep in the CSV. All four are parked work:
 
 - `feature/279-distance-data-census-type` (CVAP integration)
 - `feature/add_config` (`epic-driving-time-metric`)
