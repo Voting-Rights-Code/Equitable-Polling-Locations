@@ -452,8 +452,8 @@ make_precinct_map <- function(df_sf){
 	group_columns <- c('id_dest', 'descriptor', 'dest_lat', 'dest_lon')
 
 	#give the unpopulated blocks the destination of the precinct they sit against,
-	#then union each destination's blocks into one precinct shape
 	blocks_with_destinations <- associate_destinations_to_all_blocks(df_sf, group_columns)
+	#then union each destination's blocks into one precinct shape
 	precincts_sf_all <- combine_blocks_by_destination(
 		blocks_with_destinations, group_columns, 'precinct_geom'
 	)

@@ -57,33 +57,6 @@ force_text_for_spreadsheet <- function(id_column) {
   paste0('="', id_column, '"')
 }
 
-# read the solver-optimized precinct shapefile (written by make_precinct_map()
-# as part of Basic_analysis.r's workflow) for use as a heat map's precinct
-# outline. Errors loudly instead of silently plotting stale precinct
-# boundaries if the shapefile is missing, or older than the solver results
-# it's supposed to reflect.
-get_solver_precinct_shapes <- function(solver_precinct_shapefile,
-                                       results_file) {
-  if (!file.exists(solver_precinct_shapefile)) {
-    stop(
-      "Solver-optimized precinct shapefile not found at ",
-      solver_precinct_shapefile,
-      ". Run Basic_analysis.r for this county/config to generate it before ",
-      "running extract_precincts.r's Step 5."
-    )
-  }
-  shapefile_mtime <- file.info(solver_precinct_shapefile)$mtime
-  results_mtime <- file.info(results_file)$mtime
-  if (shapefile_mtime < results_mtime) {
-    stop(
-      solver_precinct_shapefile, " is older than ", results_file, ". ",
-      "The solver results have changed since this shapefile was generated -- ",
-      "rerun Basic_analysis.r for this county/config before running Step 5."
-    )
-  }
-  return(st_read(solver_precinct_shapefile))
-}
-
 # wrap a digit-only id so that a csv reader (e.g. excel) loads it as text
 force_text_for_spreadsheet <- function(id_column) {
   paste0('="', id_column, '"')
@@ -683,34 +656,6 @@ demographic_legend_dict <- c(
   non_hispanic = "Non-Latine"
 )
 
-#TODO: given how the st_nearest_feature seems to assign blocks differently every run, 
-#is this the right thing to do?
-# read the solver-optimized precinct shapefile. Error if data is stale or missing
-get_solver_precinct_shapes <- function(solver_precinct_shapefile,
-                                       results_file) {
-  # check if file missing
-  if (!file.exists(solver_precinct_shapefile)) {
-    stop(
-      "Solver-optimized precinct shapefile not found at ",
-      solver_precinct_shapefile,
-      ". Run Basic_analysis.r for this county/config to generate it before ",
-      "running extract_precincts.r's Step 7."
-    )
-  }
-
-  # get timestamp of precinct file and the result file it should be derived from
-  # error if stale
-  shapefile_mtime <- file.info(solver_precinct_shapefile)$mtime
-  results_mtime <- file.info(results_file)$mtime
-  if (shapefile_mtime < results_mtime) {
-    stop(
-      solver_precinct_shapefile, " is older than ", results_file, ". ",
-      "The solver results have changed since this shapefile was generated -- ",
-      "rerun Basic_analysis.r for this county/config before running Step 7."
-    )
-  }
-  return(st_read(solver_precinct_shapefile))
-}
 
 # reshape the results from the optimization run to fit the heat maps
 # flag distant columns. optimization_results is copied since this is called

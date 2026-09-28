@@ -93,14 +93,6 @@ optimization_results <- fread(
   OPTIMIZATION_RESULTS, colClasses = list(character = "id_orig")
 )
 
-#read the solver-optimized precinct shapefile, for Step 7's maps
-solver_precinct_shapes <- get_solver_precinct_shapes(
-  SOLVER_PRECINCT_SHAPEFILE, OPTIMIZATION_RESULTS
-)
-
-# polling-location points, for context on the heat maps below.
-polling_locations <- get_polling_locations(LOCATION)
-
 
 ####
 #change directories -- everything from here reads or write to output folder
@@ -199,20 +191,17 @@ make_demo_distance_heat_map(
 
 ###### Step 7: plot solver-assignment distance heat map #######
 
-# use the solver's own grouping of blocks (dissolved precinct-like outlines,
-# written by Basic_analysis.r's make_precinct_map()) instead of the
-# state-provided precincts, since these maps show the solver's assignment,
-# not the as-provided precincts. (solver_precinct_shapes was read in Step 3.)
+# make heat maps accroding the the solver assigned precincts as a best case option
 
-# use the solver's own grouping of blocks (dissolved precinct-like outlines,
-# written by Basic_analysis.r's make_precinct_map()) instead of the
-# state-provided precincts, since these maps show the solver's assignment,
-# not the as-provided precincts.
-solver_precinct_shapes <- get_solver_precinct_shapes(
-  SOLVER_PRECINCT_SHAPEFILE, OPTIMIZATION_RESULTS
+# precinct outlines (doesn't matter which flagged data is used)
+solver_precinct_shapes <- combine_blocks_by_destination(
+  merge(block_precinct_assignment[, "GEOID20"],
+        solver_distance_flagged_blocks_15[, .(id_orig, id_dest)],
+        by.x = "GEOID20", by.y = "id_orig"),
+  "id_dest"
 )
 
-# 15 min
+# maps for fifteen minutes
 make_demo_distance_heat_map(
   block_precinct_assignment, solver_distance_flagged_blocks_15,
   solver_precinct_shapes, polling_locations, demographic = NULL, 15, map_label = "optimized", color_bounds = duration_color_bounds
@@ -222,7 +211,7 @@ make_demo_distance_heat_map(
   solver_precinct_shapes, polling_locations, demographic = "population", 15, map_label = "optimized", color_bounds = duration_color_bounds
 )
 
-# 20 min
+# maps for twenty minutes
 make_demo_distance_heat_map(
   block_precinct_assignment, solver_distance_flagged_blocks_20,
   solver_precinct_shapes, polling_locations, demographic = NULL, 20, map_label = "optimized", color_bounds = duration_color_bounds
