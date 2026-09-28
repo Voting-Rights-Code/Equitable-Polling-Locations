@@ -7,6 +7,7 @@ source("R/result_analysis/utility_functions/tableau_theme.R")
 
 source("R/result_analysis/utility_functions/city_shape_functions.r")
 source("R/result_analysis/utility_functions/tableau_theme.R")
+source("R/result_analysis/utility_functions/map_functions.R")
 
 
 ######## Constants ########
@@ -733,32 +734,30 @@ flagged_optimized_distant_blocks <- function(block_shapes, optimization_results,
   )
   results <- results[, ..output_columns]
 
-  #determine which blocks the solver never assigned (zero population, by design)
-  all_blocks <- data.table(st_drop_geometry(block_shapes))[, .(GEOID20, population)]
-  missing_blocks <- all_blocks[!GEOID20 %in% results$id_orig]
+  #assign all blocks to a destination, populated or not.
+  #blocks the solver skipped come through the first merge with a NA destination,
+  #which is what the nearest-destination search fills in.
+  all_geoms <- merge(block_shapes, results[ , .(id_orig, id_dest)], by.x = "GEOID20", by.y = "id_orig", all.x = TRUE)
+  all_geoms_assigned <- associate_destinations_to_all_blocks(all_geoms)
 
-  ####
-  # each zero-population block borrows its nearest assigned block's real
-  # destination (as in make_precinct_maps)
-  ####
-  #merge results and block assingment geometries
-  assigned_geom <- block_shapes[block_shapes$GEOID20 %in% results$id_orig, "GEOID20"]
-  assigned_geom <- merge(assigned_geom, results[, .(id_orig, id_dest)], by.x = "GEOID20", by.y = "id_orig")
+  # make it a data.table, keep only the matches, keyed by id_orig
+  block_destinations <- as.data.table(st_drop_geometry(all_geoms_assigned))[
+    , .(id_orig = GEOID20, id_dest)]
 
-  #get the geometries of the unassigned blocks and assign them to a neighboring block's desination
-  missing_geom <- block_shapes[block_shapes$GEOID20 %in% missing_blocks$GEOID20, "GEOID20"]
-  nearest <- st_join(missing_geom, assigned_geom[, "id_dest"], join = st_nearest_feature)
-  missing_blocks <- merge(missing_blocks, st_drop_geometry(nearest)[, c("GEOID20", "id_dest")], by = "GEOID20")
+  #attach distances and demographics. id_dest comes from block_destinations,
+  #so drop the results copy rather than collide with it.
+  all_geoms_results <- merge(block_destinations, results[ , !"id_dest"], by = "id_orig", all.x = TRUE)
 
-  #fill in the rest of the data for missing blocks
-  zero_fill_columns <- setdiff(output_columns, c("id_orig", "id_dest", "population", "flagged_distance"))
+  #fill empty demographics to 0 and ensure flagged_distance is FALSE
+  unassigned_rows <- is.na(all_geoms_results$flagged_distance)
+  zero_fill_columns <- setdiff(
+    output_columns, c("id_orig", "id_dest", "flagged_distance")
+  )
+  all_geoms_results[unassigned_rows, (zero_fill_columns) := 0]
+  all_geoms_results[unassigned_rows, flagged_distance := FALSE]
 
-  missing_rows <- missing_blocks[, id_orig := GEOID20
-              ][, (zero_fill_columns) := 0
-              ][, flagged_distance := FALSE
-              ][, ..output_columns]
-
-  results <- rbind(results, missing_rows)
+  #restore the documented column order, which the merges disturb
+  all_geoms_results <- all_geoms_results[ , ..output_columns]
 
   #write to file
   distance_flagged_blocks_path <- paste0(
@@ -767,11 +766,11 @@ flagged_optimized_distant_blocks <- function(block_shapes, optimization_results,
   # write a copy with id_orig text-wrapped for spreadsheet display -- results
   # itself stays unwrapped since it's merged on GEOID20 downstream (Step 6/7
   # heat maps).
-  results_for_csv <- copy(results)
+  results_for_csv <- copy(all_geoms_results)
   results_for_csv[, id_orig := force_text_for_spreadsheet(id_orig)]
   fwrite(results_for_csv, distance_flagged_blocks_path)
 
-  return(results)
+  return(all_geoms_results)
 }
 
 # read a potential-locations CSV and split its combined

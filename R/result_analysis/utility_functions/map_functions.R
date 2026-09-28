@@ -358,9 +358,59 @@ make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLA
 }
 
 #############
-#precinct map
-#NOTE: done at block level
+#make precinct maps by aggregating blocks by assigned voting location.
 #############
+
+# take a table of blocks, geometries and associated destinations, group by the 
+# destination columns to create a geomerty that is the union of all blocks 
+# assigned to the same destination.
+combine_blocks_by_destination <- function(block_sf, group_columns = 'id_dest',
+										   output_geometry_column = 'geometry'){
+
+	# extract geometry column
+	input_geometry_column <- attr(block_sf, 'sf_column')
+
+	#one row per group, geometries unioned by summarize.sf
+	combined_blocks <- block_sf %>%
+		group_by(across(all_of(group_columns))) %>%
+		summarize(.groups = 'drop')
+
+	#name the geometry column as the caller asked
+	names(combined_blocks)[names(combined_blocks) == input_geometry_column] <- output_geometry_column
+	st_geometry(combined_blocks) <- output_geometry_column
+
+	return(combined_blocks)
+}
+
+# assign destinations to blocks by looking at nearest feature. Used to assign 
+# unpopulated blocks (not touched by the solver) to a precinct.
+associate_destinations_to_all_blocks <- function(block_sf, group_columns = 'id_dest'){
+
+	# split by populated vs unpopulated blocks
+	is_assigned <- !is.na(block_sf$id_dest) 
+	populated_blocks <- block_sf[is_assigned, ]
+	unpopulated_blocks <- block_sf[!is_assigned, ]
+
+	#the geometry of the populated blocks, unioned by destination
+	populated_shapes_by_destination <- combine_blocks_by_destination(populated_blocks, group_columns)
+
+	#drop the empty destination columns before the join so the neighbour's
+	#values arrive under their own names rather than as .x / .y pairs
+	unpopulated_blocks <- unpopulated_blocks[, setdiff(names(unpopulated_blocks), group_columns)]
+	unpopulated_blocks <- st_join(unpopulated_blocks, populated_shapes_by_destination, join = st_nearest_feature)
+
+	#data set associating each block with a desination
+	all_blocks <- rbind(populated_blocks, unpopulated_blocks)
+
+	#a silently NA destination is the failure this whole exercise is about
+	stopifnot(
+		"Every unpopulated block should have a nearest destination -- the destination grouped shapes may not cover every block" =
+			!any(is.na(all_blocks$id_dest))
+	)
+
+	return(all_blocks)
+}
+
 make_precinct_map_no_people <- function(df_sf){
 
 	#set labeling constants
