@@ -633,12 +633,28 @@ demographic_legend_dict <- c(
 )
 
 
-# reshape the results from the optimization run to fit the heat maps
-# flag distant columns. optimization_results is copied since this is called
-# once per duration threshold on the same shared table, and data.table's
-# `:=` mutates by reference.
-flagged_optimized_distant_blocks <- function(block_shapes, optimization_results, duration_threshold_min) {
+# assign every block to a destination, including unpopulated blocks.
+# a wrapper around associate_destinations_to_all_blocks to make it compatible with
+# flagged_optimized_distant_blocks
+get_solver_block_destinations <- function(block_shapes, optimization_results) {
 
+  #blocks the solver skipped come through the merge with a NA destination,
+  #which is what the nearest-destination search fills in.
+  all_geoms <- merge(block_shapes, optimization_results[ , .(id_orig, id_dest)],
+                     by.x = "GEOID20", by.y = "id_orig", all.x = TRUE)
+  all_geoms_assigned <- associate_destinations_to_all_blocks(all_geoms)
+
+  block_destinations <- as.data.table(st_drop_geometry(all_geoms_assigned))[
+    , .(id_orig = GEOID20, id_dest)]
+
+  return(block_destinations)
+}
+
+# reshape the results from the optimization run to fit the heat maps
+# and flag distant columns.
+flagged_optimized_distant_blocks <- function(block_destinations, optimization_results, duration_threshold_min) {
+
+  #optimization_results is shared data. Do not change optimization_results directly
   results <- copy(optimization_results)
   #TODO: until the bug where distance_m has data in seconds for certain runs, this
   #is going to be broken. This will be wired through as part of that bug
@@ -654,16 +670,6 @@ flagged_optimized_distant_blocks <- function(block_shapes, optimization_results,
     "multiple_races", "hispanic", "non_hispanic", "weighted_dist", "flagged_distance"
   )
   results <- results[, ..output_columns]
-
-  #assign all blocks to a destination, populated or not.
-  #blocks the solver skipped come through the first merge with a NA destination,
-  #which is what the nearest-destination search fills in.
-  all_geoms <- merge(block_shapes, results[ , .(id_orig, id_dest)], by.x = "GEOID20", by.y = "id_orig", all.x = TRUE)
-  all_geoms_assigned <- associate_destinations_to_all_blocks(all_geoms)
-
-  # make it a data.table, keep only the matches, keyed by id_orig
-  block_destinations <- as.data.table(st_drop_geometry(all_geoms_assigned))[
-    , .(id_orig = GEOID20, id_dest)]
 
   #attach distances and demographics. id_dest comes from block_destinations,
   #so drop the results copy rather than collide with it.

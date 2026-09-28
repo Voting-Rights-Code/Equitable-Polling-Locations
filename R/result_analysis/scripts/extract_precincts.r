@@ -136,11 +136,16 @@ distance_flagged_blocks_15 <- flag_distant_blocks(distance_demo_reshaped,
 distance_flagged_blocks_20 <- flag_distant_blocks(distance_demo_reshaped,
   20)
 
+#one block-to-destination assignment, shared by both duration tables and Step 7's outline
+solver_block_destinations <- get_solver_block_destinations(
+  block_precinct_assignment, optimization_results
+)
+
 solver_distance_flagged_blocks_15 <- flagged_optimized_distant_blocks(
-  block_precinct_assignment, optimization_results, 15
+  solver_block_destinations, optimization_results, 15
 )
 solver_distance_flagged_blocks_20 <- flagged_optimized_distant_blocks(
-  block_precinct_assignment, optimization_results, 20
+  solver_block_destinations, optimization_results, 20
 )
 
 # create share color scale across every heat map below to make the maps 
@@ -193,10 +198,10 @@ make_demo_distance_heat_map(
 
 # make heat maps accroding the the solver assigned precincts as a best case option
 
-# precinct outlines (doesn't matter which flagged data is used)
+# precinct outlines
 solver_precinct_shapes <- combine_blocks_by_destination(
   merge(block_precinct_assignment[, "GEOID20"],
-        solver_distance_flagged_blocks_15[, .(id_orig, id_dest)],
+        solver_block_destinations,
         by.x = "GEOID20", by.y = "id_orig"),
   "id_dest"
 )
