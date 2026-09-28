@@ -65,13 +65,18 @@ catches an out-of-date file; it cannot catch two live computations differing.
 Three attempts were considered against the delivered structure, and each failed on
 something about that structure rather than on effort.
 
-Sharing the fallback as a common function — the shape of PR #330 — does not work, because a
-TODO in `precinct_shape_functions.r` recorded that `st_nearest_feature` "seems to assign
-blocks differently every run." If that holds, one shared function called twice can disagree
-with itself, so sharing code is not sufficient at any level of care. It also leaves the two
-callers searching against different candidate geometry — individual assigned blocks on one
-side, already-dissolved per-destination polygons on the other — even when they run identical
-code.
+Sharing the fallback as a common function — the shape of PR #330 — is not enough, because
+the two callers search against different candidate geometry: individual assigned blocks on
+one side, already-dissolved per-destination polygons on the other. Identical code over
+different candidates gives different answers, and on Monongalia it gives 55 of them (see
+"Measured, for Monongalia" below). Sharing the code without also fixing what it is fed
+leaves the defect in place.
+
+A stronger objection was considered and dropped. A TODO in `precinct_shape_functions.r`
+recorded that `st_nearest_feature` "seems to assign blocks differently every run" — if that
+held, one shared function called twice could disagree with itself and no amount of care
+would help. It does not hold; see "Rerunning does reproduce the assignment" below. The
+decision does not rest on it.
 
 Having `make_precinct_map()` hand its per-block assignment to the flagging path is blocked
 by the function's own internals. The block identifier is destroyed before the fallback runs:
@@ -143,9 +148,22 @@ defect this decision exists to fix — was being drawn inside the wrong precinct
 Those blocks move, and that is a correction. Only blocks the solver skipped can move, since
 every block the solver assigned had the same destination in both halves already.
 
-That makes the expected difference specific enough to check: a zero-population block may sit
-inside a different outline than it did before, and no other block may. A populated block
-whose outline changed is not explained by this decision and should be investigated.
+### Measured, for Monongalia
+
+That prediction was checked rather than left as one. Running the old per-block search and
+the new dissolved-polygon search over the same Monongalia inputs — 2,772 blocks, of which
+the solver assigned 2,071 and skipped 701:
+
+- **55 blocks change destination**, 7.8% of the 701 the search places.
+- **All 55 have population 0.** Not one solver-assigned block moves, which is the
+  prediction above, confirmed.
+- 15 destinations lose blocks and 20 gain them. Between them that is all 24 destinations,
+  so every precinct outline shifts somewhere along its boundary.
+
+The difference is stable, not noise: it reproduces exactly on every run. That makes it an
+expectation a rerun can be held to rather than a caveat. A rerun that moves a populated
+block, or that moves a materially different number of empty ones, is not explained by this
+decision and should be investigated.
 
 Potentially affected delivered artifacts, all tracked under
 `precinct_analysis_outputs/Monongalia_County_WV/`:
@@ -202,23 +220,30 @@ available anchor rather than proof of the exact code path. And it is an ancestor
 merge, but if this needs citing long-term, tag it rather than relying on branch
 reachability. The SHA recorded here is the durable reference either way.
 
-### Rerunning will not reproduce byte-identical output, even at that commit
+### Rerunning does reproduce the assignment — the TODO's warning did not hold up
 
-This is a property of the old code, not of the change. The empty-block fallback uses
-`st_nearest_feature`, and the TODO quoted above records that it "seems to assign blocks
-differently every run." Any block the solver skipped can therefore be attributed to a
-different destination on a second run of the same code against the same inputs, which moves
-both the fill colour of that block and the outline it falls inside.
+The TODO quoted above said `st_nearest_feature` "seems to assign blocks differently every
+run." If that were true, nothing here could be verified: any block the solver skipped could
+be attributed to a different destination on a second run of the same code against the same
+inputs, moving both that block's fill colour and the outline it falls inside. So it was
+tested before the rest of the work was trusted.
+
+It does not reproduce. Across 25 runs on Monongalia — the old per-block search and the new
+dissolved-polygon search, each in its own R process, half of them with the block and result
+rows shuffled to expose any index-order tie-breaking — every run produced the same
+assignment. The check is kept as
+`R/tests/nearest_destination_determinism.R`, so the claim can be re-tested on other counties
+rather than taken on trust.
+
+That is evidence, not proof: one county, one machine, one sf/GEOS/PROJ build. Whatever
+prompted the original note may have involved data or a library version that cannot be
+reconstructed. But there is no live instability, and reruns can be compared.
 
 So for verification purposes, treat the committed artifacts as the authoritative record of
 what was delivered, and treat `8f4096cc` as the reference for inspecting and running the
 code that produced them. Expect agreement on the populated blocks, the drive-time values,
-and the flagged counts — the parts that do not depend on the fallback. Do not expect byte
-equality on the PNGs or exact agreement on the destination assigned to a zero-population
-block.
-
-Settling that non-determinism is part of the current work (see Consequences), which will
-make future outputs reproducible in a way the delivered ones are not.
+and the flagged counts. Expect the 55 zero-population blocks measured above to differ, and
+the PNGs not to be byte-identical as a result.
 
 ## Consequences
 
@@ -231,10 +256,11 @@ make future outputs reproducible in a way the delivered ones are not.
   outlines. The
   divergence moves out of a single image and into two separate outputs. This is a known
   limit, not engineered around; it matters only if the two are compared directly.
-- The `st_nearest_feature` non-determinism has to be settled as part of this work, not
-  deferred. Reducing it to one call site makes it answerable, but with no test suite the only
-  verification available is a rerun, and a rerun proves nothing while the fallback can move
-  between runs.
+- The `st_nearest_feature` non-determinism was settled as part of this work rather than
+  deferred, because a rerun proves nothing while the fallback can move between runs.
+  Reducing it to one call site made it answerable, and the answer is that it does not move:
+  see "Rerunning does reproduce the assignment" above, and
+  `R/tests/nearest_destination_determinism.R`.
 - These R scripts have no automated test coverage, so verification is a full rerun of both
   pipelines. From `extract_precincts.r`: the block-to-destination assignments in
   `optimized_distance_flagged_blocks_*.csv` match the Step 7 outlines exactly, with blocks
