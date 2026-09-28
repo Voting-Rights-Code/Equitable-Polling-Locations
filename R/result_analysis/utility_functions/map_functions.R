@@ -447,36 +447,18 @@ make_precinct_map <- function(df_sf){
 	title_str = gsub("_", ' ', paste(location, 'precinct map'))
 	subtitle_str = gsub("_", ' ', paste('Optimized for', descriptor))
 	
-	#separate out populated and unpopulated blocks
-	df_sf_pop <- df_sf[!is.na(df_sf$id_dest), ]
-	df_sf_unpop <- df_sf[is.na(df_sf$id_dest), ]
+	#dest_lat and dest_lon travel with the destination so the points layer below
+	#still has coordinates to plot
+	group_columns <- c('id_dest', 'descriptor', 'dest_lat', 'dest_lon')
 
-	#Group by assigned dest.
-	precincts_sf_pop <- df_sf_pop %>% group_by(id_dest, descriptor, dest_lat, dest_lon) %>% summarize(precinct_geom = st_union(geometry))
+	#give the unpopulated blocks the destination of the precinct they sit against,
+	#then union each destination's blocks into one precinct shape
+	blocks_with_destinations <- associate_destinations_to_all_blocks(df_sf, group_columns)
+	precincts_sf_all <- combine_blocks_by_destination(
+		blocks_with_destinations, group_columns, 'precinct_geom'
+	)
 
-	#adjust unpop data to match pop data
-	names(df_sf_unpop)[names(df_sf_unpop) == 'geometry'] <- 'precinct_geom'
-	st_geometry(df_sf_unpop) <- 'precinct_geom'
-	df_sf_unpop <- df_sf_unpop[, names(precincts_sf_pop)]
-
-	#associate the unpopulated / unassigned ccs to the closests assigned feature
-	unpop_join <- st_join(df_sf_unpop, precincts_sf_pop, join=st_nearest_feature)
-	unpop_narrow <- unpop_join[ , !(grepl('\\.x', names(unpop_join)))]
-	names(unpop_narrow) <- gsub('\\.y', '',names(unpop_narrow))
-
-	#make everything multipolygon geometry for rbinding
-	precincts_sf_pop$precinct_geom <- st_cast(precincts_sf_pop$precinct_geom, 'MULTIPOLYGON') %>% st_make_valid()
-	unpop_narrow$precinct_geom <- st_cast(unpop_narrow$precinct_geom, 'MULTIPOLYGON') %>% st_make_valid()
-
-	#combine populated and unpopulated data
-	precincts_sf_all <- rbind(unpop_narrow, precincts_sf_pop) %>%group_by(id_dest, descriptor, dest_lat, dest_lon) %>% 
-								summarize(precinct_geom = st_union(precinct_geom)) %>% ungroup()
-
-	#coarsen the fidelity of the map to drop odds and ends of leftover lines
-	area_thresh <- units::set_units(2, km^2)
-	#precincts_sf_valid <- precincts_sf_all %>%
-    #		st_make_valid()
-	plotted<- ggplot() +	
+	plotted<- ggplot() +
 		geom_sf(data = precincts_sf_all, aes(fill = id_dest), show.legend = FALSE)+
 		geom_point(data = precincts_sf_all, aes(x = dest_lon, y = dest_lat), show.legend = FALSE)+ 
 		ggtitle(title_str, subtitle_str) + xlab('') + ylab('')
