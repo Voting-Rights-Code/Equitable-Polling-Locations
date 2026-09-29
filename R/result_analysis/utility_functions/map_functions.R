@@ -358,9 +358,59 @@ make_demo_dist_map <-function(prepped_data, demo_str, driving_flag = DRIVING_FLA
 }
 
 #############
-#precinct map
-#NOTE: done at block level
+#make precinct maps by aggregating blocks by assigned voting location.
 #############
+
+# take a table of blocks, geometries and associated destinations, group by the 
+# destination columns to create a geomerty that is the union of all blocks 
+# assigned to the same destination.
+combine_blocks_by_destination <- function(block_sf, group_columns = 'id_dest',
+										   output_geometry_column = 'geometry'){
+
+	# extract geometry column
+	input_geometry_column <- attr(block_sf, 'sf_column')
+
+	#one row per group, geometries unioned by summarize.sf
+	combined_blocks <- block_sf %>%
+		group_by(across(all_of(group_columns))) %>%
+		summarize(.groups = 'drop')
+
+	#name the geometry column as the caller asked
+	names(combined_blocks)[names(combined_blocks) == input_geometry_column] <- output_geometry_column
+	st_geometry(combined_blocks) <- output_geometry_column
+
+	return(combined_blocks)
+}
+
+# assign destinations to blocks by looking at nearest feature. Used to assign 
+# unpopulated blocks (not touched by the solver) to a precinct.
+associate_destinations_to_all_blocks <- function(block_sf, group_columns = 'id_dest'){
+
+	# split by populated vs unpopulated blocks
+	is_assigned <- !is.na(block_sf$id_dest) 
+	populated_blocks <- block_sf[is_assigned, ]
+	unpopulated_blocks <- block_sf[!is_assigned, ]
+
+	#the geometry of the populated blocks, unioned by destination
+	populated_shapes_by_destination <- combine_blocks_by_destination(populated_blocks, group_columns)
+
+	#drop the empty destination columns before the join so the neighbour's
+	#values arrive under their own names rather than as .x / .y pairs
+	unpopulated_blocks <- unpopulated_blocks[, setdiff(names(unpopulated_blocks), group_columns)]
+	unpopulated_blocks <- st_join(unpopulated_blocks, populated_shapes_by_destination, join = st_nearest_feature)
+
+	#data set associating each block with a desination
+	all_blocks <- rbind(populated_blocks, unpopulated_blocks)
+
+	#a silently NA destination is the failure this whole exercise is about
+	stopifnot(
+		"Every unpopulated block should have a nearest destination -- the destination grouped shapes may not cover every block" =
+			!any(is.na(all_blocks$id_dest))
+	)
+
+	return(all_blocks)
+}
+
 make_precinct_map_no_people <- function(df_sf){
 
 	#set labeling constants
@@ -397,36 +447,18 @@ make_precinct_map <- function(df_sf){
 	title_str = gsub("_", ' ', paste(location, 'precinct map'))
 	subtitle_str = gsub("_", ' ', paste('Optimized for', descriptor))
 	
-	#separate out populated and unpopulated blocks
-	df_sf_pop <- df_sf[!is.na(df_sf$id_dest), ]
-	df_sf_unpop <- df_sf[is.na(df_sf$id_dest), ]
+	#dest_lat and dest_lon travel with the destination so the points layer below
+	#still has coordinates to plot
+	group_columns <- c('id_dest', 'descriptor', 'dest_lat', 'dest_lon')
 
-	#Group by assigned dest.
-	precincts_sf_pop <- df_sf_pop %>% group_by(id_dest, descriptor, dest_lat, dest_lon) %>% summarize(precinct_geom = st_union(geometry))
+	#give the unpopulated blocks the destination of the precinct they sit against,
+	blocks_with_destinations <- associate_destinations_to_all_blocks(df_sf, group_columns)
+	#then union each destination's blocks into one precinct shape
+	precincts_sf_all <- combine_blocks_by_destination(
+		blocks_with_destinations, group_columns, 'precinct_geom'
+	)
 
-	#adjust unpop data to match pop data
-	names(df_sf_unpop)[names(df_sf_unpop) == 'geometry'] <- 'precinct_geom'
-	st_geometry(df_sf_unpop) <- 'precinct_geom'
-	df_sf_unpop <- df_sf_unpop[, names(precincts_sf_pop)]
-
-	#associate the unpopulated / unassigned ccs to the closests assigned feature
-	unpop_join <- st_join(df_sf_unpop, precincts_sf_pop, join=st_nearest_feature)
-	unpop_narrow <- unpop_join[ , !(grepl('\\.x', names(unpop_join)))]
-	names(unpop_narrow) <- gsub('\\.y', '',names(unpop_narrow))
-
-	#make everything multipolygon geometry for rbinding
-	precincts_sf_pop$precinct_geom <- st_cast(precincts_sf_pop$precinct_geom, 'MULTIPOLYGON') %>% st_make_valid()
-	unpop_narrow$precinct_geom <- st_cast(unpop_narrow$precinct_geom, 'MULTIPOLYGON') %>% st_make_valid()
-
-	#combine populated and unpopulated data
-	precincts_sf_all <- rbind(unpop_narrow, precincts_sf_pop) %>%group_by(id_dest, descriptor, dest_lat, dest_lon) %>% 
-								summarize(precinct_geom = st_union(precinct_geom)) %>% ungroup()
-
-	#coarsen the fidelity of the map to drop odds and ends of leftover lines
-	area_thresh <- units::set_units(2, km^2)
-	#precincts_sf_valid <- precincts_sf_all %>%
-    #		st_make_valid()
-	plotted<- ggplot() +	
+	plotted<- ggplot() +
 		geom_sf(data = precincts_sf_all, aes(fill = id_dest), show.legend = FALSE)+
 		geom_point(data = precincts_sf_all, aes(x = dest_lon, y = dest_lat), show.legend = FALSE)+ 
 		ggtitle(title_str, subtitle_str) + xlab('') + ylab('')
