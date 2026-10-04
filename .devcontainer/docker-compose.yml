@@ -64,9 +64,10 @@ services:
             - TMPDIR=/tmp
             # Default OpenRouteService matrix endpoint for generate_driving_distances_cli.
             # Points at the sibling `ors` service from docker-compose.ors.yml; the
-            # shared COMPOSE_PROJECT_NAME=polling (set in .devcontainer/.env) puts
-            # both services on the same Docker network. ORS v8 listens on 8082
-            # internally. Override per-invocation with `--server <url>`.
+            # shared COMPOSE_PROJECT_NAME=equitable-polling-locations (set in
+            # .devcontainer/.env) puts both services on the same Docker network.
+            # ORS v8 listens on 8082 internally. Override per-invocation with
+            # `--server <url>`.
             - ORS_URL=http://ors:8082/ors/v2/matrix/driving-car
         # Make the in-container CWD the project root regardless of how the
         # container is launched. The Dockerfile's WORKDIR is /workspaces (its
