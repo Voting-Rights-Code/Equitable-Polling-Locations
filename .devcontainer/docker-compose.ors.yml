@@ -1,9 +1,9 @@
 # Sibling ORS service. Brought up separately from the main dev container
 # via `python run.py ors_up_cli <state>` (or implicitly by
 # `python run.py generate_driving_distances_cli <state> -l <config>`).
-# Both compose files set COMPOSE_PROJECT_NAME=polling via .devcontainer/.env
-# so the app container can reach this service at http://ors:8080/... over
-# the shared network.
+# Both compose files set COMPOSE_PROJECT_NAME=equitable-polling-locations via
+# .devcontainer/.env so the app container can reach this service at
+# http://ors:8080/... over the shared network.
 #
 # ORS v8 listens on port 8082 internally; this file maps host 8080 -> 8082.
 # Host-side callers (e.g. ors_up_cli's health poll) use localhost:8080.
