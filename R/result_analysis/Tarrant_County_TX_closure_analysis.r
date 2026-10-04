@@ -91,7 +91,8 @@ dt_pop_polls_2025 <- dt_2025_pop[ , dropped_2026 := TRUE
                 ][id_dest %in% polls_2026prop, dropped_2026prop := FALSE
                 ]
 
-#csv of precincts kept by year and population assigned to each. Add addresses
+#csv of precincts kept by year and population assigned to each. Keep the address data 
+#of precincts for customer
 combined <- rbind(dt_2024, dt_2025, dt_2026, dt_2026prop, fill = TRUE)
 precinct_persistence_demographics <- dcast(combined, id_dest + demographic ~ descriptor, value.var = 'demo_pop')
 precinct_persistence_demographics[ , pct_change_24_to_26 := as.character(round((`2026`-`2024`)/`2024`, 2))
