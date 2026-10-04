@@ -4,7 +4,7 @@ A working record of every branch on `origin`: what happened to its work, and
 whether to keep or delete it. It lives on `chore/branch-audit` and is not meant
 for `main`.
 
-Current as of **2026-09-28**, checked against `origin` after `git fetch --prune`
+Current as of **2026-10-04**, checked against `origin` after `git fetch --prune`
 and against GitHub's open PR list.
 
 ## How we work on this
@@ -46,23 +46,59 @@ it is not tracked.
 | `Author` | Who owns the branch. |
 | `Final action` | `Keep`, `Delete`, or `DECIDE` (still needs a call). |
 
-Totals on 2026-09-28: **21 rows** (22 branches on `origin`, minus this audit's
-branch).
+Totals on 2026-10-04: **17 rows** (18 branches on `origin`, minus this audit's
+branch). **The Delete column is empty: nothing is awaiting deletion.**
 
 | Status | Keep | Delete | DECIDE |
 |---|---|---|---|
 | `TRUNK` | 2 | | |
 | `epic branch` | 3 | | |
 | `merged` | 1 | | |
-| `not merged` | 13 | 1 | 1 |
+| `not merged` | 10 | | 1 |
 
-The one Delete row is `fix/precinct-nearest-neighbor-drift`, whose PR #330 was
-closed unmerged on 2026-09-27 and superseded by #333. The replacement branch,
-`fix/333-share-block-destination-resolution`, is the row alongside it, and now has
-its own PR, #368. No open PR is based on either branch.
+Four rows came off on 2026-10-04. Three were branches that merged and were then
+deleted on `origin`:
 
-The earlier backlog was cleared the same day, in two passes, taking the CSV from 64
-rows to 20:
+| Branch | PR | Merged into | Merged at | Merge commit |
+|---|---|---|---|---|
+| `fix/333-share-block-destination-resolution` | #368 | `delivery/Monongalia_County` | 2026-09-29 | `3d9b4b05` |
+| `fix/secret-tests-env-isolation` | #363 | `dev` | 2026-10-04 | `fd760829` |
+| `delivery/Tarrant_County_2026` | #366 | `main` | 2026-10-04 | `a38919c9` |
+
+The fourth was the last Delete row, `fix/precinct-nearest-neighbor-drift`,
+deleted on `origin` on 2026-10-04 at tip `6b98f54c`. Its PR #330 closed unmerged
+on 09-27 and the work was redone on `fix/333-share-block-destination-resolution`,
+landing on the epic as #368. It is worth recording how that was checked, because
+it is the case the ancestry tests cannot answer.
+
+Both ancestry tests failed: after the 09-27 sweep took `port-pr330-cleanup`,
+`git branch -r --contains 6b98f54c` returned only the branch itself, and
+`git merge-base --is-ancestor` against `delivery/Monongalia_County` failed. The
+content check was what settled it, and a grep for the branch's own function name
+would have failed too, because #368 rewrote the work rather than porting it.
+Each of the branch's three commits has an equivalent on the epic under a
+different name:
+
+| On `fix/precinct-nearest-neighbor-drift` | On the epic |
+|---|---|
+| `build_destination_fallback_precincts()`, unioning populated blocks by `id_dest` | `combine_blocks_by_destination()`, the same union generalized over `group_columns` and the output geometry name |
+| `st_join(unassigned, fallback, join = st_nearest_feature)` | the same call inside `associate_destinations_to_all_blocks()` |
+| `stopifnot` that no solver-skipped block ends with a missing destination | `stopifnot("a silently NA destination is the failure this whole exercise is about")` |
+| dropped the `TODO` about `st_nearest_feature` assigning blocks differently each run | answered by ADR `0003-Solver-precinct-outlines-differ-from-what-was-delivered.md` and `R/tests/nearest_destination_determinism.R` |
+
+**Lesson for the next Delete row: match behavior, not identifiers.** A rewrite
+leaves no shared names, so a grep for the old function finds nothing and looks
+like evidence the work was lost.
+
+Deleting it lost nothing in any case. GitHub keeps a closed PR's head commit:
+`git ls-remote origin refs/pull/330/head` still returns `6b98f54c` after the
+branch was deleted, verified the same day. The general point for any future
+Delete row: failing both ancestry tests is not by itself a reason to hesitate,
+because a branch that ever had a PR keeps its commits under
+`refs/pull/<n>/head`.
+
+The earlier backlog was cleared on 2026-09-27, in two passes, taking the CSV from
+64 rows to 20:
 
 - All 33 `merged` / Delete branches, plus three `not merged` / Delete rows whose
   successors had already landed: `feature/RDH-population-directory-structure`
@@ -71,8 +107,9 @@ rows to 20:
   superseded by the CONTRIBUTING.md history on `main`.
 - The remaining 8 `not merged` / Delete branches: two scratch branches, three
   superseded on `dev`/`main`, one stale revert, one one-off script, and
-  `port-pr330-cleanup`, whose tip `6b98f54c` is shared with
-  `fix/precinct-nearest-neighbor-drift` and so stays reachable.
+  `port-pr330-cleanup`, whose tip `6b98f54c` was shared with
+  `fix/precinct-nearest-neighbor-drift`. Both branches are now gone; that commit
+  stays reachable at `refs/pull/330/head`.
 
 Every branch was checked for open-PR dependents first (see "Before deleting,
 check for dependents"); none had any, and all 9 open PRs survived the sweep.
@@ -81,7 +118,7 @@ check for dependents"); none had any, and all 9 open PRs survived the sweep.
 
 ## Where things stand
 
-### Open PRs — 10
+### Open PRs — 7
 
 | PR | Branch → base | Author | Notes |
 |---|---|---|---|
@@ -92,9 +129,6 @@ check for dependents"); none had any, and all 9 open PRs survived the sweep.
 | #334 | `fix/na-blank-normalization` → `delivery/Monongalia_County` | antisocialscientist | R stack |
 | #341 | `fix/335-manifest-tree-relative` → `feature/generalize_storage.R` | abd1tus | R stack |
 | #343 | `feature/340-precinct-snapshot-upload` → `fix/335-manifest-tree-relative` | abd1tus | R stack |
-| #363 | `fix/secret-tests-env-isolation` → `dev` | abd1tus | |
-| #366 | `delivery/Tarrant_County_2026` → `main` | Amasus | delivery remainder after #364; assigned to antisocialscientist |
-| #368 | `fix/333-share-block-destination-resolution` → `delivery/Monongalia_County` | Amasus | R stack; ticket #333, replaces closed #330; assigned to antisocialscientist |
 
 The R stack's root moved twice in four days. The two moves worked differently,
 and the difference is the whole lesson:
@@ -119,11 +153,19 @@ on the automatic retarget for a branch that has kept moving since its own PR
 merged. Retarget the dependents by hand first — see "Before deleting, check for
 dependents" below.
 
-All three PRs merge cleanly onto the epic as of 2026-09-27: GitHub reports
-`MERGEABLE`/`CLEAN`, and a local test merge of all three stacked in one
-worktree produced no conflicts. They are ~31 commits behind the epic, but being
-behind is not blocking them; they do not need the epic merged into them first.
-The Monongalia plan lives on the epic.
+#332 and #334 are tens of commits behind the epic, which does not block them;
+they do not need the epic merged into them first.
+
+**Mergeability and merge order for the R stack are not tracked here.** They
+live in `docs/development/monongalia_cleanup_plan.md` on the epic, which holds
+the stack diagram, the merge SOP and the order of work. Do not re-derive any of
+it in this file, and do not record a mergeable/conflicted verdict here — it goes
+stale the moment the epic moves, and two copies disagreeing is worse than one.
+
+As of 2026-10-04 that plan is itself a day stale: it says "checked against
+`origin` on 2026-09-28", but #368 merged on 09-29, so it still lists #368 as an
+open child of the epic. Anyone picking the R stack back up should re-check it
+against the epic's current tip first, as the plan's own header instructs.
 
 ### Epic branches — 3
 
