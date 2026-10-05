@@ -108,7 +108,7 @@ def derive_origins_and_destinations(config):
     locations = dict(zip(source_ids, coords))
 
     # get destination id and location coordinates from potential_location data
-    destination_ids = potential_locations_df[POT_LOC_LOCATION].tolist()
+    destination_ids = potential_locations_df[POT_LOC_LOCATION].astype(str).tolist()
     joint_coords = potential_locations_df[POT_LOC_LAT_LON].str.split(',', expand=True).astype(float)
     dest_coords = joint_coords[[1, 0]].values.tolist()  # column 0 is lat, column 1 is lon — reorder to [lon, lat]
     locations.update(dict(zip(destination_ids, dest_coords)))
