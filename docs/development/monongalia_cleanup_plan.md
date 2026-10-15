@@ -14,24 +14,21 @@ delete this file.
 ## The stack
 
 These come from PR base refs, and git agrees: each child contains its parent's
-tip. The storage chain and #334 are behind the epic by the R cleanup, the `dev`
-merge and #368 (96–97 commits), which does not block them.
+tip. The storage chain is behind the epic by the R cleanup, the `dev` merges,
+#368 and #334, which does not block it.
 
-**Their conflict-freedom is unverified as of 2026-10-04.** The local test merge
-that found each of them clean onto the epic tip was run on 09-28, before #368
-landed on `map_functions.R` and `precinct_shape_functions.r` — files #334 also
-edits. GitHub reports `mergeable: UNKNOWN` for #332 and #334, which means it has
-not recomputed, not that there is a conflict. Re-run the test merge before
-relying on it.
+**#332's conflict-freedom is unverified as of 2026-10-15.** The local test merge
+that found it clean onto the epic tip was run on 09-28, before #368 and #334
+landed. GitHub reports `mergeable: UNKNOWN` for #332, which means it has not
+recomputed, not that there is a conflict. Re-run the test merge before relying
+on it.
 
-#341 and #343 still report `CLEAN`, checked 2026-10-04, because they base
-branches inside the chain that have not moved. Only the two that base the epic
-went unverified when the epic did.
+#341 and #343 report `MERGEABLE`, checked 2026-10-15, because they base
+branches inside the chain that have not moved.
 
 ```
 dev
-└── delivery/Monongalia_County            epic · no PR to dev · 153 ahead / 1 behind dev · tip 3d9b4b05 (the #368 merge)
-    ├── #334 fix/na-blank-normalization            unverified · 1 commit · assigned Susama
+└── delivery/Monongalia_County            epic · no PR to dev · 0 behind dev · includes #334 (7a57f2fa)
     └── #332 feature/generalize_storage.R          unverified · 1 commit · assigned Chad · ticket: none
         └── #341 fix/335-manifest-tree-relative    clean · 1 commit · ticket #335
             └── #343 feature/340-precinct-snapshot-upload  clean · 1 commit · ticket #340
@@ -50,8 +47,9 @@ happen on what actually reaches `dev`. Two conflicts came with it, both resolved
 `python/CLAUDE.md` took the union. Re-merge `dev` if much time passes before the
 final run.
 
-`dev` has moved once since: `fd760829` (#363, merged 2026-10-04), which is the
-single commit the epic is behind by. Re-merge before the final run.
+`dev` was re-merged on 2026-10-04 (`9a1b066f`, bringing #363) and again on
+2026-10-15 (`815a1796`, bringing #369), both conflict-free. The epic is level
+with `dev` as of 2026-10-15. Re-merge before the final run if `dev` moves.
 
 ## Order of work
 
@@ -89,28 +87,18 @@ took a branch restore, a reopen, and a manual retarget of each.
    - Merge #343.
    - The geojson follow-up (below), as a new PR under #340.
 
-2. **The rest into the epic.** #332 and #334 already base the epic, so
-   nothing needs retargeting. Merge #332, which now carries the whole storage
-   chain, then #334 before the final run (below).
+2. **The rest into the epic.** #332 already bases the epic, so nothing needs
+   retargeting. Merge #332, which now carries the whole storage chain.
 
-   #334 removes the defensive `| x == ""` guards on the strength of its new
-   `safe_fread`, but leaves some plain `fread()` calls behind. Confirm blanks
-   cannot reach them, or convert them too. `get_polling_locations()` was defined
-   twice by merge `b6104a0b` and #368 removed the duplicate, so there is now one
-   to convert, at `precinct_shape_functions.r:706`.
-
-   **The rest of this list needs re-deriving against #334's own diff.** It used
-   to name `precinct_shape_functions.r:42` and `:782` and
-   `extract_precincts.r:87` as "those three reads". Only the last still resolves.
-   `precinct_shape_functions.r` now has `fread` at 327, 495, 496, 503, 504 and
-   706, and `extract_precincts.r` at 57, 87, 92 and 107 — which of those #334 is
-   responsible for is a judgment call about its scope, not something to patch by
-   line number.
+   #334 merged on 2026-10-15 (`7a57f2fa`), squashed — safe because nothing was
+   stacked on it. It dropped `safe_fread` and kept the `| x == ""` guards on the
+   CSV read-back paths, documenting why, so no `fread()` calls need converting.
+   Reasoning is in the
+   [PR comment](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/pull/334#issuecomment-6182884624).
 
 3. **Final run.** Run `extract_precincts.r` for Monongalia on the epic, with ORS
    up. Every change above affects what this run produces: the R cleanup
-   reorganized the scripts, #334 changes what the outputs contain, and the storage
-   chain does the uploading. This is the first real upload to the bucket. #368 is
+   reorganized the scripts and the storage chain does the uploading. This is the first real upload to the bucket. #368 is
    already on the epic, so this run also regenerates the solver-assignment heat
    maps with outlines built from the flagging assignment — see ADR 0003.
 
