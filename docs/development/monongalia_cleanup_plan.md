@@ -4,7 +4,7 @@ How to land the open Monongalia work into `delivery/Monongalia_County`, move the
 delivery outputs out of git and into the analyses bucket, and then take the epic
 to `dev`.
 
-Checked against `origin` on **2026-09-28**. Re-check before acting if much time
+Checked against `origin` on **2026-10-04**. Re-check before acting if much time
 has passed.
 
 **This is a working plan, not documentation.** It lives on the epic so the people
@@ -14,17 +14,25 @@ delete this file.
 ## The stack
 
 These come from PR base refs, and git agrees: each child contains its parent's
-tip. The storage chain and #334 are behind the epic by the R cleanup and the `dev`
-merge (75–76 commits), which does not block them — a local test merge of each onto
-the epic tip is conflict-free. #368 is behind only by the epic's own edits to
-this plan.
+tip. The storage chain and #334 are behind the epic by the R cleanup, the `dev`
+merge and #368 (96–97 commits), which does not block them.
+
+**Their conflict-freedom is unverified as of 2026-10-04.** The local test merge
+that found each of them clean onto the epic tip was run on 09-28, before #368
+landed on `map_functions.R` and `precinct_shape_functions.r` — files #334 also
+edits. GitHub reports `mergeable: UNKNOWN` for #332 and #334, which means it has
+not recomputed, not that there is a conflict. Re-run the test merge before
+relying on it.
+
+#341 and #343 still report `CLEAN`, checked 2026-10-04, because they base
+branches inside the chain that have not moved. Only the two that base the epic
+went unverified when the epic did.
 
 ```
 dev
-└── delivery/Monongalia_County            epic · no PR to dev · 137 ahead / 0 behind dev · last commit 2026-09-28
-    ├── #368 fix/333-share-block-destination-resolution  mergeable · 13 commits · assigned Daniel · ticket #333
-    ├── #334 fix/na-blank-normalization            clean · 1 commit · assigned Susama
-    └── #332 feature/generalize_storage.R          clean · 1 commit · assigned Chad · ticket: none
+└── delivery/Monongalia_County            epic · no PR to dev · 153 ahead / 1 behind dev · tip 3d9b4b05 (the #368 merge)
+    ├── #334 fix/na-blank-normalization            unverified · 1 commit · assigned Susama
+    └── #332 feature/generalize_storage.R          unverified · 1 commit · assigned Chad · ticket: none
         └── #341 fix/335-manifest-tree-relative    clean · 1 commit · ticket #335
             └── #343 feature/340-precinct-snapshot-upload  clean · 1 commit · ticket #340
 ```
@@ -41,6 +49,9 @@ happen on what actually reaches `dev`. Two conflicts came with it, both resolved
 `python/tests/ors_up_cli_test.py` took `dev`'s version wholesale, and
 `python/CLAUDE.md` took the union. Re-merge `dev` if much time passes before the
 final run.
+
+`dev` has moved once since: `fd760829` (#363, merged 2026-10-04), which is the
+single commit the epic is behind by. Re-merge before the final run.
 
 ## Order of work
 
@@ -78,49 +89,30 @@ took a branch restore, a reopen, and a manual retarget of each.
    - Merge #343.
    - The geojson follow-up (below), as a new PR under #340.
 
-2. **The rest into the epic.** #332, #334 and #368 already base the epic, so
+2. **The rest into the epic.** #332 and #334 already base the epic, so
    nothing needs retargeting. Merge #332, which now carries the whole storage
-   chain, then #334, and #368 before the final run (below).
-
-   **#330 is closed, not merged.** It shared the empty-block fallback as a
-   *function*; that cannot close the divergence if `st_nearest_feature` assigns
-   differently between runs, so the fallback has to be computed once and shared as
-   data. The replacement is #368, built to the revised plan on
-   [#333](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/issues/333#issuecomment-5860131935).
-   All seven steps of that plan are done, including the regression check of both
-   pipelines; results are on #333.
-
-   **#368 has to land before the final run.** Besides #333's work, it repairs merge
-   `b6104a0b`, which left `make_demo_distance_heat_map()` with a signature its
-   callers do not match. On the epic as it stands, `extract_precincts.r` stops at
-   Step 6.
-
-   How #330 got into the state it did is recorded in a
-   [timeline comment](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/pull/330#issuecomment-5857142852)
-   on the PR — read that rather than reconstructing it, which took an afternoon.
-   The short version: its only review was submitted against `52b48124`, a commit
-   force-pushed out of the branch, so nothing in the PR was ever reviewed; its
-   summary accurately describes that vanished commit; and it could not run, because
-   `merge(all_blocks, results, ...)` collides on `population` and the closing
-   `results_full[, ..output_columns]` raises `column not found: [population]`.
-
-   #368 changes a delivered output, the solver-assignment heat maps: on Monongalia,
-   55 zero-population blocks change destination, and nothing else moves. ADR 0003
-   records why and which artifacts. The final run regenerates those maps.
+   chain, then #334 before the final run (below).
 
    #334 removes the defensive `| x == ""` guards on the strength of its new
-   `safe_fread`, but leaves plain `fread()` at `precinct_shape_functions.r:42`
-   and `:782` and `extract_precincts.r:87`. Confirm blanks cannot reach those
-   three reads, or convert them too. The first two are the same function,
-   `get_polling_locations()`, defined twice by merge `b6104a0b`; #368 removes the
-   duplicate, leaving one to convert.
+   `safe_fread`, but leaves some plain `fread()` calls behind. Confirm blanks
+   cannot reach them, or convert them too. `get_polling_locations()` was defined
+   twice by merge `b6104a0b` and #368 removed the duplicate, so there is now one
+   to convert, at `precinct_shape_functions.r:706`.
+
+   **The rest of this list needs re-deriving against #334's own diff.** It used
+   to name `precinct_shape_functions.r:42` and `:782` and
+   `extract_precincts.r:87` as "those three reads". Only the last still resolves.
+   `precinct_shape_functions.r` now has `fread` at 327, 495, 496, 503, 504 and
+   706, and `extract_precincts.r` at 57, 87, 92 and 107 — which of those #334 is
+   responsible for is a judgment call about its scope, not something to patch by
+   line number.
 
 3. **Final run.** Run `extract_precincts.r` for Monongalia on the epic, with ORS
    up. Every change above affects what this run produces: the R cleanup
    reorganized the scripts, #334 changes what the outputs contain, and the storage
-   chain does the uploading. This is the first real upload to the bucket. With
-   #368 in, this run also regenerates the solver-assignment heat maps with outlines
-   built from the flagging assignment — see ADR 0003.
+   chain does the uploading. This is the first real upload to the bucket. #368 is
+   already on the epic, so this run also regenerates the solver-assignment heat
+   maps with outlines built from the flagging assignment — see ADR 0003.
 
 4. **Verify the bucket.** The run's folder under `precinct-distance-analyses/`
    should hold the outputs, the geojson, `sources/`, and `analysis_manifest.yaml`.
@@ -172,15 +164,17 @@ Why this order:
   Its two "already landed" items are on this epic via 276 (`6b0e5b3f`): geometry
   standardized on TIGER's native NAD83 (`TIGER_CRS`), and a real "all blocks
   accounted for" check in `compute_block_precinct_overlaps()`. All seven steps of
-  the revised plan are done, and are in PR #368, assigned to Daniel.
+  the revised plan are done and merged to the epic as #368 on 2026-09-29
+  (`3d9b4b05`).
 
   Two consequences for this plan. **This changes a delivered output** — the four
   `*_optimized_*` heat maps under `precinct_analysis_outputs/Monongalia_County_WV/`,
   where 55 zero-population blocks change destination. ADR 0003 records why, which
-  artifacts, and how to tell which behaviour a revision produces. And #368 also
-  carries the repair without which the final run cannot get past Step 6 (step 2
-  above), so it lands before step 3. Its regression check was run locally, without
-  uploading the precinct outputs, and does not replace the final run.
+  artifacts, and how to tell which behaviour a revision produces. #368 also
+  carried the repair without which the final run could not get past Step 6; that
+  is on the epic now, so it no longer gates step 3. Its regression check was run
+  locally, without uploading the precinct outputs, and does not replace the final
+  run.
   One follow-up stays open on #333: the 20-minute maps' fill comes from its own
   association, separate from the outline's. The two agree today.
 - **#339 — `buffered_extract` test failure is expected, and is not ours.**
