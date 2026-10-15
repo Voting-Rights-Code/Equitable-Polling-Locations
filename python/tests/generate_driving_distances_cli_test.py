@@ -102,6 +102,25 @@ class TestDeriveOriginsAndDestinations:
         assert locations['pollA'] == [-97.252456, 32.707497]
         assert locations['pollB'] == [-97.189768, 32.711546]
 
+    @patch('python.scripts.generate_driving_distances_cli.load_potential_locations_csv')
+    @patch('python.scripts.generate_driving_distances_cli.get_blocks_gdf')
+    def test_destination_ids_are_strings(self, mock_blocks, mock_pots):
+        '''Return destination ids as strings when the Location column is numeric.'''
+        mock_blocks.return_value = pd.DataFrame({
+            TIGER20_GEOID20: ['111'],
+            TIGER20_INTPTLAT20: ['32.7'],
+            TIGER20_INTPTLON20: ['-97.3'],
+        })
+        mock_pots.return_value = pd.DataFrame({
+            POT_LOC_LOCATION: [101, 102],
+            POT_LOC_LAT_LON: ['32.707497, -97.252456', '32.711546, -97.189768'],
+        })
+
+        config = MagicMock(location='Tarrant_County_TX', census_year='2020')
+        locations, _, dest_ids = derive_origins_and_destinations(config)
+        assert dest_ids == ['101', '102']
+        assert locations['101'] == [-97.252456, 32.707497]
+
 
 class TestMain:
     '''Smoke-test the happy path end to end, everything mocked.'''
