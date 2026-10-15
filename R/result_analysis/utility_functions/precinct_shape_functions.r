@@ -194,7 +194,7 @@ flag_unpopulated_precincts <- function(as_provided_precincts, block_precinct_ass
 # location
 flag_populated_unassigned_blocks <- function(block_precinct_assignment) {
   unassigned_populated_blocks <- block_precinct_assignment %>%
-    mutate(unassigned_populated = population > 0 & (is.na(USER_POLL_) | USER_POLL_ == ""))
+    mutate(unassigned_populated = population > 0 & is.na(USER_POLL_))
 
   #write to file
   st_write(
