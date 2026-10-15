@@ -195,7 +195,7 @@ flag_unpopulated_precincts <- function(as_provided_precincts, block_precinct_ass
 # location
 flag_populated_unassigned_blocks <- function(block_precinct_assignment) {
   unassigned_populated_blocks <- block_precinct_assignment %>%
-    mutate(unassigned_populated = population > 0 & (is.na(USER_POLL_) | USER_POLL_ == ""))
+    mutate(unassigned_populated = population > 0 & is.na(USER_POLL_))
 
   #write to file
   st_write(
@@ -359,11 +359,13 @@ return(corrected_state_data)
 
 ##### one-off WV_state_file_corrections/*.r scripts: apply a human-reviewed correction #####
 
-# block_precinct_assignments.csv is created before the state data is adjusted
 # build a (Precinct_I, resolved_polling_location) crosswalk from a reviewed
-# mismatches table. One row per state provided Precinct_I that needed a
-# correction; resolved_polling_location is NA for precincts that legitimately
-# lack destinations.
+# mismatches table: one row per renamed or dropped precinct. Blocks get their
+# precinct before review (flag_state_provided_precincts.r), so
+# resolve_block_destinations() uses this to correct their USER_POLL_.
+# resolved_polling_location is NA for precincts with no destination.
+# Note: fwrite() writes NA as a blank cell but fread() reads it back as "", so readers of this
+# crosswalk or the mismatches CSV check is.na(x) | x == "".
 build_precinct_crosswalk <- function(reviewed_corrections) {
   #check that resolution type has correct entries.
   unsupported <- reviewed_corrections[
@@ -430,6 +432,7 @@ apply_corrections <- function(state_precincts, reviewed_corrections) {
   )
 
   # Check that every renamed or split precinct has an assigned polling location
+  # (fread() returns blank cells as "", not NA)
   rename_split_poll <- reviewed_corrections[resolution_type %in% c("rename", "split"), USER_POLL_]
   stopifnot(
     "reviewed_corrections has a rename/split row with a blank USER_POLL_ -- \
@@ -557,6 +560,7 @@ get_driving_distances <- function(block_precinct_assignment, state_county_crossw
     by.y = c("id_orig", "id_dest_upper"), all.x = TRUE)
 
   #alert if there are missing distances or times for blocks with associated polling locations
+  #(fread() returns blank cells as "", not NA)
   missing_distances <- distance_blocks[(is.na(distance_m) | is.na(duration_s)) & !(is.na(resolved_destination) | resolved_destination == ''), ]
   if (nrow(missing_distances)>0){
     stop(paste('The following blocks do not have driving distances: ', paste(missing_distances$GEOID20, collapse = ', ')))
