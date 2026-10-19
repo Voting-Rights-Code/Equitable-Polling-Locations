@@ -23,6 +23,9 @@ source('R/result_analysis/utility_functions/graph_functions.R')
 source('R/result_analysis/utility_functions/map_functions.R')
 source('R/result_analysis/utility_functions/regression_functions.r')
 
+# The folder inside STORAGE_BUCKET for Basic_analysis uploads. A config may override it.
+STORAGE_BASE_DIR = "equitable-polling-locations-analyses"
+
 
 #######
 #Read in command line arguments
