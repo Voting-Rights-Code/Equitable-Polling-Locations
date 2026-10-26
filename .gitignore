@@ -137,6 +137,8 @@ celerybeat.pid
 
 # Environments
 .env
+# Intentionally tracked: sets COMPOSE_PROJECT_NAME for the sibling ORS compose file.
+!.devcontainer/.env
 .venv
 env/
 venv/
@@ -213,6 +215,16 @@ datasets/polling/e2e_*/
 datasets/driving/e2e_*/
 datasets/configs/e2e_*/
 datasets/results/e2e_*_results/
+
+# OpenRouteService inputs (Geofabrik .pbf extracts, ORS-generated example data)
+datasets/openrouteservice/*.pbf
+datasets/openrouteservice/*.osm.gz
+datasets/openrouteservice/*-buffer.geojson
+
+# Per-state ORS graph caches — bind-mounted into the container at /home/ors/graphs.
+# The parent dir is tracked via its .gitkeep; everything inside is ORS-generated.
+datasets/ors_graphs/*
+!datasets/ors_graphs/.gitkeep
 
 #Want to avoid keeping config files locally
 #and put them in the database

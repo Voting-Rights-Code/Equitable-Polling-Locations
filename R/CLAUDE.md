@@ -21,6 +21,7 @@ Key libraries: `data.table`, `ggplot2`, `sf`, `bigrquery`, `googleCloudStorageR`
 - All `library()` calls at the top of each script. 
 - Never use `setwd()` in a way that will not transfer across different users or different machines or different copies of the program in the same machine.
 - This project uses data.table — use `dt[i, j, by]` idiom. Only use dplyr verbs when there is no way to perform the action using data.table.
+  - Exception: for `sf` objects, prefer `dplyr::group_by()`/`summarise()` (sf-aware) or base `sf`/`split()`+`lapply()` over `data.table`'s grouping or `merge()` for any step that must preserve `sfc` attributes (`crs`, `bbox`, `precision`). `data.table` operations on geometry list-columns silently strip these even though `class()` still reports `sfc`, breaking later `st_area()`/`st_sym_difference()` calls with cryptic type errors.
 - Vectorize operations; avoid explicit loops for element-wise work. 
 - Use `seq_along(x)` / `seq_len(n)`, never `1:length(x)`.
 - NA is not NULL. Test with `is.na()` or `is.null()`, never `x == NA` or `x == NULL`.
