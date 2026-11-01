@@ -3,6 +3,7 @@
         "ms-python.python",
         "ms-python.pylint",
         "ms-python.debugpy",
-        "ms-azuretools.vscode-containers"
+        "ms-azuretools.vscode-containers",
+        "REditorSupport.r"
     ]
 }

@@ -21,6 +21,11 @@ if __name__ == '__main__':
         'census_year',
         help='Decennial census year of interest, e.g. 2020',
     )
+    parser.add_argument(
+        '-v', '--verbose', action='count', default=0,
+        help='Print per-table and per-file progress while downloading.',
+    )
     args = parser.parse_args()
-    print(args)
-    pull_census_data(args.state, args.county, args.census_year)
+    print(f'Downloading census data for {args.county}, {args.state} ({args.census_year})...')
+    pull_census_data(args.state, args.county, args.census_year, verbose=args.verbose > 0)
+    print('Completed.')

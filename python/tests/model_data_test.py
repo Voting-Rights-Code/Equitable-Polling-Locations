@@ -134,7 +134,7 @@ def test_clean_data(testing_config_driving, location_df_with_driving):
     print(driving_locations_results_dest_types)
 
     # Check that clean_data removes bad types when for_alpha is False
-    cleaned_data_df = model_data.filter_distance_data(testing_config_driving, location_df_with_driving, False, False)
+    cleaned_data_df = model_data.filter_distance_data(testing_config_driving, location_df_with_driving, False)
     cleaned_data_bad_types_df = cleaned_data_df[cleaned_data_df['location_type'].isin(testing_config_driving.bad_types)]
     num_cleaned_bad_types = len(cleaned_data_bad_types_df)
 
@@ -143,7 +143,7 @@ def test_clean_data(testing_config_driving, location_df_with_driving):
     )
 
     # Check that clean_data with alpha set to true removes all location_types that contain 'Potential' or 'centroid'
-    cleaned_data_with_alpha_df = model_data.filter_distance_data(testing_config_driving, location_df_with_driving, True, False)
+    cleaned_data_with_alpha_df = model_data.filter_distance_data(testing_config_driving, location_df_with_driving, True)
     unique_location_types = cleaned_data_with_alpha_df['location_type'].unique()
 
     assert not any('Potential' in s or 'centroid' in s for s in unique_location_types), (
@@ -176,4 +176,54 @@ def test_clean_data(testing_config_driving, location_df_with_driving):
             f'Expected at least one cleaned-data row with location_type '
             f'containing {year_str!r}, but found none'
         )
+
+
+def test_filter_distance_data_raises_and_names_origin_on_negative(
+        testing_config_driving, location_df_with_driving, capsys):
+    ''' A negative distance_m on a surviving row is rejected like a missing one. '''
+    # Choose an origin that survives filtering, so the negative reaches the gate.
+    surviving = model_data.filter_distance_data(
+        testing_config_driving, location_df_with_driving, False)
+    bad_origin = surviving.iloc[0]['id_orig']
+
+    poisoned = location_df_with_driving.copy(deep=True)
+    # Poison every row for that origin so it has no valid distance left and is
+    # named in the diagnostic (matches the existing set-difference reporting).
+    poisoned.loc[poisoned['id_orig'] == bad_origin, 'distance_m'] = -1.0
+
+    with pytest.raises(ValueError):
+        model_data.filter_distance_data(testing_config_driving, poisoned, False)
+    assert str(bad_origin) in capsys.readouterr().out
+
+
+def test_filter_distance_data_raises_on_single_negative_cell(
+        testing_config_driving, location_df_with_driving):
+    ''' Even one negative cell on a surviving row triggers the gate. '''
+    surviving = model_data.filter_distance_data(
+        testing_config_driving, location_df_with_driving, False)
+    orig = surviving.iloc[0]['id_orig']
+    dest = surviving.iloc[0]['id_dest']
+
+    poisoned = location_df_with_driving.copy(deep=True)
+    cell = (poisoned['id_orig'] == orig) & (poisoned['id_dest'] == dest)
+    poisoned.loc[cell, 'distance_m'] = -0.5
+
+    with pytest.raises(ValueError):
+        model_data.filter_distance_data(testing_config_driving, poisoned, False)
+
+
+def test_filter_distance_data_allows_zero_distance(
+        testing_config_driving, location_df_with_driving):
+    ''' 0 is a legitimate same-point distance and must not raise. '''
+    surviving = model_data.filter_distance_data(
+        testing_config_driving, location_df_with_driving, False)
+    orig = surviving.iloc[0]['id_orig']
+    dest = surviving.iloc[0]['id_dest']
+
+    df = location_df_with_driving.copy(deep=True)
+    cell = (df['id_orig'] == orig) & (df['id_dest'] == dest)
+    df.loc[cell, 'distance_m'] = 0.0
+
+    # Should not raise.
+    model_data.filter_distance_data(testing_config_driving, df, False)
 

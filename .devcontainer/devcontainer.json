@@ -21,7 +21,8 @@
             "extensions": [
                 "ms-python.python",
                 "ms-python.pylint",
-                "ms-python.debugpy"
+                "ms-python.debugpy",
+                "REditorSupport.r"
             ],
             "settings": {
                 "python.defaultInterpreterPath": "/opt/conda/envs/equitable-polls/bin/python",
