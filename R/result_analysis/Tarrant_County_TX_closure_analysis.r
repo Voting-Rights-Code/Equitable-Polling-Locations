@@ -22,6 +22,7 @@ source('R/result_analysis/Basic_analysis_configs/Tarrant_County_original_and_fai
 #########Set up constants and folders ##################3
 # Reassign the config's own analysis name 
 CLOUD_STORAGE_ANALYSIS_NAME <- 'Tarrant_County_TX_exploration'
+POTENTIAL_LOCATIONS_FILE <- paste0('datasets/polling/', LOCATION, '/', LOCATION, '_potential_locations.csv')
 
 #this should only be run after Basic_analysis.r has been run for
 #Tarrant_County_original_and_fair_capacity_2.r
@@ -38,10 +39,19 @@ if (length(missing_folders) > 0){
 orig_config_dt <- load_config_data(LOCATION, ORIG_CONFIG_FOLDER)
 orig_output_df_list <- read_result_data(orig_config_dt, field_of_interest = ORIG_FIELD_OF_INTEREST, descriptor_dict = DESCRIPTOR_DICT_ORIG)
 
+#2025 source data recorded this location as 'Volante of Grapevine'; 2024 and 2026 use
+#'Dancing River By Volante Senior Living'. Normalize so it reads as one continuous
+#location instead of closing after 2024 and a new location opening in 2025.
+orig_output_df_list$precinct_distances[id_dest == 'Volante of Grapevine',
+                id_dest := 'Dancing River By Volante Senior Living']
+orig_output_df_list$results[id_dest == 'Volante of Grapevine',
+                id_dest := 'Dancing River By Volante Senior Living']
+
 potential_config_dt <- load_config_data(LOCATION, POTENTIAL_CONFIG_FOLDER)
 potential_output_df_list <- read_result_data(potential_config_dt, field_of_interest = POTENTIAL_FIELD_OF_INTEREST, 
 descriptor_dict = DESCRIPTOR_DICT_POTENTIAL)
 
+addresses <- fread(POTENTIAL_LOCATIONS_FILE)[, .(Location, Address)]
 
 #read in 2024, and 2025 and 2026 historical precinct data, as well as the optimal assignments and proposed 2026 assignments
 precinct_dt <- orig_output_df_list$precinct_distances
@@ -81,7 +91,8 @@ dt_pop_polls_2025 <- dt_2025_pop[ , dropped_2026 := TRUE
                 ][id_dest %in% polls_2026prop, dropped_2026prop := FALSE
                 ]
 
-#csv of precincts kept by year and population assigned to each.
+#csv of precincts kept by year and population assigned to each. Keep the address data 
+#of precincts for customer
 combined <- rbind(dt_2024, dt_2025, dt_2026, dt_2026prop, fill = TRUE)
 precinct_persistence_demographics <- dcast(combined, id_dest + demographic ~ descriptor, value.var = 'demo_pop')
 precinct_persistence_demographics[ , pct_change_24_to_26 := as.character(round((`2026`-`2024`)/`2024`, 2))
@@ -89,9 +100,26 @@ precinct_persistence_demographics[ , pct_change_24_to_26 := as.character(round((
                 ][is.na(`2026`), pct_change_24_to_26 := 'Closed'
                 ][is.na(`2024`) & is.na(`2026`), pct_change_24_to_26 := 'enacted_2025_only'
                 ]
+precinct_persistence_demographics <- merge(precinct_persistence_demographics, addresses,
+                by.x = 'id_dest', by.y = 'Location', all.x = TRUE)
+setnames(precinct_persistence_demographics, 'Address', 'address')
+
+#locations ranked by 2024->2026 population change, with pct hispanic (2024 baseline).
+#A missing 2024 or 2026 location (new/closed) counts as 0 population
+location_population_change <- merge(
+  precinct_persistence_demographics[demographic == 'population',
+                  .(id_dest, address, population_2024 = `2024`, population_2026 = `2026`, pct_change_24_to_26 = pct_change_24_to_26)],
+  precinct_persistence_demographics[demographic == 'hispanic', .(id_dest, hispanic_2024 = `2024`, hispanic_2026 = `2026`)],
+  by = 'id_dest', all.x = TRUE)
+location_population_change<- location_population_change[!(pct_change_24_to_26 %in% c('New', 'Closed', 'enacted_2025_only')), 
+                ][, pct_hispanic_2024 := hispanic_2024 / population_2024
+                ][ , pct_change_24_to_26 := as.numeric(pct_change_24_to_26)]
+setorder(location_population_change, -pct_change_24_to_26)
 
 #csv of distances traveled by census block by year and population of each, and to which destination.
 results_dt <- orig_output_df_list$results
+results_dt <- merge(results_dt, addresses,
+                by.x = 'id_dest', by.y = 'Location', all.x = TRUE)
 three_years_results <- results_dt[descriptor %in% c('2024', '2025', '2026')
                     ][ , descriptor := droplevels(descriptor)
                     ][, pct_hispanic := hispanic/population]
@@ -99,7 +127,7 @@ three_years_results <- results_dt[descriptor %in% c('2024', '2025', '2026')
 #melt the wide demographic columns into long form
 demographic_cols <- c('population', 'hispanic', 'white', 'black', 'native', 'asian')
 three_years_long <- melt(three_years_results,
-                  id.vars = c('id_orig', 'descriptor', 'id_dest', 'distance_m', 'pct_hispanic'),
+                  id.vars = c('id_orig', 'descriptor', 'id_dest', 'Address', 'distance_m', 'pct_hispanic'),
                   measure.vars = demographic_cols,
                   variable.name = 'demographic',
                   value.name = 'demo_pop')
@@ -107,9 +135,12 @@ three_years_long <- melt(three_years_results,
 #one column per year for both destination and distance
 block_distance_by_year <- dcast(three_years_long,
                   id_orig + demographic + demo_pop + pct_hispanic ~ descriptor,
-                  value.var = c('id_dest', 'distance_m'))
+                  value.var = c('id_dest', 'Address', 'distance_m'))
 block_distance_by_year[ , pct_change_24_to_26 := round((`distance_m_2026`-`distance_m_2024`)/`distance_m_2024`, 2)
                 ]
+Address_cols <- names(block_distance_by_year)[grepl('Address', names(block_distance_by_year))] 
+address_cols <- gsub('Address', 'address', Address_cols)
+setnames(block_distance_by_year, Address_cols, address_cols)
 
 ######## run models ############
 
@@ -164,6 +195,10 @@ fwrite(precinct_persistence_demographics, 'precinct_demographics_by_year.csv')
 #block distance data
 add_graph_to_graph_file_manifest('block_distance_by_year.csv')
 fwrite(block_distance_by_year, 'block_distance_by_year.csv')
+
+#location population change, ranked
+add_graph_to_graph_file_manifest('location_population_change.csv')
+fwrite(location_population_change, 'location_population_change.csv')
 
 ###Optimized runs
 setwd(file.path(here(), "result_analysis_outputs/Tarrant_County_TX_fair_capacity_2"))
