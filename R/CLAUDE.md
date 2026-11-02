@@ -31,7 +31,23 @@ Key libraries: `data.table`, `ggplot2`, `sf`, `bigrquery`, `googleCloudStorageR`
 - NA is not NULL. Test with `is.na()` or `is.null()`, never `x == NA` or `x == NULL`.
 - Pre-allocate vectors; never grow objects in a loop.
 - Lint with `lintr::lint()`. Format with `styler::style_file()`.
-- No formal test suite.
+- No formal test suite. The manual checks below are run by hand.
+
+### Manual checks (`tests/`)
+
+Three scripts, none automated. Run each with `Rscript R/tests/<name>.R` from the repo root,
+inside the dev container or in a local R env. Each script's header says what it checks and
+what it does not.
+
+- `r_smoke_test.R`: every package in `renv.lock` loads. Run it after a container rebuild
+  or a change to `renv.lock`.
+- `storage_manifest_harness.R`: the upload manifest and the upload order, with a stubbed
+  `gcs_upload()` so nothing reaches Google. Run it after any change to
+  `utility_functions/storage.R`. When you change what the manifest records or how files
+  upload, add a check for the new behaviour in the same run.
+- `nearest_destination_determinism.R`: run-to-run stability of the precinct pipeline's
+  block assignment and outlines. Run it after a change to those steps. It needs a county
+  that has been through `flag_state_provided_precincts.r`.
 
 
 ### Comments
