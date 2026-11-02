@@ -597,7 +597,9 @@ To run the DB E2E tests:
 2. Ensure GCP Application Default Credentials are set up **inside the container** — see [Database Setup](#database-setup-optional) for the in-container `gcloud auth application-default login --no-launch-browser` flow. Credentials persist in the `gcloud-config` docker volume.
 3. Run via `python run.py e2e_tests -m e2e_db` — whether invoked from the host or from inside the container, the tests pick up credentials from the volume automatically.
 
-DB tests do not auto-clean their data — `e2e_`-prefixed rows accumulate in the test dataset across runs so they're available for manual inspection and feature-development work. Run an on-demand purge when the dataset gets bulky (no script ships with the repo today; a `bq query` against `tests_chad` filtered by `WHERE config_set LIKE 'e2e_%'` is the simplest interim approach).
+DB tests do not auto-clean their data — `e2e_`-prefixed rows accumulate in the test dataset across runs so they're available for manual inspection and feature-development work. Run an on-demand purge when the dataset gets bulky (no script ships with the repo today; a `bq query` against your test dataset filtered by `WHERE config_set LIKE 'e2e_%'` is the simplest interim approach).
+
+**One test dataset per schema.** The dataset your `test` environment points at must match the migrations on the branch you test. The shared dataset for `dev` is `tests_dev`. Do not run migrations from a feature branch against it: the extra columns make `dev`'s import tests fail with `Column mismatch`. For a branch that adds a migration, create a dataset of its own (`bq mk --dataset <project>:<name>`) and add it to `settings.yaml` under its own environment name. Alembic picks its dataset from the `ENV` variable, so migrate with `ENV=<name> alembic upgrade head` from that branch. Point `test` at the new dataset while you work on the branch, and back at `tests_dev` when you are done.
 
 ### Pre-Merge Checklist
 

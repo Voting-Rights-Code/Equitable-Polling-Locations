@@ -35,7 +35,7 @@ if (length(args) != 1) {
 precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
 
 ###### Step 1: extract and validate the county's precincts#######
-state_precincts <- extract_county_precincts(STATE_PRECINCT_FILE, COUNTY_NAME, CRS_PROJECTION)
+state_precincts <- extract_county_precincts(STATE_PRECINCT_FILE, COUNTY_NAME, TIGER_CRS)
 
 state_precincts <- state_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
 st_geometry(state_precincts) <- "precinct_geometry"
@@ -104,20 +104,6 @@ optimization_results <- fread(
   OPTIMIZATION_RESULTS, colClasses = list(character = "id_orig")
 )
 
-#read the solver-optimized precinct shapefile, for Step 7's maps.
-#Register it and its sidecars as sources: until #333 has this script build
-#the outlines itself, they are consumed Basic_analysis output.
-for (shapefile_part in paste0(sub("\\.shp$", "", SOLVER_PRECINCT_SHAPEFILE),
-                              c(".shp", ".dbf", ".shx", ".prj"))) {
-  if (file.exists(shapefile_part)) {
-    add_source_to_graph_file_manifest("solver_precinct_shapefile", shapefile_part)
-  }
-}
-solver_precinct_shapes <- get_solver_precinct_shapes(
-  SOLVER_PRECINCT_SHAPEFILE, OPTIMIZATION_RESULTS
-)
-
-
 ####
 #change directories -- everything from here reads or write to output folder
 ####
@@ -160,11 +146,16 @@ distance_flagged_blocks_15 <- flag_distant_blocks(distance_demo_reshaped,
 distance_flagged_blocks_20 <- flag_distant_blocks(distance_demo_reshaped,
   20)
 
+#one block-to-destination assignment, shared by both duration tables and Step 7's outline
+solver_block_destinations <- get_solver_block_destinations(
+  block_precinct_assignment, optimization_results
+)
+
 solver_distance_flagged_blocks_15 <- flagged_optimized_distant_blocks(
-  block_precinct_assignment, optimization_results, 15
+  solver_block_destinations, optimization_results, 15
 )
 solver_distance_flagged_blocks_20 <- flagged_optimized_distant_blocks(
-  block_precinct_assignment, optimization_results, 20
+  solver_block_destinations, optimization_results, 20
 )
 
 # create share color scale across every heat map below to make the maps 
@@ -215,12 +206,17 @@ make_demo_distance_heat_map(
 
 ###### Step 7: plot solver-assignment distance heat map #######
 
-# use the solver's own grouping of blocks (dissolved precinct-like outlines,
-# written by Basic_analysis.r's make_precinct_map()) instead of the
-# state-provided precincts, since these maps show the solver's assignment,
-# not the as-provided precincts. (solver_precinct_shapes was read in Step 3.)
+# make heat maps accroding the the solver assigned precincts as a best case option
 
-# 15 min
+# precinct outlines
+solver_precinct_shapes <- combine_blocks_by_destination(
+  merge(block_precinct_assignment[, "GEOID20"],
+        solver_block_destinations,
+        by.x = "GEOID20", by.y = "id_orig"),
+  "id_dest"
+)
+
+# maps for fifteen minutes
 make_demo_distance_heat_map(
   block_precinct_assignment, solver_distance_flagged_blocks_15,
   solver_precinct_shapes, polling_locations, demographic = NULL, 15, map_label = "optimized", color_bounds = duration_color_bounds
@@ -230,7 +226,7 @@ make_demo_distance_heat_map(
   solver_precinct_shapes, polling_locations, demographic = "population", 15, map_label = "optimized", color_bounds = duration_color_bounds
 )
 
-# 20 min
+# maps for twenty minutes
 make_demo_distance_heat_map(
   block_precinct_assignment, solver_distance_flagged_blocks_20,
   solver_precinct_shapes, polling_locations, demographic = NULL, 20, map_label = "optimized", color_bounds = duration_color_bounds

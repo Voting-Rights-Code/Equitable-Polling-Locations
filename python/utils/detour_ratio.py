@@ -1,4 +1,4 @@
-'''Detour-ratio diagnostic for cross-border distance inflation (issue #226, Phase 1).
+'''Detour-ratio diagnostic for cross-border distance inflation.
 
 Compares stored driving distances against a recomputed straight-line (haversine)
 baseline, per (id_orig, id_dest) pair, to surface counties whose distance matrix

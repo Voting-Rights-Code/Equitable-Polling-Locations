@@ -1,4 +1,4 @@
-'''Live-ORS acceptance test for the buffered extract (issue #226).
+'''Live-ORS acceptance test for the buffered extract.
 
 Regression guard for the silent cross-border distance inflation the buffered
 extract fixes. The ticket's WV->PA pair sits just south of the Pennsylvania
@@ -8,7 +8,7 @@ and is forced into a long detour that stays inside WV.
 
 The guard asserts the buffered route's geometry crosses **north of the WV/PA
 border** — i.e. it actually used Pennsylvania roads. That is the exact capability
-#226 restores, and it is unambiguous: a regression that dropped the buffer could
+the buffer restores, and it is unambiguous: a regression that dropped the buffer could
 not produce a route north of the line at all. (Distance/duration are a poor
 discriminator here — the through-PA route and the in-WV detour are similar
 lengths; only crossing the border separates them.)

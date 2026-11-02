@@ -5,6 +5,7 @@ library(ggplot2)
 
 source("R/result_analysis/utility_functions/city_shape_functions.r")
 source("R/result_analysis/utility_functions/tableau_theme.R")
+source("R/result_analysis/utility_functions/map_functions.R")
 
 
 ######## Constants ########
@@ -13,7 +14,7 @@ POTENTIAL_LOCATIONS_SUFFIX <- "_potential_locations.csv"
 DRIVING_FOLDER <- "datasets/driving"
 DRIVING_DISTANCE_SUFFIX <- "_driving_distances.csv"
 AREA_CRS <- 5070
-
+TIGER_CRS <- 4269
 ######## Path / IO helpers ########
 
 # path to a location's potential-locations CSV
@@ -43,7 +44,7 @@ force_text_for_spreadsheet <- function(id_column) {
 # Note for future projects: This is custom built for the WV precinct shapefile and may need
 # generalization.
 extract_county_precincts <- function(precinct_source_file, county_name,
-                                     crs_projection = CRS_PROJECTION) {
+                                     crs_projection = TIGER_CRS) {
   #read state data
   statewide_precincts <- get_shape_data(
     precinct_source_file,
@@ -69,7 +70,7 @@ extract_county_precincts <- function(precinct_source_file, county_name,
 # block touching 3 precincts produces 3 rows.
 compute_block_precinct_overlaps <- function(county_precincts,
                 county_blocks, p3_population, area_crs = AREA_CRS,
-                crs_projection = CRS_PROJECTION) {
+                crs_projection = TIGER_CRS) {
 
   #transform to an equal-area projection for area calculations.
   #5070 is NAD83 / Conus Albers.
@@ -105,6 +106,12 @@ compute_block_precinct_overlaps <- function(county_precincts,
   # return to project's standard projection
   block_precinct_intersection <- st_transform(block_precinct_intersection, crs_projection)
 
+  #check that all blocks are accounted for
+  if (length(unique(block_precinct_intersection$GEOID20)) < length(county_blocks$GEOID20)){
+    stop(paste('The following blocks do not intersect any precinct: ',
+        paste0(setdiff(county_blocks$GEOID20, unique(block_precinct_intersection$GEOID20)),
+        collapse = ', ')))
+  }
   return(block_precinct_intersection)
 }
 
@@ -188,7 +195,7 @@ flag_unpopulated_precincts <- function(as_provided_precincts, block_precinct_ass
 # location
 flag_populated_unassigned_blocks <- function(block_precinct_assignment) {
   unassigned_populated_blocks <- block_precinct_assignment %>%
-    mutate(unassigned_populated = population > 0 & (is.na(USER_POLL_) | USER_POLL_ == ""))
+    mutate(unassigned_populated = population > 0 & is.na(USER_POLL_))
 
   #write to file
   st_write(
@@ -352,11 +359,13 @@ return(corrected_state_data)
 
 ##### one-off WV_state_file_corrections/*.r scripts: apply a human-reviewed correction #####
 
-# block_precinct_assignments.csv is created before the state data is adjusted
 # build a (Precinct_I, resolved_polling_location) crosswalk from a reviewed
-# mismatches table. One row per state provided Precinct_I that needed a
-# correction; resolved_polling_location is NA for precincts that legitimately
-# lack destinations.
+# mismatches table: one row per renamed or dropped precinct. Blocks get their
+# precinct before review (flag_state_provided_precincts.r), so
+# resolve_block_destinations() uses this to correct their USER_POLL_.
+# resolved_polling_location is NA for precincts with no destination.
+# Note: fwrite() writes NA as a blank cell but fread() reads it back as "", so readers of this
+# crosswalk or the mismatches CSV check is.na(x) | x == "".
 build_precinct_crosswalk <- function(reviewed_corrections) {
   #check that resolution type has correct entries.
   unsupported <- reviewed_corrections[
@@ -423,6 +432,7 @@ apply_corrections <- function(state_precincts, reviewed_corrections) {
   )
 
   # Check that every renamed or split precinct has an assigned polling location
+  # (fread() returns blank cells as "", not NA)
   rename_split_poll <- reviewed_corrections[resolution_type %in% c("rename", "split"), USER_POLL_]
   stopifnot(
     "reviewed_corrections has a rename/split row with a blank USER_POLL_ -- \
@@ -550,6 +560,7 @@ get_driving_distances <- function(block_precinct_assignment, state_county_crossw
     by.y = c("id_orig", "id_dest_upper"), all.x = TRUE)
 
   #alert if there are missing distances or times for blocks with associated polling locations
+  #(fread() returns blank cells as "", not NA)
   missing_distances <- distance_blocks[(is.na(distance_m) | is.na(duration_s)) & !(is.na(resolved_destination) | resolved_destination == ''), ]
   if (nrow(missing_distances)>0){
     stop(paste('The following blocks do not have driving distances: ', paste(missing_distances$GEOID20, collapse = ', ')))
@@ -626,41 +637,29 @@ demographic_legend_dict <- c(
   non_hispanic = "Non-Latine"
 )
 
-#TODO: given how the st_nearest_feature seems to assign blocks differently every run, 
-#is this the right thing to do?
-# read the solver-optimized precinct shapefile. Error if data is stale or missing
-get_solver_precinct_shapes <- function(solver_precinct_shapefile,
-                                       results_file) {
-  # check if file missing
-  if (!file.exists(solver_precinct_shapefile)) {
-    stop(
-      "Solver-optimized precinct shapefile not found at ",
-      solver_precinct_shapefile,
-      ". Run Basic_analysis.r for this county/config to generate it before ",
-      "running extract_precincts.r's Step 7."
-    )
-  }
 
-  # get timestamp of precinct file and the result file it should be derived from
-  # error if stale
-  shapefile_mtime <- file.info(solver_precinct_shapefile)$mtime
-  results_mtime <- file.info(results_file)$mtime
-  if (shapefile_mtime < results_mtime) {
-    stop(
-      solver_precinct_shapefile, " is older than ", results_file, ". ",
-      "The solver results have changed since this shapefile was generated -- ",
-      "rerun Basic_analysis.r for this county/config before running Step 7."
-    )
-  }
-  return(st_read(solver_precinct_shapefile))
+# assign every block to a destination, including unpopulated blocks.
+# a wrapper around associate_destinations_to_all_blocks to make it compatible with
+# flagged_optimized_distant_blocks
+get_solver_block_destinations <- function(block_shapes, optimization_results) {
+
+  #blocks the solver skipped come through the merge with a NA destination,
+  #which is what the nearest-destination search fills in.
+  all_geoms <- merge(block_shapes, optimization_results[ , .(id_orig, id_dest)],
+                     by.x = "GEOID20", by.y = "id_orig", all.x = TRUE)
+  all_geoms_assigned <- associate_destinations_to_all_blocks(all_geoms)
+
+  block_destinations <- as.data.table(st_drop_geometry(all_geoms_assigned))[
+    , .(id_orig = GEOID20, id_dest)]
+
+  return(block_destinations)
 }
 
 # reshape the results from the optimization run to fit the heat maps
-# flag distant columns. optimization_results is copied since this is called
-# once per duration threshold on the same shared table, and data.table's
-# `:=` mutates by reference.
-flagged_optimized_distant_blocks <- function(block_shapes, optimization_results, duration_threshold_min) {
+# and flag distant columns.
+flagged_optimized_distant_blocks <- function(block_destinations, optimization_results, duration_threshold_min) {
 
+  #optimization_results is shared data. Do not change optimization_results directly
   results <- copy(optimization_results)
   #TODO: until the bug where distance_m has data in seconds for certain runs, this
   #is going to be broken. This will be wired through as part of that bug
@@ -677,32 +676,20 @@ flagged_optimized_distant_blocks <- function(block_shapes, optimization_results,
   )
   results <- results[, ..output_columns]
 
-  #determine which blocks the solver never assigned (zero population, by design)
-  all_blocks <- data.table(st_drop_geometry(block_shapes))[, .(GEOID20, population)]
-  missing_blocks <- all_blocks[!GEOID20 %in% results$id_orig]
+  #attach distances and demographics. id_dest comes from block_destinations,
+  #so drop the results copy rather than collide with it.
+  all_geoms_results <- merge(block_destinations, results[ , !"id_dest"], by = "id_orig", all.x = TRUE)
 
-  ####
-  # each zero-population block borrows its nearest assigned block's real
-  # destination (as in make_precinct_maps)
-  ####
-  #merge results and block assingment geometries
-  assigned_geom <- block_shapes[block_shapes$GEOID20 %in% results$id_orig, "GEOID20"]
-  assigned_geom <- merge(assigned_geom, results[, .(id_orig, id_dest)], by.x = "GEOID20", by.y = "id_orig")
+  #fill empty demographics to 0 and ensure flagged_distance is FALSE
+  unassigned_rows <- is.na(all_geoms_results$flagged_distance)
+  zero_fill_columns <- setdiff(
+    output_columns, c("id_orig", "id_dest", "flagged_distance")
+  )
+  all_geoms_results[unassigned_rows, (zero_fill_columns) := 0]
+  all_geoms_results[unassigned_rows, flagged_distance := FALSE]
 
-  #get the geometries of the unassigned blocks and assign them to a neighboring block's desination
-  missing_geom <- block_shapes[block_shapes$GEOID20 %in% missing_blocks$GEOID20, "GEOID20"]
-  nearest <- st_join(missing_geom, assigned_geom[, "id_dest"], join = st_nearest_feature)
-  missing_blocks <- merge(missing_blocks, st_drop_geometry(nearest)[, c("GEOID20", "id_dest")], by = "GEOID20")
-
-  #fill in the rest of the data for missing blocks
-  zero_fill_columns <- setdiff(output_columns, c("id_orig", "id_dest", "population", "flagged_distance"))
-
-  missing_rows <- missing_blocks[, id_orig := GEOID20
-              ][, (zero_fill_columns) := 0
-              ][, flagged_distance := FALSE
-              ][, ..output_columns]
-
-  results <- rbind(results, missing_rows)
+  #restore the documented column order, which the merges disturb
+  all_geoms_results <- all_geoms_results[ , ..output_columns]
 
   #write to file
   distance_flagged_blocks_path <- paste0(
@@ -711,12 +698,12 @@ flagged_optimized_distant_blocks <- function(block_shapes, optimization_results,
   # write a copy with id_orig text-wrapped for spreadsheet display -- results
   # itself stays unwrapped since it's merged on GEOID20 downstream (Step 6/7
   # heat maps).
-  results_for_csv <- copy(results)
+  results_for_csv <- copy(all_geoms_results)
   results_for_csv[, id_orig := force_text_for_spreadsheet(id_orig)]
   fwrite(results_for_csv, distance_flagged_blocks_path)
   add_graph_to_graph_file_manifest(distance_flagged_blocks_path)
 
-  return(results)
+  return(all_geoms_results)
 }
 
 # read a potential-locations CSV and split its combined
@@ -742,7 +729,7 @@ get_polling_locations <- function(location) {
 make_demo_distance_heat_map <- function(
     block_shapes, distance_flagged_blocks, precinct_shapes, polling_locations, demographic,
     duration_threshold_min, location = LOCATION,
-    crs_projection = CRS_PROJECTION, map_label = NULL, color_bounds = NULL) {
+    crs_projection = TIGER_CRS, map_label = NULL, color_bounds = NULL) {
   # reproject to a plain lat/lon CRS so the graticule comes out
   # horizontal/vertical
   block_shapes <- st_transform(block_shapes, crs_projection)
