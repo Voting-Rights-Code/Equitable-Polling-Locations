@@ -54,8 +54,5 @@ DEMOGRAPHIC_LIST <- c("population")
 ########
 # Cloud storage
 ########
-# Precinct analyses upload under their own top-level folder in the bucket,
-# beside the Basic_analysis folder (see #335 / #340).
-STORAGE_BASE_DIR <- "precinct-distance-analyses"
 STORAGE_BUCKET <- "equitable-polling-analysis"
 CLOUD_STORAGE_ANALYSIS_NAME <- paste0(LOCATION, "_precinct_analysis")

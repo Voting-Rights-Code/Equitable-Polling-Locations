@@ -10,6 +10,10 @@ source("R/result_analysis/utility_functions/city_shape_functions.r")
 source("R/result_analysis/utility_functions/graph_functions.R")
 source("R/result_analysis/utility_functions/regression_functions.r")
 
+# The folder inside STORAGE_BUCKET for precinct analysis uploads, beside the
+# Basic_analysis folder. A config may override it.
+STORAGE_BASE_DIR <- "precinct-distance-analyses"
+
 #######
 # Read in command line arguments
 # A config file must be given to get the location-specific constants for the

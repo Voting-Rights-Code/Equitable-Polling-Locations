@@ -236,9 +236,13 @@ upload_graph_files_to_cloud_storage <- function() {
     local_tree <- file.path(here(), manifest$output_tree)
 
     local_file_paths <- file.path(local_tree, manifest$graph_files)
+    source_file_paths <- vapply(
+        manifest$sources, function(source_entry) file.path(here(), source_entry$origin), character(1)
+    )
 
-    # Check every file before uploading any, avoiding a partial upload
-    missing_files <- local_file_paths[!file.exists(local_file_paths)]
+    # Check every file, outputs and sources, before uploading any, avoiding a partial upload
+    missing_files <- c(local_file_paths[!file.exists(local_file_paths)],
+                       source_file_paths[!file.exists(source_file_paths)])
     if (length(missing_files) > 0) {
         stop(paste0("upload_graph_files_to_cloud_storage cannot find files: ",
                     paste(missing_files, collapse = ", ")))
@@ -256,13 +260,8 @@ upload_graph_files_to_cloud_storage <- function() {
     for (source_entry in manifest$sources) {
         local_file_path <- file.path(here(), source_entry$origin)
         cloud_storage_file_name <- paste(cloud_storage_base_path, source_entry$object_name, sep="/")
-
-        if (file.exists(local_file_path)) {
-            print(paste0("Uploading file ", local_file_path, " -> ", STORAGE_BUCKET, ":", cloud_storage_file_name))
-            gcs_upload(file=local_file_path, bucket=STORAGE_BUCKET, name=cloud_storage_file_name, predefinedAcl=STORAGE_PREDEFINED_ACL)
-        } else {
-            stop(paste0("upload_graph_files_to_cloud_storage cannot find source file ", local_file_path))
-        }
+        print(paste0("Uploading file ", local_file_path, " -> ", STORAGE_BUCKET, ":", cloud_storage_file_name))
+        gcs_upload(file=local_file_path, bucket=STORAGE_BUCKET, name=cloud_storage_file_name, predefinedAcl=STORAGE_PREDEFINED_ACL)
     }
 
     # Upload the manifest of this analysis to cloud storage
