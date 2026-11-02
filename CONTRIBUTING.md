@@ -150,7 +150,7 @@ Docker is the primary development method. All commands go through `run.py`, whic
 
 ```bash
 # Run the model locally
-python run.py model_run_cli -c NUM -l ./datasets/configs/<config_set>/<config_name>.yaml
+python run.py model_run_cli -c NUM ./datasets/configs/<config_set>/<config_name>.yaml
 
 # Run tests
 python run.py test
@@ -159,7 +159,7 @@ python run.py test
 python run.py e2e_tests
 ```
 
-The `-l` flag accepts a glob — e.g. `./datasets/configs/<config_set>/*.yaml` runs every config in the set.
+The config path is a positional argument and accepts a glob — e.g. `./datasets/configs/<config_set>/*.yaml` runs every config in the set.
 
 ### Dev Container — VS Code or Zed (recommended for editor-integrated development)
 
@@ -206,7 +206,7 @@ gh auth setup-git      # configures git to use gh as its credential helper
 
 After `gh auth setup-git`, any clone URL (HTTPS or SSH) works for pull/push from inside the container. Alternatively, run git commands from your host terminal as usual — the project files are shared between host and container either way.
 
-**SSH caveat under VS Code.** The Dev Containers extension forwards your host's SSH agent socket into shells it spawns — you'll see `SSH_AUTH_SOCK` set in VS Code terminals but not in the container's base env (`docker exec equitable_polling_locations-app-1 env` shows nothing). That means `git clone git@github.com:...` and other SSH operations also work under VS Code, using your host's in-memory keys. Under Zed there is no such forwarding. The exact socket path varies by VS Code version and host OS; the forwarding behavior is stable, the path isn't. The `gh` HTTPS credential helper is the canonical recommendation because it works in both editors and doesn't depend on the host having an SSH agent running.
+**SSH caveat under VS Code.** The Dev Containers extension forwards your host's SSH agent socket into shells it spawns — you'll see `SSH_AUTH_SOCK` set in VS Code terminals but not in the container's base env (`docker exec equitable-polling-locations-app-1 env` shows nothing). That means `git clone git@github.com:...` and other SSH operations also work under VS Code, using your host's in-memory keys. Under Zed there is no such forwarding. The exact socket path varies by VS Code version and host OS; the forwarding behavior is stable, the path isn't. The `gh` HTTPS credential helper is the canonical recommendation because it works in both editors and doesn't depend on the host having an SSH agent running.
 
 #### Zed caveats
 
@@ -246,7 +246,7 @@ R is configured automatically as part of the Dev Container flow — no manual se
 
 1. **R binary + system libs** (`r-base`, `libgdal-dev`, `libproj-dev`, etc.) are installed during the image build. No action from you.
 
-2. **R packages** install automatically on first container creation via `postCreateCommand`, which runs `sudo Rscript .devcontainer/install_r_packages.R`. This takes **~15-20 minutes** the first time and runs in the background — you can use the editor for non-R work (Python tests, editing, terminal) while it finishes.
+2. **R packages** install automatically on first container creation via `postCreateCommand`, which runs `bash .devcontainer/post-create.sh`. That script ends by calling `.devcontainer/run_r_install.sh`, which installs renv and runs `renv::restore()` against `renv.lock`. This takes **~15-20 minutes** the first time and runs in the background — you can use the editor for non-R work (Python tests, editing, terminal) while it finishes.
 
 3. **Packages persist across container recreations** in a docker volume named `equitable-polling-locations_r-site-library`, so the 15-minute install only happens once per developer. Rebuilding the image does not wipe the volume.
 
@@ -256,7 +256,7 @@ R is configured automatically as part of the Dev Container flow — no manual se
 Rscript R/tests/r_smoke_test.R
 ```
 
-Expected output: `OK: R 4.3.x with 17 packages loadable`.
+Expected output: `OK: R 4.3.x with N packages loadable`, where N is the number of packages in `renv.lock`. The test reads the list from `renv.lock`, so the count changes when the lock file does.
 
 **If the smoke test reports missing packages:**
 
@@ -266,10 +266,10 @@ Check whether the background install is still running:
 ps -ef | grep Rscript | grep -v grep
 ```
 
-- **Running:** wait for it to finish (tail `/tmp/r-install.log` if postCreate redirected output there, otherwise just periodically rerun the smoke test)
-- **Not running:** the initial postCreate died silently. Kick it off manually:
+- **Running:** wait for it to finish. The install writes its log to `/tmp/r-install.log`; `tail -f` it, or rerun the smoke test periodically.
+- **Not running:** the install failed. It leaves a marker at `~/.r-install-failed` and the log at `/tmp/r-install.log`. Retry it manually:
     ```bash
-    sudo Rscript .devcontainer/install_r_packages.R
+    bash .devcontainer/run_r_install.sh
     ```
 
 **To force a clean R package reinstall** (e.g. if a package gets corrupted), wipe the docker volume from the **host terminal** and restart the container:
@@ -280,21 +280,26 @@ docker volume rm equitable-polling-locations_r-site-library
 
 The next container start re-runs the full install.
 
-**Adding or removing R packages** later — see [Adding or updating R packages](#adding-or-updating-r-packages).
+**Adding or removing R packages** later — see [R Package Management](#r-package-management).
 
 **Using R outside the Dev Container** — see [Working outside the Dev Container](#working-outside-the-dev-container).
 
 **Rebuilding after `.devcontainer/Dockerfile` or `environment.yml` changes:**
 
-- **VS Code users:** Command Palette → `Dev Containers: Rebuild Container`. VS Code builds the new image automatically. Nothing else to do.
-- **Zed users:** Rebuild the image manually first (see [Zed caveats](#zed-caveats)), then close the window, `docker rm -f equitable_polling_locations-app-1`, and reopen in Zed.
+One procedure for both editors:
+
+1. Build the image from a host terminal: `docker compose -f .devcontainer/docker-compose.build.yml build`.
+2. Recreate the container. VS Code: Command Palette → `Dev Containers: Rebuild Container`. Zed: close the window, run `docker rm -f equitable-polling-locations-app-1`, and reopen the project.
+3. Check that the change is present, for example a new tool's `--version`.
+
+VS Code can also build the image on its own during `Rebuild Container`, but a container has come up on the old image after that step. Step 1 makes the build explicit. Zed never builds the image; see [Zed caveats](#zed-caveats).
 
 The R packages persist in a docker volume independently of the image, so they don't reinstall on image rebuild. To force a clean R reinstall: `docker volume rm equitable-polling-locations_r-site-library`.
 
 **What's in the container:**
 
 - Python 3.11 + the pinned conda env `equitable-polls` (pytest, pylint, geopandas, etc.) — baked into the image
-- **R 4.3** + the project's R packages (`data.table`, `sf`, `ggplot2`, `bigrquery`, `lintr`, `styler`, `languageserver`, etc. — see `.devcontainer/install_r_packages.R`) — R binary baked into image; packages installed on first container start and persisted in a docker volume
+- **R 4.3** + the project's R packages (`data.table`, `sf`, `ggplot2`, `bigrquery`, `lintr`, `styler`, `languageserver`, etc. — the pinned list is `renv.lock`) — R binary baked into image; packages installed on first container start and persisted in a docker volume
 - Node.js 20 + `claude` CLI (for [Claude Code](#claude-code))
 - Git + Git LFS + `gh` CLI (GitHub CLI — used as git's credential helper for HTTPS operations; see [Git from inside the container](#git-from-inside-the-container-optional))
 - **gcloud CLI + auth state** persisted in a docker volume (`gcloud-config`), isolated from host — run `gcloud auth application-default login --no-launch-browser` once per machine; credentials feed BigQuery and other GCP calls automatically via `GOOGLE_APPLICATION_CREDENTIALS`
@@ -330,7 +335,7 @@ pytest python/tests/e2e/ -m e2e_csv
 pylint python/
 
 # CLI scripts (the script runs in the same container, not a new one)
-python -m python.scripts.model_run_cli -c 5 -l ./datasets/configs/Gwinnett_GA/config.yaml
+python -m python.scripts.model_run_cli -c 5 datasets/configs/testing/testing_config_no_bg.yaml
 
 # Claude Code
 claude
@@ -373,7 +378,7 @@ conda env remove -n equitable-polls
 conda env create -f environment.yml
 ```
 
-Docker and Dev Container users: the conda env is baked into the image, so `environment.yml` changes are picked up at image rebuild. Rebuild from a host terminal with `docker compose -f .devcontainer/docker-compose.build.yml build`, then rebuild the container in your editor (VS Code: *Dev Containers: Rebuild Container*; Zed: close the window, `docker rm -f equitable_polling_locations-app-1`, reopen). A rebuilt image benefits both the dev container and host-invoked `run.py` — they share one image.
+Docker and Dev Container users: the conda env is baked into the image, so `environment.yml` changes are picked up at image rebuild. Follow the three-step procedure under "Rebuilding after `.devcontainer/Dockerfile` or `environment.yml` changes" in the [Dev Container](#dev-container--vs-code-or-zed-recommended-for-editor-integrated-development) section: build from the host, recreate the container, check the change. A rebuilt image benefits both the dev container and host-invoked `run.py` — they share one image.
 
 ### IDE Setup for Local Conda (optional)
 
@@ -576,7 +581,7 @@ Each session is namespaced by a random ID `e2e_<6 hex chars>` and writes to four
 The `_results/` directory is usually the most useful for debugging. To reproduce a single run by hand:
 
 ```bash
-python run.py model_run_cli -c 1 -l ./datasets/configs/e2e_<sid>/e2e_<sid>_config_basic.yaml
+python run.py model_run_cli -c 1 ./datasets/configs/e2e_<sid>/e2e_<sid>_config_basic.yaml
 ```
 
 The four directories are gitignored (see the `e2e_*` rules in `.gitignore`), so retained outputs will not show up in `git status` or be accidentally committed.
@@ -669,7 +674,7 @@ Rscript R/tests/r_smoke_test.R
 
 | Task | What it does |
 |------|-------------|
-| **R: smoke test** | Verifies all 16 R packages load correctly |
+| **R: smoke test** | Verifies every package in `renv.lock` loads |
 | **R: run current file** | Runs whichever `.R` file is open via `Rscript` |
 | **R: lint current file** | Runs `lintr::lint()` against the open `.R` file |
 
@@ -700,33 +705,22 @@ styler::style_file("path/to/file.R")
 
 #### Adding or updating R packages
 
-The package list lives in `.devcontainer/install_r_packages.R`. This script runs automatically via `postCreateCommand` on first container creation, installing the latest versions from CRAN into a docker volume mounted at `/usr/local/lib/R/site-library` so packages persist across container recreations.
-
-To add or update a package (in the dev container):
-
-1. Edit the `packages` vector in `.devcontainer/install_r_packages.R`
-2. Add the same package to `R/tests/r_smoke_test.R`
-3. Install it now: `sudo Rscript .devcontainer/install_r_packages.R`
-4. Verify: `Rscript R/tests/r_smoke_test.R`
-5. Commit `install_r_packages.R` and `r_smoke_test.R`
-
-**Force a clean R package reinstall** (e.g. if a package is in a bad state): from the host terminal, remove the docker volume, then rebuild the container:
-
-```bash
-docker volume rm equitable-polling-locations_r-site-library
-```
-
-The next time the container starts, `postCreateCommand` will reinstall all packages from scratch (~15-20 min).
+See [R Package Management](#r-package-management). The pinned package set is `renv.lock`; add or update with `renv::install()` and `renv::snapshot()`, then commit `renv.lock`. The smoke test reads `renv.lock`, so there is no second list to edit.
 
 #### Working outside the Dev Container
 
-If you prefer a local R install, install the packages manually using the list in `.devcontainer/install_r_packages.R`:
+If you prefer a local R install, you have two options:
 
-```r
-source(".devcontainer/install_r_packages.R")
-```
-
-Versions are not pinned — you'll get whatever CRAN ships at install time. If you need reproducibility across machines, consider setting up [renv](https://rstudio.github.io/renv/) locally.
+- **Pinned versions (recommended):** install renv, then restore the project's lock file into your library:
+    ```r
+    install.packages("renv")
+    renv::restore()
+    ```
+- **Latest CRAN versions:** the convenience script at the repo root installs the project's direct dependencies without pinning:
+    ```r
+    source("install_r_packages.R")
+    ```
+    Its header explains that it is for local installs only and does not drive container builds.
 
 
 ## Submitting Changes

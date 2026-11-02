@@ -56,7 +56,7 @@ Whether pulling from the database or csv, the analysis software compiles the rel
 
 # Analysis and Google Cloud Storage
 
-By default output from R analysis will be written to Google Cloud Storage under the bucket `equitable-polling-analysis` under the folder `result_analysis`. This bucket can be browsed in the [Google Cloud Storage](https://console.cloud.google.com/storage/browser/equitable-polling-analysis;tab=objects?forceOnBucketsSortingFiltering=true&project=equitable-polling-locations&prefix=&forceOnObjectsSortingFiltering=false) console, if access is grated.
+Output from R analysis is written to Google Cloud Storage under the bucket `equitable-polling-analysis`, in the top-level folder `equitable-polling-locations-analyses/` (`STORAGE_BASE_DIR`, set in `storage.R`). Under that folder, each run gets `<CLOUD_STORAGE_ANALYSIS_NAME>/<datestamp>/`. This bucket can be browsed in the [Google Cloud Storage](https://console.cloud.google.com/storage/browser/equitable-polling-analysis;tab=objects?forceOnBucketsSortingFiltering=true&project=equitable-polling-locations&prefix=&forceOnObjectsSortingFiltering=false) console, if access is grated.
 
 ## Database
 
@@ -86,7 +86,8 @@ To write the output of analysis to the Google Cloud Cloud storage, at the end of
 | Variable Name               | Description                                                                                 |
 |-----------------------------|---------------------------------------------------------------------------------------------|
 | STORAGE_BUCKET              | The google cloud storage bucket to write to.                                                |
-| CLOUD_STORAGE_ANALYSIS_NAME | The name of the folder to write all the analysis to under the folder `.../result_analysis/` |
+| CLOUD_STORAGE_ANALYSIS_NAME | The name of this analysis. Each run uploads to `<STORAGE_BASE_DIR>/<CLOUD_STORAGE_ANALYSIS_NAME>/<datestamp>/`. |
+| STORAGE_BASE_DIR            | The top-level folder in the bucket. Defaults to `equitable-polling-locations-analyses` in `storage.R`; a config may override it. |
 
 
 And at the end of the R file, add the following line:
@@ -128,5 +129,5 @@ sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
 upload_graph_files_to_cloud_storage()
 ```
 
-By setting the above, any graph file written to using the functions found in `.../result_analysis/graph_functions.R` and `.../result_analysis/graph_functions.R` will be written locally in the `.../result_analysis/` as well as to Cloud Storage under the folder `equitable-polling-analysis:result_analysis/Basic_analysis.r/[DATESTAMP]/...`.
+By setting the above, any graph file written with the functions in `R/result_analysis/utility_functions/graph_functions.R` and `map_functions.R` is written locally under `result_analysis_outputs/` and uploaded to Cloud Storage under `equitable-polling-analysis:equitable-polling-locations-analyses/Basic_analysis.r/[DATESTAMP]/...`, with an `analysis_manifest.yaml` beside the files.
 

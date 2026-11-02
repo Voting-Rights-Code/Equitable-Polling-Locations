@@ -4,7 +4,7 @@ Python optimization tool that selects equitable polling locations using the Kolm
 
 ## Setup
 
-- Requires Docker with ≥8GB RAM and `git-lfs`
+- Requires Docker with ≥16GB RAM (32GB or more for large counties) and `git-lfs`
 - Copy `settings_example.yaml` → `settings.yaml` and configure environments
 - GCP credentials required for DB-backed runs (mounted automatically via `run.py`)
 
@@ -34,12 +34,12 @@ This project is designed to be developed inside the `.devcontainer/`. Full first
 **Run the model (local files):**
 ```bash
 # Host (via Docker)
-python run.py model_run_cli -c NUM -l ./datasets/configs/<config_set>/<config_name>.yaml
-python run.py model_run_db_cli -e ENV -c NUM -l config_set/config_name
+python run.py model_run_cli -c NUM ./datasets/configs/<config_set>/<config_name>.yaml
+python run.py model_run_db_cli -e ENV -c NUM config_set/config_name
 
 # Inside dev container
-python -m python.scripts.model_run_cli -c NUM -l ./datasets/configs/<config_set>/<config_name>.yaml
-python -m python.scripts.model_run_db_cli -e ENV -c NUM -l config_set/config_name
+python -m python.scripts.model_run_cli -c NUM ./datasets/configs/<config_set>/<config_name>.yaml
+python -m python.scripts.model_run_db_cli -e ENV -c NUM config_set/config_name
 ```
 Add `-vv` for verbose logging.
 
@@ -76,7 +76,7 @@ python run.py r_test
 # Inside dev container
 Rscript R/tests/r_smoke_test.R
 ```
-R is installed in the project image (see `.devcontainer/Dockerfile`). R package versions are pinned in `renv.lock` (the single source of truth, equivalent to `environment.yml` for Python). To add a new R package, use `install_r_packages.R` interactively, then regenerate `renv.lock` — see the workflow comments at the top of that script.
+R is installed in the project image (see `.devcontainer/Dockerfile`). R package versions are pinned in `renv.lock` (the single source of truth, equivalent to `environment.yml` for Python). To add a new R package, run `Rscript -e 'renv::install("pkg-name")'` then `Rscript -e 'renv::snapshot()'`, and commit `renv.lock`. See "R Package Management" in `CONTRIBUTING.md`.
 
 **Local dev (optional, requires conda):**
 ```bash
