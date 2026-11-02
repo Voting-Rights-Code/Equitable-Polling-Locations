@@ -7,7 +7,7 @@ This guide covers how to run the Equitable Polling Locations model from the comm
 The program runs inside Docker via the `run.py` wrapper. Before running the model:
 
 1. Install [Docker Desktop](https://www.docker.com/) and make sure it is running.
-    - Allocate at least **8 GB of RAM** to Docker (Docker Desktop → Settings → Resources on Mac/Windows, or `.wslconfig` on Windows with WSL).
+    - Allocate at least **16 GB of RAM** to Docker (Docker Desktop → Settings → Resources on Mac/Windows, or `.wslconfig` on Windows with WSL). Large counties need 32 GB or more; see [Memory configuration](../CONTRIBUTING.md#memory-configuration).
 2. Clone this repository. It uses [Git LFS](https://git-lfs.com/) for large data files, so install Git LFS first, then run `git lfs install` once before cloning.
 3. If you have access to the database, copy `settings_example.yaml` to `settings.yaml` in the project root. Else do nothing and run locally.
 4. Create the requisite input files discussed in [input files](input_files.md).
@@ -78,7 +78,7 @@ From the project root, run the model. There are two command line options, one to
         * Run `python run.py db_import_driving_distances_cli <census year> <list of locations>`
         * See [database](database.md) for more details.
     * If the appropriate [intermediate dataset](intermediate_datasets.md) does not exist:
-        * Run `python run.py db_import_distance_data_cli <census year> <list of locations> -t <distance type> -d <map date for driving distances>`
+        * Run `python run.py db_import_distance_data_cli <census year> <list of locations> -t <distance type>`. Add `-d` to use driving distances.
         * See [intermediate datasets](intermediate_datasets.md) and [database](database.md) for more details.
 
 ## Parameters
@@ -130,6 +130,8 @@ python3 run.py generate_driving_distances_cli --testing \
 ```
 
 The first driving run for a state is slow: it downloads a one-time ~13 GB full-US OpenStreetMap extract, clips a state+50 km buffered extract from it (`osmium`), then ORS builds its routing graph (~20-30 min for a large state). Subsequent runs reuse the cached extract and graph (~30s startup). The CLI auto-spawns ORS at the start and tears it down at the end; pass `--keep-ors-running` to leave it up across multiple invocations.
+
+**The image must contain `osmium`.** From the host, `run.py` runs the clipping step in a fresh container from the local image. The image needs `osmium-tool`, which the Dockerfile added with the driving-distance tools (#321). An older image stops with "osmium not found on PATH". Rebuild the image once with `docker compose -f .devcontainer/docker-compose.build.yml build`. The full procedure is under "Rebuilding after Dockerfile changes" in the [Dev Container](../CONTRIBUTING.md#dev-container--vs-code-or-zed-recommended-for-editor-integrated-development) section of CONTRIBUTING.md.
 
 State slugs are full Geofabrik names (`georgia`, `new-york`, `district-of-columbia`); see `python/utils/ors_setup.py` for the full list.
 
@@ -186,7 +188,7 @@ rm -rf datasets/ors_graphs/georgia-buffered
 
 ### Resource budget
 
-The first driving run for a state downloads a one-time ~13 GB US OpenStreetMap extract and builds a state+50 km buffer graph. Large border states (Texas; the 8-neighbor states) may need `ORS_XMX=16g` (or more) and a matching Docker Desktop memory limit.
+The first driving run for a state downloads a one-time ~13 GB US OpenStreetMap extract and builds a state+50 km buffer graph. The ORS Java heap limit is set by `ORS_XMX` and defaults to **10 GB**. Docker's memory limit must be larger than the heap plus whatever else runs beside it. Large border states (Texas; the 8-neighbor states) may need `ORS_XMX=16g` (or more), with Docker's limit raised to match.
 
 Set `ORS_XMX` in your shell **before** the run — the syntax is shell-specific, and on Windows it must be a separate command first:
 - macOS / Linux / WSL (bash/zsh): inline it — `ORS_XMX=16g python3 run.py generate_driving_distances_cli -l ...` — or `export ORS_XMX=16g` once for the session.
@@ -195,7 +197,7 @@ Set `ORS_XMX` in your shell **before** the run — the syntax is shell-specific,
 
 (The same per-shell pattern applies to any env var, e.g. `ORS_URL`.)
 
-Once a state's graph is loaded, ORS uses ~3–5 GB of RAM. The dev container also runs solver/Python workloads. **Bump Docker Desktop's memory to ≥ 12 GB if you run both at once** — the default 8 GB is too tight.
+Once a state's graph is loaded, ORS uses ~3–5 GB of RAM, but its heap can grow to the `ORS_XMX` limit during graph building. With Docker at the 16 GB minimum from [Prerequisites](#prerequisites) and the default 10 GB heap, about 6 GB is left for the extract step and the solver. For a large state or a large county, raise Docker's limit.
 
 ### Where to override the ORS endpoint
 
