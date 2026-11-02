@@ -198,8 +198,8 @@ add_source_to_graph_file_manifest <- function(role, source_file) {
         object_name = paste0("sources/", basename(source_path))
     )
 
-    already_recorded <- any(sapply(.graph_file_manifest$sources,
-                                   function(existing) existing$origin == origin))
+    already_recorded <- any(vapply(.graph_file_manifest$sources,
+                                   function(existing) existing$origin == origin, logical(1)))
     if (!already_recorded) {
         num_sources <- length(.graph_file_manifest$sources)
         .graph_file_manifest$sources[[num_sources + 1]] <<- source_entry

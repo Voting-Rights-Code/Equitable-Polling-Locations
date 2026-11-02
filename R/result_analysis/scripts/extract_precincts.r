@@ -11,7 +11,7 @@ source("R/result_analysis/utility_functions/graph_functions.R")
 source("R/result_analysis/utility_functions/regression_functions.r")
 
 # The folder inside STORAGE_BUCKET for precinct analysis uploads, beside the
-# Basic_analysis folder. A config may override it.
+# Basic_analysis folder. Set here, not in the configs: it varies by script.
 STORAGE_BASE_DIR <- "precinct-distance-analyses"
 
 #######
