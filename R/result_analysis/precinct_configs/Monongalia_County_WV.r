@@ -15,7 +15,7 @@ STATE_PRECINCT_FILE <- "datasets/precincts/West_Virginia_20260424_wmA84_as_provi
 ########
 #Did the county provide precinct <-> polling location data
 COUNTY_PROVIDES_PRECINCT_DATA <- TRUE 
-COUNTY_PROVIDED_PRECINCT_FILE <- "temp/Precincts_by_Location.csv" #cannnot be null if COUNTY_PROVIDES_PRECINCT_DATA is TRUE
+COUNTY_PROVIDED_PRECINCT_FILE <- "datasets/precincts/Monongalia_County_WV/Precincts_by_Location.csv"  #cannnot be null if COUNTY_PROVIDES_PRECINCT_DATA is TRUE
 #details specific to the file
 COUNTY_POLLING_LOCATION_NAME_COL <- "Polling Place Name" #cannnot be null if COUNTY_PROVIDES_PRECINCT_DATA is TRUE
 COUNTY_POLLING_LOCATION_ADDRESS_COL <- "Polling Location Address"#cannnot be null if COUNTY_PROVIDES_PRECINCT_DATA is TRUE

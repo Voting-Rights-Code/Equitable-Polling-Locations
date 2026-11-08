@@ -115,8 +115,12 @@ state_county_crosswalk <- if (file.exists(crosswalk_path)) {
 #read in block assignment: each block's dominant precinct (from
 #flag_state_provided_precincts.r's Step 3), with each block's full
 #geometry.
-block_precinct_assignment <- st_read(
-  file.path("block_precinct_assignment.gpkg"))
+block_assignment_path <- file.path(here(), build_block_precinct_assignment_file_path(LOCATION))
+if (!file.exists(block_assignment_path)) {
+  stop(block_assignment_path, " not found. Run flag_state_provided_precincts.r for ",
+       LOCATION, " first.")
+}
+block_precinct_assignment <- st_read(block_assignment_path)
 names(block_precinct_assignment)[names(block_precinct_assignment) == "geometry"] <- "block_geometry"
 st_geometry(block_precinct_assignment) <- "block_geometry"
 
