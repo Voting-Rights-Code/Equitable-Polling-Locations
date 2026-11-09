@@ -19,7 +19,7 @@ STORAGE_PREDEFINED_ACL = "bucketLevel" # "private"
 
 # The folder inside STORAGE_BUCKET that this analysis uploads under. It is not a
 # local path and must not start with a "/". Each analysis script sets its own
-# folder before it loads its config; a config may override it.
+# folder before it loads its config. The folder varies by script, not by config.
 STORAGE_BASE_DIR = NULL
 
 # The name of this analysis in cloud storage
@@ -208,6 +208,33 @@ add_source_to_graph_file_manifest <- function(role, source_file) {
     source_entry
 }
 
+# Gives this session a Google token before the first upload. Nothing else in
+# storage.R authenticates. In an interactive session googleAuthR falls back to
+# gar_auth(), which reuses a cached token or opens a browser. A non-interactive
+# Rscript run, the normal case in the dev container, has neither and fails at
+# the first gcs_upload() with "No authorization yet in this session!". The
+# token comes from the application-default credentials file named by
+# GOOGLE_APPLICATION_CREDENTIALS, written by `gcloud auth application-default
+# login` run inside the dev container (gcloud state lives in a named volume,
+# not on the host). The scope must stay cloud-platform: for a user credentials
+# file gargle returns NULL for any other scope. A session that already holds a
+# token keeps it.
+authenticate_cloud_storage <- function() {
+    if (googleAuthR::gar_has_token()) {
+        return(invisible(FALSE))
+    }
+    token <- gargle::credentials_app_default(
+        scopes = "https://www.googleapis.com/auth/cloud-platform"
+    )
+    if (is.null(token)) {
+        stop(paste0("No Google credentials found. Run `gcloud auth application-default login ",
+                    "--no-launch-browser` inside the dev container, or point ",
+                    "GOOGLE_APPLICATION_CREDENTIALS at a credentials file."))
+    }
+    googleAuthR::gar_auth(token = token)
+    invisible(TRUE)
+}
+
 # Uploads all files in the manifest to Google Cloud Storage.
 upload_graph_files_to_cloud_storage <- function() {
     manifest = get_graph_file_manifest()
@@ -247,6 +274,9 @@ upload_graph_files_to_cloud_storage <- function() {
         stop(paste0("upload_graph_files_to_cloud_storage cannot find files: ",
                     paste(missing_files, collapse = ", ")))
     }
+
+    # Authenticate once, only after every file is known to exist
+    authenticate_cloud_storage()
 
     # Upload each graph file found in the manifest
     for (graph_file in manifest$graph_files) {

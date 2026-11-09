@@ -11,7 +11,8 @@
 #     checked before the first upload, so a missing file stops the run with its
 #     name and nothing partial reaches the bucket; object names equal manifest
 #     entries; sources upload after the graphs; the manifest uploads last; an
-#     unset STORAGE_BASE_DIR stops the run
+#     unset STORAGE_BASE_DIR stops the run; authentication happens once, after
+#     the existence checks and before the first upload
 #
 # Run manually from the repo root. Inside the dev container or a local R env:
 #   Rscript R/tests/storage_manifest_harness.R
@@ -25,8 +26,9 @@
 # here pin the behaviour #341 and #343 restored and added, so a later change to
 # storage.R can be run against them in a few seconds.
 #
-# How it works. gcs_upload() is replaced with a stub that records every call,
-# so nothing reaches Google. The files it registers are small synthetic files
+# How it works. gcs_upload() and authenticate_cloud_storage() are replaced with
+# stubs that record every call, so nothing reaches Google and no credentials are
+# needed. The files it registers are small synthetic files
 # written under result_analysis_outputs/ and datasets/ and removed at the end,
 # also when a check errors part way.
 #
@@ -48,10 +50,17 @@ check <- function(condition, label) {
     }
 }
 
-# Stub the uploader. Every call is recorded in order.
+# Stub the uploader and the authenticator. Every call is recorded in order, and
+# `events` keeps the relative order of authentication and uploads.
 uploads <- list()
+events <- character(0)
 gcs_upload <- function(file, bucket, name, predefinedAcl) {
     uploads[[length(uploads) + 1]] <<- list(file = file, bucket = bucket, name = name)
+    events[length(events) + 1] <<- "upload"
+    invisible(TRUE)
+}
+authenticate_cloud_storage <- function() {
+    events[length(events) + 1] <<- "auth"
     invisible(TRUE)
 }
 
@@ -100,6 +109,7 @@ tryCatch({
     CLOUD_STORAGE_ANALYSIS_NAME <- "harness"
 
     uploads <- list()
+    events <- character(0)
     result <- upload_graph_files_to_cloud_storage()
     date_stamp <- format(result$created_at, "%Y%m%d-%H%M%S")
     base_path <- paste("equitable-polling-locations-analyses", "harness", date_stamp, sep = "/")
@@ -107,6 +117,8 @@ tryCatch({
     files_uploaded <- vapply(uploads, function(u) u$file, character(1))
 
     check(length(uploads) == 3, "two files and the manifest are uploaded")
+    check(length(events) > 0 && events[1] == "auth" && sum(events == "auth") == 1,
+          "authentication happens once, before the first upload")
     check(identical(names_uploaded[1:2], paste(base_path, c(entry_a, entry_b), sep = "/")),
           "object name is base path plus entry")
     check(identical(files_uploaded[1:2],
@@ -118,6 +130,7 @@ tryCatch({
     # --- Upload, one file missing ---------------------------------------------
     unlink(file.path(harness_dir, "sub", "b.png"))
     uploads <- list()
+    events <- character(0)
     missing <- tryCatch(upload_graph_files_to_cloud_storage(), error = function(e) conditionMessage(e))
 
     check(is.character(missing) && grepl("cannot find", missing, fixed = TRUE),
@@ -125,11 +138,13 @@ tryCatch({
     check(is.character(missing) && grepl("sub/b.png", missing, fixed = TRUE),
           "the stop names the missing file")
     check(length(uploads) == 0, "nothing is uploaded before the missing-file stop")
+    check(sum(events == "auth") == 0, "nothing authenticates before the missing-file stop")
 
     # --- Upload, STORAGE_BASE_DIR unset ---------------------------------------
     writeLines("b", file.path(harness_dir, "sub", "b.png"))
     STORAGE_BASE_DIR <- NULL
     uploads <- list()
+    events <- character(0)
     unset <- tryCatch(upload_graph_files_to_cloud_storage(), error = function(e) conditionMessage(e))
 
     check(is.character(unset) && grepl("STORAGE_BASE_DIR is not set", unset, fixed = TRUE),
@@ -150,6 +165,7 @@ tryCatch({
 
     STORAGE_BASE_DIR <- "precinct-distance-analyses"
     uploads <- list()
+    events <- character(0)
     result <- upload_graph_files_to_cloud_storage()
     date_stamp <- format(result$created_at, "%Y%m%d-%H%M%S")
     base_path <- paste("precinct-distance-analyses", "harness", date_stamp, sep = "/")
@@ -169,6 +185,7 @@ tryCatch({
     # --- Sources, one missing -------------------------------------------------
     unlink(file.path(source_dir, "results.csv"))
     uploads <- list()
+    events <- character(0)
     missing_source <- tryCatch(upload_graph_files_to_cloud_storage(), error = function(e) conditionMessage(e))
 
     check(is.character(missing_source) && grepl("cannot find", missing_source, fixed = TRUE),

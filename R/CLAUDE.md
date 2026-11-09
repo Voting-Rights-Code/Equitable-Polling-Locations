@@ -41,8 +41,9 @@ what it does not.
 
 - `r_smoke_test.R`: every package in `renv.lock` loads. Run it after a container rebuild
   or a change to `renv.lock`.
-- `storage_manifest_harness.R`: the upload manifest and the upload order, with a stubbed
-  `gcs_upload()` so nothing reaches Google. Run it after any change to
+- `storage_manifest_harness.R`: the upload manifest and the upload order, with stubbed
+  `gcs_upload()` and `authenticate_cloud_storage()` so nothing reaches Google and no
+  credentials are needed. Run it after any change to
   `utility_functions/storage.R`. When you change what the manifest records or how files
   upload, add a check for the new behaviour in the same run.
 - `nearest_destination_determinism.R`: run-to-run stability of the precinct pipeline's

@@ -77,8 +77,11 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
 
 ###### Step 3: read data needed for distance flagging & heat maps #######
 
-# polling-location coordinates, to map assigned locations 
+# polling-location coordinates, to map assigned locations
 # on the heat maps below.
+# TODO(#340): the three sources in this step upload until recorded-only
+# registration lands; then they are recorded by path and commit, not uploaded.
+add_source_to_graph_file_manifest("potential_locations", build_potential_locations_file_path(LOCATION))
 polling_locations <- get_polling_locations(LOCATION)
 
 #read in block demographics
