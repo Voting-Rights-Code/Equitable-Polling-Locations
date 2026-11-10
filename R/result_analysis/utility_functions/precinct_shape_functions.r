@@ -617,6 +617,7 @@ flag_distant_blocks <- function(distance_demographic_blocks, duration_threshold_
   demographic_blocks_for_csv[, id_orig := force_text_for_spreadsheet(id_orig)]
 
   fwrite(demographic_blocks_for_csv, distance_flagged_blocks_path)
+  add_graph_to_graph_file_manifest(distance_flagged_blocks_path)
 
   return(flagged_data)
 }
@@ -700,6 +701,7 @@ flagged_optimized_distant_blocks <- function(block_destinations, optimization_re
   results_for_csv <- copy(all_geoms_results)
   results_for_csv[, id_orig := force_text_for_spreadsheet(id_orig)]
   fwrite(results_for_csv, distance_flagged_blocks_path)
+  add_graph_to_graph_file_manifest(distance_flagged_blocks_path)
 
   return(all_geoms_results)
 }
@@ -841,6 +843,7 @@ make_demo_distance_heat_map <- function(
     collapse = "_"
   )
   ggsave(file_name, heat_map, width = 10, height = 8)
+  add_graph_to_graph_file_manifest(file_name)
 
   return()
 }

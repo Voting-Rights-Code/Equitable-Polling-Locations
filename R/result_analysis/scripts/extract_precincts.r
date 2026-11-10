@@ -10,6 +10,10 @@ source("R/result_analysis/utility_functions/city_shape_functions.r")
 source("R/result_analysis/utility_functions/graph_functions.R")
 source("R/result_analysis/utility_functions/regression_functions.r")
 
+# The folder inside STORAGE_BUCKET for precinct analysis uploads, beside the
+# Basic_analysis folder. Set here, not in the configs: it varies by script.
+STORAGE_BASE_DIR <- "precinct-distance-analyses"
+
 #######
 # Read in command line arguments
 # A config file must be given to get the location-specific constants for the
@@ -18,18 +22,18 @@ source("R/result_analysis/utility_functions/regression_functions.r")
 # this file.
 #######
 
-#args <- commandArgs(trailingOnly = TRUE)
-#if (length(args) != 1) {
-#  stop("Must enter exactly one config file")
-#} else {
-#  config_path <- paste0("R/result_analysis/precinct_configs/", args[1])
-#  source(config_path)
-#}
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) != 1) {
+  stop("Must enter exactly one config file")
+} else {
+  config_path <- paste0("R/result_analysis/precinct_configs/", args[1])
+  source(config_path)
+}
 
 ###
 # For inline testing only
 ###
-source("R/result_analysis/precinct_configs/Monongalia_County_WV.r")
+#source("R/result_analysis/precinct_configs/Monongalia_County_WV.r")
 
 #define output folder. 
 precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
@@ -73,8 +77,11 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
 
 ###### Step 3: read data needed for distance flagging & heat maps #######
 
-# polling-location coordinates, to map assigned locations 
+# polling-location coordinates, to map assigned locations
 # on the heat maps below.
+# TODO(#340): the three sources in this step upload until recorded-only
+# registration lands; then they are recorded by path and commit, not uploaded.
+add_source_to_graph_file_manifest("potential_locations", build_potential_locations_file_path(LOCATION))
 polling_locations <- get_polling_locations(LOCATION)
 
 #read in block demographics
@@ -84,15 +91,25 @@ block_demographics <- get_block_demographics(p3_file_path, p4_file_path)
 
 #read in driving distances
 driving_distance_path <- build_driving_distances_file_path(LOCATION)
+add_source_to_graph_file_manifest("driving_distances", driving_distance_path)
 driving_distances <- fread(driving_distance_path)
 driving_distances[, id_orig := as.character(id_orig)]
 driving_distances[, id_dest_upper := toupper(id_dest)]
 
 #read in optimization results (used for both duration thresholds below)
+add_source_to_graph_file_manifest("optimization_results", OPTIMIZATION_RESULTS)
+#record the config the results file came from. The filename is
+#<config_set>.<config_name>_results.csv and is the only provenance a CSV
+#carries -- no config id, and no model_run_id (both are database concepts).
+results_file_stem <- sub("_results\\.csv$", "", basename(OPTIMIZATION_RESULTS))
+add_config_info_to_graph_file_manifest(
+  "",
+  sub("\\..*$", "", results_file_stem),
+  sub("^[^.]*\\.", "", results_file_stem)
+)
 optimization_results <- fread(
   OPTIMIZATION_RESULTS, colClasses = list(character = "id_orig")
 )
-
 
 ####
 #change directories -- everything from here reads or write to output folder
@@ -250,3 +267,7 @@ plot_density_v_distance_bg(
   solver_regression_data, LOCATION, DEMOGRAPHIC_LIST,
   log_flag = FALSE, driving_flag = TRUE, y_bounds = shared_density_y_bounds
 )
+
+###### Step 9: upload this session's outputs and sources to cloud storage #######
+
+upload_graph_files_to_cloud_storage()
