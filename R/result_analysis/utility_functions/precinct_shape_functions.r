@@ -13,6 +13,8 @@ POLLING_FOLDER <- "datasets/polling"
 POTENTIAL_LOCATIONS_SUFFIX <- "_potential_locations.csv"
 DRIVING_FOLDER <- "datasets/driving"
 DRIVING_DISTANCE_SUFFIX <- "_driving_distances.csv"
+PRECINCT_FOLDER <- "datasets/precincts"
+BLOCK_PRECINCT_ASSIGNMENT_FILE <- "block_precinct_assignment.gpkg"
 AREA_CRS <- 5070
 TIGER_CRS <- 4269
 ######## Path / IO helpers ########
@@ -31,6 +33,14 @@ build_driving_distances_file_path <- function(location, driving_folder = DRIVING
   return(file.path(
     driving_folder, location, paste0(location, driving_distance_suffix)
   ))
+}
+
+# path to a location's block -> dominant precinct assignment. It is derived
+# (by flag_state_provided_precincts.r), but extract_precincts.r reads it, so it
+# lives with the precinct inputs rather than in precinct_analysis_outputs/.
+build_block_precinct_assignment_file_path <- function(location, precinct_folder = PRECINCT_FOLDER,
+                                                      assignment_file = BLOCK_PRECINCT_ASSIGNMENT_FILE) {
+  return(file.path(precinct_folder, location, assignment_file))
 }
 
 # wrap a digit-only id so that a csv reader (e.g. excel) loads it as text
@@ -117,8 +127,10 @@ compute_block_precinct_overlaps <- function(county_precincts,
 
 # associate each census block with its dominant (largest-overlap) precinct.
 # flag for blocks whose dominant precinct holds between 50% and 90% of the
-# block. One row per block
-assign_block_to_dominant_precinct <- function(block_precinct_intersection) {
+# block. One row per block. The full assignment is an input to
+# extract_precincts.r, so it is written to datasets/precincts/<location>/;
+# the flagged subset is a delivery and stays in the working (output) folder.
+assign_block_to_dominant_precinct <- function(block_precinct_intersection, location = LOCATION) {
 
   # keep only each block's dominant (largest-overlap) precinct(s). No ties.
   block_precinct_intersection <- block_precinct_intersection %>%
@@ -130,8 +142,10 @@ assign_block_to_dominant_precinct <- function(block_precinct_intersection) {
   block_precinct_intersection <- block_precinct_intersection %>%
     mutate(flagged = percent_outside_precinct > 0.1 & percent_outside_precinct < 0.5)
 
+  block_assignment_path <- file.path(here(), build_block_precinct_assignment_file_path(location))
+  dir.create(dirname(block_assignment_path), recursive = TRUE, showWarnings = FALSE)
   st_write(
-  block_precinct_intersection, "block_precinct_assignment.gpkg", append = FALSE
+  block_precinct_intersection, block_assignment_path, append = FALSE
 )
 
 st_write(
