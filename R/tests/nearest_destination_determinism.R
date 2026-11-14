@@ -32,7 +32,7 @@
 #
 # This does NOT validate the assignments themselves, only that they are stable.
 # It needs a county that has been through flag_state_provided_precincts.r, so
-# that block_precinct_assignment.gpkg exists.
+# that datasets/precincts/<LOCATION>/block_precinct_assignment.gpkg exists.
 
 suppressMessages({
   library(sf)
@@ -43,7 +43,7 @@ LOCATION <- Sys.getenv("LOCATION", "Monongalia_County_WV")
 RUN_COUNT <- as.integer(Sys.getenv("RUNS", "10"))
 
 block_assignment_path <- file.path(
-  "precinct_analysis_outputs", LOCATION, "block_precinct_assignment.gpkg"
+  "datasets/precincts", LOCATION, "block_precinct_assignment.gpkg"
 )
 results_path <- file.path(
   "datasets/results", paste0(LOCATION, "_results"),

@@ -248,6 +248,11 @@ datasets/ors_graphs/*
 # this un-ignored.
 !precinct_analysis_outputs/**/*
 !datasets/results/testing_results/*
+# Monongalia precinct analysis inputs (#376). Not yet in the database, so git is
+# their record until the precinct workflow reads from the DB (#379).
+!datasets/polling/Monongalia_County_WV/Monongalia_County_WV_potential_locations.csv
+!datasets/driving/Monongalia_County_WV/Monongalia_County_WV_driving_distances.csv
+!datasets/results/Monongalia_County_WV_results/Monongalia_County_WV_driving_original_configs.Monongalia_County_WV_metric_driving_time_results.csv
 !python/tests/test_kp_factor.csv
 !python/tests/test_results.csv
 !python/tests/test_results_bad_int.csv
