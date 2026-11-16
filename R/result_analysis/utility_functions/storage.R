@@ -25,6 +25,15 @@ STORAGE_BASE_DIR = NULL
 # The name of this analysis in cloud storage
 CLOUD_STORAGE_ANALYSIS_NAME = NULL
 
+# The folder between the analysis name and the datestamp that names the thing
+# delivered, not the script that made it (e.g. "distance_analysis"). It is one
+# lower_snake_case path segment. Each analysis script sets its own value, not
+# the config, because it varies by script; every script that uploads under
+# precinct-distance-analyses/ sets it. NULL or an empty string means unset.
+# Unlike STORAGE_BASE_DIR, unset does not stop the run: the upload path then has
+# three parts, without this folder.
+CLOUD_STORAGE_DELIVERABLE <- NULL
+
 # The name to use for manifest files
 ANALYSIS_MANIFEST = "analysis_manifest.yaml"
 
@@ -35,6 +44,9 @@ create_graph_file_manifest <- function() {
 	list(
         # The name of this analysis, will default to CLOUD_STORAGE_ANALYSIS_NAME
         analysis_name = NULL,
+        # The deliverable folder, set from CLOUD_STORAGE_DELIVERABLE at upload.
+        # Left out of the written manifest when that is unset.
+        deliverable = NULL,
         # The list of information on all configs used, each element containing config id ($id),
         # config set ($config_set), and config name ($config_name)
         configs = list(),
@@ -235,7 +247,9 @@ authenticate_cloud_storage <- function() {
     invisible(TRUE)
 }
 
-# Uploads all files in the manifest to Google Cloud Storage.
+# Uploads all files in the manifest to Google Cloud Storage, under
+# STORAGE_BASE_DIR / CLOUD_STORAGE_ANALYSIS_NAME / [CLOUD_STORAGE_DELIVERABLE /] <datestamp>.
+# Outputs, sources and the manifest all share that one path.
 upload_graph_files_to_cloud_storage <- function() {
     manifest = get_graph_file_manifest()
     if (length(manifest$graph_files) < 1) {
@@ -254,10 +268,23 @@ upload_graph_files_to_cloud_storage <- function() {
         stop("Invalid CLOUD_STORAGE_ANALYSIS_NAME")
     }
 
+    # The deliverable folder is optional; it becomes one path segment, so stop
+    # on any value that is not lower_snake_case
+    has_deliverable <- !is.null(CLOUD_STORAGE_DELIVERABLE) && nchar(CLOUD_STORAGE_DELIVERABLE) > 0
+    if (has_deliverable && !grepl("^[a-z0-9_]+$", CLOUD_STORAGE_DELIVERABLE)) {
+        stop(paste0("Invalid CLOUD_STORAGE_DELIVERABLE '", CLOUD_STORAGE_DELIVERABLE,
+                    "'; use lower_snake_case: lowercase letters, digits and underscores"))
+    }
+
     manifest$analysis_name <- CLOUD_STORAGE_ANALYSIS_NAME
+    # Assigning NULL removes the field, so an unset deliverable is left out
+    manifest$deliverable <- if (has_deliverable) CLOUD_STORAGE_DELIVERABLE else NULL
 
     date_stamp = format(manifest$created_at, "%Y%m%d-%H%M%S")
-    cloud_storage_base_path <- paste(STORAGE_BASE_DIR, CLOUD_STORAGE_ANALYSIS_NAME, date_stamp, sep="/")
+    # c() drops the deliverable part when it is unset
+    cloud_storage_path_parts <- c(STORAGE_BASE_DIR, CLOUD_STORAGE_ANALYSIS_NAME,
+                                  if (has_deliverable) CLOUD_STORAGE_DELIVERABLE, date_stamp)
+    cloud_storage_base_path <- paste(cloud_storage_path_parts, collapse="/")
 
     # Identify the local folder to upload the manifest's files from.
     local_tree <- file.path(here(), manifest$output_tree)
