@@ -193,6 +193,44 @@ tryCatch({
     check(is.character(missing_source) && grepl("results.csv", missing_source, fixed = TRUE),
           "the stop names the missing source")
     check(length(uploads) == 0, "nothing is uploaded before the missing-source stop")
+
+    # --- Deliverable folder ---------------------------------------------------
+    clear_graph_file_manifest()
+    entry_a <- add_graph_to_graph_file_manifest(file.path(harness_dir, "a.png"))
+    STORAGE_BASE_DIR <- "precinct-distance-analyses"
+    CLOUD_STORAGE_DELIVERABLE <- "distance_analysis"
+    uploads <- list()
+    events <- character(0)
+    with_deliverable <- upload_graph_files_to_cloud_storage()
+    date_stamp <- format(with_deliverable$created_at, "%Y%m%d-%H%M%S")
+    deliverable_path <- paste("precinct-distance-analyses", "harness", "distance_analysis",
+                              date_stamp, sep = "/")
+    names_uploaded <- vapply(uploads, function(u) u$name, character(1))
+
+    check(identical(names_uploaded[1], paste(deliverable_path, entry_a, sep = "/")),
+          "with a deliverable, the object name is base folder, analysis name, deliverable, datestamp, entry")
+    check(identical(names_uploaded[length(names_uploaded)],
+                    paste(deliverable_path, ANALYSIS_MANIFEST, sep = "/")),
+          "with a deliverable, the manifest uploads under the same four-part path")
+
+    # The same registered manifest, uploaded again with the deliverable unset
+    CLOUD_STORAGE_DELIVERABLE <- NULL
+    without_deliverable <- upload_graph_files_to_cloud_storage()
+    check(identical(with_deliverable$deliverable, "distance_analysis") &&
+              !("deliverable" %in% names(without_deliverable)),
+          "the manifest records the deliverable when set and has no deliverable field when unset")
+
+    # A value that is not one path segment stops the run before any upload
+    CLOUD_STORAGE_DELIVERABLE <- "distance/analysis"
+    uploads <- list()
+    events <- character(0)
+    bad_deliverable <- tryCatch(upload_graph_files_to_cloud_storage(), error = function(e) conditionMessage(e))
+    check(is.character(bad_deliverable) && grepl("distance/analysis", bad_deliverable, fixed = TRUE) &&
+              length(uploads) == 0,
+          "a deliverable with a slash stops the upload before any object is uploaded")
+
+    # Later checks expect three-part paths
+    CLOUD_STORAGE_DELIVERABLE <- NULL
 }, finally = cleanup())
 
 # --- Summary ------------------------------------------------------------------
