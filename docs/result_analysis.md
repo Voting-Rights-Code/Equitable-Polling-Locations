@@ -86,7 +86,9 @@ To write the output of analysis to the Google Cloud Cloud storage, at the end of
 | Variable Name               | Description                                                                                 |
 |-----------------------------|---------------------------------------------------------------------------------------------|
 | STORAGE_BUCKET              | The google cloud storage bucket to write to.                                                |
-| CLOUD_STORAGE_ANALYSIS_NAME | The name of the folder to write all the analysis to under the folder `.../result_analysis/` |
+| CLOUD_STORAGE_ANALYSIS_NAME | The name of this analysis. Each run uploads to `<STORAGE_BASE_DIR>/<CLOUD_STORAGE_ANALYSIS_NAME>/<datestamp>/`. |
+| STORAGE_BASE_DIR            | The top-level folder in the bucket. Basic_analysis uploads go under `equitable-polling-locations-analyses`. |
+| CLOUD_STORAGE_DELIVERABLE   | Optional, set by the script. Adds the deliverable folder between the analysis name and the datestamp. |
 
 
 And at the end of the R file, add the following line:
