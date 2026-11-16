@@ -13,6 +13,11 @@
 #     entries; sources upload after the graphs; the manifest uploads last; an
 #     unset STORAGE_BASE_DIR stops the run; authentication happens once, after
 #     the existence checks and before the first upload
+#   - CLOUD_STORAGE_DELIVERABLE: when set, object names and the manifest object
+#     follow base folder, analysis name, deliverable, datestamp; the manifest
+#     records `deliverable` when set and has no such field when unset; a value
+#     that is not one path segment (e.g. with a slash) stops the run before any
+#     upload
 #
 # Run manually from the repo root. Inside the dev container or a local R env:
 #   Rscript R/tests/storage_manifest_harness.R

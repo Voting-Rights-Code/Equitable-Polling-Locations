@@ -83,10 +83,12 @@ To write the output of analysis to the Google Cloud Cloud storage, at the end of
 
 **Access:** the analysis can write to any Google Cloud Storage bucket you have write access to — point `STORAGE_BUCKET` at one you control. If you'd prefer to use the Voting Rights Code shared `equitable-polling-analysis` bucket, reach out to a Voting Rights Code team member and we can grant access on request. (Read access to the project's BigQuery datasets is a separate grant; see [Database Access](database.md#database-access).)
 
-| Variable Name               | Description                                                                                 |
-|-----------------------------|---------------------------------------------------------------------------------------------|
-| STORAGE_BUCKET              | The google cloud storage bucket to write to.                                                |
-| CLOUD_STORAGE_ANALYSIS_NAME | The name of the folder to write all the analysis to under the folder `.../result_analysis/` |
+| Variable Name               | Description                                                                                           |
+|-----------------------------|-------------------------------------------------------------------------------------------------------|
+| STORAGE_BUCKET              | The google cloud storage bucket to write to.                                                          |
+| STORAGE_BASE_DIR            | The folder in the bucket to upload under. Set by the script, not the config.                          |
+| CLOUD_STORAGE_ANALYSIS_NAME | The name of the folder under `STORAGE_BASE_DIR` to write all the analysis to.                         |
+| CLOUD_STORAGE_DELIVERABLE   | Optional, set by the script. Adds the deliverable folder between the analysis name and the datestamp. |
 
 
 And at the end of the R file, add the following line:
