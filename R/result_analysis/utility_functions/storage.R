@@ -270,9 +270,15 @@ upload_graph_files_to_cloud_storage <- function() {
 
     # The deliverable folder is optional; it becomes one path segment, so stop
     # on any value that is not lower_snake_case
-    has_deliverable <- !is.null(CLOUD_STORAGE_DELIVERABLE) && nchar(CLOUD_STORAGE_DELIVERABLE) > 0
-    if (has_deliverable && !grepl("^[a-z0-9_]+$", CLOUD_STORAGE_DELIVERABLE)) {
-        stop(paste0("Invalid CLOUD_STORAGE_DELIVERABLE '", CLOUD_STORAGE_DELIVERABLE,
+    deliverable_is_unset <- is.null(CLOUD_STORAGE_DELIVERABLE) ||
+        (is.character(CLOUD_STORAGE_DELIVERABLE) && length(CLOUD_STORAGE_DELIVERABLE) == 1 &&
+             !is.na(CLOUD_STORAGE_DELIVERABLE) && nchar(CLOUD_STORAGE_DELIVERABLE) == 0)
+    has_deliverable <- !deliverable_is_unset
+    deliverable_is_valid <- is.character(CLOUD_STORAGE_DELIVERABLE) &&
+        length(CLOUD_STORAGE_DELIVERABLE) == 1 && !is.na(CLOUD_STORAGE_DELIVERABLE) &&
+        grepl("^[a-z0-9_]+$", CLOUD_STORAGE_DELIVERABLE)
+    if (has_deliverable && !deliverable_is_valid) {
+        stop(paste0("Invalid CLOUD_STORAGE_DELIVERABLE '", paste(CLOUD_STORAGE_DELIVERABLE, collapse = ", "),
                     "'; use lower_snake_case: lowercase letters, digits and underscores"))
     }
 

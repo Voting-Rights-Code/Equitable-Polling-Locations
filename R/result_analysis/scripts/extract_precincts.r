@@ -13,7 +13,7 @@ source("R/result_analysis/utility_functions/regression_functions.r")
 # The folder inside STORAGE_BUCKET for precinct analysis uploads, beside the
 # Basic_analysis folder. Set here, not in the configs: it varies by script.
 STORAGE_BASE_DIR <- "precinct-distance-analyses"
-# The folder under the analysis name for this script's main run.
+# The deliverable folder, between the analysis name and the datestamp: this script's main run.
 CLOUD_STORAGE_DELIVERABLE <- "distance_analysis"
 
 #######

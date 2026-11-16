@@ -13,11 +13,12 @@
 #     entries; sources upload after the graphs; the manifest uploads last; an
 #     unset STORAGE_BASE_DIR stops the run; authentication happens once, after
 #     the existence checks and before the first upload
-#   - CLOUD_STORAGE_DELIVERABLE: when set, object names and the manifest object
-#     follow base folder, analysis name, deliverable, datestamp; the manifest
-#     records `deliverable` when set and has no such field when unset; a value
-#     that is not one path segment (e.g. with a slash) stops the run before any
-#     upload
+#   - CLOUD_STORAGE_DELIVERABLE: has no default after sourcing; when set, object
+#     names and the manifest object follow base folder, analysis name,
+#     deliverable, datestamp; the manifest records `deliverable` when set and
+#     has no such field when unset; a value that is not one path segment (e.g.
+#     with a slash) or not a string stops the run before anything authenticates
+#     or uploads
 #
 # Run manually from the repo root. Inside the dev container or a local R env:
 #   Rscript R/tests/storage_manifest_harness.R
@@ -90,6 +91,8 @@ tryCatch({
     # --- Defaults after sourcing -----------------------------------------------
     check(is.null(STORAGE_BASE_DIR),
           "STORAGE_BASE_DIR has no default after sourcing storage.R")
+    check(is.null(CLOUD_STORAGE_DELIVERABLE),
+          "CLOUD_STORAGE_DELIVERABLE has no default after sourcing storage.R")
 
     # --- Registration ---------------------------------------------------------
     clear_graph_file_manifest()
@@ -233,6 +236,17 @@ tryCatch({
     check(is.character(bad_deliverable) && grepl("distance/analysis", bad_deliverable, fixed = TRUE) &&
               length(uploads) == 0,
           "a deliverable with a slash stops the upload before any object is uploaded")
+    check(sum(events == "auth") == 0, "nothing authenticates before the bad-deliverable stop")
+
+    # A value that is not a string stops with the same message, not an R error
+    CLOUD_STORAGE_DELIVERABLE <- 5
+    uploads <- list()
+    events <- character(0)
+    numeric_deliverable <- tryCatch(upload_graph_files_to_cloud_storage(), error = function(e) conditionMessage(e))
+    check(is.character(numeric_deliverable) &&
+              grepl("Invalid CLOUD_STORAGE_DELIVERABLE", numeric_deliverable, fixed = TRUE) &&
+              length(uploads) == 0,
+          "a non-character deliverable stops with the invalid-deliverable message before any upload")
 
     # Later checks expect three-part paths
     CLOUD_STORAGE_DELIVERABLE <- NULL
