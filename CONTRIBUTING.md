@@ -60,14 +60,20 @@ Install one of the following container runtimes:
 
 #### Memory configuration
 
-The SCIP optimizer can use significant memory on larger counties (Tarrant County TX uses around 46 GB). Configure your runtime to allow at least **16 GB**, or **32 GB or more** if you plan to run large solves:
+The memory Docker needs depends on the work:
+
+- **8 GB:** the solver on small and mid-size counties such as Monongalia County WV, the R analysis, and driving distances for small states. West Virginia's routing graph was built on a 16 GB laptop with Docker at WSL's default for that machine, 7.8 GB.
+- **16 GB:** driving distances for larger states.
+- **32 GB or more**, with `ORS_XMX=16g`: large counties, and large or many-border states such as Texas. The SCIP optimizer can use a lot of memory on large counties; Tarrant County TX uses around 46 GB.
+
+Set the limit for your runtime:
 
 **Docker Desktop:**
 
 Docker Desktop reserves a fixed amount of RAM regardless of actual usage.
 
-- **macOS:** Docker Desktop → Settings → Resources → Memory → set to at least 16 GB (32 GB or more recommended)
-- **Windows (WSL):** Create or edit `%USERPROFILE%\.wslconfig`:
+- **macOS:** Docker Desktop → Settings → Resources → Memory → set to the tier that matches your work
+- **Windows (WSL):** Create or edit `%USERPROFILE%\.wslconfig` with the tier that matches your work (32 GB shown):
     ```ini
     [wsl2]
     memory=32GB

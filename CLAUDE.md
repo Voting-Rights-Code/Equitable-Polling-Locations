@@ -4,7 +4,7 @@ Python optimization tool that selects equitable polling locations using the Kolm
 
 ## Setup
 
-- Requires Docker with ≥16GB RAM (32GB or more for large counties) and `git-lfs`
+- Requires Docker and `git-lfs`. Docker memory: 8 GB runs the solver on small and mid-size counties, the R analysis, and driving distances for small states; 16 GB for larger states; 32 GB or more, with `ORS_XMX=16g`, for large counties and large or many-border states such as Texas. See "Memory configuration" in `CONTRIBUTING.md`.
 - Copy `settings_example.yaml` → `settings.yaml` and configure environments
 - GCP credentials required for DB-backed runs (mounted automatically via `run.py`)
 

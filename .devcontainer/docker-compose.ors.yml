@@ -24,10 +24,11 @@ services:
       CONTAINER_LOG_LEVEL: INFO
       # The ORS v8 image's launcher reads XMS/XMX env vars directly (defaults
       # 1g/2g) and ignores -Xmx flags passed via JAVA_OPTS, so use these.
-      # The 2g default is enough for Georgia (peak ~1.9 GB) but OOMs on
-      # bigger state extracts (Texas at ~800 MB needs ~6-10 GB during graph
-      # preprocessing). Bump XMX if you swap to a larger state; requires the
-      # host's Docker Desktop memory limit to be >= XMX.
+      # The image's 2g default is enough for Georgia (peak ~1.9 GB) but OOMs
+      # on bigger state extracts (Texas at ~800 MB needs ~6-10 GB during graph
+      # preprocessing). Bump XMX for a larger state. XMX is a ceiling, not a
+      # reservation: Docker's memory limit only has to cover what the build
+      # actually uses (see "Resource budget" in docs/to_run.md).
       XMS: 2g
       XMX: ${ORS_XMX:-10g}
       # Explicit source: without this, ORS auto-detects example-heidelberg.osm.gz

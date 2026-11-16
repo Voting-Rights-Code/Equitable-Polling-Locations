@@ -7,7 +7,7 @@ This guide covers how to run the Equitable Polling Locations model from the comm
 The program runs inside Docker via the `run.py` wrapper. Before running the model:
 
 1. Install [Docker Desktop](https://www.docker.com/) and make sure it is running.
-    - Allocate at least **16 GB of RAM** to Docker (Docker Desktop → Settings → Resources on Mac/Windows, or `.wslconfig` on Windows with WSL). Large counties need 32 GB or more; see [Memory configuration](../CONTRIBUTING.md#memory-configuration).
+    - Give Docker the memory your work needs (Docker Desktop → Settings → Resources on Mac/Windows, or `.wslconfig` on Windows with WSL): **8 GB** runs the solver on small and mid-size counties, the R analysis, and driving distances for small states; **16 GB** for larger states; **32 GB or more**, with `ORS_XMX=16g`, for large counties and large or many-border states such as Texas. See [Memory configuration](../CONTRIBUTING.md#memory-configuration).
 2. Clone this repository. It uses [Git LFS](https://git-lfs.com/) for large data files, so install Git LFS first, then run `git lfs install` once before cloning.
 3. If you have access to the database, copy `settings_example.yaml` to `settings.yaml` in the project root. Else do nothing and run locally.
 4. Create the requisite input files discussed in [input files](input_files.md).
@@ -188,7 +188,7 @@ rm -rf datasets/ors_graphs/georgia-buffered
 
 ### Resource budget
 
-The first driving run for a state downloads a one-time ~13 GB US OpenStreetMap extract and builds a state+50 km buffer graph. The ORS Java heap limit is set by `ORS_XMX` and defaults to **10 GB**. Docker's memory limit must be larger than the heap plus whatever else runs beside it. Large border states (Texas; the 8-neighbor states) may need `ORS_XMX=16g` (or more), with Docker's limit raised to match.
+The first driving run for a state downloads a one-time ~13 GB US OpenStreetMap extract and builds a state+50 km buffer graph. The ORS Java heap limit is set by `ORS_XMX` and defaults to **10 GB**. That is a ceiling, not a reservation: a small state such as West Virginia builds its graph inside an 8 GB Docker limit. Large border states (Texas; the 8-neighbor states) may need `ORS_XMX=16g` (or more), with Docker at 32 GB or more.
 
 Set `ORS_XMX` in your shell **before** the run — the syntax is shell-specific, and on Windows it must be a separate command first:
 - macOS / Linux / WSL (bash/zsh): inline it — `ORS_XMX=16g python3 run.py generate_driving_distances_cli -l ...` — or `export ORS_XMX=16g` once for the session.
@@ -197,7 +197,7 @@ Set `ORS_XMX` in your shell **before** the run — the syntax is shell-specific,
 
 (The same per-shell pattern applies to any env var, e.g. `ORS_URL`.)
 
-Once a state's graph is loaded, ORS uses ~3–5 GB of RAM, but its heap can grow to the `ORS_XMX` limit during graph building. With Docker at the 16 GB minimum from [Prerequisites](#prerequisites) and the default 10 GB heap, about 6 GB is left for the extract step and the solver. For a large state or a large county, raise Docker's limit.
+Once a state's graph is loaded, ORS uses ~3–5 GB of RAM. During graph building its heap grows as needed, up to the `ORS_XMX` limit; a small state such as West Virginia stays well below the default 10 GB. A Java out-of-memory error from ORS means the heap cap is too low: raise `ORS_XMX`. An ORS container that dies with exit code 137 means Docker's memory ran out: raise Docker's limit to the heap plus a few GB for the extract step and the solver.
 
 ### Where to override the ORS endpoint
 
@@ -206,14 +206,4 @@ The driving CLI defaults to `http://localhost:8080/ors/v2/matrix/driving-car`. O
 - Env var: `ORS_URL=http://...`.
 
 The `ors_up_cli` and `ors_down_cli` commands are **host-only** — they need access to the host's Docker daemon. From inside the dev container they refuse with a clear message. `generate_driving_distances_cli` from the host auto-orchestrates the lifecycle (so the `ors_up_cli`/`ors_down_cli` calls happen for you); from inside the container it only speaks HTTP and assumes ORS is already running.
-
-### Migration from earlier setup
-
-If you previously ran the older `ors_setup_cli --state X` / `ors_up_cli` workflow, your `.pbf` files lived under `.devcontainer/ors_data/`. The data directory has moved to `datasets/openrouteservice/` — one-time fix:
-
-```bash
-mv .devcontainer/ors_data/*.osm.pbf datasets/openrouteservice/
-```
-
-(This migration note can be deleted once everyone with prior installs has migrated.)
 

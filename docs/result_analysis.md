@@ -56,7 +56,7 @@ Whether pulling from the database or csv, the analysis software compiles the rel
 
 # Analysis and Google Cloud Storage
 
-Output from R analysis is written to Google Cloud Storage under the bucket `equitable-polling-analysis`, in the top-level folder `equitable-polling-locations-analyses/` (`STORAGE_BASE_DIR`, set in `storage.R`). Under that folder, each run gets `<CLOUD_STORAGE_ANALYSIS_NAME>/<datestamp>/`. This bucket can be browsed in the [Google Cloud Storage](https://console.cloud.google.com/storage/browser/equitable-polling-analysis;tab=objects?forceOnBucketsSortingFiltering=true&project=equitable-polling-locations&prefix=&forceOnObjectsSortingFiltering=false) console, if access is grated.
+Output from `Basic_analysis.r`, and from the other scripts that load a Basic_analysis config, is written to Google Cloud Storage under the bucket `equitable-polling-analysis`, in the top-level folder `equitable-polling-locations-analyses/` (`STORAGE_BASE_DIR`). Under that folder, each run gets `<CLOUD_STORAGE_ANALYSIS_NAME>/<datestamp>/`. This bucket can be browsed in the [Google Cloud Storage](https://console.cloud.google.com/storage/browser/equitable-polling-analysis;tab=objects?forceOnBucketsSortingFiltering=true&project=equitable-polling-locations&prefix=&forceOnObjectsSortingFiltering=false) console, if access is grated.
 
 ## Database
 
@@ -87,7 +87,7 @@ To write the output of analysis to the Google Cloud Cloud storage, at the end of
 |-----------------------------|---------------------------------------------------------------------------------------------|
 | STORAGE_BUCKET              | The google cloud storage bucket to write to.                                                |
 | CLOUD_STORAGE_ANALYSIS_NAME | The name of this analysis. Each run uploads to `<STORAGE_BASE_DIR>/<CLOUD_STORAGE_ANALYSIS_NAME>/<datestamp>/`. |
-| STORAGE_BASE_DIR            | The top-level folder in the bucket. Defaults to `equitable-polling-locations-analyses` in `storage.R`; a config may override it. |
+| STORAGE_BASE_DIR            | The top-level folder in the bucket. Basic_analysis uploads go under `equitable-polling-locations-analyses`. |
 
 
 And at the end of the R file, add the following line:
