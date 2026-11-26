@@ -31,14 +31,30 @@ source("R/result_analysis/utility_functions/regression_functions.r")
 ###
 source("R/result_analysis/precinct_configs/Monongalia_County_WV.r")
 
-#define output folder. 
+#define output folder and create if it doesn't exist
 precinct_analysis_output_folder <- file.path("precinct_analysis_outputs", LOCATION)
+if (!dir.exists(precinct_analysis_output_folder)) {
+  dir.create(precinct_analysis_output_folder)
+}
 
-###### Step 1: extract and validate the county's precincts#######
+###### Step 1: extract and validate the county's precincts and block assignment#######
 state_precincts <- extract_county_precincts(STATE_PRECINCT_FILE, COUNTY_NAME, TIGER_CRS)
 
 state_precincts <- state_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
 st_geometry(state_precincts) <- "precinct_geometry"
+
+#read in block assignment: each block's dominant precinct (from
+#flag_state_provided_precincts.r's Step 3), with each block's full
+#geometry.
+block_assignment_path <- file.path(build_block_precinct_assignment_file_path(LOCATION))
+if (!file.exists(block_assignment_path)) {
+  stop(block_assignment_path, " not found. Run flag_state_provided_precincts.r for ",
+       LOCATION, " first.")
+}
+block_precinct_assignment <- st_read(block_assignment_path)
+names(block_precinct_assignment)[names(block_precinct_assignment) == "geometry"] <- "block_geometry"
+st_geometry(block_precinct_assignment) <- "block_geometry"
+
 
 ######
 # Step 2: reconcile county-provided precinct data
@@ -95,7 +111,7 @@ optimization_results <- fread(
 
 
 ####
-#change directories -- everything from here reads or write to output folder
+#change directories -- everything from here reads or writes to output folder
 ####
 setwd(file.path(here(), precinct_analysis_output_folder))
 
@@ -112,16 +128,7 @@ state_county_crosswalk <- if (file.exists(crosswalk_path)) {
   data.table(Precinct_I = character(0), resolved_polling_location = character(0))
 }
 
-#read in block assignment: each block's dominant precinct (from
-#flag_state_provided_precincts.r's Step 3), with each block's full
-#geometry.
-block_precinct_assignment <- st_read(
-  file.path("block_precinct_assignment.gpkg"))
-names(block_precinct_assignment)[names(block_precinct_assignment) == "geometry"] <- "block_geometry"
-st_geometry(block_precinct_assignment) <- "block_geometry"
-
-
-#reshape data to look like *_result csv for consistency
+#combine demographic, precinct and distance data to look like *_result csv for consistency
 distance_demo_reshaped <- result_shaped_output(block_demographics, block_precinct_assignment,
             state_county_crosswalk, driving_distances)
 
