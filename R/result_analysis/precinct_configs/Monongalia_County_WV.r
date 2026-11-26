@@ -50,3 +50,9 @@ OPTIMIZATION_RESULTS <- 'datasets/results/Monongalia_County_WV_results/Monongali
 # Demographic groups for density-vs-distance graphs
 ########
 DEMOGRAPHIC_LIST <- c("population")
+
+########
+# Cloud storage
+########
+STORAGE_BUCKET <- "equitable-polling-analysis"
+CLOUD_STORAGE_ANALYSIS_NAME <- paste0(LOCATION, "_precinct_analysis")

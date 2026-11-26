@@ -15,6 +15,11 @@ source('R/result_analysis/utility_functions/tableau_theme.R')
 source('R/result_analysis/utility_functions/load_config_data.R')
 # For to load data correctly either from csv or the database
 source('R/result_analysis/utility_functions/graph_functions.R')
+
+# The folder inside STORAGE_BUCKET for Basic_analysis uploads. Set here, not in the
+# configs: it varies by script.
+STORAGE_BASE_DIR <- "equitable-polling-locations-analyses"
+
 # Get config constants for Tarrant County, TX, including the Google Cloud Storage bucket name
 source('R/result_analysis/Basic_analysis_configs/Tarrant_County_original_and_fair_2026.r')
 
