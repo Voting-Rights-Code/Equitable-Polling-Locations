@@ -5,10 +5,10 @@
         1. If those instructions don't work, (as may be the case on Linux or MacOS), run ```sudo ./install.sh``` after downloading the file, then follow the instructions above. See [here](https://stackoverflow.com/questions/58796472/git-lfs-is-not-a-git-command-on-macos).
 1. Install Docker from [https://www.docker.com/](https://www.docker.com/)
     1. Windows:
-       1. In the Windows Subsystem for Linux set the memory to at least 8gb in the ```.wslconfig``` in the ```%USERPROFILE%``` directory.
+       1. In the Windows Subsystem for Linux set the memory in the ```.wslconfig``` in the ```%USERPROFILE%``` directory: 8 GB for the solver on small and mid-size counties, the R analysis, and driving distances for small states; 16 GB for larger states; 32 GB or more, with `ORS_XMX=16g`, for large counties and large or many-border states such as Texas. See [Memory configuration](../CONTRIBUTING.md#memory-configuration).
     1. MacOS:
-       1. In the docker desktop app, under resources set the memory to at least 8gb.
-    1. Driving-distance generation has a larger footprint than the solver: the first run for a state downloads a one-time ~13 GB OpenStreetMap extract (ensure ~20 GB free disk) and builds a routing graph that needs more memory — set Docker to ≥ 16 GB (and pass `ORS_XMX=16g`) for large/high-border states such as Texas. See "Generating driving distances → Resource budget" in `docs/to_run.md`.
+       1. In the docker desktop app, under resources set the memory to the same tiers: 8 GB, 16 GB, or 32 GB or more.
+    1. Driving-distance generation has a larger footprint than the solver: the first run for a state downloads a one-time ~13 GB OpenStreetMap extract (ensure ~20 GB free disk) and builds a routing graph. The routing server's heap limit defaults to 10 GB (`ORS_XMX`); small states use far less. For large/high-border states such as Texas pass `ORS_XMX=16g` and give Docker 32 GB or more. See "Generating driving distances → Resource budget" in `docs/to_run.md`.
 1. Environment settings file `settings.yaml`
     1.  The settings file allows you to configure different environments to connect to such as dev or prod, and have each environment connect to a different database or dataset.
     1.  Copy the ```settings_example.yaml``` to ```settings.yaml```

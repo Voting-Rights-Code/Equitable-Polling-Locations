@@ -18,7 +18,7 @@ To store your census API key (one-time):
 python run.py secret set census
 ```
 
-This prompts for your key and stores it. If the optional `keyring` package is installed on the host it goes into your OS keystore; otherwise it falls back to `authentication_files/credentials.json` (gitignored). Either way, subsequent runs pick it up automatically. See [to_install.md](to_install.md) for the optional `keyring` setup and [to_run.md](to_run.md) for the full `secret` command (`set`/`get`/`clear`).
+This prompts for your key and stores it in `authentication_files/credentials.json` (gitignored). If the optional `keyring` package is installed on the host, a copy also goes into your OS keystore, and `python run.py secret restore` can rebuild the file from it. Either way, subsequent runs pick it up automatically. See [to_install.md](to_install.md) for the optional `keyring` setup and [to_run.md](to_run.md) for the full `secret` command (`set`/`get`/`clear`).
 
 Alternatively, set the `CENSUS_API_KEY` environment variable — it takes precedence over `credentials.json` and is useful inside containers and CI:
 
@@ -27,7 +27,7 @@ export CENSUS_API_KEY=your-key-here
 python -m python.scripts.pull_census_data_cli TX "Tarrant County" 2020
 ```
 
-The necessary data is automatically pulled from the census (if needed) when the model is run. However, one may also run `python -m python.utils.pull_census_data` to manually retrieve the data.
+The necessary data is automatically pulled from the census (if needed) when the model is run. However, one may also run `python run.py pull_census_data_cli <ST> "<County Name>" <year>` to retrieve the data by hand, as in the example above.
 
 The software downloads and uses the following census datasets:
 
