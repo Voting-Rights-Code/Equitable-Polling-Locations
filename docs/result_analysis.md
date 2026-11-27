@@ -86,9 +86,12 @@ To write the output of analysis to the Google Cloud Cloud storage, at the end of
 | Variable Name               | Description                                                                                 |
 |-----------------------------|---------------------------------------------------------------------------------------------|
 | STORAGE_BUCKET              | The google cloud storage bucket to write to.                                                |
-| CLOUD_STORAGE_ANALYSIS_NAME | The name of this analysis. Each run uploads to `<STORAGE_BASE_DIR>/<CLOUD_STORAGE_ANALYSIS_NAME>/<datestamp>/`. |
+| CLOUD_STORAGE_ANALYSIS_NAME | The name of this analysis. Each run uploads to `<STORAGE_BASE_DIR>/<CLOUD_STORAGE_ANALYSIS_NAME>/[<CLOUD_STORAGE_DELIVERABLE>/]<datestamp>/`. |
 | STORAGE_BASE_DIR            | The top-level folder in the bucket. Basic_analysis uploads go under `equitable-polling-locations-analyses`. |
-| CLOUD_STORAGE_DELIVERABLE   | Optional, set by the script. Adds the deliverable folder between the analysis name and the datestamp. |
+| CLOUD_STORAGE_DELIVERABLE   | Optional. Adds the deliverable folder between the analysis name and the datestamp. A script sets it with `set_cloud_storage_deliverable()`, and the name must be in `KNOWN_DELIVERABLES` in `storage.R`. |
+| ALLOW_UNCOMMITTED_SOURCES   | Optional, default `FALSE`, for development runs only. Set it to `TRUE` before the first input is registered to continue with an input that has an uncommitted change. Do not commit a script or config that sets it. |
+
+**Inputs:** a script can register the files and folders it reads, and the manifest records each one by kind. A `git` input is tracked by git and has no uncommitted change: the manifest records its path, a top-level `commit` field records the commit of the run, and the input is not uploaded. An `upload` input is not tracked by git, and is uploaded under `sources/`. A `census` input is one the script declares as census data: the manifest records its `location` and `census_year`, and it is not uploaded. An input in git that has an uncommitted change, staged or not, stops the run when it is registered. With `ALLOW_UNCOMMITTED_SOURCES`, it is recorded as `git` with `uncommitted: true` instead. The upload also stops if the commit of the checkout changed during the run.
 
 
 And at the end of the R file, add the following line:

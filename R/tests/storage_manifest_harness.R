@@ -5,8 +5,8 @@
 #   - add_graph_to_graph_file_manifest(): entries are relative to the output
 #     folder, keep subfolders, and one manifest holds files from one folder only
 #   - add_source_to_graph_file_manifest(): a source records a repo-relative
-#     origin and the object name sources/<basename>; the same source registered
-#     twice is recorded once
+#     origin and, when git does not track it, the object name sources/<basename>;
+#     the same source registered twice is recorded once
 #   - upload_graph_files_to_cloud_storage(): every graph file and source is
 #     checked before the first upload, so a missing file stops the run with its
 #     name and nothing partial reaches the bucket; object names equal manifest
