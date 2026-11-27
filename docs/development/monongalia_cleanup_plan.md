@@ -103,7 +103,8 @@ took a branch restore, a reopen, and a manual retarget of each.
    maps with outlines built from the flagging assignment — see ADR 0003.
 
 4. **Verify the bucket.** The run's folder under `precinct-distance-analyses/`
-   should hold the outputs, the geojson, `sources/`, and `analysis_manifest.yaml`.
+   should hold the outputs, the geojson, and `analysis_manifest.yaml`. For
+   Monongalia it has no `sources/` folder: the manifest records the inputs.
    Do not start step 5 until this is confirmed.
 
 5. **Cleanup PR** (the second part of the #340 follow-up, below):
