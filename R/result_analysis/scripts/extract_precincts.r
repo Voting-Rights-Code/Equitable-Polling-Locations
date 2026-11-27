@@ -14,7 +14,9 @@ source("R/result_analysis/utility_functions/regression_functions.r")
 # Basic_analysis folder. Set here, not in the configs: it varies by script.
 STORAGE_BASE_DIR <- "precinct-distance-analyses"
 # The deliverable folder, between the analysis name and the datestamp: this script's main run.
-CLOUD_STORAGE_DELIVERABLE <- "distance_analysis"
+set_cloud_storage_deliverable("distance_analysis")
+# The census year of the P3 and P4 tables and the TIGER shapefiles
+CENSUS_YEAR <- 2020
 
 #######
 # Read in command line arguments
@@ -44,6 +46,9 @@ if (!dir.exists(precinct_analysis_output_folder)) {
 }
 
 ###### Step 1: extract and validate the county's precincts and block assignment#######
+#each input is registered just before it is read.
+#a shapefile is a set of files, so register its folder
+add_source_to_graph_file_manifest("state_precincts", dirname(STATE_PRECINCT_FILE))
 state_precincts <- extract_county_precincts(STATE_PRECINCT_FILE, COUNTY_NAME, TIGER_CRS)
 
 state_precincts <- state_precincts[, c("Precinct_I", "County_Nam", "USER_POLL_")]
@@ -57,6 +62,7 @@ if (!file.exists(block_assignment_path)) {
   stop(block_assignment_path, " not found. Run flag_state_provided_precincts.r for ",
        LOCATION, " first.")
 }
+add_source_to_graph_file_manifest("block_precinct_assignment", block_assignment_path)
 block_precinct_assignment <- st_read(block_assignment_path)
 names(block_precinct_assignment)[names(block_precinct_assignment) == "geometry"] <- "block_geometry"
 st_geometry(block_precinct_assignment) <- "block_geometry"
@@ -76,10 +82,12 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
   #check if mismatches have been addressed
   mismatches_path <- file.path(precinct_analysis_output_folder, "location_precinct_mismatches.csv")
   if (file.exists(mismatches_path)) {
+    add_source_to_graph_file_manifest("precinct_mismatches", mismatches_path)
     reconciliation_data <- fread(mismatches_path)
     state_precincts <- apply_corrections(state_precincts, reconciliation_data)
   }
   #use this to reconcile state data
+  add_source_to_graph_file_manifest("county_precincts", COUNTY_PROVIDED_PRECINCT_FILE)
   precincts_resolved <- reconcile_state_precinct_data(
     COUNTY_PROVIDED_PRECINCT_FILE,
     COUNTY_PRECINCT_COLUMN_NAMES,
@@ -97,14 +105,16 @@ if (COUNTY_PROVIDES_PRECINCT_DATA) {
 
 # polling-location coordinates, to map assigned locations
 # on the heat maps below.
-# TODO(#340): the three sources in this step upload until recorded-only
-# registration lands; then they are recorded by path and commit, not uploaded.
 add_source_to_graph_file_manifest("potential_locations", build_potential_locations_file_path(LOCATION))
 polling_locations <- get_polling_locations(LOCATION)
 
 #read in block demographics
-p3_file_path <- file.path(REDISTRICTING_FOLDER, LOCATION, "DECENNIALPL2020.P3-Data.csv")
-p4_file_path <- file.path(REDISTRICTING_FOLDER, LOCATION, "DECENNIALPL2020.P4-Data.csv")
+p3_file_path <- file.path(REDISTRICTING_FOLDER, LOCATION,
+                          paste0("DECENNIALPL", CENSUS_YEAR, ".P3-Data.csv"))
+p4_file_path <- file.path(REDISTRICTING_FOLDER, LOCATION,
+                          paste0("DECENNIALPL", CENSUS_YEAR, ".P4-Data.csv"))
+add_census_source_to_graph_file_manifest("census_p3", p3_file_path, LOCATION, CENSUS_YEAR)
+add_census_source_to_graph_file_manifest("census_p4", p4_file_path, LOCATION, CENSUS_YEAR)
 block_demographics <- get_block_demographics(p3_file_path, p4_file_path)
 
 #read in driving distances
@@ -139,6 +149,7 @@ setwd(file.path(here(), precinct_analysis_output_folder))
 #map the state_provided precinct to the reolved polling locations
 crosswalk_path <- "precinct_polling_location_crosswalk.csv"
 state_county_crosswalk <- if (file.exists(crosswalk_path)) {
+  add_source_to_graph_file_manifest("precinct_crosswalk", crosswalk_path)
   fread(crosswalk_path)
 } else {
   # no correction script has ever run for this county -- every precinct's
@@ -254,6 +265,11 @@ make_demo_distance_heat_map(
 
 ###### Step 8: plot density vs. distance for actual precinct assignment #######
 
+#the block-group shapefile folder that precinct_bg_density_data() reads.
+#registered from the repo root: paths resolve against getwd(), now the output folder
+withr::with_dir(here(), add_census_source_to_graph_file_manifest(
+  "census_block_groups", file.path(TIGER_FOLDER, LOCATION), LOCATION, CENSUS_YEAR
+))
 precinct_density_data <- precinct_bg_density_data(distance_flagged_blocks_15, LOCATION, DEMO_COLS)
 precinct_regression_data <- bg_data(precinct_density_data)
 
@@ -277,6 +293,6 @@ plot_density_v_distance_bg(
   log_flag = FALSE, driving_flag = TRUE, y_bounds = shared_density_y_bounds
 )
 
-###### Step 9: upload this session's outputs and sources to cloud storage #######
+###### Step 9: upload this session's outputs and manifest to cloud storage #######
 
 upload_graph_files_to_cloud_storage()
