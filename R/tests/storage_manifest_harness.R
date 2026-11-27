@@ -30,7 +30,8 @@
 #     during the run stops the upload before authentication; a clean folder
 #     records as `git` and a census folder as `census`; the first `git` input
 #     sets the commit and a later one does not replace it; a `git` input deleted
-#     after registration stops the upload
+#     after registration stops the upload; the upload selects by kind, so an
+#     input with no kind is not uploaded; a duplicate origin records no commit
 #   - the real git functions: an untracked file that .gitignore ignores is
 #     `untracked` and a tracked file is not; the commit is one 40-character
 #     hexadecimal string; a folder that is not a git checkout stops
@@ -446,6 +447,32 @@ tryCatch({
               grepl("cannot find", deleted_input, fixed = TRUE) &&
               grepl(deleted_path, deleted_input, fixed = TRUE) && length(events) == 0,
           "a git input deleted after registration stops the upload before authentication")
+
+    no_kind_path <- file.path(source_dir, "no_kind.csv")
+    writeLines("s6", no_kind_path)
+    stub_source_status <- "clean"
+    start_manifest()
+    attempt(add_source_to_graph_file_manifest("driving_distances", input_path))
+    # No registration function leaves out the kind, so this entry is added by hand
+    .graph_file_manifest$sources <- c(.graph_file_manifest$sources, list(list(
+        role = "no_kind", origin = no_kind_path, object_name = "sources/no_kind.csv"
+    )))
+    stub_source_status <- "untracked"
+    attempt(add_source_to_graph_file_manifest("optimization_results", second_path))
+    attempt(upload_graph_files_to_cloud_storage())
+    input_uploads <- grep("/sources/", uploaded_names(), fixed = TRUE, value = TRUE)
+    check(length(get_graph_file_manifest()$sources) == 3 && length(input_uploads) == 1 &&
+              endsWith(input_uploads, "/sources/second.csv"),
+          "of git, no-kind and upload inputs, only the upload input is uploaded")
+
+    stub_source_status <- "clean"
+    start_manifest()
+    attempt(add_census_source_to_graph_file_manifest("census_p3", input_path, "Harness_County_XX", 2020))
+    duplicate <- attempt(add_source_to_graph_file_manifest("driving_distances", input_path))
+    # is.list: the second registration ran to its end, it did not stop
+    check(is.list(duplicate) && identical(only_source()$kind, "census") &&
+              is.null(get_graph_file_manifest()$commit),
+          "a duplicate origin records no commit")
 
     # The real git functions. .gitignore ignores *.csv, and `git status` alone
     # prints nothing for an ignored file that is not tracked.
