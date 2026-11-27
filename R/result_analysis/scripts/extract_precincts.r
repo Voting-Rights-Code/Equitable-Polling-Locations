@@ -46,7 +46,7 @@ if (!dir.exists(precinct_analysis_output_folder)) {
 }
 
 ###### Step 1: extract and validate the county's precincts and block assignment#######
-#each input is registered just before it is read.
+#each input is registered before it is read.
 #a shapefile is a set of files, so register its folder
 add_source_to_graph_file_manifest("state_precincts", dirname(STATE_PRECINCT_FILE))
 state_precincts <- extract_county_precincts(STATE_PRECINCT_FILE, COUNTY_NAME, TIGER_CRS)
@@ -115,6 +115,10 @@ p4_file_path <- file.path(REDISTRICTING_FOLDER, LOCATION,
                           paste0("DECENNIALPL", CENSUS_YEAR, ".P4-Data.csv"))
 add_census_source_to_graph_file_manifest("census_p3", p3_file_path, LOCATION, CENSUS_YEAR)
 add_census_source_to_graph_file_manifest("census_p4", p4_file_path, LOCATION, CENSUS_YEAR)
+#the block-group shapefile folder is read in Step 8. registered here so that a
+#missing folder stops the run before any map is built
+add_census_source_to_graph_file_manifest("census_block_groups", file.path(TIGER_FOLDER, LOCATION),
+                                         LOCATION, CENSUS_YEAR)
 block_demographics <- get_block_demographics(p3_file_path, p4_file_path)
 
 #read in driving distances
@@ -265,11 +269,6 @@ make_demo_distance_heat_map(
 
 ###### Step 8: plot density vs. distance for actual precinct assignment #######
 
-#the block-group shapefile folder that precinct_bg_density_data() reads.
-#registered from the repo root: paths resolve against getwd(), now the output folder
-withr::with_dir(here(), add_census_source_to_graph_file_manifest(
-  "census_block_groups", file.path(TIGER_FOLDER, LOCATION), LOCATION, CENSUS_YEAR
-))
 precinct_density_data <- precinct_bg_density_data(distance_flagged_blocks_15, LOCATION, DEMO_COLS)
 precinct_regression_data <- bg_data(precinct_density_data)
 

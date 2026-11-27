@@ -262,15 +262,15 @@ get_source_origin <- function(role, source_file) {
     substring(source_path, nchar(root_prefix) + 1)
 }
 
+# TRUE when the manifest already records this origin
+is_source_recorded <- function(origin) {
+    any(vapply(get_graph_file_manifest()$sources,
+               function(existing) existing$origin == origin, logical(1)))
+}
+
 # Adds one entry to the manifest's sources, once per origin
 record_source <- function(source_entry) {
-    # Init .graph_file_manifest if it doesn't already exist
-	get_graph_file_manifest()
-
-    already_recorded <- any(vapply(.graph_file_manifest$sources,
-                                   function(existing) existing$origin == source_entry$origin,
-                                   logical(1)))
-    if (!already_recorded) {
+    if (!is_source_recorded(source_entry$origin)) {
         num_sources <- length(.graph_file_manifest$sources)
         .graph_file_manifest$sources[[num_sources + 1]] <<- source_entry
     }
@@ -311,9 +311,9 @@ add_source_to_graph_file_manifest <- function(role, source_file) {
         source_entry$uncommitted <- TRUE
     }
 
-    # One commit per run: the first input in git records it
-	get_graph_file_manifest()
-    if (is.null(.graph_file_manifest$commit)) {
+    # One commit per run: the first git input that is added records it. A
+    # duplicate origin is not added, so it records none
+    if (!is_source_recorded(origin) && is.null(get_graph_file_manifest()$commit)) {
         .graph_file_manifest$commit <<- get_git_head_commit()
     }
 
@@ -343,16 +343,20 @@ add_census_source_to_graph_file_manifest <- function(role, source_file, location
 
 # Stops on a deliverable name that is not in KNOWN_DELIVERABLES
 check_known_deliverable <- function(deliverable) {
-    # isTRUE also rejects a value that is not exactly one name
-    if (!isTRUE(deliverable %in% KNOWN_DELIVERABLES)) {
+    # Type first: %in% also matches a factor, which would name the folder by its code
+    is_known <- is.character(deliverable) && length(deliverable) == 1 && !is.na(deliverable) &&
+        deliverable %in% KNOWN_DELIVERABLES
+    if (!is_known) {
         stop(paste0("Invalid CLOUD_STORAGE_DELIVERABLE '", paste(deliverable, collapse = ", "),
-                    "'; use one of: ", paste(KNOWN_DELIVERABLES, collapse = ", "),
+                    "'; use one of these as a character string: ",
+                    paste(KNOWN_DELIVERABLES, collapse = ", "),
                     ". A new deliverable adds its name to KNOWN_DELIVERABLES in storage.R"))
     }
 }
 
 # Sets the deliverable folder for a script. The name is checked here, in the
 # run's first second, not only at the upload after every map and CSV is built.
+# It cannot unset the value: assign NULL to CLOUD_STORAGE_DELIVERABLE for that.
 set_cloud_storage_deliverable <- function(deliverable) {
     check_known_deliverable(deliverable)
     CLOUD_STORAGE_DELIVERABLE <<- deliverable
@@ -466,7 +470,7 @@ upload_graph_files_to_cloud_storage <- function() {
     }
 
     # Upload the inputs that are neither in git nor census data
-    for (source_entry in Filter(function(entry) entry$kind == "upload", manifest$sources)) {
+    for (source_entry in Filter(function(entry) identical(entry$kind, "upload"), manifest$sources)) {
         local_file_path <- file.path(here(), source_entry$origin)
         cloud_storage_file_name <- paste(cloud_storage_base_path, source_entry$object_name, sep="/")
         print(paste0("Uploading file ", local_file_path, " -> ", STORAGE_BUCKET, ":", cloud_storage_file_name))
