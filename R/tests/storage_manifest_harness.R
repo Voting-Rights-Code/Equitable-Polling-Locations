@@ -10,9 +10,10 @@
 #   - upload_graph_files_to_cloud_storage(): every graph file and source is
 #     checked before the first upload, so a missing file stops the run with its
 #     name and nothing partial reaches the bucket; object names equal manifest
-#     entries; sources upload after the graphs; the manifest uploads last; an
-#     unset STORAGE_BASE_DIR stops the run; authentication happens once, after
-#     the existence checks and before the first upload
+#     entries; only the sources of kind `upload` are uploaded, after the graphs;
+#     the manifest uploads last; an unset STORAGE_BASE_DIR stops the run;
+#     authentication happens once, after the existence checks and before the
+#     first upload
 #   - CLOUD_STORAGE_DELIVERABLE: has no default after sourcing; when set, object
 #     names and the manifest object follow base folder, analysis name,
 #     deliverable, datestamp; the manifest records `deliverable` when set and
@@ -26,12 +27,17 @@
 #     an integer census_year, makes no git call and is not uploaded; a
 #     census_year that is not one whole number stops; an untracked folder stops;
 #     a manifest with no `git` input has no `commit` field; a commit that moved
-#     during the run stops the upload before authentication
+#     during the run stops the upload before authentication; a clean folder
+#     records as `git` and a census folder as `census`; the first `git` input
+#     sets the commit and a later one does not replace it; a `git` input deleted
+#     after registration stops the upload
 #   - the real git functions: an untracked file that .gitignore ignores is
-#     `untracked`, and a folder that is not a git checkout stops
+#     `untracked` and a tracked file is not; the commit is one 40-character
+#     hexadecimal string; a folder that is not a git checkout stops
 #   - set_cloud_storage_deliverable(): an unknown name stops, is named and sets
-#     nothing; a known name sets CLOUD_STORAGE_DELIVERABLE; the upload rejects
-#     an unknown name that was assigned directly
+#     nothing; a factor stops and sets nothing; a known name sets
+#     CLOUD_STORAGE_DELIVERABLE; the upload rejects an unknown name that was
+#     assigned directly
 #
 # Run manually from the repo root. Inside the dev container or a local R env:
 #   Rscript R/tests/storage_manifest_harness.R
@@ -48,8 +54,8 @@
 # How it works. gcs_upload() and authenticate_cloud_storage() are replaced with
 # stubs that record every call, so nothing reaches Google and no credentials are
 # needed. get_git_source_status() and get_git_head_commit() are stubbed too, so
-# the checks do not depend on the state of this checkout; the two checks of the
-# real git functions need git, git-lfs and a git checkout. The files it registers
+# the checks do not depend on the state of this checkout; the checks of the real
+# git functions need git, git-lfs and a git checkout. The files it registers
 # are small synthetic files written under result_analysis_outputs/ and datasets/
 # and removed at the end, also when a check errors part way.
 #
@@ -86,7 +92,7 @@ authenticate_cloud_storage <- function() {
 }
 
 # Stub the two git functions and record each call. The real ones are kept for the
-# two checks of git itself. Inputs are untracked unless a check says otherwise.
+# checks of git itself. Inputs are untracked unless a check says otherwise.
 real_get_git_source_status <- get0("get_git_source_status")
 real_get_git_head_commit <- get0("get_git_head_commit")
 stub_source_status <- "untracked"
@@ -406,6 +412,41 @@ tryCatch({
               length(get_graph_file_manifest()$sources) == 0,
           "an untracked folder stops at registration")
 
+    stub_source_status <- "clean"
+    start_manifest()
+    attempt(add_source_to_graph_file_manifest("state_precincts", folder_path))
+    check(identical(only_source()$kind, "git"), "a clean folder is recorded as git")
+
+    start_manifest()
+    attempt(add_census_source_to_graph_file_manifest("census_block_groups", folder_path,
+                                                     "Harness_County_XX", 2020))
+    check(identical(only_source()$kind, "census"), "a census folder is recorded as census")
+
+    second_path <- file.path(source_dir, "second.csv")
+    writeLines("s4", second_path)
+    start_manifest()
+    attempt(add_source_to_graph_file_manifest("driving_distances", input_path))
+    first_commit <- stub_head_commit
+    stub_head_commit <- "fedcba9876543210fedcba9876543210fedcba98"
+    attempt(add_source_to_graph_file_manifest("optimization_results", second_path))
+    later_input <- attempt(upload_graph_files_to_cloud_storage())
+    check(length(get_graph_file_manifest()$sources) == 2 && is.character(later_input) &&
+              grepl(paste("recorded at commit", first_commit), later_input, fixed = TRUE) &&
+              length(events) == 0,
+          "a later git input does not replace the commit that the first one set")
+    stub_head_commit <- first_commit
+
+    deleted_path <- file.path(source_dir, "deleted.csv")
+    writeLines("s5", deleted_path)
+    start_manifest()
+    attempt(add_source_to_graph_file_manifest("driving_distances", deleted_path))
+    unlink(deleted_path)
+    deleted_input <- attempt(upload_graph_files_to_cloud_storage())
+    check(identical(only_source()$kind, "git") && is.character(deleted_input) &&
+              grepl("cannot find", deleted_input, fixed = TRUE) &&
+              grepl(deleted_path, deleted_input, fixed = TRUE) && length(events) == 0,
+          "a git input deleted after registration stops the upload before authentication")
+
     # The real git functions. .gitignore ignores *.csv, and `git status` alone
     # prints nothing for an ignored file that is not tracked.
     ignore_status <- system2("git", c("-C", shQuote(here()), "check-ignore", "-q", "--",
@@ -421,6 +462,15 @@ tryCatch({
     check(grepl("git cannot answer", no_checkout, fixed = TRUE) &&
               grepl(non_checkout, no_checkout, fixed = TRUE),
           "the real get_git_head_commit() stops outside a git checkout")
+
+    # This file is tracked; it is modified while it is being worked on
+    tracked_status <- attempt(real_get_git_source_status("R/tests/storage_manifest_harness.R"))
+    check(tracked_status %in% c("clean", "modified"),
+          "the real get_git_source_status() does not call a tracked file untracked")
+
+    head_commit <- attempt(real_get_git_head_commit())
+    check(length(head_commit) == 1 && grepl("^[0-9a-f]{40}$", head_commit),
+          "the real get_git_head_commit() returns one 40-character hexadecimal string")
 
     # --- Deliverable allowlist --------------------------------------------------
     unknown_name <- attempt(set_cloud_storage_deliverable("distanec_analysis"))
@@ -442,6 +492,14 @@ tryCatch({
                     fixed = TRUE) &&
               length(events) == 0,
           "an unknown name assigned directly stops the upload before authentication")
+    CLOUD_STORAGE_DELIVERABLE <- NULL
+
+    # A factor matches a known name, but would name the folder by its code
+    factor_name <- attempt(set_cloud_storage_deliverable(factor("distance_analysis")))
+    check(is.character(factor_name) &&
+              grepl("Invalid CLOUD_STORAGE_DELIVERABLE", factor_name, fixed = TRUE) &&
+              is.null(CLOUD_STORAGE_DELIVERABLE),
+          "set_cloud_storage_deliverable() stops on a factor and sets nothing")
     CLOUD_STORAGE_DELIVERABLE <- NULL
 }, finally = cleanup())
 
