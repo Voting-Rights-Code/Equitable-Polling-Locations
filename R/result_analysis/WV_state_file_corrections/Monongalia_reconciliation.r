@@ -16,12 +16,18 @@ source("R/result_analysis/precinct_configs/Monongalia_County_WV.r")
 ########
 # Standard work flow: 
 # 1. Run flag_state_provided_precincts.r
-# 2. run extract_precincts.r
-# 3. halt if state and county files don't match
-# 4. user updates mismatch file
-# 5. run reconciliation file
-# 6. run extract_precincts.r
-# 7. If mismatch file is changed, rerun reconciliation and extract precincts files
+# 2. commit block_precinct_assignment.gpkg if it changed
+# 3. run extract_precincts.r
+# 4. halt if state and county files don't match
+# 5. user updates mismatch file
+# 6. run reconciliation file
+# 7. commit mismatch file and crosswalk file
+# 8. run extract_precincts.r
+# 9. If mismatch file is changed, rerun reconciliation and extract precincts files
+#    (commit as in step 7 in between)
+#
+# While a review is in progress, set ALLOW_UNCOMMITTED_SOURCES <- TRUE instead
+# of committing. The outputs of such a run must not be delivered.
 ########
 
 ########

@@ -321,8 +321,12 @@ check_poll_precinct_agreement <- function(county_precincts_long, state_precincts
       file automatically. If 
       R/result_analysis/WV_state_file_corrections/", location, "_reconciliation.r 
       doesn't exist yet, create it (see an existing one for the pattern) to build 
-      the polling-location crosswalk from this file; re-run it whenever new rows are 
-      added here."
+      the polling-location crosswalk from this file; re-run it whenever new rows are
+      added here.\n
+      Commit location_precinct_mismatches.csv and
+      precinct_polling_location_crosswalk.csv before the re-run, or set
+      ALLOW_UNCOMMITTED_SOURCES <- TRUE for a review run -- extract_precincts.r
+      stops on a registered input that has an uncommitted change."
     )
   }
 

@@ -43,9 +43,10 @@ what it does not.
   or a change to `renv.lock`.
 - `storage_manifest_harness.R`: the upload manifest and the upload order, with stubbed
   `gcs_upload()` and `authenticate_cloud_storage()` so nothing reaches Google and no
-  credentials are needed. Run it after any change to
-  `utility_functions/storage.R`. When you change what the manifest records or how files
-  upload, add a check for the new behaviour in the same run.
+  credentials are needed, and stubbed `get_git_source_status()` and
+  `get_git_head_commit()` so the checks do not depend on the state of the checkout.
+  Run it after any change to `utility_functions/storage.R`. When you change what the
+  manifest records or how files upload, add a check for the new behaviour in the same run.
 - `nearest_destination_determinism.R`: run-to-run stability of the precinct pipeline's
   block assignment and outlines. Run it after a change to those steps. It needs a county
   that has been through `flag_state_provided_precincts.r`.

@@ -5,14 +5,40 @@
 #   - add_graph_to_graph_file_manifest(): entries are relative to the output
 #     folder, keep subfolders, and one manifest holds files from one folder only
 #   - add_source_to_graph_file_manifest(): a source records a repo-relative
-#     origin and the object name sources/<basename>; the same source registered
-#     twice is recorded once
+#     origin and, when git does not track it, the object name sources/<basename>;
+#     the same source registered twice is recorded once
 #   - upload_graph_files_to_cloud_storage(): every graph file and source is
 #     checked before the first upload, so a missing file stops the run with its
 #     name and nothing partial reaches the bucket; object names equal manifest
-#     entries; sources upload after the graphs; the manifest uploads last; an
-#     unset STORAGE_BASE_DIR stops the run; authentication happens once, after
-#     the existence checks and before the first upload
+#     entries; only the sources of kind `upload` are uploaded, after the graphs;
+#     the manifest uploads last; an unset STORAGE_BASE_DIR stops the run;
+#     authentication happens once, after the existence checks and before the
+#     first upload
+#   - CLOUD_STORAGE_DELIVERABLE: has no default after sourcing; when set, object
+#     names and the manifest object follow base folder, analysis name,
+#     deliverable, datestamp; the manifest records `deliverable` when set and
+#     has no such field when unset; a value that is not one path segment (e.g.
+#     with a slash) or not a string stops the run before anything authenticates
+#     or uploads
+#   - input kinds: an input in git with no change is recorded as `git`, with the
+#     commit of the run, and is not uploaded; an untracked input is recorded as
+#     `upload` and uploaded; a modified input stops the run and is named, unless
+#     ALLOW_UNCOMMITTED_SOURCES is TRUE; a census input records its location and
+#     an integer census_year, makes no git call and is not uploaded; a
+#     census_year that is not one whole number stops; an untracked folder stops;
+#     a manifest with no `git` input has no `commit` field; a commit that moved
+#     during the run stops the upload before authentication; a clean folder
+#     records as `git` and a census folder as `census`; the first `git` input
+#     sets the commit and a later one does not replace it; a `git` input deleted
+#     after registration stops the upload; the upload selects by kind, so an
+#     input with no kind is not uploaded; a duplicate origin records no commit
+#   - the real git functions: an untracked file that .gitignore ignores is
+#     `untracked` and a tracked file is not; the commit is one 40-character
+#     hexadecimal string; a folder that is not a git checkout stops
+#   - set_cloud_storage_deliverable(): an unknown name stops, is named and sets
+#     nothing; a factor stops and sets nothing; a known name sets
+#     CLOUD_STORAGE_DELIVERABLE; the upload rejects an unknown name that was
+#     assigned directly
 #
 # Run manually from the repo root. Inside the dev container or a local R env:
 #   Rscript R/tests/storage_manifest_harness.R
@@ -28,9 +54,11 @@
 #
 # How it works. gcs_upload() and authenticate_cloud_storage() are replaced with
 # stubs that record every call, so nothing reaches Google and no credentials are
-# needed. The files it registers are small synthetic files
-# written under result_analysis_outputs/ and datasets/ and removed at the end,
-# also when a check errors part way.
+# needed. get_git_source_status() and get_git_head_commit() are stubbed too, so
+# the checks do not depend on the state of this checkout; the checks of the real
+# git functions need git, git-lfs and a git checkout. The files it registers
+# are small synthetic files written under result_analysis_outputs/ and datasets/
+# and removed at the end, also when a check errors part way.
 #
 # This does NOT run Basic_analysis.r or extract_precincts.r, so it cannot catch
 # a script that forgets to register a file or sets the wrong folder. It does
@@ -64,6 +92,22 @@ authenticate_cloud_storage <- function() {
     invisible(TRUE)
 }
 
+# Stub the two git functions and record each call. The real ones are kept for the
+# checks of git itself. Inputs are untracked unless a check says otherwise.
+real_get_git_source_status <- get0("get_git_source_status")
+real_get_git_head_commit <- get0("get_git_head_commit")
+stub_source_status <- "untracked"
+stub_head_commit <- "0123456789abcdef0123456789abcdef01234567"
+git_calls <- character(0)
+get_git_source_status <- function(origin, root = here()) {
+    git_calls[length(git_calls) + 1] <<- "source_status"
+    stub_source_status
+}
+get_git_head_commit <- function(root = here()) {
+    git_calls[length(git_calls) + 1] <<- "head_commit"
+    stub_head_commit
+}
+
 # Synthetic output files under the Basic_analysis output folder, and synthetic
 # input files under datasets/ to register as sources. Both folders are removed
 # at the end, also when a check errors part way.
@@ -72,6 +116,35 @@ source_dir <- "datasets/harness_335_tmp_sources"
 cleanup <- function() {
     unlink(harness_dir, recursive = TRUE)
     unlink(source_dir, recursive = TRUE)
+}
+
+# The value of expr, or its error message. A stop, or a call to something that
+# does not exist, then prints FAIL instead of ending the harness.
+attempt <- function(expr) tryCatch(expr, error = function(e) conditionMessage(e))
+
+# A new manifest with the one graph file an upload needs, and empty call records
+start_manifest <- function() {
+    clear_graph_file_manifest()
+    add_graph_to_graph_file_manifest(file.path(harness_dir, "a.png"))
+    uploads <<- list()
+    events <<- character(0)
+    git_calls <<- character(0)
+}
+
+# The recorded source, or an empty list when there is not exactly one
+only_source <- function() {
+    sources <- get_graph_file_manifest()$sources
+    if (length(sources) == 1) sources[[1]] else list()
+}
+
+uploaded_names <- function() vapply(uploads, function(u) u$name, character(1))
+
+# The YAML of the last upload, which is the manifest when an upload completes
+written_manifest <- function() {
+    if (length(uploads) == 0) {
+        return("")
+    }
+    paste(readLines(uploads[[length(uploads)]]$file), collapse = "\n")
 }
 
 tryCatch({
@@ -85,6 +158,8 @@ tryCatch({
     # --- Defaults after sourcing -----------------------------------------------
     check(is.null(STORAGE_BASE_DIR),
           "STORAGE_BASE_DIR has no default after sourcing storage.R")
+    check(is.null(CLOUD_STORAGE_DELIVERABLE),
+          "CLOUD_STORAGE_DELIVERABLE has no default after sourcing storage.R")
 
     # --- Registration ---------------------------------------------------------
     clear_graph_file_manifest()
@@ -193,6 +268,266 @@ tryCatch({
     check(is.character(missing_source) && grepl("results.csv", missing_source, fixed = TRUE),
           "the stop names the missing source")
     check(length(uploads) == 0, "nothing is uploaded before the missing-source stop")
+
+    # --- Deliverable folder ---------------------------------------------------
+    clear_graph_file_manifest()
+    entry_a <- add_graph_to_graph_file_manifest(file.path(harness_dir, "a.png"))
+    STORAGE_BASE_DIR <- "precinct-distance-analyses"
+    CLOUD_STORAGE_DELIVERABLE <- "distance_analysis"
+    uploads <- list()
+    events <- character(0)
+    with_deliverable <- upload_graph_files_to_cloud_storage()
+    date_stamp <- format(with_deliverable$created_at, "%Y%m%d-%H%M%S")
+    deliverable_path <- paste("precinct-distance-analyses", "harness", "distance_analysis",
+                              date_stamp, sep = "/")
+    names_uploaded <- vapply(uploads, function(u) u$name, character(1))
+
+    check(identical(names_uploaded[1], paste(deliverable_path, entry_a, sep = "/")),
+          "with a deliverable, the object name is base folder, analysis name, deliverable, datestamp, entry")
+    check(identical(names_uploaded[length(names_uploaded)],
+                    paste(deliverable_path, ANALYSIS_MANIFEST, sep = "/")),
+          "with a deliverable, the manifest uploads under the same four-part path")
+
+    # The same registered manifest, uploaded again with the deliverable unset
+    CLOUD_STORAGE_DELIVERABLE <- NULL
+    without_deliverable <- upload_graph_files_to_cloud_storage()
+    check(identical(with_deliverable$deliverable, "distance_analysis") &&
+              !("deliverable" %in% names(without_deliverable)),
+          "the manifest records the deliverable when set and has no deliverable field when unset")
+
+    # A value that is not one path segment stops the run before any upload
+    CLOUD_STORAGE_DELIVERABLE <- "distance/analysis"
+    uploads <- list()
+    events <- character(0)
+    bad_deliverable <- tryCatch(upload_graph_files_to_cloud_storage(), error = function(e) conditionMessage(e))
+    check(is.character(bad_deliverable) && grepl("distance/analysis", bad_deliverable, fixed = TRUE) &&
+              length(uploads) == 0,
+          "a deliverable with a slash stops the upload before any object is uploaded")
+    check(sum(events == "auth") == 0, "nothing authenticates before the bad-deliverable stop")
+
+    # A value that is not a string stops with the same message, not an R error
+    CLOUD_STORAGE_DELIVERABLE <- 5
+    uploads <- list()
+    events <- character(0)
+    numeric_deliverable <- tryCatch(upload_graph_files_to_cloud_storage(), error = function(e) conditionMessage(e))
+    check(is.character(numeric_deliverable) &&
+              grepl("Invalid CLOUD_STORAGE_DELIVERABLE", numeric_deliverable, fixed = TRUE) &&
+              length(uploads) == 0,
+          "a non-character deliverable stops with the invalid-deliverable message before any upload")
+
+    # Later checks expect three-part paths
+    CLOUD_STORAGE_DELIVERABLE <- NULL
+
+    # --- Input kinds ------------------------------------------------------------
+    input_path <- file.path(source_dir, "distances.csv")
+
+    stub_source_status <- "clean"
+    start_manifest()
+    attempt(add_source_to_graph_file_manifest("driving_distances", input_path))
+    result <- attempt(upload_graph_files_to_cloud_storage())
+    check(identical(only_source()$kind, "git") && is.null(only_source()$object_name) &&
+              length(uploads) == 2 && !any(grepl("sources/", uploaded_names(), fixed = TRUE)),
+          "a clean input is recorded as git with no object_name and is not uploaded")
+    check(is.list(result) && identical(result$commit, stub_head_commit) &&
+              grepl(paste0("commit: ", stub_head_commit), written_manifest(), fixed = TRUE),
+          "the manifest commit is the commit of the checkout")
+
+    stub_source_status <- "untracked"
+    start_manifest()
+    attempt(add_source_to_graph_file_manifest("driving_distances", input_path))
+    attempt(upload_graph_files_to_cloud_storage())
+    check(identical(only_source()$kind, "upload") &&
+              identical(only_source()$object_name, "sources/distances.csv") &&
+              any(endsWith(uploaded_names(), "/sources/distances.csv")),
+          "an untracked input is recorded as upload and uploaded under sources/<basename>")
+
+    stub_source_status <- "modified"
+    start_manifest()
+    modified <- attempt(add_source_to_graph_file_manifest("driving_distances", input_path))
+    check(is.character(modified) && grepl("uncommitted change", modified, fixed = TRUE) &&
+              grepl(input_path, modified, fixed = TRUE) &&
+              length(get_graph_file_manifest()$sources) == 0,
+          "a modified input stops at registration and the message names it")
+
+    ALLOW_UNCOMMITTED_SOURCES <- TRUE
+    start_manifest()
+    attempt(add_source_to_graph_file_manifest("driving_distances", input_path))
+    result <- attempt(upload_graph_files_to_cloud_storage())
+    check(identical(only_source()$kind, "git") && isTRUE(only_source()$uncommitted) &&
+              is.null(only_source()$object_name) && length(uploads) == 2 &&
+              is.list(result) && identical(result$commit, stub_head_commit) &&
+              grepl("uncommitted: true", written_manifest(), fixed = TRUE),
+          "ALLOW_UNCOMMITTED_SOURCES records a modified input as uncommitted git, not uploaded")
+    ALLOW_UNCOMMITTED_SOURCES <- FALSE
+
+    start_manifest()
+    attempt(add_census_source_to_graph_file_manifest("census_p3", input_path, "Harness_County_XX", 2020))
+    attempt(upload_graph_files_to_cloud_storage())
+    check(identical(only_source()$kind, "census") &&
+              identical(only_source()$location, "Harness_County_XX") &&
+              identical(only_source()$census_year, 2020L) &&
+              is.null(only_source()$object_name) && length(uploads) == 2 &&
+              grepl("census_year: 2020(\n|$)", written_manifest()) &&
+              length(git_calls) == 0,
+          "a census input records location and integer census_year, with no upload or git call")
+
+    start_manifest()
+    year_results <- lapply(list("2020", c(2010, 2020), 2020.5), function(census_year) {
+        attempt(add_census_source_to_graph_file_manifest("census_p3", input_path,
+                                                         "Harness_County_XX", census_year))
+    })
+    check(all(vapply(year_results, function(year_result) {
+              is.character(year_result) && grepl("census_year", year_result, fixed = TRUE)
+          }, logical(1))) &&
+              length(get_graph_file_manifest()$sources) == 0,
+          "a census_year that is not one whole number stops at registration")
+
+    stub_source_status <- "untracked"
+    start_manifest()
+    attempt(add_source_to_graph_file_manifest("driving_distances", input_path))
+    result <- attempt(upload_graph_files_to_cloud_storage())
+    check(identical(only_source()$kind, "upload") && is.list(result) &&
+              !("commit" %in% names(result)) && !grepl("(^|\n)commit:", written_manifest()),
+          "a manifest with only upload inputs has no commit field")
+
+    stub_source_status <- "clean"
+    start_manifest()
+    attempt(add_source_to_graph_file_manifest("driving_distances", input_path))
+    recorded_commit <- stub_head_commit
+    stub_head_commit <- "fedcba9876543210fedcba9876543210fedcba98"
+    moved <- attempt(upload_graph_files_to_cloud_storage())
+    check(is.character(moved) && grepl(recorded_commit, moved, fixed = TRUE) &&
+              grepl(stub_head_commit, moved, fixed = TRUE) && length(events) == 0,
+          "a commit that moved during the run stops the upload before authentication")
+    stub_head_commit <- recorded_commit
+
+    folder_path <- file.path(source_dir, "precinct_shapes")
+    dir.create(folder_path, showWarnings = FALSE)
+    writeLines("s3", file.path(folder_path, "precincts.shp"))
+    stub_source_status <- "untracked"
+    start_manifest()
+    untracked_folder <- attempt(add_source_to_graph_file_manifest("state_precincts", folder_path))
+    check(is.character(untracked_folder) &&
+              grepl("cannot upload a folder", untracked_folder, fixed = TRUE) &&
+              grepl(folder_path, untracked_folder, fixed = TRUE) &&
+              length(get_graph_file_manifest()$sources) == 0,
+          "an untracked folder stops at registration")
+
+    stub_source_status <- "clean"
+    start_manifest()
+    attempt(add_source_to_graph_file_manifest("state_precincts", folder_path))
+    check(identical(only_source()$kind, "git"), "a clean folder is recorded as git")
+
+    start_manifest()
+    attempt(add_census_source_to_graph_file_manifest("census_block_groups", folder_path,
+                                                     "Harness_County_XX", 2020))
+    check(identical(only_source()$kind, "census"), "a census folder is recorded as census")
+
+    second_path <- file.path(source_dir, "second.csv")
+    writeLines("s4", second_path)
+    start_manifest()
+    attempt(add_source_to_graph_file_manifest("driving_distances", input_path))
+    first_commit <- stub_head_commit
+    stub_head_commit <- "fedcba9876543210fedcba9876543210fedcba98"
+    attempt(add_source_to_graph_file_manifest("optimization_results", second_path))
+    later_input <- attempt(upload_graph_files_to_cloud_storage())
+    check(length(get_graph_file_manifest()$sources) == 2 && is.character(later_input) &&
+              grepl(paste("recorded at commit", first_commit), later_input, fixed = TRUE) &&
+              length(events) == 0,
+          "a later git input does not replace the commit that the first one set")
+    stub_head_commit <- first_commit
+
+    deleted_path <- file.path(source_dir, "deleted.csv")
+    writeLines("s5", deleted_path)
+    start_manifest()
+    attempt(add_source_to_graph_file_manifest("driving_distances", deleted_path))
+    unlink(deleted_path)
+    deleted_input <- attempt(upload_graph_files_to_cloud_storage())
+    check(identical(only_source()$kind, "git") && is.character(deleted_input) &&
+              grepl("cannot find", deleted_input, fixed = TRUE) &&
+              grepl(deleted_path, deleted_input, fixed = TRUE) && length(events) == 0,
+          "a git input deleted after registration stops the upload before authentication")
+
+    no_kind_path <- file.path(source_dir, "no_kind.csv")
+    writeLines("s6", no_kind_path)
+    stub_source_status <- "clean"
+    start_manifest()
+    attempt(add_source_to_graph_file_manifest("driving_distances", input_path))
+    # No registration function leaves out the kind, so this entry is added by hand
+    .graph_file_manifest$sources <- c(.graph_file_manifest$sources, list(list(
+        role = "no_kind", origin = no_kind_path, object_name = "sources/no_kind.csv"
+    )))
+    stub_source_status <- "untracked"
+    attempt(add_source_to_graph_file_manifest("optimization_results", second_path))
+    attempt(upload_graph_files_to_cloud_storage())
+    input_uploads <- grep("/sources/", uploaded_names(), fixed = TRUE, value = TRUE)
+    check(length(get_graph_file_manifest()$sources) == 3 && length(input_uploads) == 1 &&
+              endsWith(input_uploads, "/sources/second.csv"),
+          "of git, no-kind and upload inputs, only the upload input is uploaded")
+
+    stub_source_status <- "clean"
+    start_manifest()
+    attempt(add_census_source_to_graph_file_manifest("census_p3", input_path, "Harness_County_XX", 2020))
+    duplicate <- attempt(add_source_to_graph_file_manifest("driving_distances", input_path))
+    # is.list: the second registration ran to its end, it did not stop
+    check(is.list(duplicate) && identical(only_source()$kind, "census") &&
+              is.null(get_graph_file_manifest()$commit),
+          "a duplicate origin records no commit")
+
+    # The real git functions. .gitignore ignores *.csv, and `git status` alone
+    # prints nothing for an ignored file that is not tracked.
+    ignore_status <- system2("git", c("-C", shQuote(here()), "check-ignore", "-q", "--",
+                                      shQuote(input_path)))
+    real_status <- attempt(real_get_git_source_status(input_path))
+    check(ignore_status == 0 && identical(real_status, "untracked"),
+          "the real get_git_source_status() calls an ignored, untracked CSV untracked")
+
+    non_checkout <- tempfile("not_a_git_checkout_")
+    dir.create(non_checkout)
+    no_checkout <- attempt(real_get_git_head_commit(non_checkout))
+    unlink(non_checkout, recursive = TRUE)
+    check(grepl("git cannot answer", no_checkout, fixed = TRUE) &&
+              grepl(non_checkout, no_checkout, fixed = TRUE),
+          "the real get_git_head_commit() stops outside a git checkout")
+
+    # This file is tracked; it is modified while it is being worked on
+    tracked_status <- attempt(real_get_git_source_status("R/tests/storage_manifest_harness.R"))
+    check(tracked_status %in% c("clean", "modified"),
+          "the real get_git_source_status() does not call a tracked file untracked")
+
+    head_commit <- attempt(real_get_git_head_commit())
+    check(length(head_commit) == 1 && grepl("^[0-9a-f]{40}$", head_commit),
+          "the real get_git_head_commit() returns one 40-character hexadecimal string")
+
+    # --- Deliverable allowlist --------------------------------------------------
+    unknown_name <- attempt(set_cloud_storage_deliverable("distanec_analysis"))
+    check(is.character(unknown_name) && grepl("distanec_analysis", unknown_name, fixed = TRUE) &&
+              grepl("flagged_precincts", unknown_name, fixed = TRUE) &&
+              is.null(CLOUD_STORAGE_DELIVERABLE),
+          "set_cloud_storage_deliverable() stops on an unknown name and sets nothing")
+
+    attempt(set_cloud_storage_deliverable("distance_analysis"))
+    check(identical(CLOUD_STORAGE_DELIVERABLE, "distance_analysis"),
+          "set_cloud_storage_deliverable() sets CLOUD_STORAGE_DELIVERABLE to a known name")
+
+    # Assigned directly, past set_cloud_storage_deliverable()
+    CLOUD_STORAGE_DELIVERABLE <- "distanec_analysis"
+    start_manifest()
+    assigned_name <- attempt(upload_graph_files_to_cloud_storage())
+    check(is.character(assigned_name) &&
+              grepl("Invalid CLOUD_STORAGE_DELIVERABLE 'distanec_analysis'", assigned_name,
+                    fixed = TRUE) &&
+              length(events) == 0,
+          "an unknown name assigned directly stops the upload before authentication")
+    CLOUD_STORAGE_DELIVERABLE <- NULL
+
+    # A factor matches a known name, but would name the folder by its code
+    factor_name <- attempt(set_cloud_storage_deliverable(factor("distance_analysis")))
+    check(is.character(factor_name) &&
+              grepl("Invalid CLOUD_STORAGE_DELIVERABLE", factor_name, fixed = TRUE) &&
+              is.null(CLOUD_STORAGE_DELIVERABLE),
+          "set_cloud_storage_deliverable() stops on a factor and sets nothing")
+    CLOUD_STORAGE_DELIVERABLE <- NULL
 }, finally = cleanup())
 
 # --- Summary ------------------------------------------------------------------
