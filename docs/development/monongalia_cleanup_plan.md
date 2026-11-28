@@ -1,192 +1,79 @@
 # Monongalia cleanup plan
 
-How to land the open Monongalia work into `delivery/Monongalia_County`, move the
-delivery outputs out of git and into the analyses bucket, and then take the epic
-to `dev`.
+What's left before `delivery/Monongalia_County` goes to `dev`. Git and the PRs hold
+the history; this file holds only what is still to do and what is still live.
 
-Checked against `origin` on **2026-10-04**. Re-check before acting if much time
-has passed.
+Checked against `origin` on **2026-11-28**. Re-check before acting if time has passed.
 
-**This is a working plan, not documentation.** It lives on the epic so the people
-doing the work can find it. The last step before the epic goes to `dev` is to
-delete this file.
+**Working plan, not documentation.** The cleanup PR (step 4) deletes it.
 
-## The stack
+## Where things stand
 
-These come from PR base refs, and git agrees: each child contains its parent's
-tip. The storage chain is behind the epic by the R cleanup, the `dev` merges,
-#368 and #334, which does not block it.
-
-**#332's conflict-freedom is unverified as of 2026-10-15.** The local test merge
-that found it clean onto the epic tip was run on 09-28, before #368 and #334
-landed. GitHub reports `mergeable: UNKNOWN` for #332, which means it has not
-recomputed, not that there is a conflict. Re-run the test merge before relying
-on it.
-
-#341 and #343 report `MERGEABLE`, checked 2026-10-15, because they base
-branches inside the chain that have not moved.
-
-```
-dev
-└── delivery/Monongalia_County            epic · no PR to dev · 0 behind dev · includes #334 (7a57f2fa)
-    └── #332 feature/generalize_storage.R          unverified · 1 commit · assigned Chad · ticket: none
-        └── #341 fix/335-manifest-tree-relative    clean · 1 commit · ticket #335
-            └── #343 feature/340-precinct-snapshot-upload  clean · 1 commit · ticket #340
-```
-
-The storage chain (#332, #341, #343) is one feature split three ways. #332
-generalizes `storage.R` but introduced defects, listed on #335. #341 fixes those
-defects by merging *into* #332's branch. #343 then adds the precinct snapshot
-upload, which is the first half of #340. So **#332 is not ready to merge on its
-own**; it goes last in its chain, carrying all three.
-
-**`dev` is merged in** as of `c0f61da2` (2026-09-27), bringing the
-driving-distance tools (#321) and the Tarrant 2026 work, so the final run will
-happen on what actually reaches `dev`. Two conflicts came with it, both resolved:
-`python/tests/ors_up_cli_test.py` took `dev`'s version wholesale, and
-`python/CLAUDE.md` took the union. Re-merge `dev` if much time passes before the
-final run.
-
-`dev` was re-merged on 2026-10-04 (`9a1b066f`, bringing #363) and again on
-2026-10-15 (`815a1796`, bringing #369), both conflict-free. The epic is level
-with `dev` as of 2026-10-15. Re-merge before the final run if `dev` moves.
+- The epic holds the precinct pipeline and the storage chain (#332, #341, #343, #378).
+- It is 3 commits behind `dev`, all docs (#375).
+- One PR is open against it: #381, the deliverable folder (draft).
+- `feature/376-clean-up-tracking` is left over from #378, which has merged. Delete it.
 
 ## Order of work
 
-Standard operating procedure, for every merge in this plan:
+1. **Land the open work below, in any order.** Everything in "Must land" goes in
+   before the epic goes to `dev`.
+2. **Final run.** Merge `dev` in, then run
+   `extract_precincts.r Monongalia_County_WV.r` on the epic with ORS up. This is the
+   first upload to the real bucket. It regenerates the four `*_optimized_*` heat
+   maps, where 55 zero-population blocks change destination from what was
+   delivered. ADR 0003 records why.
+3. **Verify the bucket.** Under
+   `precinct-distance-analyses/Monongalia_County_WV_precinct_analysis/distance_analysis/<datestamp>/`:
+   every output, the route geojson, and `analysis_manifest.yaml`, with every manifest
+   entry matching an object. Do not start step 4 until this is confirmed.
+4. **Cleanup PR** (#340, Follow-up 2, second half: outputs out of git):
+   - Narrow the `.gitignore` rule `!precinct_analysis_outputs/**/*` to the two
+     reconciliation files, which hold human decisions rather than run output:
+     `location_precinct_mismatches.csv` (hand-reviewed each round; its git history
+     is the only record of past rounds) and `precinct_polling_location_crosswalk.csv`
+     (built from the mismatches by `Monongalia_reconciliation.r`, read back by
+     `extract_precincts.r`). Their long-term home is #372.
+   - `git rm --cached` the other outputs, including the geojson.
+   - Delete this file.
+5. **Epic → `dev`**, with a merge commit. The cleanup lands first, so the outputs
+   never reach `dev`'s tree.
 
-- Merge with a **merge commit, not a squash**. This repo has no default merge
-  strategy, and a squash here would make the next PR in the stack replay commits
-  that already landed.
-- **Delete the branch immediately.** Any PR pointing at it is then retargeted to
-  where it merged.
+## Must land
 
-The automatic retarget fires only when the deleted branch has a merged PR of its
-own that covers its current tip. Deleting immediately is what keeps that true.
+| Ticket | What |
+|---|---|
+| #340, Follow-up 2 | The route geojson joins the main run's upload (before step 2). Then the outputs leave git (step 4). |
+| #340, Follow-up 3 | `flag_state_provided_precincts.r` uploads the flagged-precinct layers. The precinct 2A/2B PNG is uploaded once by hand, and its object path is posted on #340. |
+| #380 | Part 1: the deliverable folder. Part 2: inputs tracked in git are recorded in the manifest by path and commit, not uploaded. Both in PR #381. |
+| #379 | `extract_precincts.r` reads its model inputs from the DB or CSV, and records their `model_run_id`. |
+| #377 | Document the precinct analysis workflow. |
+| #307 | In the driving-time epic. `results.csv`'s `distance_m` holds seconds for driving-time runs; #307 renames it. Once it lands, `flagged_optimized_distant_blocks()` (`precinct_shape_functions.r`, the `distance_m / 60` TODO) reads the renamed column, and the two `optimized_distance_flagged_blocks_*` CSVs stop labeling seconds as `distance_m`. Before step 2. |
 
-**If you forget to delete immediately** and more work lands on that branch, the
-condition no longer holds, and deleting it later can close the PRs based on it
-instead of retargeting them. Retarget the dependents explicitly first:
+Decided, so not on this list: the optimization run stays required (#340, 2026-11-28).
 
-```bash
-# before deleting <branch>
-gh pr list --state open --json number,headRefName,baseRefName \
-  --jq '.[]|select(.baseRefName=="<branch>")'
-# for each result
-gh pr edit <n> --base <where the branch merged>
-```
+## Related, not blocking
 
-**Example.** On 2026-09-27 `feature/optimization_output_maps` was deleted and
-#330, #332 and #334 **closed unmerged** rather than retargeting; recovering them
-took a branch restore, a reopen, and a manual retarget of each.
+- #372: where the hand-reviewed reconciliation CSVs live long term.
+- #373: output filenames with spaces.
+- #374: `deprecated/` and `testing_model_functionality/` scripts cannot run.
 
-1. **Storage chain, into `feature/generalize_storage.R`.** Independent of the
-   rest, so it can start now.
-   - Merge #341 and delete `fix/335-manifest-tree-relative` immediately; #343
-     retargets to `feature/generalize_storage.R`.
-   - Merge #343.
-   - The geojson follow-up (below), as a new PR under #340.
+## Known issue during the run
 
-2. **The rest into the epic.** #332 already bases the epic, so nothing needs
-   retargeting. Merge #332, which now carries the whole storage chain.
+**#339.** `pytest` fails
+`buffered_extract_test.py::test_buffer_polygon_contains_and_grows_state` with
+`Permission denied` on `datasets/openrouteservice/`. This work does not cause it;
+do not chase it. `sudo chown -R vscode datasets/openrouteservice` clears it locally.
 
-   #334 merged on 2026-10-15 (`7a57f2fa`), squashed — safe because nothing was
-   stacked on it. It dropped `safe_fread` and kept the `| x == ""` guards on the
-   CSV read-back paths, documenting why, so no `fread()` calls need converting.
-   Reasoning is in the
-   [PR comment](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/pull/334#issuecomment-6182884624).
+## Tickets to close by hand
 
-3. **Final run.** Run `extract_precincts.r` for Monongalia on the epic, with ORS
-   up. Every change above affects what this run produces: the R cleanup
-   reorganized the scripts and the storage chain does the uploading. This is the first real upload to the bucket. #368 is
-   already on the epic, so this run also regenerates the solver-assignment heat
-   maps with outlines built from the flagging assignment — see ADR 0003.
+GitHub closes a ticket from a PR only when the PR merges into `main`, so these stay
+open although their work is on the epic. Ticket (PR that landed it):
 
-4. **Verify the bucket.** The run's folder under `precinct-distance-analyses/`
-   should hold the outputs, the geojson, `sources/`, and `analysis_manifest.yaml`.
-   Do not start step 5 until this is confirmed.
+#266 (#278), #267 (#280), #268 (#300), #269 (#292), #270 (#293), #271 (#306),
+#272 (#275), #276 (#329), #277 (#300), #282 (#284), #297 (#301), #298 (#301),
+#376 (#378).
 
-5. **Cleanup PR** (the second part of the #340 follow-up, below):
-   - narrow the `.gitignore` rule `!precinct_analysis_outputs/**/*` to the two
-     reconciliation files, which hold human decisions rather than plain run
-     output: `location_precinct_mismatches.csv` (hand-reviewed each round; its git
-     history is the only record of past rounds) and
-     `precinct_polling_location_crosswalk.csv` (built from the mismatches by
-     `Monongalia_reconciliation.r` and read back by `extract_precincts.r`);
-   - `git rm --cached` the other outputs, including the geojson;
-   - delete this plan file.
-
-6. **Epic → `dev`.** The cleanup lands first, so the outputs never reach `dev`'s
-   tree.
-
-Why this order:
-
-- **Parent before child keeps each PR's merged diff equal to its reviewed diff.**
-  Merging a child first lands it *inside the parent's branch*, so the parent's PR
-  silently grows after it was reviewed. The underlying rule is "don't change a PR's
-  content after it has been reviewed."
-- **The exception is a fix for its parent.** #341 exists to fix #332, so it lands
-  in #332's branch before #332 merges, and #332 is reviewed with the fix in it.
-- **Merge commits make this safe.** After a parent merges, a retargeted child
-  still shows only its own commits.
-
-## Tickets
-
-- **#340 holds both halves of the outputs work**, as a follow-up after #343
-  ([comment, 2026-09-21](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/issues/340#issuecomment-5768195389)).
-  Chad has been asked whether he'd rather split it into its own ticket.
-  - *Geojson into the upload* (step 1): `extract_precincts.r` runs the route fetch
-    after writing the 20-minute CSV, behind a per-county config switch because it
-    needs ORS, and registers the geojson so it uploads with everything else.
-  - *Outputs out of git* (step 5): after a verified upload, narrow the
-    `.gitignore` rule to the two reconciliation files and untrack the rest.
-- **#333 replaces #330**, is assigned to Susama, and has a
-  [revised plan](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/issues/333#issuecomment-5860131935)
-  that supersedes the ticket body. It factors the empty-block fallback into
-  `associate_destinations_to_all_blocks()` and `combine_blocks_by_destination()`,
-  and builds Step 7's outline from the flagging assignment instead of reading
-  `Basic_analysis.r`'s shapefile — so fill and outline become two views of one
-  result and cannot disagree. `get_solver_precinct_shapes()` and
-  `SOLVER_PRECINCT_SHAPEFILE` go away with it.
-
-  Its two "already landed" items are on this epic via 276 (`6b0e5b3f`): geometry
-  standardized on TIGER's native NAD83 (`TIGER_CRS`), and a real "all blocks
-  accounted for" check in `compute_block_precinct_overlaps()`. All seven steps of
-  the revised plan are done and merged to the epic as #368 on 2026-09-29
-  (`3d9b4b05`).
-
-  Two consequences for this plan. **This changes a delivered output** — the four
-  `*_optimized_*` heat maps under `precinct_analysis_outputs/Monongalia_County_WV/`,
-  where 55 zero-population blocks change destination. ADR 0003 records why, which
-  artifacts, and how to tell which behaviour a revision produces. #368 also
-  carried the repair without which the final run could not get past Step 6; that
-  is on the epic now, so it no longer gates step 3. Its regression check was run
-  locally, without uploading the precinct outputs, and does not replace the final
-  run.
-  One follow-up stays open on #333: the 20-minute maps' fill comes from its own
-  association, separate from the outline's. The two agree today.
-- **#339 — `buffered_extract` test failure is expected, and is not ours.**
-  `pytest` fails one unit test on this epic:
-  `buffered_extract_test.py::test_buffer_polygon_contains_and_grows_state`,
-  with `Permission denied` writing
-  `datasets/openrouteservice/georgia-buffer.geojson`. Nothing in the Monongalia
-  work causes it, and nothing here fixes it — the three files involved are
-  byte-identical to `dev`.
-
-  The test patches `buffered_extract.ORS_DATA_DIR`, but the output path comes
-  from `buffer_polygon_path()`, which reads `ors_setup.ORS_DATA_DIR` — a
-  separate binding the patch never touches. So the write escapes `tmp_path` and
-  lands in the real directory. On a writable checkout it passes silently and
-  just rewrites that file with byte-identical content and a fresh mtime, which
-  is how it went unnoticed; where the directory is root-owned (an ORS container
-  created it that way), the same bug fails hard instead.
-
-  Do not chase it during the final run, and do not confuse it with the separate
-  `dev` pytest failures Chad traced to the test database being ahead of `dev`'s
-  migrations. Chad's fix is folded into #338, not a standalone PR.
-  `sudo chown -R vscode datasets/openrouteservice` clears the local symptom.
-- **#335's "tracked separately" items are not tracked anywhere**
-  ([note, 2026-09-21](https://github.com/Voting-Rights-Code/Equitable-Polling-Locations/issues/335#issuecomment-5768193087)):
-  the long-term home of the reconciliation files, spaces in output filenames, and
-  `deprecated/` path modernization. Each needs chasing down. None of them blocks
-  this plan; the reconciliation files simply stay tracked where they are.
+**Confirm before closing:** #283 (`Monongalia_73` shows zero population). #285 flags
+the case, but the winner-take-all block assignment that causes it is unchanged. Close
+it only if flagging was the intended fix.
