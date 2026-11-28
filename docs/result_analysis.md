@@ -56,7 +56,7 @@ Whether pulling from the database or csv, the analysis software compiles the rel
 
 # Analysis and Google Cloud Storage
 
-By default output from `Basic_analysis.r` will be written to Google Cloud Storage under the bucket `equitable-polling-analysis` under the folder `equitable-polling-locations-analyses/<CLOUD_STORAGE_ANALYSIS_NAME>/<datestamp>/`. This bucket can be browsed in the [Google Cloud Storage](https://console.cloud.google.com/storage/browser/equitable-polling-analysis;tab=objects?forceOnBucketsSortingFiltering=true&project=equitable-polling-locations&prefix=&forceOnObjectsSortingFiltering=false) console, if access is grated.
+By default output from `Basic_analysis.r` will be written to Google Cloud Storage under the bucket `equitable-polling-analysis` under the folder `equitable-polling-locations-analyses/<CLOUD_STORAGE_ANALYSIS_NAME>/<datestamp>/`. This bucket can be browsed in the [Google Cloud Storage](https://console.cloud.google.com/storage/browser/equitable-polling-analysis;tab=objects?forceOnBucketsSortingFiltering=true&project=equitable-polling-locations&prefix=&forceOnObjectsSortingFiltering=false) console, if access is granted.
 
 ## Database
 
@@ -133,5 +133,5 @@ sapply(orig_list_prepped, function(x)make_demo_dist_map(x, 'asian'))
 upload_graph_files_to_cloud_storage()
 ```
 
-By setting the above, any graph file written to using the functions found in `.../result_analysis/graph_functions.R` and `.../result_analysis/graph_functions.R` will be written locally in the `.../result_analysis/` as well as to Cloud Storage under the folder `equitable-polling-analysis:equitable-polling-locations-analyses/Basic_analysis.r/[DATESTAMP]/...`.
+By setting the above, any graph file written to using the functions found in `.../result_analysis/graph_functions.R` and `.../result_analysis/graph_functions.R` will be written locally in the `result_analysis_outputs/` as well as to Cloud Storage under the folder `equitable-polling-analysis:equitable-polling-locations-analyses/Basic_analysis.r/[DATESTAMP]/...`.
 
